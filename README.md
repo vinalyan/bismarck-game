@@ -3,6 +3,7 @@
 
 
 ## Project Structure
+```
 backend/
 ├── cmd/server/          # Application entry point
 ├── internal/            # Private application code
@@ -13,7 +14,7 @@ backend/
 │   └── auth/            # Authentication services
 ├── pkg/                 # Public reusable packages
 └── migrations/          # Database migrations
-
+```
 
 ## Quick Start
 
@@ -65,16 +66,14 @@ Once running, check:
 
 ## Development
 
-This project follows standard Go project layout with clean architecture principles.
 
-## 📋 Шаг 8: Проверка и тестирование setup
+```
 
 ### Выполняемые команды для проверки:
 ``` bash
 # Проверка структуры папок
 find . -type f -name "*.go" | head -10
 find . -type f -name "*.md" -o -name "*.yml" -o -name "*.sql" | head -10
-```
 
 # Проверка Go модуля
 go mod verify
@@ -94,3 +93,4 @@ docker-compose ps
 # Остановка сервисов
 docker-compose down
 ```
+
