@@ -35,9 +35,9 @@ func GetTestConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
 			Address:      ":0", // случайный порт
-			ReadTimeout:  5 * time.Second,
-			WriteTimeout: 5 * time.Second,
-			IdleTimeout:  30 * time.Second,
+			ReadTimeout:  Duration(5 * time.Second),
+			WriteTimeout: Duration(5 * time.Second),
+			IdleTimeout:  Duration(30 * time.Second),
 		},
 		Database: DatabaseConfig{
 			Host:     "localhost",
@@ -53,14 +53,14 @@ func GetTestConfig() *Config {
 		},
 		JWT: JWTConfig{
 			Secret:     "test-secret-key",
-			Expiration: 1 * time.Hour,
+			Expiration: Duration(1 * time.Hour),
 		},
 		Game: GameConfig{
 			MaxPlayers:      2,
-			TurnDuration:    10 * time.Second,
-			GameStartDelay:  2 * time.Second,
+			TurnDuration:    Duration(10 * time.Second),
+			GameStartDelay:  Duration(2 * time.Second),
 			MaxGames:        10,
-			CleanupInterval: 30 * time.Second,
+			CleanupInterval: Duration(30 * time.Second),
 		},
 		Log: LogConfig{
 			Level:  "error", // минимум логов в тестах

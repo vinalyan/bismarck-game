@@ -17,7 +17,7 @@ func main() {
 
 	log.Printf("Starting Bismarck Game Server on %s", cfg.Server.Address)
 	log.Printf("Game settings: %d players, %v turn duration",
-		cfg.Game.MaxPlayers, cfg.Game.TurnDuration)
+		cfg.Game.MaxPlayers, cfg.Game.TurnDuration.ToDuration())
 
 	if err := srv.Start(); err != nil {
 		log.Fatalf("Server failed to start: %v", err)

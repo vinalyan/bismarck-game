@@ -9,6 +9,35 @@ import (
 	"time"
 )
 
+// Duration кастомный тип для time.Duration с поддержкой JSON
+type Duration time.Duration
+
+// UnmarshalJSON реализует json.Unmarshaler для Duration
+func (d *Duration) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	dur, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+
+	*d = Duration(dur)
+	return nil
+}
+
+// MarshalJSON реализует json.Marshaler для Duration
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(time.Duration(d).String())
+}
+
+// ToDuration возвращает time.Duration
+func (d Duration) ToDuration() time.Duration {
+	return time.Duration(d)
+}
+
 // Config представляет основную структуру конфигурации
 type Config struct {
 	Server   ServerConfig   `json:"server"`
@@ -21,10 +50,10 @@ type Config struct {
 
 // ServerConfig настройки HTTP сервера
 type ServerConfig struct {
-	Address      string        `json:"address"`
-	ReadTimeout  time.Duration `json:"read_timeout"`
-	WriteTimeout time.Duration `json:"write_timeout"`
-	IdleTimeout  time.Duration `json:"idle_timeout"`
+	Address      string   `json:"address"`
+	ReadTimeout  Duration `json:"read_timeout"`
+	WriteTimeout Duration `json:"write_timeout"`
+	IdleTimeout  Duration `json:"idle_timeout"`
 }
 
 // DatabaseConfig настройки PostgreSQL
@@ -46,17 +75,17 @@ type RedisConfig struct {
 
 // JWTConfig настройки JWT токенов
 type JWTConfig struct {
-	Secret     string        `json:"secret"`
-	Expiration time.Duration `json:"expiration"` // в часах
+	Secret     string   `json:"secret"`
+	Expiration Duration `json:"expiration"` // в часах
 }
 
 // GameConfig игровые настройки
 type GameConfig struct {
-	MaxPlayers      int           `json:"max_players"`
-	TurnDuration    time.Duration `json:"turn_duration"`
-	GameStartDelay  time.Duration `json:"game_start_delay"`
-	MaxGames        int           `json:"max_games"`
-	CleanupInterval time.Duration `json:"cleanup_interval"`
+	MaxPlayers      int      `json:"max_players"`
+	TurnDuration    Duration `json:"turn_duration"`
+	GameStartDelay  Duration `json:"game_start_delay"`
+	MaxGames        int      `json:"max_games"`
+	CleanupInterval Duration `json:"cleanup_interval"`
 }
 
 // LogConfig настройки логирования
@@ -129,7 +158,7 @@ func overrideFromEnv(config *Config) {
 	}
 	if val := os.Getenv("SERVER_READ_TIMEOUT"); val != "" {
 		if dur, err := time.ParseDuration(val); err == nil {
-			config.Server.ReadTimeout = dur
+			config.Server.ReadTimeout = Duration(dur)
 		}
 	}
 
@@ -163,7 +192,7 @@ func overrideFromEnv(config *Config) {
 	}
 	if val := os.Getenv("JWT_EXPIRATION"); val != "" {
 		if hours, err := strconv.Atoi(val); err == nil {
-			config.JWT.Expiration = time.Duration(hours) * time.Hour
+			config.JWT.Expiration = Duration(time.Duration(hours) * time.Hour)
 		}
 	}
 
@@ -200,7 +229,7 @@ func validateConfig(config *Config) error {
 		errors = append(errors, "JWT secret is required")
 	}
 	if config.JWT.Expiration == 0 {
-		config.JWT.Expiration = 24 * time.Hour // default
+		config.JWT.Expiration = Duration(24 * time.Hour) // default
 	}
 
 	// Game validation
@@ -208,7 +237,7 @@ func validateConfig(config *Config) error {
 		config.Game.MaxPlayers = 2 // default for Bismarck game
 	}
 	if config.Game.TurnDuration == 0 {
-		config.Game.TurnDuration = 30 * time.Second // default
+		config.Game.TurnDuration = Duration(30 * time.Second) // default
 	}
 
 	if len(errors) > 0 {
