@@ -1,13 +1,77 @@
 package config
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-	"strconv"
-	"strings"
-	"time"
+    "encoding/json"
+    "fmt"
+    "os"
+    "strconv"
+    "strings"
+    "time"
 )
+
+// JSONDuration unmarshals durations from JSON.
+// Supports either string values like "30s", "1m" or numeric values interpreted as seconds.
+type JSONDuration time.Duration
+
+func (d *JSONDuration) UnmarshalJSON(b []byte) error {
+    // Handle quoted duration strings (e.g., "30s", "1m")
+    if len(b) >= 2 && b[0] == '"' && b[len(b)-1] == '"' {
+        s := string(b[1 : len(b)-1])
+        if s == "" {
+            *d = JSONDuration(0)
+            return nil
+        }
+        dur, err := time.ParseDuration(s)
+        if err != nil {
+            return fmt.Errorf("invalid duration string %q: %w", s, err)
+        }
+        *d = JSONDuration(dur)
+        return nil
+    }
+
+    // Handle numeric values (treated as seconds; floats allowed)
+    s := strings.TrimSpace(string(b))
+    f, err := strconv.ParseFloat(s, 64)
+    if err != nil {
+        return fmt.Errorf("invalid duration number %q: %w", s, err)
+    }
+    *d = JSONDuration(time.Duration(f * float64(time.Second)))
+    return nil
+}
+
+func (d JSONDuration) Duration() time.Duration { return time.Duration(d) }
+
+// JSONHours unmarshals durations where bare numbers mean hours (e.g., 24 -> 24h).
+// Also supports duration strings like "24h" or "90m".
+type JSONHours time.Duration
+
+func (h *JSONHours) UnmarshalJSON(b []byte) error {
+    // Handle quoted duration strings
+    if len(b) >= 2 && b[0] == '"' && b[len(b)-1] == '"' {
+        s := string(b[1 : len(b)-1])
+        if s == "" {
+            *h = JSONHours(0)
+            return nil
+        }
+        dur, err := time.ParseDuration(s)
+        if err != nil {
+            return fmt.Errorf("invalid duration string %q: %w", s, err)
+        }
+        *h = JSONHours(dur)
+        return nil
+    }
+
+    // Bare numbers are hours
+    s := strings.TrimSpace(string(b))
+    f, err := strconv.ParseFloat(s, 64)
+    if err != nil {
+        return fmt.Errorf("invalid hours number %q: %w", s, err)
+    }
+    *h = JSONHours(time.Duration(f * float64(time.Hour)))
+    return nil
+}
+
+func (h JSONHours) Duration() time.Duration { return time.Duration(h) }
 
 // Config представляет основную структуру конфигурации
 type Config struct {
@@ -21,10 +85,10 @@ type Config struct {
 
 // ServerConfig настройки HTTP сервера
 type ServerConfig struct {
-	Address      string        `json:"address"`
-	ReadTimeout  time.Duration `json:"read_timeout"`
-	WriteTimeout time.Duration `json:"write_timeout"`
-	IdleTimeout  time.Duration `json:"idle_timeout"`
+    Address      string       `json:"address"`
+    ReadTimeout  JSONDuration `json:"read_timeout"`
+    WriteTimeout JSONDuration `json:"write_timeout"`
+    IdleTimeout  JSONDuration `json:"idle_timeout"`
 }
 
 // DatabaseConfig настройки PostgreSQL
@@ -46,17 +110,17 @@ type RedisConfig struct {
 
 // JWTConfig настройки JWT токенов
 type JWTConfig struct {
-	Secret     string        `json:"secret"`
-	Expiration time.Duration `json:"expiration"` // в часах
+    Secret     string    `json:"secret"`
+    Expiration JSONHours `json:"expiration"` // в часах
 }
 
 // GameConfig игровые настройки
 type GameConfig struct {
-	MaxPlayers      int           `json:"max_players"`
-	TurnDuration    time.Duration `json:"turn_duration"`
-	GameStartDelay  time.Duration `json:"game_start_delay"`
-	MaxGames        int           `json:"max_games"`
-	CleanupInterval time.Duration `json:"cleanup_interval"`
+    MaxPlayers      int           `json:"max_players"`
+    TurnDuration    JSONDuration  `json:"turn_duration"`
+    GameStartDelay  JSONDuration  `json:"game_start_delay"`
+    MaxGames        int           `json:"max_games"`
+    CleanupInterval JSONDuration  `json:"cleanup_interval"`
 }
 
 // LogConfig настройки логирования
@@ -127,11 +191,11 @@ func overrideFromEnv(config *Config) {
 	if val := os.Getenv("SERVER_ADDRESS"); val != "" {
 		config.Server.Address = val
 	}
-	if val := os.Getenv("SERVER_READ_TIMEOUT"); val != "" {
-		if dur, err := time.ParseDuration(val); err == nil {
-			config.Server.ReadTimeout = dur
-		}
-	}
+    if val := os.Getenv("SERVER_READ_TIMEOUT"); val != "" {
+        if dur, err := time.ParseDuration(val); err == nil {
+            config.Server.ReadTimeout = JSONDuration(dur)
+        }
+    }
 
 	// Database
 	if val := os.Getenv("DB_HOST"); val != "" {
@@ -161,11 +225,11 @@ func overrideFromEnv(config *Config) {
 	if val := os.Getenv("JWT_SECRET"); val != "" {
 		config.JWT.Secret = val
 	}
-	if val := os.Getenv("JWT_EXPIRATION"); val != "" {
-		if hours, err := strconv.Atoi(val); err == nil {
-			config.JWT.Expiration = time.Duration(hours) * time.Hour
-		}
-	}
+    if val := os.Getenv("JWT_EXPIRATION"); val != "" {
+        if hours, err := strconv.Atoi(val); err == nil {
+            config.JWT.Expiration = JSONHours(time.Duration(hours) * time.Hour)
+        }
+    }
 
 	// Game
 	if val := os.Getenv("GAME_MAX_PLAYERS"); val != "" {
@@ -199,17 +263,17 @@ func validateConfig(config *Config) error {
 	if config.JWT.Secret == "" {
 		errors = append(errors, "JWT secret is required")
 	}
-	if config.JWT.Expiration == 0 {
-		config.JWT.Expiration = 24 * time.Hour // default
-	}
+    if config.JWT.Expiration.Duration() == 0 {
+        config.JWT.Expiration = JSONHours(24 * time.Hour) // default
+    }
 
 	// Game validation
 	if config.Game.MaxPlayers == 0 {
 		config.Game.MaxPlayers = 2 // default for Bismarck game
 	}
-	if config.Game.TurnDuration == 0 {
-		config.Game.TurnDuration = 30 * time.Second // default
-	}
+    if config.Game.TurnDuration.Duration() == 0 {
+        config.Game.TurnDuration = JSONDuration(30 * time.Second) // default
+    }
 
 	if len(errors) > 0 {
 		return fmt.Errorf("validation errors: %s", strings.Join(errors, "; "))

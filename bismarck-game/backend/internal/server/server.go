@@ -26,6 +26,7 @@ func New(cfg *config.Config) *Server {
 }
 
 func (s *Server) setupRoutes() {
+    s.router.Use(s.loggingMiddleware)
 	s.router.HandleFunc("/", s.handleRoot).Methods("GET")
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 	s.router.NotFoundHandler = http.HandlerFunc(s.handleNotFound)
@@ -38,9 +39,10 @@ func (s *Server) setupRoutes() {
 func (s *Server) Start() error {
 	srv := &http.Server{
 		Addr:         s.config.Server.Address,
-		Handler:      s.router,
-		ReadTimeout:  s.config.Server.ReadTimeout,
-		WriteTimeout: s.config.Server.WriteTimeout,
+        Handler:      s.router,
+        ReadTimeout:  s.config.Server.ReadTimeout.Duration(),
+        WriteTimeout: s.config.Server.WriteTimeout.Duration(),
+        IdleTimeout:  s.config.Server.IdleTimeout.Duration(),
 	}
 
 	return srv.ListenAndServe()
@@ -61,12 +63,12 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("🔥 PANIC in handleHealth: %v", err)
+            log.Printf("🔥 PANIC in handleRoot: %v", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	}()
 
-	log.Printf("📝 Handling health request")
+    log.Printf("📝 Handling root request")
 	w.Write([]byte(`Bismarck Game Server v0.1.0`))
 
 }

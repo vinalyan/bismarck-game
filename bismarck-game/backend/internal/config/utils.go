@@ -34,10 +34,10 @@ func GetDefaultConfigPath() string {
 func GetTestConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
-			Address:      ":0", // случайный порт
-			ReadTimeout:  5 * time.Second,
-			WriteTimeout: 5 * time.Second,
-			IdleTimeout:  30 * time.Second,
+            Address:      ":0", // случайный порт
+            ReadTimeout:  JSONDuration(5 * time.Second),
+            WriteTimeout: JSONDuration(5 * time.Second),
+            IdleTimeout:  JSONDuration(30 * time.Second),
 		},
 		Database: DatabaseConfig{
 			Host:     "localhost",
@@ -51,17 +51,17 @@ func GetTestConfig() *Config {
 			Address: "localhost:6379",
 			DB:      1, // отдельная БД для тестов
 		},
-		JWT: JWTConfig{
-			Secret:     "test-secret-key",
-			Expiration: 1 * time.Hour,
-		},
-		Game: GameConfig{
-			MaxPlayers:      2,
-			TurnDuration:    10 * time.Second,
-			GameStartDelay:  2 * time.Second,
-			MaxGames:        10,
-			CleanupInterval: 30 * time.Second,
-		},
+        JWT: JWTConfig{
+            Secret:     "test-secret-key",
+            Expiration: JSONHours(1 * time.Hour),
+        },
+        Game: GameConfig{
+            MaxPlayers:      2,
+            TurnDuration:    JSONDuration(10 * time.Second),
+            GameStartDelay:  JSONDuration(2 * time.Second),
+            MaxGames:        10,
+            CleanupInterval: JSONDuration(30 * time.Second),
+        },
 		Log: LogConfig{
 			Level:  "error", // минимум логов в тестах
 			Format: "text",
