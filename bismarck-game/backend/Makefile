@@ -44,7 +44,17 @@ deps:
 # Run database migrations
 migrate:
 	@echo "Running database migrations..."
-	# TODO: Add migration commands
+	go run cmd/migrate/main.go -action=up
+
+# Rollback migration
+migrate-down:
+	@echo "Rolling back migration..."
+	go run cmd/migrate/main.go -action=down -version=$(VERSION)
+
+# Show migration status
+migrate-status:
+	@echo "Showing migration status..."
+	go run cmd/migrate/main.go -action=status
 
 # Start Docker services
 docker-up:
@@ -88,3 +98,33 @@ generate-secret:
 # Проверка конфигурации
 check-config:
 	@go run cmd/check-config/main.go
+
+# Полная настройка для разработки
+setup-dev: docker-up deps migrate
+	@echo "Development environment ready!"
+
+# Очистка и пересборка
+rebuild: clean deps build
+	@echo "Rebuild completed!"
+
+# Запуск с hot reload (требует air)
+dev-reload:
+	@echo "Starting development server with hot reload..."
+	air
+
+# Проверка кода
+lint:
+	@echo "Running linter..."
+	golangci-lint run
+
+# Форматирование кода
+format:
+	@echo "Formatting code..."
+	go fmt ./...
+	goimports -w .
+
+# Тестирование
+test-coverage:
+	@echo "Running tests with coverage..."
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
