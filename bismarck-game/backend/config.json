@@ -1,9 +1,9 @@
 {
   "server": {
     "address": ":8080",
-    "read_timeout": 30,
-    "write_timeout": 30,
-    "idle_timeout": 60
+    "read_timeout": "30s",
+    "write_timeout": "30s",
+    "idle_timeout": "60s"
   },
   "database": {
     "host": "localhost",
@@ -24,10 +24,10 @@
   },
   "game": {
     "max_players": 2,
-    "turn_duration": 30,
-    "game_start_delay": 10,
+    "turn_duration": "30s",
+    "game_start_delay": "10s",
     "max_games": 100,
-    "cleanup_interval": 300
+    "cleanup_interval": "300s"
   },
   "log": {
     "level": "debug",
