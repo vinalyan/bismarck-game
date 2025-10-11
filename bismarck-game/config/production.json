@@ -1,0 +1,37 @@
+{
+  "server": {
+    "address": ":8080",
+    "read_timeout": 30,
+    "write_timeout": 30,
+    "idle_timeout": 60
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "bismarck_user",
+    "password": "",
+    "name": "bismarck_game",
+    "ssl_mode": "require"
+  },
+  "redis": {
+    "address": "localhost:6379",
+    "password": "",
+    "db": 0
+  },
+  "jwt": {
+    "secret": "",
+    "expiration": 24
+  },
+  "game": {
+    "max_players": 2,
+    "turn_duration": 30,
+    "game_start_delay": 10,
+    "max_games": 1000,
+    "cleanup_interval": 300
+  },
+  "log": {
+    "level": "info",
+    "format": "json",
+    "file_path": "/var/log/bismarck-game/app.log"
+  }
+}

@@ -1,46 +1,25 @@
 package main
 
 import (
-	"fmt"
+	"bismarck-game/backend/internal/config"
+	"bismarck-game/backend/internal/server"
 	"log"
-	"net/http"
-
-	"github.com/gorilla/mux"
 )
 
 func main() {
-	fmt.Println("🚀 Bismarck Game Backend starting...")
-
-	router := mux.NewRouter()
-
-	// Basic health check
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status": "ok", "service": "bismarck-game"}`))
-	}).Methods("GET")
-
-	// API info
-	router.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{
-			"name": "Bismarck Game API",
-			"version": "0.1.0",
-			"endpoints": {
-				"health": "/health",
-				"api_info": "/api"
-			}
-		}`))
-	}).Methods("GET")
-
-	server := &http.Server{
-		Addr:    ":8080",
-		Handler: router,
+	// Загрузка конфигурации
+	cfg, err := config.Load("config.json")
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
 	}
+	// Создание и запуск сервера
+	srv := server.New(cfg)
 
-	log.Printf("🌐 Server starting on %s", server.Addr)
-	log.Printf("✅ Health check available at http://localhost%s/health", server.Addr)
+	log.Printf("Starting Bismarck Game Server on %s", cfg.Server.Address)
+	log.Printf("Game settings: %d players, %v turn duration",
+		cfg.Game.MaxPlayers, cfg.Game.TurnDuration)
 
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("❌ Server failed to start: %v", err)
+	if err := srv.Start(); err != nil {
+		log.Fatalf("Server failed to start: %v", err)
 	}
 }

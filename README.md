@@ -64,33 +64,19 @@ Once running, check:
 - API: http://localhost:8080/api
 - Health: http://localhost:8080/health
 
-## Development
 
+## Конфигурация
 
-```
+### Основные переменные:
+- `APP_ENV` - окружение (development/production)
+- `SERVER_ADDRESS` - адрес HTTP сервера
+- `JWT_SECRET` - секрет для JWT токенов
 
-### Выполняемые команды для проверки:
-``` bash
-# Проверка структуры папок
-find . -type f -name "*.go" | head -10
-find . -type f -name "*.md" -o -name "*.yml" -o -name "*.sql" | head -10
+### База данных:
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
 
-# Проверка Go модуля
-go mod verify
-go list -m all
+### Redis:
+- `REDIS_ADDRESS`
 
-# Проверка компиляции
-go build ./...
-
-# Запуск Docker сервисов для проверки
-docker-compose up -d
-sleep 10
-docker-compose ps
-
-# Проверка подключения к БД (требует psql клиент)
-# psql -h localhost -U bismarck_user -d bismarck_game -c "SELECT version();"
-
-# Остановка сервисов
-docker-compose down
-```
-
+### Игровые настройки:
+- `GAME_MAX_PLAYERS`, `GAME_TURN_DURATION`

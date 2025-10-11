@@ -71,3 +71,20 @@ fmt:
 vet:
 	@echo "Running go vet..."
 	go vet ./...
+
+# Конфигурация
+config-dev:
+	cp ../config/development.json config.json && \
+	echo "Dev configuration ready"
+
+config-prod:
+	cp ../config/production.json config.json
+	echo "prod configuration ready"
+
+# Генерация JWT секрета
+generate-secret:
+	@openssl rand -base64 32
+
+# Проверка конфигурации
+check-config:
+	@go run cmd/check-config/main.go
