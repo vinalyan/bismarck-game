@@ -124,21 +124,23 @@ type JoinGameRequest struct {
 
 // GameResponse представляет ответ с информацией об игре
 type GameResponse struct {
-	ID           string       `json:"id"`
-	Name         string       `json:"name"`
-	Player1ID    string       `json:"player1_id"`
-	Player2ID    string       `json:"player2_id"`
-	CurrentTurn  int          `json:"current_turn"`
-	CurrentPhase GamePhase    `json:"current_phase"`
-	Status       GameStatus   `json:"status"`
-	Settings     GameSettings `json:"settings"`
-	CreatedAt    time.Time    `json:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at"`
-	CompletedAt  *time.Time   `json:"completed_at"`
-	Winner       *string      `json:"winner"`
-	VictoryType  VictoryType  `json:"victory_type"`
-	StartedAt    *time.Time   `json:"started_at"`
-	LastActionAt *time.Time   `json:"last_action_at"`
+	ID              string       `json:"id"`
+	Name            string       `json:"name"`
+	Player1ID       string       `json:"player1_id"`
+	Player2ID       string       `json:"player2_id"`
+	Player1Username string       `json:"player1_username"`
+	Player2Username string       `json:"player2_username"`
+	CurrentTurn     int          `json:"current_turn"`
+	CurrentPhase    GamePhase    `json:"current_phase"`
+	Status          GameStatus   `json:"status"`
+	Settings        GameSettings `json:"settings"`
+	CreatedAt       time.Time    `json:"created_at"`
+	UpdatedAt       time.Time    `json:"updated_at"`
+	CompletedAt     *time.Time   `json:"completed_at"`
+	Winner          *string      `json:"winner"`
+	VictoryType     VictoryType  `json:"victory_type"`
+	StartedAt       *time.Time   `json:"started_at"`
+	LastActionAt    *time.Time   `json:"last_action_at"`
 }
 
 // ToResponse преобразует Game в GameResponse
@@ -159,6 +161,29 @@ func (g *Game) ToResponse() GameResponse {
 		VictoryType:  g.VictoryType,
 		StartedAt:    g.StartedAt,
 		LastActionAt: g.LastActionAt,
+	}
+}
+
+// ToResponseWithUsernames преобразует Game в GameResponse с username
+func (g *Game) ToResponseWithUsernames(player1Username, player2Username string) GameResponse {
+	return GameResponse{
+		ID:              g.ID,
+		Name:            g.Name,
+		Player1ID:       g.Player1ID,
+		Player2ID:       g.Player2ID,
+		Player1Username: player1Username,
+		Player2Username: player2Username,
+		CurrentTurn:     g.CurrentTurn,
+		CurrentPhase:    g.CurrentPhase,
+		Status:          g.Status,
+		Settings:        g.Settings,
+		CreatedAt:       g.CreatedAt,
+		UpdatedAt:       g.UpdatedAt,
+		CompletedAt:     g.CompletedAt,
+		Winner:          g.Winner,
+		VictoryType:     g.VictoryType,
+		StartedAt:       g.StartedAt,
+		LastActionAt:    g.LastActionAt,
 	}
 }
 

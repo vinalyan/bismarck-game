@@ -285,6 +285,22 @@ func extractTokenFromHeader(authHeader string) string {
 func (h *AuthHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	authRouter := router.PathPrefix("/api/auth").Subrouter()
 
+	// Добавляем OPTIONS обработчик для всех маршрутов
+	authRouter.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Устанавливаем CORS заголовки
+		origin := r.Header.Get("Origin")
+		if origin == "http://localhost:3000" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+		w.WriteHeader(http.StatusOK)
+	})
+
 	// Публичные маршруты
 	authRouter.HandleFunc("/register", h.Register).Methods("POST")
 	authRouter.HandleFunc("/login", h.Login).Methods("POST")

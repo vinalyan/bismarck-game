@@ -1,0 +1,550 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Bismarck Game API",
+    "description": "API для игры Bismarck Chase",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Bismarck Game Team"
+    }
+  },
+  "host": "localhost:8080",
+  "basePath": "/api",
+  "schemes": ["http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "securityDefinitions": {
+    "Bearer": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "JWT токен в формате: Bearer {token}"
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Проверка состояния сервера",
+        "description": "Возвращает статус сервера и информацию о версии",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Сервер работает",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "service": {
+                  "type": "string",
+                  "example": "bismarck-game"
+                },
+                "version": {
+                  "type": "string",
+                  "example": "1.0.0"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "Регистрация пользователя",
+        "description": "Создает нового пользователя в системе",
+        "tags": ["Authentication"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["username", "email", "password"],
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "example": "testuser",
+                  "description": "Имя пользователя"
+                },
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "example": "test@example.com",
+                  "description": "Email адрес"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "password123",
+                  "description": "Пароль"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Пользователь успешно создан",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "message": {
+                  "type": "string",
+                  "example": "User created successfully"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "username": {
+                      "type": "string",
+                      "example": "testuser"
+                    },
+                    "email": {
+                      "type": "string",
+                      "example": "test@example.com"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибка валидации",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Вход в систему",
+        "description": "Аутентификация пользователя и получение JWT токена",
+        "tags": ["Authentication"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["username", "password"],
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "example": "testuser",
+                  "description": "Имя пользователя"
+                },
+                "password": {
+                  "type": "string",
+                  "example": "password123",
+                  "description": "Пароль"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успешный вход",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Login successful"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "123e4567-e89b-12d3-a456-426614174000"
+                        },
+                        "username": {
+                          "type": "string",
+                          "example": "testuser"
+                        },
+                        "email": {
+                          "type": "string",
+                          "example": "test@example.com"
+                        }
+                      }
+                    },
+                    "token": {
+                      "type": "string",
+                      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                      "description": "JWT токен"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Неверные учетные данные",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/games": {
+      "get": {
+        "summary": "Получить список игр",
+        "description": "Возвращает список всех доступных игр",
+        "tags": ["Games"],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список игр",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/GameResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Не авторизован",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Создать новую игру",
+        "description": "Создает новую игру в системе",
+        "tags": ["Games"],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": ["name"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "Моя игра",
+                  "description": "Название игры"
+                },
+                "settings": {
+                  "type": "object",
+                  "description": "Настройки игры",
+                  "properties": {
+                    "private_lobby": {
+                      "type": "boolean",
+                      "example": false,
+                      "description": "Приватная лобби"
+                    },
+                    "password": {
+                      "type": "string",
+                      "example": "",
+                      "description": "Пароль для приватной игры"
+                    },
+                    "time_limit_minutes": {
+                      "type": "integer",
+                      "example": 180,
+                      "description": "Лимит времени в минутах"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Игра создана",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "data": {
+                  "$ref": "#/definitions/GameResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибка валидации",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/games/{id}": {
+      "get": {
+        "summary": "Получить информацию об игре",
+        "description": "Возвращает детальную информацию об игре по ID",
+        "tags": ["Games"],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "ID игры"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Информация об игре",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "data": {
+                  "$ref": "#/definitions/GameResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Игра не найдена",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/games/{id}/join": {
+      "post": {
+        "summary": "Присоединиться к игре",
+        "description": "Присоединяет текущего пользователя к игре",
+        "tags": ["Games"],
+        "security": [
+          {
+            "Bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "ID игры"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "password": {
+                  "type": "string",
+                  "example": "",
+                  "description": "Пароль для приватной игры (если требуется)"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успешно присоединился к игре",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "example": true
+                },
+                "data": {
+                  "$ref": "#/definitions/GameResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Ошибка присоединения",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "GameResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "example": "123e4567-e89b-12d3-a456-426614174000",
+          "description": "Уникальный идентификатор игры"
+        },
+        "name": {
+          "type": "string",
+          "example": "Моя игра",
+          "description": "Название игры"
+        },
+        "player1_id": {
+          "type": "string",
+          "example": "123e4567-e89b-12d3-a456-426614174000",
+          "description": "ID первого игрока"
+        },
+        "player2_id": {
+          "type": "string",
+          "example": "123e4567-e89b-12d3-a456-426614174001",
+          "description": "ID второго игрока"
+        },
+        "player1_username": {
+          "type": "string",
+          "example": "player1",
+          "description": "Имя пользователя первого игрока"
+        },
+        "player2_username": {
+          "type": "string",
+          "example": "player2",
+          "description": "Имя пользователя второго игрока"
+        },
+        "current_turn": {
+          "type": "integer",
+          "example": 1,
+          "description": "Текущий ход"
+        },
+        "current_phase": {
+          "type": "string",
+          "example": "waiting",
+          "enum": ["waiting", "active", "completed"],
+          "description": "Текущая фаза игры"
+        },
+        "status": {
+          "type": "string",
+          "example": "waiting",
+          "enum": ["waiting", "active", "completed"],
+          "description": "Статус игры"
+        },
+        "settings": {
+          "type": "object",
+          "description": "Настройки игры",
+          "properties": {
+            "private_lobby": {
+              "type": "boolean",
+              "example": false
+            },
+            "time_limit_minutes": {
+              "type": "integer",
+              "example": 180
+            }
+          }
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Время создания"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Время последнего обновления"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Время начала игры"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Время завершения игры"
+        }
+      }
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "example": false
+        },
+        "error": {
+          "type": "string",
+          "example": "Error message",
+          "description": "Сообщение об ошибке"
+        },
+        "data": {
+          "type": "object",
+          "description": "Дополнительные данные об ошибке"
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "System",
+      "description": "Системные операции"
+    },
+    {
+      "name": "Authentication",
+      "description": "Аутентификация и авторизация"
+    },
+    {
+      "name": "Games",
+      "description": "Управление играми"
+    }
+  ]
+}

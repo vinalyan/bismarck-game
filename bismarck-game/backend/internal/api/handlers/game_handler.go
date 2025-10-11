@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -27,13 +28,30 @@ func NewGameHandler(db *database.Database) *GameHandler {
 	}
 }
 
+// getUserIDFromContext безопасно извлекает user_id из контекста
+func getUserIDFromContext(r *http.Request) (string, error) {
+	userIDInterface := r.Context().Value("user_id")
+	if userIDInterface == nil {
+		return "", fmt.Errorf("user_id not found in context")
+	}
+	userID, ok := userIDInterface.(string)
+	if !ok {
+		return "", fmt.Errorf("invalid user_id type in context")
+	}
+	return userID, nil
+}
+
 // CreateGame создает новую игру
 func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
-	userID := r.Context().Value("user_id").(string)
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.WriteUnauthorized(w, "Authentication required")
+		return
+	}
 
 	var req models.CreateGameRequest
-	if err := utils.ParseJSON(r, &req); err != nil {
+	if err = utils.ParseJSON(r, &req); err != nil {
 		utils.WriteValidationError(w, "Invalid request format", map[string]string{
 			"body": "Request body must be valid JSON",
 		})
@@ -85,7 +103,7 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		RETURNING id
 	`
 
-	err := h.db.GetConnection().QueryRowContext(r.Context(), query,
+	err = h.db.GetConnection().QueryRowContext(r.Context(), query,
 		game.Name,
 		game.Player1ID,
 		game.CurrentTurn,
@@ -149,11 +167,14 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 	// Получаем игры с пагинацией
 	offset := (page - 1) * perPage
 	query := `
-		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
-		       settings, created_at, updated_at, completed_at
-		FROM games 
+		SELECT g.id, g.name, g.player1_id, g.player2_id, g.current_turn, g.current_phase, g.status, 
+		       g.settings, g.created_at, g.updated_at, g.completed_at,
+		       p1.username as player1_username, p2.username as player2_username
+		FROM games g
+		LEFT JOIN users p1 ON g.player1_id = p1.id
+		LEFT JOIN users p2 ON g.player2_id = p2.id
 		` + whereClause + `
-		ORDER BY created_at DESC
+		ORDER BY g.created_at DESC
 		LIMIT $` + strconv.Itoa(argIndex) + ` OFFSET $` + strconv.Itoa(argIndex+1)
 
 	args = append(args, perPage, offset)
@@ -171,11 +192,12 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 		var settingsJSON []byte
 		var player2ID sql.NullString
 		var completedAt sql.NullTime
+		var player1Username, player2Username sql.NullString
 		err := rows.Scan(
 			&game.ID, &game.Name, &game.Player1ID, &player2ID,
 			&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 			&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-			&completedAt,
+			&completedAt, &player1Username, &player2Username,
 		)
 		if err != nil {
 			utils.WriteInternalError(w, "Failed to scan game")
@@ -196,7 +218,17 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		games = append(games, game.ToResponse())
+		// Получаем username
+		player1UsernameStr := ""
+		player2UsernameStr := ""
+		if player1Username.Valid {
+			player1UsernameStr = player1Username.String
+		}
+		if player2Username.Valid {
+			player2UsernameStr = player2Username.String
+		}
+
+		games = append(games, game.ToResponseWithUsernames(player1UsernameStr, player2UsernameStr))
 	}
 
 	if err = rows.Err(); err != nil {
@@ -211,6 +243,7 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["id"]
+	var err error
 
 	if gameID == "" {
 		utils.WriteValidationError(w, "Game ID is required", map[string]string{
@@ -231,7 +264,7 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 		WHERE id = $1
 	`
 
-	err := h.db.GetConnection().QueryRowContext(r.Context(), query, gameID).Scan(
+	err = h.db.GetConnection().QueryRowContext(r.Context(), query, gameID).Scan(
 		&game.ID, &game.Name, &game.Player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
@@ -277,10 +310,14 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем ID пользователя из контекста
-	userID := r.Context().Value("user_id").(string)
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.WriteUnauthorized(w, "Authentication required")
+		return
+	}
 
 	var req models.JoinGameRequest
-	if err := utils.ParseJSON(r, &req); err != nil {
+	if err = utils.ParseJSON(r, &req); err != nil {
 		utils.WriteValidationError(w, "Invalid request format", map[string]string{
 			"body": "Request body must be valid JSON",
 		})
@@ -289,20 +326,24 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 
 	// Получаем игру
 	var game models.Game
+	var settingsJSON []byte
+	var player2ID sql.NullString
+	var completedAt sql.NullTime
+	var player1Username sql.NullString
 	query := `
-		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
-		       settings, created_at, updated_at, completed_at, winner, victory_type, 
-		       started_at, last_action_at
-		FROM games 
-		WHERE id = $1
+		SELECT g.id, g.name, g.player1_id, g.player2_id, g.current_turn, g.current_phase, g.status, 
+		       g.settings, g.created_at, g.updated_at, g.completed_at,
+		       p1.username as player1_username
+		FROM games g
+		LEFT JOIN users p1 ON g.player1_id = p1.id
+		WHERE g.id = $1
 	`
 
-	err := h.db.QueryRow(query, gameID).Scan(
-		&game.ID, &game.Name, &game.Player1ID, &game.Player2ID,
+	err = h.db.GetConnection().QueryRowContext(r.Context(), query, gameID).Scan(
+		&game.ID, &game.Name, &game.Player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
-		&game.Settings, &game.CreatedAt, &game.UpdatedAt,
-		&game.CompletedAt, &game.Winner, &game.VictoryType,
-		&game.StartedAt, &game.LastActionAt,
+		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
+		&completedAt, &player1Username,
 	)
 
 	if err != nil {
@@ -312,6 +353,26 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		}
 		utils.WriteInternalError(w, "Failed to get game")
 		return
+	}
+
+	// Обрабатываем nullable поля
+	if player2ID.Valid {
+		game.Player2ID = player2ID.String
+	}
+	if completedAt.Valid {
+		game.CompletedAt = &completedAt.Time
+	}
+
+	// Десериализуем настройки игры
+	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
+		utils.WriteInternalError(w, "Failed to parse game settings")
+		return
+	}
+
+	// Получаем username
+	player1UsernameStr := ""
+	if player1Username.Valid {
+		player1UsernameStr = player1Username.String
 	}
 
 	// Проверяем, можно ли присоединиться к игре
@@ -341,7 +402,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Присоединяем игрока
-	_, err = h.db.Exec(`
+	_, err = h.db.GetConnection().ExecContext(r.Context(), `
 		UPDATE games 
 		SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2
 		WHERE id = $3
@@ -352,6 +413,14 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Получаем username для player2 (текущего пользователя)
+	var currentPlayerUsername string
+	err = h.db.GetConnection().QueryRowContext(r.Context(), "SELECT username FROM users WHERE id = $1", userID).Scan(&currentPlayerUsername)
+	if err != nil {
+		utils.WriteInternalError(w, "Failed to get player2 username")
+		return
+	}
+
 	// Получаем обновленную игру
 	game.Player2ID = userID
 	game.Status = models.GameStatusActive
@@ -359,7 +428,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	game.StartedAt = &now
 	game.UpdatedAt = now
 
-	utils.WriteSuccess(w, game.ToResponse())
+	utils.WriteSuccess(w, game.ToResponseWithUsernames(player1UsernameStr, currentPlayerUsername))
 }
 
 // SurrenderGame сдача в игре
@@ -375,7 +444,11 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем ID пользователя из контекста
-	userID := r.Context().Value("user_id").(string)
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.WriteUnauthorized(w, "Authentication required")
+		return
+	}
 
 	// Получаем игру
 	var game models.Game
@@ -387,7 +460,7 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 		WHERE id = $1
 	`
 
-	err := h.db.QueryRow(query, gameID).Scan(
+	err = h.db.QueryRow(query, gameID).Scan(
 		&game.ID, &game.Name, &game.Player1ID, &game.Player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&game.Settings, &game.CreatedAt, &game.UpdatedAt,
@@ -453,7 +526,11 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем ID пользователя из контекста
-	userID := r.Context().Value("user_id").(string)
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.WriteUnauthorized(w, "Authentication required")
+		return
+	}
 
 	// Получаем игру
 	var game models.Game
@@ -465,7 +542,7 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 		WHERE id = $1
 	`
 
-	err := h.db.QueryRow(query, gameID).Scan(
+	err = h.db.QueryRow(query, gameID).Scan(
 		&game.ID, &game.Name, &game.Player1ID, &game.Player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&game.Settings, &game.CreatedAt, &game.UpdatedAt,
@@ -509,6 +586,11 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 // RegisterRoutes регистрирует маршруты игр
 func (h *GameHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	gameRouter := router.PathPrefix("/api/games").Subrouter()
+
+	// Добавляем OPTIONS обработчик для всех маршрутов
+	gameRouter.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// Защищенные маршруты (требуют аутентификации)
 	gameRouter.Use(middleware.AuthMiddleware(jwtSecret))
