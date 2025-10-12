@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -113,6 +114,7 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 
 	// Если настройки не указаны или пустые, используем по умолчанию
 	if game.Settings.TimeLimitMinutes == 0 {
+		log.Printf("Using default game settings")
 		game.Settings = models.GetDefaultGameSettings()
 	}
 
@@ -142,6 +144,8 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		player2ID = game.Player2ID
 	}
 
+	log.Printf("Creating game: %s, Player1: %v, Player2: %v", game.Name, player1ID, player2ID)
+
 	err = h.db.GetConnection().QueryRowContext(r.Context(), query,
 		game.Name,
 		player1ID,
@@ -155,6 +159,7 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	).Scan(&game.ID)
 
 	if err != nil {
+		log.Printf("Error creating game: %v", err)
 		utils.WriteInternalError(w, "Failed to create game")
 		return
 	}

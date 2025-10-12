@@ -76,13 +76,13 @@ type GameSettings struct {
 
 // VictoryConfig представляет конфигурацию условий победы
 type VictoryConfig struct {
-	BismarckSunkVP    int                     `json:"bismarck_sunk_vp"`
-	BismarckFranceVP  int                     `json:"bismarck_france_vp"`
-	BismarckNorwayVP  int                     `json:"bismarck_norway_vp"`
-	BismarckEndGameVP int                     `json:"bismarck_end_game_vp"`
-	BismarckNoFuelVP  int                     `json:"bismarck_no_fuel_vp"`
-	ShipVPValues      map[string]ShipVPConfig `json:"ship_vp_values"`
-	ConvoyVP          ConvoyVPConfig          `json:"convoy_vp"`
+	BismarckSunkVP    int                  `json:"bismarck_sunk_vp"`
+	BismarckFranceVP  int                  `json:"bismarck_france_vp"`
+	BismarckNorwayVP  int                  `json:"bismarck_norway_vp"`
+	BismarckEndGameVP int                  `json:"bismarck_end_game_vp"`
+	BismarckNoFuelVP  int                  `json:"bismarck_no_fuel_vp"`
+	ShipVPValues      map[string]interface{} `json:"ship_vp_values"`
+	ConvoyVP          map[string]interface{} `json:"convoy_vp"`
 }
 
 // ShipVPConfig представляет конфигурацию очков за корабли
@@ -278,19 +278,8 @@ func GetDefaultGameSettings() GameSettings {
 			BismarckNorwayVP:  -7,
 			BismarckEndGameVP: -10,
 			BismarckNoFuelVP:  -15,
-			ShipVPValues: map[string]ShipVPConfig{
-				"BB":     {Sunk: "hull_boxes", Damaged: "half_hits"},
-				"CV":     {Sunk: "hull_boxes", Damaged: "half_hits"},
-				"BC":     {Sunk: "hull_boxes", Damaged: "half_hits"},
-				"CA":     {Sunk: "hull_boxes", Damaged: "half_hits"},
-				"others": {Sunk: 1, Damaged: 0},
-			},
-			ConvoyVP: ConvoyVPConfig{
-				SingleMerchant:       0.5,
-				ConvoyMin:            1,
-				ConvoyMax:            2,
-				EscortSunkMultiplier: 1.0,
-			},
+			ShipVPValues:      make(map[string]interface{}),
+			ConvoyVP:          make(map[string]interface{}),
 		},
 		TimeLimitMinutes: 180,
 		PrivateLobby:     false,
