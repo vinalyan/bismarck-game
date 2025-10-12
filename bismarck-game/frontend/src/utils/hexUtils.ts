@@ -286,12 +286,12 @@ export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
   const hexWidth = hexRadius * Math.sqrt(3); // Ширина гекса
   
   // Базовые координаты с увеличенными расстояниями
-  let x = coord.col * (hexWidth * 0.75 + 2); // 75% ширины + 2px между центрами
-  let y = coord.row * (hexRadius * 1.5 + 2); // 1.5 радиуса + 2px между рядами
+  let x = coord.col * (hexWidth * 0.75 + 7); // 75% ширины + 5px между центрами (было +4px)
+  let y = coord.row * (hexRadius * 1.5 + 1); // 1.5 радиуса + 2px между рядами (было +3px)
   
   // Смещение для нечетных строк (B, D, F...)
   if (coord.row % 2 === 1) {
-    x += (hexWidth * 0.375) + 1; // Смещение на полгекса вправо + 1px
+    x += (hexWidth * 0.375) + 3; // Смещение на полгекса вправо + 2px (было +1px)
   }
   
   // Добавляем отступ от края
