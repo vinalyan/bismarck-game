@@ -78,12 +78,19 @@ const HexMap: React.FC<HexMapProps> = ({
     }
   };
 
-  // Вычисляем размеры SVG
+  // Вычисляем размеры SVG с учетом увеличенных расстояний
   const hexWidth = hexRadius * Math.sqrt(3);
   const hexHeight = hexRadius * 2;
   
-  const svgWidth = width * hexWidth * 0.75 + 100; // +100 для отступов
-  const svgHeight = height * hexHeight * 0.5 + 100;
+  // Используем те же коэффициенты, что и в offsetToPixel
+  const horizontalSpacing = hexWidth * 0.75 + 10; // Соответствует формуле в hexUtils
+  const verticalSpacing = hexRadius * 1.5 + 2;   // Соответствует формуле в hexUtils
+  
+  // Учитываем максимальное смещение нечетных строк
+  const maxHorizontalOffset = (hexWidth * 0.375) + 3; // Максимальное смещение
+  
+  const svgWidth = width * horizontalSpacing + maxHorizontalOffset + 100; // +100 для отступов
+  const svgHeight = height * verticalSpacing + 100;
 
   // Рендерим гексы
   const renderHexes = () => {
