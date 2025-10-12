@@ -52,11 +52,12 @@ const HexMap: React.FC<HexMapProps> = ({
         const letter = String.fromCharCode(65 + row); // A, B, C, ..., AH
         const number = col + 1; // 1, 2, 3, ..., 35
         
-        // Для правильного отображения карты используем простую систему:
-        // q = col (горизонтальная координата)
-        // r = row (вертикальная координата)
-        // s = -q - r (третья координата для гексагональной системы)
-        const hexCoord = hex(col, row);
+        // Для правильного отображения гексагональной сетки:
+        // Четные строки (0, 2, 4...) - без смещения
+        // Нечетные строки (1, 3, 5...) - смещены на 0.5 влево
+        const q = col - (row % 2) * 0.5;
+        const r = row;
+        const hexCoord = hex(q, r);
         
         const coordinate: HexCoordinate = {
           letter: letter,
