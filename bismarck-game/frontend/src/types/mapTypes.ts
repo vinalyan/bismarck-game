@@ -16,7 +16,16 @@ export function coordinateToOffset(coord: HexCoordinate): OffsetCoord {
 }
 
 export function offsetToCoordinate(offset: OffsetCoord): HexCoordinate {
-  const letter = String.fromCharCode(65 + offset.row); // A, B, C, ..., AH
+  // Генерируем правильные буквы: A-Y, затем AA-AH
+  let letter: string;
+  if (offset.row < 25) {
+    // A, B, C, ..., Y (0-24)
+    letter = String.fromCharCode(65 + offset.row);
+  } else {
+    // AA, AB, AC, ..., AH (25-33, но только до H)
+    const secondLetterIndex = offset.row - 25;
+    letter = 'A' + String.fromCharCode(65 + secondLetterIndex);
+  }
   const number = offset.col + 1; // 1, 2, 3, ..., 35
   return { letter, number, col: offset.col, row: offset.row };
 }
