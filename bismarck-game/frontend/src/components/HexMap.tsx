@@ -1,8 +1,13 @@
 // Гексагональная карта для игры Bismarck Chase
+// Использует алгоритмы из Red Blob Games: https://www.redblobgames.com/grids/hexagons/implementation.html
 
 import React, { useState, useEffect } from 'react';
 import { Hex } from './Hex';
-import { HexCoordinate, HexData } from '../types/mapTypes';
+import { HexCoordinate, HexData, coordinateToHex, hexToCoordinate } from '../types/mapTypes';
+import { 
+  hex, hexToPixel, polygonCorners, createLayout, LAYOUT_POINTY, Point,
+  hexRange, hexDistance, isValidHex
+} from '../utils/hexUtils';
 import './HexMap.css';
 
 interface HexMapProps {
@@ -24,20 +29,36 @@ const HexMap: React.FC<HexMapProps> = ({
 }) => {
   const [hexes, setHexes] = useState<Map<string, HexData>>(new Map());
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
+  const [layout, setLayout] = useState<any>(null);
+
+  // Создаем макет для отрисовки
+  useEffect(() => {
+    // Размеры согласно требованиям: радиус 0.5см, расстояние между центрами 1см
+    const hexRadius = 18.9; // 0.5 см в пикселях (96 DPI)
+    const hexSize = { x: hexRadius, y: hexRadius };
+    const origin = { x: 50, y: 50 }; // Начальная позиция
+    
+    const newLayout = createLayout(LAYOUT_POINTY, hexSize, origin);
+    setLayout(newLayout);
+  }, []);
 
   // Генерируем координаты гексов
   useEffect(() => {
     const newHexes = new Map<string, HexData>();
     
+    // Создаем гексы в offset координатах (для простоты отображения)
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         const letter = String.fromCharCode(65 + row); // A, B, C, ..., AH
         const number = col + 1; // 1, 2, 3, ..., 35
+        
+        // Преобразуем offset координаты в гексагональные
+        const hexCoord = hex(col - Math.floor(col / 2), row);
         const coordinate: HexCoordinate = {
           letter: letter,
           number: number,
-          q: col,
-          r: row
+          q: hexCoord.q,
+          r: hexCoord.r
         };
         
         const hexId = `${letter}${number}`;
@@ -72,12 +93,15 @@ const HexMap: React.FC<HexMapProps> = ({
   };
 
   // Вычисляем размеры SVG
-  const hexSize = 24; // Размер гекса в пикселях
-  const hexWidth = Math.sqrt(3) * hexSize;
-  const hexHeight = 2 * hexSize;
+  if (!layout) return <div>Loading map...</div>;
   
-  const svgWidth = width * hexWidth * 0.75 + hexWidth * 0.25;
-  const svgHeight = height * hexHeight * 0.5 + hexHeight * 0.5;
+  // Вычисляем границы карты
+  const hexRadius = layout.size.x;
+  const hexWidth = hexRadius * Math.sqrt(3);
+  const hexHeight = hexRadius * 2;
+  
+  const svgWidth = width * hexWidth * 0.75 + 100; // +100 для отступов
+  const svgHeight = height * hexHeight * 0.5 + 100;
 
   // Рендерим гексы
   const renderHexes = () => {
@@ -86,9 +110,14 @@ const HexMap: React.FC<HexMapProps> = ({
     hexes.forEach((hexData, hexId) => {
       const { coordinate } = hexData;
       
-      // Вычисляем позицию гекса в point-top ориентации
-      const x = coordinate.q * hexWidth * 0.75;
-      const y = coordinate.r * hexHeight * 0.5 + (coordinate.q % 2) * hexHeight * 0.25;
+      // Преобразуем координаты в гексагональную систему
+      const hexCoord = coordinateToHex(coordinate);
+      
+      // Получаем позицию центра гекса
+      const center = hexToPixel(layout, hexCoord);
+      
+      // Получаем углы гекса для отрисовки
+      const corners = polygonCorners(layout, hexCoord);
       
       const isSelected = selectedHex && 
         selectedHex.letter === coordinate.letter && 
@@ -103,9 +132,9 @@ const HexMap: React.FC<HexMapProps> = ({
           key={hexId}
           coordinate={coordinate}
           hexData={hexData}
-          x={x}
-          y={y}
-          size={hexSize}
+          center={center}
+          corners={corners}
+          size={hexRadius}
           isSelected={!!isSelected}
           isHighlighted={isHighlighted}
           onClick={() => handleHexClick(coordinate)}

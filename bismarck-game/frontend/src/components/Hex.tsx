@@ -2,13 +2,14 @@
 
 import React from 'react';
 import { HexCoordinate, HexData } from '../types/mapTypes';
+import { Point } from '../utils/hexUtils';
 import './Hex.css';
 
 interface HexProps {
   coordinate: HexCoordinate;
   hexData: HexData;
-  x: number;
-  y: number;
+  center: Point;
+  corners: Point[];
   size: number;
   isSelected: boolean;
   isHighlighted: boolean;
@@ -19,29 +20,17 @@ interface HexProps {
 const Hex: React.FC<HexProps> = ({
   coordinate,
   hexData,
-  x,
-  y,
+  center,
+  corners,
   size,
   isSelected,
   isHighlighted,
   onClick,
   onHover
 }) => {
-  // Вычисляем координаты вершин гекса для point-top ориентации
+  // Преобразуем углы в строку для SVG polygon
   const getHexPoints = () => {
-    const width = Math.sqrt(3) * size;
-    const height = 2 * size;
-    
-    const points = [
-      { x: width / 2, y: 0 },                    // Верхняя точка
-      { x: width, y: height / 4 },               // Верхний правый
-      { x: width, y: (3 * height) / 4 },         // Нижний правый
-      { x: width / 2, y: height },               // Нижняя точка
-      { x: 0, y: (3 * height) / 4 },             // Нижний левый
-      { x: 0, y: height / 4 }                    // Верхний левый
-    ];
-    
-    return points.map(p => `${p.x},${p.y}`).join(' ');
+    return corners.map(corner => `${corner.x},${corner.y}`).join(' ');
   };
 
   // Определяем стиль гекса в зависимости от типа и состояния
@@ -86,7 +75,6 @@ const Hex: React.FC<HexProps> = ({
   return (
     <g
       className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}`}
-      transform={`translate(${x}, ${y})`}
       onClick={onClick}
       onMouseEnter={onHover}
       style={{ cursor: 'pointer' }}
@@ -102,8 +90,8 @@ const Hex: React.FC<HexProps> = ({
       
       {/* Координаты гекса */}
       <text
-        x={size * Math.sqrt(3) / 2}
-        y={size + 4}
+        x={center.x}
+        y={center.y + 4}
         textAnchor="middle"
         fontSize="10"
         fill="#ffffff"
@@ -115,8 +103,8 @@ const Hex: React.FC<HexProps> = ({
       {/* Юнит на гексе */}
       {hexData.hasUnit && hexData.unitId && (
         <circle
-          cx={size * Math.sqrt(3) / 2}
-          cy={size * 0.8}
+          cx={center.x}
+          cy={center.y - size * 0.2}
           r={size * 0.2}
           fill={hexData.unitSide === 'german' ? '#ff0000' : '#0000ff'}
           stroke="#ffffff"
@@ -128,8 +116,8 @@ const Hex: React.FC<HexProps> = ({
       {/* Маркер тумана войны */}
       {hexData.fogLevel > 0 && (
         <circle
-          cx={size * Math.sqrt(3) / 2}
-          cy={size * 1.2}
+          cx={center.x}
+          cy={center.y + size * 0.2}
           r={size * 0.15}
           fill="#333333"
           opacity={hexData.fogLevel / 100}
@@ -140,7 +128,7 @@ const Hex: React.FC<HexProps> = ({
       {/* Погодные эффекты */}
       {hexData.weather === 'storm' && (
         <path
-          d={`M ${size * 0.3} ${size * 0.3} L ${size * 0.7} ${size * 0.7} M ${size * 0.7} ${size * 0.3} L ${size * 0.3} ${size * 0.7}`}
+          d={`M ${center.x - size * 0.3} ${center.y - size * 0.3} L ${center.x + size * 0.3} ${center.y + size * 0.3} M ${center.x + size * 0.3} ${center.y - size * 0.3} L ${center.x - size * 0.3} ${center.y + size * 0.3}`}
           stroke="#ffffff"
           strokeWidth={1}
           opacity={0.7}

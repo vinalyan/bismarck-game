@@ -1,11 +1,22 @@
 // Типы для гексагональной карты
 
-// Координаты гекса
+import { Hex, Point } from '../utils/hexUtils';
+
+// Координаты гекса (для отображения пользователю)
 export interface HexCoordinate {
   letter: string;  // A, B, C, ..., AH (34 буквы)
   number: number;  // 1, 2, 3, ..., 35
   q: number;       // Гексагональная координата q
   r: number;       // Гексагональная координата r
+}
+
+// Преобразование между системами координат
+export function coordinateToHex(coord: HexCoordinate): Hex {
+  return { q: coord.q, r: coord.r, s: -coord.q - coord.r };
+}
+
+export function hexToCoordinate(hex: Hex, letter: string, number: number): HexCoordinate {
+  return { letter, number, q: hex.q, r: hex.r };
 }
 
 // Типы гексов
