@@ -20,6 +20,12 @@ export enum UserRole {
   Moderator = 'moderator'
 }
 
+// Стороны игроков
+export enum PlayerSide {
+  German = 'german',
+  Allied = 'allied'
+}
+
 // Статистика пользователя
 export interface UserStats {
   gamesPlayed: number;
@@ -68,7 +74,6 @@ export enum GameStatus {
 
 // Настройки игры
 export interface GameSettings {
-  maxPlayers: number;
   turnDuration: number;
   gameMode: GameMode;
   difficulty: Difficulty;
@@ -76,6 +81,7 @@ export interface GameSettings {
   fogOfWar: boolean;
   randomEvents: boolean;
   victoryConditions: VictoryCondition[];
+  // maxPlayers убран - всегда 2 игрока
 }
 
 // Режимы игры
@@ -108,6 +114,8 @@ export interface GameResponse {
   player2_id?: string;
   player1_username?: string;
   player2_username?: string;
+  player1_side: PlayerSide;
+  player2_side: PlayerSide;
   player1?: User;
   player2?: User;
   current_turn: number;
@@ -122,7 +130,9 @@ export interface GameResponse {
 // Запрос на создание игры
 export interface CreateGameRequest {
   name: string;
+  side: PlayerSide;
   settings: Partial<GameSettings>;
+  password?: string;
 }
 
 // Запрос на присоединение к игре

@@ -4,6 +4,7 @@ import { ViewType } from './types/gameTypes';
 import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import Lobby from './components/Lobby';
+import Game from './components/Game';
 import wsClient from './services/websocket/websocketClient';
 import './App.css';
 
@@ -59,7 +60,7 @@ function App() {
       case ViewType.Lobby:
         return <Lobby />;
       case ViewType.Game:
-        return <div>Игровой экран (в разработке)</div>;
+        return <Game />;
       case ViewType.Profile:
         return <div>Профиль (в разработке)</div>;
       default:

@@ -71,6 +71,7 @@ type GameSettings struct {
 	AllowSpectators      bool          `json:"allow_spectators"`
 	AutoSave             bool          `json:"auto_save"`
 	Difficulty           string        `json:"difficulty"`
+	// maxPlayers убран - всегда 2 игрока
 }
 
 // VictoryConfig представляет конфигурацию условий победы
@@ -110,9 +111,18 @@ type GameState struct {
 	Checksum  string                 `json:"checksum" db:"checksum"`
 }
 
+// PlayerSide представляет сторону игрока
+type PlayerSide string
+
+const (
+	PlayerSideGerman PlayerSide = "german"
+	PlayerSideAllied PlayerSide = "allied"
+)
+
 // CreateGameRequest представляет запрос на создание игры
 type CreateGameRequest struct {
 	Name     string       `json:"name" validate:"required,min=3,max=100"`
+	Side     PlayerSide   `json:"side" validate:"required,oneof=german allied"`
 	Settings GameSettings `json:"settings"`
 	Password string       `json:"password,omitempty"`
 }
@@ -130,6 +140,8 @@ type GameResponse struct {
 	Player2ID       string       `json:"player2_id"`
 	Player1Username string       `json:"player1_username"`
 	Player2Username string       `json:"player2_username"`
+	Player1Side     PlayerSide   `json:"player1_side"`
+	Player2Side     PlayerSide   `json:"player2_side"`
 	CurrentTurn     int          `json:"current_turn"`
 	CurrentPhase    GamePhase    `json:"current_phase"`
 	Status          GameStatus   `json:"status"`
@@ -150,6 +162,8 @@ func (g *Game) ToResponse() GameResponse {
 		Name:         g.Name,
 		Player1ID:    g.Player1ID,
 		Player2ID:    g.Player2ID,
+		Player1Side:  PlayerSideGerman, // Player1 всегда немцы
+		Player2Side:  PlayerSideAllied, // Player2 всегда союзники
 		CurrentTurn:  g.CurrentTurn,
 		CurrentPhase: g.CurrentPhase,
 		Status:       g.Status,
@@ -173,6 +187,8 @@ func (g *Game) ToResponseWithUsernames(player1Username, player2Username string) 
 		Player2ID:       g.Player2ID,
 		Player1Username: player1Username,
 		Player2Username: player2Username,
+		Player1Side:     PlayerSideGerman, // Player1 всегда немцы
+		Player2Side:     PlayerSideAllied, // Player2 всегда союзники
 		CurrentTurn:     g.CurrentTurn,
 		CurrentPhase:    g.CurrentPhase,
 		Status:          g.Status,
@@ -204,7 +220,7 @@ func (g *Game) IsCompleted() bool {
 
 // CanJoin проверяет, можно ли присоединиться к игре
 func (g *Game) CanJoin() bool {
-	return g.Status == GameStatusWaiting && g.Player2ID == ""
+	return g.Status == GameStatusWaiting && (g.Player1ID == "" || g.Player2ID == "")
 }
 
 // IsPlayer проверяет, является ли пользователь игроком в этой игре
@@ -221,12 +237,12 @@ func (g *Game) GetOpponentID(userID string) string {
 }
 
 // GetPlayerRole возвращает роль игрока (german/allied)
-func (g *Game) GetPlayerRole(userID string) string {
+func (g *Game) GetPlayerRole(userID string) PlayerSide {
 	if g.Player1ID == userID {
-		return "german"
+		return PlayerSideGerman
 	}
 	if g.Player2ID == userID {
-		return "allied"
+		return PlayerSideAllied
 	}
 	return ""
 }

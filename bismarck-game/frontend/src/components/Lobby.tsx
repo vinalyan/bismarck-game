@@ -3,15 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { gameAPI } from '../services/api/gameAPI';
-import { CreateGameRequest, GameResponse, GameStatus, ViewType, GameMode, Difficulty, VictoryCondition, NotificationType } from '../types/gameTypes';
+import { CreateGameRequest, GameResponse, GameStatus, ViewType, GameMode, Difficulty, VictoryCondition, NotificationType, PlayerSide } from '../types/gameTypes';
 import './Lobby.css';
 
 const Lobby: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createFormData, setCreateFormData] = useState<CreateGameRequest>({
     name: '',
+    side: PlayerSide.German,
     settings: {
-      maxPlayers: 2,
       turnDuration: 30,
       gameMode: GameMode.Classic,
       difficulty: Difficulty.Normal,
@@ -29,6 +29,7 @@ const Lobby: React.FC = () => {
     setGames,
     addGame,
     updateGame,
+    setCurrentGame,
     setLoading,
     setError,
     addNotification,
@@ -125,7 +126,7 @@ const Lobby: React.FC = () => {
   const handleJoinGame = async (gameId: string) => {
     // Проверяем, что пользователь не пытается присоединиться к своей игре
     const game = games.find(g => g.id === gameId);
-    if (game && user && (game.player1?.id === user.id || game.player1_id === user.id)) {
+    if (game && user && (game.player1_id === user.id || game.player2_id === user.id)) {
       addNotification({
         type: NotificationType.Error,
         title: 'Ошибка',
@@ -173,6 +174,71 @@ const Lobby: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Начало игры
+  const handleStartGame = async (gameId: string) => {
+    const game = games.find(g => g.id === gameId);
+    if (!game || !user) return;
+
+    // Проверяем, что пользователь является участником игры
+    if (game.player1_id !== user.id && game.player2_id !== user.id) {
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Ошибка',
+        message: 'Только участники игры могут начать игру',
+        read: false,
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // TODO: Добавить API endpoint для начала игры
+      // const response = await gameAPI.startGame(gameId);
+      
+      // Пока просто переходим в игру
+      addNotification({
+        type: NotificationType.Success,
+        title: 'Игра началась!',
+        message: 'Переходим к игровому экрану',
+        read: false,
+      });
+
+      // Устанавливаем текущую игру и переходим к игровому экрану
+      setCurrentGame(game);
+      setCurrentView(ViewType.Game);
+    } catch (error: any) {
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Ошибка',
+        message: 'Не удалось начать игру',
+        read: false,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Вход в игру
+  const handleEnterGame = async (gameId: string) => {
+    const game = games.find(g => g.id === gameId);
+    if (!game || !user) return;
+
+    // Проверяем, что пользователь является участником игры
+    if (game.player1_id !== user.id && game.player2_id !== user.id) {
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Ошибка',
+        message: 'Вы не являетесь участником этой игры',
+        read: false,
+      });
+      return;
+    }
+
+    // Устанавливаем текущую игру и переходим к игровому экрану
+    setCurrentGame(game);
+    setCurrentView(ViewType.Game);
   };
 
   // Выход из аккаунта
@@ -261,21 +327,18 @@ const Lobby: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="maxPlayers">Максимум игроков</label>
+                  <label htmlFor="playerSide">Ваша сторона</label>
                   <select
-                    id="maxPlayers"
-                    value={createFormData.settings.maxPlayers}
+                    id="playerSide"
+                    value={createFormData.side}
                     onChange={(e) => setCreateFormData(prev => ({
                       ...prev,
-                      settings: {
-                        ...prev.settings,
-                        maxPlayers: parseInt(e.target.value),
-                      },
+                      side: e.target.value as PlayerSide,
                     }))}
                     disabled={isCreating}
                   >
-                    <option value={2}>2 игрока</option>
-                    <option value={4}>4 игрока</option>
+                    <option value={PlayerSide.German}>🇩🇪 Немцы</option>
+                    <option value={PlayerSide.Allied}>🇬🇧 Союзники</option>
                   </select>
                 </div>
 
@@ -321,10 +384,10 @@ const Lobby: React.FC = () => {
                 <div key={game.id} className="game-card">
                   <div className="game-info">
                     <h3>{game.name}</h3>
-                    <p className="game-creator">Создатель: {game.player1_username || game.player1?.username || game.player1_id}</p>
-                    <p className="game-players">
-                      Игроки: {game.player1_username || game.player1?.username || game.player1_id}
-                      {game.player2_id && `, ${game.player2_username || game.player2?.username || game.player2_id}`}
+                    <p className="game-sides">
+                      🇩🇪 Немцы: {game.player1_username || (game.player1_id ? 'Ожидается' : 'Свободно')}
+                      <br />
+                      🇬🇧 Союзники: {game.player2_username || (game.player2_id ? 'Ожидается' : 'Свободно')}
                     </p>
                     <p className="game-settings">
                       Режим: {game.settings?.gameMode || 'Классический'}, 
@@ -339,19 +402,29 @@ const Lobby: React.FC = () => {
                   </div>
 
                   <div className="game-actions">
-                    {game.status === GameStatus.Waiting && !game.player2_id && (
+                    {game.status === GameStatus.Waiting && (game.player1_id === '' || game.player2_id === '') && (
                       <button
                         onClick={() => handleJoinGame(game.id)}
                         className="join-button"
-                        disabled={game.player1?.id === user?.id || game.player1_id === user?.id}
+                        disabled={game.player1_id === user?.id || game.player2_id === user?.id}
                       >
-                        {(game.player1?.id === user?.id || game.player1_id === user?.id) ? 'Ваша игра' : 'Присоединиться'}
+                        {(game.player1_id === user?.id || game.player2_id === user?.id) ? 'Ваша игра' : 'Присоединиться'}
+                      </button>
+                    )}
+                    
+                    {game.status === GameStatus.Waiting && game.player1_id && game.player2_id && (
+                      <button
+                        onClick={() => handleStartGame(game.id)}
+                        className="start-game-button"
+                        disabled={!(game.player1_id === user?.id || game.player2_id === user?.id)}
+                      >
+                        🚀 Начать игру
                       </button>
                     )}
                     
                     {game.status === GameStatus.InProgress && (
                       <button
-                        onClick={() => setCurrentView(ViewType.Game)}
+                        onClick={() => handleEnterGame(game.id)}
                         className="view-game-button"
                       >
                         Продолжить игру

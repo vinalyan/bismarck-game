@@ -73,6 +73,20 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Side == "" {
+		utils.WriteValidationError(w, "Player side is required", map[string]string{
+			"side": "Player side must be 'german' or 'allied'",
+		})
+		return
+	}
+
+	if req.Side != models.PlayerSideGerman && req.Side != models.PlayerSideAllied {
+		utils.WriteValidationError(w, "Invalid player side", map[string]string{
+			"side": "Player side must be 'german' or 'allied'",
+		})
+		return
+	}
+
 	// Создаем игру
 	game := &models.Game{
 		Name:         req.Name,
@@ -83,6 +97,18 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		Settings:     req.Settings,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
+	}
+
+	// Определяем, кто будет Player1 и Player2 на основе выбранной стороны
+	// Player1 всегда немцы, Player2 всегда союзники
+	if req.Side == models.PlayerSideAllied {
+		// Если создатель выбрал союзников, он становится Player2
+		game.Player1ID = ""     // Свободно для немца
+		game.Player2ID = userID // Создатель - союзник
+	} else {
+		// Если создатель выбрал немцев, он становится Player1
+		game.Player1ID = userID // Создатель - немец
+		game.Player2ID = ""     // Свободно для союзника
 	}
 
 	// Если настройки не указаны, используем по умолчанию
@@ -98,14 +124,15 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 
 	// Сохраняем в базу данных
 	query := `
-		INSERT INTO games (name, player1_id, current_turn, current_phase, status, settings, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO games (name, player1_id, player2_id, current_turn, current_phase, status, settings, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id
 	`
 
 	err = h.db.GetConnection().QueryRowContext(r.Context(), query,
 		game.Name,
 		game.Player1ID,
+		game.Player2ID,
 		game.CurrentTurn,
 		game.CurrentPhase,
 		game.Status,
@@ -384,7 +411,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Проверяем, что пользователь не является создателем игры
-	if game.Player1ID == userID {
+	if game.Player1ID == userID || game.Player2ID == userID {
 		utils.WriteValidationError(w, "Cannot join your own game", map[string]string{
 			"game": "You cannot join a game you created",
 		})
@@ -401,34 +428,62 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Определяем, к какой стороне присоединяется игрок
+	var updateQuery string
+	var updateArgs []interface{}
+
+	if game.Player1ID == "" {
+		// Свободна немецкая сторона (Player1)
+		updateQuery = `UPDATE games SET player1_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
+		updateArgs = []interface{}{userID, time.Now(), gameID}
+	} else if game.Player2ID == "" {
+		// Свободна союзническая сторона (Player2)
+		updateQuery = `UPDATE games SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
+		updateArgs = []interface{}{userID, time.Now(), gameID}
+	} else {
+		utils.WriteValidationError(w, "Game is full", map[string]string{
+			"game": "Game already has two players",
+		})
+		return
+	}
+
 	// Присоединяем игрока
-	_, err = h.db.GetConnection().ExecContext(r.Context(), `
-		UPDATE games 
-		SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2
-		WHERE id = $3
-	`, userID, time.Now(), gameID)
+	_, err = h.db.GetConnection().ExecContext(r.Context(), updateQuery, updateArgs...)
 
 	if err != nil {
 		utils.WriteInternalError(w, "Failed to join game")
 		return
 	}
 
-	// Получаем username для player2 (текущего пользователя)
+	// Получаем username для присоединившегося игрока
 	var currentPlayerUsername string
 	err = h.db.GetConnection().QueryRowContext(r.Context(), "SELECT username FROM users WHERE id = $1", userID).Scan(&currentPlayerUsername)
 	if err != nil {
-		utils.WriteInternalError(w, "Failed to get player2 username")
+		utils.WriteInternalError(w, "Failed to get player username")
 		return
 	}
 
-	// Получаем обновленную игру
-	game.Player2ID = userID
+	// Обновляем игровое состояние
+	if game.Player1ID == "" {
+		game.Player1ID = userID // Присоединился как немец
+	} else {
+		game.Player2ID = userID // Присоединился как союзник
+	}
+
 	game.Status = models.GameStatusActive
 	now := time.Now()
 	game.StartedAt = &now
 	game.UpdatedAt = now
 
-	utils.WriteSuccess(w, game.ToResponseWithUsernames(player1UsernameStr, currentPlayerUsername))
+	// Формируем username для ответа
+	var player2UsernameStr string
+	if game.Player2ID == userID {
+		player2UsernameStr = currentPlayerUsername
+	} else {
+		player2UsernameStr = ""
+	}
+
+	utils.WriteSuccess(w, game.ToResponseWithUsernames(player1UsernameStr, player2UsernameStr))
 }
 
 // SurrenderGame сдача в игре

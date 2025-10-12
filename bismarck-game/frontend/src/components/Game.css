@@ -1,0 +1,537 @@
+/* Стили для компонента игры */
+
+.game-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  color: #ffffff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Заголовок игры */
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 2px solid #4a90e2;
+  backdrop-filter: blur(10px);
+}
+
+.game-title h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #ffffff;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.game-info {
+  display: flex;
+  gap: 2rem;
+  margin-top: 0.5rem;
+}
+
+.phase-info, .turn-info {
+  background: rgba(74, 144, 226, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  border: 1px solid #4a90e2;
+}
+
+.game-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.player-info {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  border: 1px solid #4a90e2;
+}
+
+.player-side {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.back-button, .logout-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.back-button {
+  background: #4a90e2;
+  color: white;
+}
+
+.back-button:hover {
+  background: #357abd;
+  transform: translateY(-2px);
+}
+
+.logout-button {
+  background: #e74c3c;
+  color: white;
+}
+
+.logout-button:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+}
+
+/* Основной контент */
+.game-content {
+  display: grid;
+  grid-template-columns: 300px 1fr 250px;
+  gap: 1rem;
+  padding: 1rem;
+  height: calc(100vh - 120px);
+}
+
+/* Левая панель */
+.game-sidebar {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid #4a90e2;
+  overflow-y: auto;
+}
+
+.game-sidebar h3 {
+  margin: 0 0 1rem 0;
+  color: #4a90e2;
+  font-size: 1.2rem;
+  border-bottom: 2px solid #4a90e2;
+  padding-bottom: 0.5rem;
+}
+
+.game-status {
+  margin-bottom: 2rem;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(74, 144, 226, 0.1);
+  border-radius: 6px;
+}
+
+.status-value {
+  font-weight: 600;
+  color: #4a90e2;
+}
+
+/* Информация о юнитах */
+.units-info {
+  margin-bottom: 2rem;
+}
+
+.unit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.unit-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: rgba(74, 144, 226, 0.1);
+  border-radius: 8px;
+  border-left: 4px solid #4a90e2;
+}
+
+.unit-type {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.unit-status {
+  font-size: 0.8rem;
+  color: #4a90e2;
+}
+
+/* Выбранная позиция */
+.selected-info {
+  background: rgba(74, 144, 226, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 2px solid #4a90e2;
+}
+
+.hex-info {
+  font-size: 0.9rem;
+}
+
+.unit-details {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #4a90e2;
+}
+
+.unit-details span {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+/* Центральная область - карта */
+.game-map {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid #4a90e2;
+  overflow: hidden;
+}
+
+.map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.map-header h3 {
+  margin: 0;
+  color: #4a90e2;
+}
+
+.map-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid #fff;
+}
+
+.legend-color.water {
+  background: #4a90e2;
+}
+
+.legend-color.land {
+  background: #8b4513;
+}
+
+.legend-color.german-unit {
+  background: #2c3e50;
+}
+
+.legend-color.allied-unit {
+  background: #27ae60;
+}
+
+/* Гексагональная сетка */
+.hex-grid {
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  gap: 2px;
+  height: calc(100% - 80px);
+  overflow: auto;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.hex {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 2px solid transparent;
+  min-height: 30px;
+  min-width: 30px;
+}
+
+.hex:hover {
+  transform: scale(1.1);
+  z-index: 10;
+  border-color: #fff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.hex.water {
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+}
+
+.hex.land {
+  background: linear-gradient(135deg, #8b4513 0%, #654321 100%);
+}
+
+.hex.selected {
+  border-color: #ffd700;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+  transform: scale(1.15);
+  z-index: 15;
+}
+
+.hex.has-unit {
+  border-color: #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.hex.unit-german {
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+}
+
+.hex.unit-allied {
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+}
+
+.unit-marker {
+  font-size: 1.2rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Правая панель */
+.game-actions {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid #4a90e2;
+  overflow-y: auto;
+}
+
+.action-panel h3 {
+  margin: 0 0 1rem 0;
+  color: #4a90e2;
+  font-size: 1.2rem;
+  border-bottom: 2px solid #4a90e2;
+  padding-bottom: 0.5rem;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.action-button {
+  padding: 1rem;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.action-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #357abd 0%, #2c5aa0 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+}
+
+.action-button:disabled {
+  background: #666;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Информация о погоде */
+.weather-info {
+  background: rgba(74, 144, 226, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #4a90e2;
+}
+
+.weather-info h3 {
+  margin: 0 0 1rem 0;
+  color: #4a90e2;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #4a90e2;
+  padding-bottom: 0.5rem;
+}
+
+.weather-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.weather-value {
+  font-weight: 600;
+  color: #4a90e2;
+}
+
+/* Модальное окно */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  border: 2px solid #4a90e2;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #4a90e2;
+  padding-bottom: 1rem;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #4a90e2;
+  font-size: 1.5rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+  color: #fff;
+}
+
+.unit-details .detail-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: rgba(74, 144, 226, 0.1);
+  border-radius: 6px;
+}
+
+.detail-item span:first-child {
+  font-weight: 600;
+  color: #4a90e2;
+}
+
+.detail-item span:last-child {
+  font-weight: 500;
+}
+
+/* Ошибка */
+.game-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  padding: 2rem;
+}
+
+.game-error h2 {
+  color: #e74c3c;
+  margin-bottom: 1rem;
+}
+
+.game-error p {
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+  .game-content {
+    grid-template-columns: 250px 1fr 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .game-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  
+  .game-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .game-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .hex-grid {
+    grid-template-columns: repeat(10, 1fr);
+  }
+  
+  .map-legend {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-content {
+    padding: 0.5rem;
+  }
+  
+  .game-sidebar, .game-actions {
+    padding: 1rem;
+  }
+  
+  .hex-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
