@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { ViewType, GamePhase, PlayerSide, NotificationType } from '../types/gameTypes';
+import { HexCoordinate } from '../types/mapTypes';
+import HexMap from './HexMap';
 import './Game.css';
 
 const Game: React.FC = () => {
@@ -225,28 +227,23 @@ const Game: React.FC = () => {
             </div>
           </div>
           
-          <div className="hex-grid">
-            {hexGrid.map((hex) => (
-              <div
-                key={hex.id}
-                className={`hex ${hex.isWater ? 'water' : 'land'} ${
-                  selectedHex === hex.id ? 'selected' : ''
-                } ${hex.hasUnit ? 'has-unit' : ''} ${
-                  hex.hasUnit && hex.side ? `unit-${hex.side}` : ''
-                }`}
-                onClick={() => handleHexClick(hex.id)}
-                title={`${hex.id} ${hex.isWater ? 'Вода' : 'Суша'} ${
-                  hex.hasUnit ? `Юнит: ${hex.unitType}` : ''
-                }`}
-              >
-                {hex.hasUnit && (
-                  <div className="unit-marker">
-                    {hex.side === PlayerSide.German ? '🇩🇪' : '🇬🇧'}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <HexMap
+            width={35}
+            height={34}
+            onHexClick={(coordinate: HexCoordinate) => {
+              const hexId = `${coordinate.letter}${coordinate.number}`;
+              handleHexClick(hexId);
+            }}
+            onHexHover={(coordinate: HexCoordinate) => {
+              // Можно добавить логику подсветки при наведении
+            }}
+            selectedHex={selectedHex ? {
+              letter: selectedHex.charAt(0),
+              number: parseInt(selectedHex.slice(1)),
+              q: 0, r: 0
+            } : null}
+            highlightedHexes={[]}
+          />
         </div>
 
         {/* Правая панель - действия */}
