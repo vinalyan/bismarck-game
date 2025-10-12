@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Hex } from './Hex';
 import { HexCoordinate, HexData, coordinateToHex, hexToCoordinate } from '../types/mapTypes';
 import { 
-  hex, hexToPixel, polygonCorners, createLayout, LAYOUT_FLAT, Point,
+  hex, hexToPixel, polygonCorners, createLayout, LAYOUT_POINTY, Point,
   hexRange, hexDistance, isValidHex, qoffsetToCube
 } from '../utils/hexUtils';
 import './HexMap.css';
@@ -38,7 +38,7 @@ const HexMap: React.FC<HexMapProps> = ({
     const hexSize = { x: hexRadius, y: hexRadius };
     const origin = { x: 50, y: 50 }; // Начальная позиция
     
-    const newLayout = createLayout(LAYOUT_FLAT, hexSize, origin);
+    const newLayout = createLayout(LAYOUT_POINTY, hexSize, origin);
     setLayout(newLayout);
   }, []);
 
