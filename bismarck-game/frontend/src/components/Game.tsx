@@ -229,7 +229,7 @@ const Game: React.FC = () => {
           
           <HexMap
             width={35}
-            height={34}
+            height={33}
             onHexClick={(coordinate: HexCoordinate) => {
               const hexId = `${coordinate.letter}${coordinate.number}`;
               handleHexClick(hexId);
