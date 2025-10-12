@@ -285,13 +285,13 @@ export interface OffsetCoord {
 export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
   const hexWidth = hexRadius * Math.sqrt(3); // Ширина гекса
   
-  // Базовые координаты
-  let x = coord.col * hexWidth * 0.75; // 75% ширины между центрами
-  let y = coord.row * hexRadius * 1.5; // 1.5 радиуса между рядами
+  // Базовые координаты с увеличенными расстояниями
+  let x = coord.col * (hexWidth * 0.75 + 2); // 75% ширины + 2px между центрами
+  let y = coord.row * (hexRadius * 1.5 + 2); // 1.5 радиуса + 2px между рядами
   
   // Смещение для нечетных строк (B, D, F...)
   if (coord.row % 2 === 1) {
-    x += hexWidth * 0.375; // Смещение на полгекса вправо
+    x += (hexWidth * 0.375) + 1; // Смещение на полгекса вправо + 1px
   }
   
   // Добавляем отступ от края
