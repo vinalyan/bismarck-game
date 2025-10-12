@@ -2,10 +2,24 @@
 
 .hex {
   cursor: pointer;
+  /* Явно отключаем все анимации */
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}
+
+/* Отключаем анимации для всех дочерних элементов */
+.hex * {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
 }
 
 .hex-shape {
-  /* Убрана анимация */
+  /* Явно отключаем все анимации */
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
 }
 
 .hex-coordinate {
@@ -17,7 +31,10 @@
 }
 
 .unit-marker {
-  /* Убрана анимация */
+  /* Явно отключаем все анимации */
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
 }
 
 .fog-marker {
