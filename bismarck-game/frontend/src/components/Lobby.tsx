@@ -12,13 +12,23 @@ const Lobby: React.FC = () => {
     name: '',
     side: PlayerSide.German,
     settings: {
-      turnDuration: 30,
-      gameMode: GameMode.Classic,
-      difficulty: Difficulty.Normal,
-      weatherEnabled: true,
-      fogOfWar: true,
-      randomEvents: true,
-      victoryConditions: [VictoryCondition.Operational],
+      use_optional_units: false,
+      enable_crew_exhaustion: false,
+      victory_conditions: {
+        bismarck_sunk_vp: -10,
+        bismarck_france_vp: -5,
+        bismarck_norway_vp: -7,
+        bismarck_end_game_vp: -10,
+        bismarck_no_fuel_vp: -15,
+        ship_vp_values: {},
+        convoy_vp: {}
+      },
+      time_limit_minutes: 180,
+      private_lobby: false,
+      max_turn_time: 30,
+      allow_spectators: true,
+      auto_save: true,
+      difficulty: 'standard'
     },
   });
   const [isCreating, setIsCreating] = useState(false);
@@ -343,22 +353,22 @@ const Lobby: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="turnDuration">Длительность хода (сек)</label>
+                  <label htmlFor="maxTurnTime">Длительность хода (мин)</label>
                   <select
-                    id="turnDuration"
-                    value={createFormData.settings.turnDuration}
+                    id="maxTurnTime"
+                    value={createFormData.settings.max_turn_time}
                     onChange={(e) => setCreateFormData(prev => ({
                       ...prev,
                       settings: {
                         ...prev.settings,
-                        turnDuration: parseInt(e.target.value),
+                        max_turn_time: parseInt(e.target.value),
                       },
                     }))}
                     disabled={isCreating}
                   >
-                    <option value={30}>30 секунд</option>
-                    <option value={60}>1 минута</option>
-                    <option value={120}>2 минуты</option>
+                    <option value={30}>30 минут</option>
+                    <option value={60}>1 час</option>
+                    <option value={120}>2 часа</option>
                   </select>
                 </div>
 

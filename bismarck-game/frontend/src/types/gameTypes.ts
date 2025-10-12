@@ -67,21 +67,35 @@ export enum GamePhase {
 // Статус игры
 export enum GameStatus {
   Waiting = 'waiting',
-  InProgress = 'in_progress',
+  InProgress = 'active',
   Completed = 'completed',
   Cancelled = 'cancelled'
 }
 
 // Настройки игры
 export interface GameSettings {
-  turnDuration: number;
-  gameMode: GameMode;
-  difficulty: Difficulty;
-  weatherEnabled: boolean;
-  fogOfWar: boolean;
-  randomEvents: boolean;
-  victoryConditions: VictoryCondition[];
+  use_optional_units: boolean;
+  enable_crew_exhaustion: boolean;
+  victory_conditions: VictoryConfig;
+  time_limit_minutes: number;
+  private_lobby: boolean;
+  password?: string;
+  max_turn_time: number;
+  allow_spectators: boolean;
+  auto_save: boolean;
+  difficulty: string;
   // maxPlayers убран - всегда 2 игрока
+}
+
+// Конфигурация условий победы
+export interface VictoryConfig {
+  bismarck_sunk_vp: number;
+  bismarck_france_vp: number;
+  bismarck_norway_vp: number;
+  bismarck_end_game_vp: number;
+  bismarck_no_fuel_vp: number;
+  ship_vp_values: any; // TODO: определить точную структуру
+  convoy_vp: any; // TODO: определить точную структуру
 }
 
 // Режимы игры

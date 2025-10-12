@@ -111,8 +111,8 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		game.Player2ID = ""     // Свободно для союзника (пустая строка = NULL в БД)
 	}
 
-	// Если настройки не указаны, используем по умолчанию
-	if game.Settings.UseOptionalUnits == false && game.Settings.TimeLimitMinutes == 0 {
+	// Если настройки не указаны или пустые, используем по умолчанию
+	if game.Settings.TimeLimitMinutes == 0 {
 		game.Settings = models.GetDefaultGameSettings()
 	}
 
@@ -444,7 +444,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	// Определяем, к какой стороне присоединяется игрок
 	var updateQuery string
 	var updateArgs []interface{}
-	
+
 	if game.Player1ID == "" {
 		// Свободна немецкая сторона (Player1)
 		updateQuery = `UPDATE games SET player1_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
