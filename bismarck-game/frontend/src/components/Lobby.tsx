@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { gameAPI } from '../services/api/gameAPI';
-import { CreateGameRequest, GameResponse, GameStatus, ViewType, GameMode, Difficulty, VictoryCondition, NotificationType, PlayerSide } from '../types/gameTypes';
+import { CreateGameRequest, GameResponse, GameStatus, ViewType, NotificationType, PlayerSide } from '../types/gameTypes';
 import './Lobby.css';
 
 const Lobby: React.FC = () => {
@@ -43,20 +43,14 @@ const Lobby: React.FC = () => {
     setLoading,
     setError,
     addNotification,
-    joinGame,
     logout,
     setCurrentView,
   } = useGameStore();
 
-  // Загрузка списка игр при монтировании компонента
-  useEffect(() => {
-    loadGames();
-  }, []);
-
   // Загрузка списка игр
   const loadGames = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const response = await gameAPI.getGames();
       if (response.success && response.data) {
         setGames(response.data);
@@ -64,12 +58,17 @@ const Lobby: React.FC = () => {
         setError(response.error || 'Ошибка загрузки игр');
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Ошибка соединения с сервером';
-      setError(errorMessage);
+      setError('Ошибка загрузки игр');
     } finally {
       setLoading(false);
     }
   };
+
+  // Загрузка списка игр при монтировании компонента
+  useEffect(() => {
+    loadGames();
+  }, []);
+
 
   // Создание новой игры
   const handleCreateGame = async (e: React.FormEvent) => {
@@ -102,21 +101,33 @@ const Lobby: React.FC = () => {
         const gameResponse: GameResponse = {
           ...response.data,
           player1: user!,
+          player1_side: PlayerSide.German,
+          player2_side: PlayerSide.Allied,
         };
         addGame(gameResponse);
         
         // Сбрасываем форму
         setCreateFormData({
           name: '',
+          side: PlayerSide.German,
           settings: {
-            maxPlayers: 2,
-            turnDuration: 30,
-            gameMode: GameMode.Classic,
-            difficulty: Difficulty.Normal,
-            weatherEnabled: true,
-            fogOfWar: true,
-            randomEvents: true,
-            victoryConditions: [VictoryCondition.Operational],
+            use_optional_units: false,
+            enable_crew_exhaustion: false,
+            victory_conditions: {
+              bismarck_sunk_vp: -10,
+              bismarck_france_vp: -5,
+              bismarck_norway_vp: -7,
+              bismarck_end_game_vp: -10,
+              bismarck_no_fuel_vp: -15,
+              ship_vp_values: {},
+              convoy_vp: {}
+            },
+            time_limit_minutes: 180,
+            private_lobby: false,
+            max_turn_time: 30,
+            allow_spectators: true,
+            auto_save: true,
+            difficulty: 'standard'
           },
         });
         setShowCreateForm(false);
@@ -400,8 +411,8 @@ const Lobby: React.FC = () => {
                       🇬🇧 Союзники: {game.player2_username || (game.player2_id ? 'Ожидается' : 'Свободно')}
                     </p>
                     <p className="game-settings">
-                      Режим: {game.settings?.gameMode || 'Классический'}, 
-                      Сложность: {game.settings?.difficulty || 'Стандартная'}
+                      Сложность: {game.settings?.difficulty || 'Стандартная'}, 
+                      Лимит времени: {game.settings?.time_limit_minutes || 180} мин
                     </p>
                   </div>
                   
