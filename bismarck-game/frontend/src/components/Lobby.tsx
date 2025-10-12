@@ -402,7 +402,7 @@ const Lobby: React.FC = () => {
                   </div>
 
                   <div className="game-actions">
-                    {game.status === GameStatus.Waiting && (game.player1_id === '' || game.player2_id === '') && (
+                    {game.status === GameStatus.Waiting && (!game.player1_id || !game.player2_id) && (
                       <button
                         onClick={() => handleJoinGame(game.id)}
                         className="join-button"
