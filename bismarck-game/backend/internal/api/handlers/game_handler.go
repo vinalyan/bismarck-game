@@ -47,17 +47,23 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
+		log.Printf("CreateGame: Failed to get user ID: %v", err)
 		utils.WriteUnauthorized(w, "Authentication required")
 		return
 	}
 
+	log.Printf("CreateGame: User ID: %s", userID)
+
 	var req models.CreateGameRequest
 	if err = utils.ParseJSON(r, &req); err != nil {
+		log.Printf("CreateGame: Failed to parse JSON: %v", err)
 		utils.WriteValidationError(w, "Invalid request format", map[string]string{
 			"body": "Request body must be valid JSON",
 		})
 		return
 	}
+
+	log.Printf("CreateGame: Request parsed successfully: %+v", req)
 
 	// Валидация полей
 	if req.Name == "" {
@@ -127,7 +133,7 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	// Сохраняем в базу данных
 	query := `
 		INSERT INTO games (name, player1_id, player2_id, current_turn, current_phase, status, settings, created_at, updated_at)
-		VALUES ($1, NULLIF($2, ''), NULLIF($3, ''), $4, $5, $6, $7, $8, $9)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id
 	`
 

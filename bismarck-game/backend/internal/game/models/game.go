@@ -76,11 +76,11 @@ type GameSettings struct {
 
 // VictoryConfig представляет конфигурацию условий победы
 type VictoryConfig struct {
-	BismarckSunkVP    int                  `json:"bismarck_sunk_vp"`
-	BismarckFranceVP  int                  `json:"bismarck_france_vp"`
-	BismarckNorwayVP  int                  `json:"bismarck_norway_vp"`
-	BismarckEndGameVP int                  `json:"bismarck_end_game_vp"`
-	BismarckNoFuelVP  int                  `json:"bismarck_no_fuel_vp"`
+	BismarckSunkVP    int                    `json:"bismarck_sunk_vp"`
+	BismarckFranceVP  int                    `json:"bismarck_france_vp"`
+	BismarckNorwayVP  int                    `json:"bismarck_norway_vp"`
+	BismarckEndGameVP int                    `json:"bismarck_end_game_vp"`
+	BismarckNoFuelVP  int                    `json:"bismarck_no_fuel_vp"`
 	ShipVPValues      map[string]interface{} `json:"ship_vp_values"`
 	ConvoyVP          map[string]interface{} `json:"convoy_vp"`
 }
