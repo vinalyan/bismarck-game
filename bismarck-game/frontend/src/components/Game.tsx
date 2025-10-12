@@ -240,7 +240,7 @@ const Game: React.FC = () => {
             selectedHex={selectedHex ? {
               letter: selectedHex.charAt(0),
               number: parseInt(selectedHex.slice(1)),
-              q: 0, r: 0
+              col: 0, row: 0
             } : null}
             highlightedHexes={[]}
           />
