@@ -3,10 +3,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Hex } from './Hex';
-import { HexCoordinate, HexData, coordinateToHex, hexToCoordinate } from '../types/mapTypes';
+import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
 import { 
-  hex, hexToPixel, polygonCorners, createLayout, LAYOUT_POINTY, Point,
-  hexRange, hexDistance, isValidHex, qoffsetToCube
+  Point, OffsetCoord, offsetToPixel, offsetPolygonCorners
 } from '../utils/hexUtils';
 import './HexMap.css';
 
@@ -29,41 +28,23 @@ const HexMap: React.FC<HexMapProps> = ({
 }) => {
   const [hexes, setHexes] = useState<Map<string, HexData>>(new Map());
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
-  const [layout, setLayout] = useState<any>(null);
-
-  // Создаем макет для отрисовки
-  useEffect(() => {
-    // Размеры согласно требованиям: радиус 0.5см, расстояние между центрами 1см
-    const hexRadius = 18.9; // 0.5 см в пикселях (96 DPI)
-    const hexSize = { x: hexRadius, y: hexRadius };
-    const origin = { x: 50, y: 50 }; // Начальная позиция
-    
-    const newLayout = createLayout(LAYOUT_POINTY, hexSize, origin);
-    setLayout(newLayout);
-  }, []);
+  const [hexRadius] = useState(18.9); // 0.5 см в пикселях (96 DPI)
 
   // Генерируем координаты гексов
   useEffect(() => {
     const newHexes = new Map<string, HexData>();
     
-    // Создаем гексы используя правильные offset координаты
+    // Создаем гексы используя offset координаты (col, row)
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         const letter = String.fromCharCode(65 + row); // A, B, C, ..., AH
         const number = col + 1; // 1, 2, 3, ..., 35
         
-        // Для правильного отображения гексагональной сетки:
-        // Четные строки (A, C, E, G...): без смещения
-        // Нечетные строки (B, D, F, H...): смещены на 0.5 влево
-        const q = col - (row % 2) * 0.5;
-        const r = row;
-        const hexCoord = hex(q, r);
-        
         const coordinate: HexCoordinate = {
           letter: letter,
           number: number,
-          q: hexCoord.q,
-          r: hexCoord.r
+          col: col,
+          row: row
         };
         
         const hexId = `${letter}${number}`;
@@ -98,10 +79,6 @@ const HexMap: React.FC<HexMapProps> = ({
   };
 
   // Вычисляем размеры SVG
-  if (!layout) return <div>Loading map...</div>;
-  
-  // Вычисляем границы карты
-  const hexRadius = layout.size.x;
   const hexWidth = hexRadius * Math.sqrt(3);
   const hexHeight = hexRadius * 2;
   
@@ -115,14 +92,14 @@ const HexMap: React.FC<HexMapProps> = ({
     hexes.forEach((hexData, hexId) => {
       const { coordinate } = hexData;
       
-      // Преобразуем координаты в гексагональную систему
-      const hexCoord = coordinateToHex(coordinate);
+      // Преобразуем координаты в offset систему
+      const offsetCoord = coordinateToOffset(coordinate);
       
       // Получаем позицию центра гекса
-      const center = hexToPixel(layout, hexCoord);
+      const center = offsetToPixel(offsetCoord, hexRadius);
       
       // Получаем углы гекса для отрисовки
-      const corners = polygonCorners(layout, hexCoord);
+      const corners = offsetPolygonCorners(offsetCoord, hexRadius);
       
       const isSelected = selectedHex && 
         selectedHex.letter === coordinate.letter && 

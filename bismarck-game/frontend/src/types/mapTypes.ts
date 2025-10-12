@@ -1,22 +1,34 @@
 // Типы для гексагональной карты
 
-import { Hex, Point } from '../utils/hexUtils';
+import { Hex, Point, OffsetCoord } from '../utils/hexUtils';
 
 // Координаты гекса (для отображения пользователю)
 export interface HexCoordinate {
   letter: string;  // A, B, C, ..., AH (34 буквы)
   number: number;  // 1, 2, 3, ..., 35
-  q: number;       // Гексагональная координата q
-  r: number;       // Гексагональная координата r
+  col: number;     // Offset координата col (0-34)
+  row: number;     // Offset координата row (0-33)
 }
 
 // Преобразование между системами координат
+export function coordinateToOffset(coord: HexCoordinate): OffsetCoord {
+  return { col: coord.col, row: coord.row };
+}
+
+export function offsetToCoordinate(offset: OffsetCoord): HexCoordinate {
+  const letter = String.fromCharCode(65 + offset.row); // A, B, C, ..., AH
+  const number = offset.col + 1; // 1, 2, 3, ..., 35
+  return { letter, number, col: offset.col, row: offset.row };
+}
+
+// Обратная совместимость с cube координатами (если нужно)
 export function coordinateToHex(coord: HexCoordinate): Hex {
-  return { q: coord.q, r: coord.r, s: -coord.q - coord.r };
+  // Простое преобразование для совместимости
+  return { q: coord.col, r: coord.row, s: -coord.col - coord.row };
 }
 
 export function hexToCoordinate(hex: Hex, letter: string, number: number): HexCoordinate {
-  return { letter, number, q: hex.q, r: hex.r };
+  return { letter, number, col: hex.q, row: hex.r };
 }
 
 // Типы гексов

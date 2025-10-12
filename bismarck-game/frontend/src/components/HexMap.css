@@ -44,7 +44,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  transition: all 0.2s ease;
+  /* Убрана анимация */
 }
 
 .map-controls button:hover {
@@ -60,7 +60,7 @@
 
 .hex-map {
   background: transparent;
-  transition: transform 0.3s ease;
+  /* Убрана анимация */
 }
 
 .hex-map svg {
@@ -83,11 +83,11 @@
 
 /* Стили для юнитов */
 .unit-marker {
-  transition: all 0.2s ease;
+  /* Убрана анимация */
 }
 
 .hex:hover .unit-marker {
-  transform: scale(1.2);
+  /* Убрано масштабирование */
 }
 
 /* Стили для тумана войны */

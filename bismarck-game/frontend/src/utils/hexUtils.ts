@@ -270,3 +270,116 @@ export function hexLineDraw(a: Hex, b: Hex): Hex[] {
   
   return results;
 }
+
+// =============================================================================
+// OFFSET COORDINATE SYSTEM - для упрощения логики игры
+// =============================================================================
+
+// Offset координаты (col, row) - простая система для игровой логики
+export interface OffsetCoord {
+  col: number; // 0-34 (горизонталь)
+  row: number; // 0-33 (вертикаль, буквы A-AH)
+}
+
+// Кастомная функция для преобразования offset координат в пиксели
+export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
+  const hexWidth = hexRadius * Math.sqrt(3); // Ширина гекса
+  
+  // Базовые координаты
+  let x = coord.col * hexWidth * 0.75; // 75% ширины между центрами
+  let y = coord.row * hexRadius * 1.5; // 1.5 радиуса между рядами
+  
+  // Смещение для нечетных строк (B, D, F...)
+  if (coord.row % 2 === 1) {
+    x += hexWidth * 0.375; // Смещение на полгекса вправо
+  }
+  
+  // Добавляем отступ от края
+  x += 50; // origin.x
+  y += 50; // origin.y
+  
+  return { x, y };
+}
+
+// Получение соседних гексов для offset координат
+export function getOffsetNeighbors(coord: OffsetCoord): OffsetCoord[] {
+  const neighbors: OffsetCoord[] = [];
+  const isOddRow = coord.row % 2 === 1;
+  
+  // Определяем смещения для соседей в зависимости от четности строки
+  const neighborOffsets = isOddRow ? [
+    { col: -1, row: -1 }, { col: 0, row: -1 }, // Верхние соседи
+    { col: -1, row: 0 }, { col: 1, row: 0 },   // Боковые соседи
+    { col: -1, row: 1 }, { col: 0, row: 1 }    // Нижние соседи
+  ] : [
+    { col: 0, row: -1 }, { col: 1, row: -1 },  // Верхние соседи
+    { col: -1, row: 0 }, { col: 1, row: 0 },   // Боковые соседи
+    { col: 0, row: 1 }, { col: 1, row: 1 }     // Нижние соседи
+  ];
+  
+  // Добавляем всех соседей
+  for (const offset of neighborOffsets) {
+    neighbors.push({
+      col: coord.col + offset.col,
+      row: coord.row + offset.row
+    });
+  }
+  
+  return neighbors;
+}
+
+// Расстояние между offset координатами
+export function offsetDistance(a: OffsetCoord, b: OffsetCoord): number {
+  // Простая манхэттенская метрика для offset координат
+  return Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row));
+}
+
+// Проверка валидности offset координат
+export function isValidOffsetCoord(coord: OffsetCoord, width: number, height: number): boolean {
+  return coord.col >= 0 && coord.col < width && 
+         coord.row >= 0 && coord.row < height;
+}
+
+// Построение пути между offset координатами (простой алгоритм)
+export function offsetPath(a: OffsetCoord, b: OffsetCoord): OffsetCoord[] {
+  const path: OffsetCoord[] = [a];
+  
+  if (a.col === b.col && a.row === b.row) {
+    return path; // Уже в целевой точке
+  }
+  
+  let current = { ...a };
+  
+  // Простой алгоритм: сначала по горизонтали, потом по вертикали
+  while (current.col !== b.col || current.row !== b.row) {
+    if (current.col < b.col) {
+      current.col++;
+    } else if (current.col > b.col) {
+      current.col--;
+    } else if (current.row < b.row) {
+      current.row++;
+    } else if (current.row > b.row) {
+      current.row--;
+    }
+    
+    path.push({ ...current });
+  }
+  
+  return path;
+}
+
+// Получение углов гекса для offset координат
+export function offsetPolygonCorners(coord: OffsetCoord, hexRadius: number): Point[] {
+  const center = offsetToPixel(coord, hexRadius);
+  const corners: Point[] = [];
+  
+  // 6 углов гекса (point-top ориентация)
+  for (let i = 0; i < 6; i++) {
+    const angle = Math.PI / 3 * i + Math.PI / 6; // Начинаем с верхнего угла
+    const x = center.x + hexRadius * Math.cos(angle);
+    const y = center.y + hexRadius * Math.sin(angle);
+    corners.push({ x, y });
+  }
+  
+  return corners;
+}
