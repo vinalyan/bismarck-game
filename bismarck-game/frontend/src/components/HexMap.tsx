@@ -5,8 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { Hex } from './Hex';
 import { HexCoordinate, HexData, coordinateToHex, hexToCoordinate } from '../types/mapTypes';
 import { 
-  hex, hexToPixel, polygonCorners, createLayout, LAYOUT_POINTY, Point,
-  hexRange, hexDistance, isValidHex
+  hex, hexToPixel, polygonCorners, createLayout, LAYOUT_FLAT, Point,
+  hexRange, hexDistance, isValidHex, qoffsetToCube
 } from '../utils/hexUtils';
 import './HexMap.css';
 
@@ -38,7 +38,7 @@ const HexMap: React.FC<HexMapProps> = ({
     const hexSize = { x: hexRadius, y: hexRadius };
     const origin = { x: 50, y: 50 }; // Начальная позиция
     
-    const newLayout = createLayout(LAYOUT_POINTY, hexSize, origin);
+    const newLayout = createLayout(LAYOUT_FLAT, hexSize, origin);
     setLayout(newLayout);
   }, []);
 
@@ -46,14 +46,18 @@ const HexMap: React.FC<HexMapProps> = ({
   useEffect(() => {
     const newHexes = new Map<string, HexData>();
     
-    // Создаем гексы в offset координатах (для простоты отображения)
+    // Создаем гексы используя правильные offset координаты
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         const letter = String.fromCharCode(65 + row); // A, B, C, ..., AH
         const number = col + 1; // 1, 2, 3, ..., 35
         
-        // Преобразуем offset координаты в гексагональные
-        const hexCoord = hex(col - Math.floor(col / 2), row);
+        // Для правильного отображения карты используем простую систему:
+        // q = col (горизонтальная координата)
+        // r = row (вертикальная координата)
+        // s = -q - r (третья координата для гексагональной системы)
+        const hexCoord = hex(col, row);
+        
         const coordinate: HexCoordinate = {
           letter: letter,
           number: number,
