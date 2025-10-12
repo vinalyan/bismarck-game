@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Hex } from './Hex';
-import { HexCoordinate, HexType, HexData } from '../types/mapTypes';
+import { HexCoordinate, HexData } from '../types/mapTypes';
 import './HexMap.css';
 
 interface HexMapProps {
@@ -43,7 +43,7 @@ const HexMap: React.FC<HexMapProps> = ({
         const hexId = `${letter}${number}`;
         newHexes.set(hexId, {
           coordinate,
-          type: HexType.Water, // По умолчанию все гексы - вода
+          type: 'water', // По умолчанию все гексы - вода
           isVisible: true,
           isHighlighted: false,
           hasUnit: false,
@@ -81,7 +81,7 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Рендерим гексы
   const renderHexes = () => {
-    const hexElements: JSX.Element[] = [];
+    const hexElements: React.JSX.Element[] = [];
     
     hexes.forEach((hexData, hexId) => {
       const { coordinate } = hexData;
@@ -106,7 +106,7 @@ const HexMap: React.FC<HexMapProps> = ({
           x={x}
           y={y}
           size={hexSize}
-          isSelected={isSelected}
+          isSelected={!!isSelected}
           isHighlighted={isHighlighted}
           onClick={() => handleHexClick(coordinate)}
           onHover={() => handleHexHover(coordinate)}
