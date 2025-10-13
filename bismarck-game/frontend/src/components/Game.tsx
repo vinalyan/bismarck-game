@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { ViewType, GamePhase, PlayerSide, NotificationType } from '../types/gameTypes';
 import { HexCoordinate } from '../types/mapTypes';
+import { MAP_CONSTANTS } from '../utils/hexUtils';
 import HexMap from './HexMap';
 import './Game.css';
 
@@ -228,8 +229,8 @@ const Game: React.FC = () => {
           </div>
           
           <HexMap
-            width={35}
-            height={33}
+            width={MAP_CONSTANTS.HEX_GRID_WIDTH}
+            height={MAP_CONSTANTS.HEX_GRID_HEIGHT}
             playerSide={playerSide === PlayerSide.German ? 'german' : 'allied'}
             onHexClick={(coordinate: HexCoordinate) => {
               const hexId = `${coordinate.letter}${coordinate.number}`;

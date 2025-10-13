@@ -275,6 +275,26 @@ export function hexLineDraw(a: Hex, b: Hex): Hex[] {
 // OFFSET COORDINATE SYSTEM - для упрощения логики игры
 // =============================================================================
 
+// Константы для фиксированного размера карты
+export const MAP_CONSTANTS = {
+  // Размеры подложки карты (в пикселях)
+  BACKGROUND_WIDTH: 8419,
+  BACKGROUND_HEIGHT: 7146,
+  
+  // Размеры гексагональной сетки
+  HEX_GRID_WIDTH: 35,   // A1-AH35
+  HEX_GRID_HEIGHT: 33,  // A-AH
+  
+  // Стандартный радиус гекса (можно изменять)
+  DEFAULT_HEX_RADIUS: 18.9,
+  
+  // Отступы от краев карты
+  MARGIN_LEFT: 27,
+  MARGIN_TOP: 61,
+  MARGIN_RIGHT: 27,
+  MARGIN_BOTTOM: 61
+};
+
 // Offset координаты (col, row) - простая система для игровой логики
 export interface OffsetCoord {
   col: number; // 0-34 (горизонталь)
@@ -285,18 +305,26 @@ export interface OffsetCoord {
 export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
   const hexWidth = hexRadius * Math.sqrt(3); // Ширина гекса
   
-  // Базовые координаты с увеличенными расстояниями
-  let x = coord.col * (hexWidth * 0.75 + 12); // 75% ширины + 5px между центрами (было +4px)
-  let y = coord.row * (hexRadius * 1.5 + 2); // 1.5 радиуса + 2px между рядами (было +3px)
+  // Рассчитываем доступную область для гексагональной сетки
+  const availableWidth = MAP_CONSTANTS.BACKGROUND_WIDTH - MAP_CONSTANTS.MARGIN_LEFT - MAP_CONSTANTS.MARGIN_RIGHT;
+  const availableHeight = MAP_CONSTANTS.BACKGROUND_HEIGHT - MAP_CONSTANTS.MARGIN_TOP - MAP_CONSTANTS.MARGIN_BOTTOM;
   
-  // Смещение для нечетных строк (B, D, F...)
+  // Рассчитываем шаги для равномерного распределения гексов
+  const horizontalStep = availableWidth / MAP_CONSTANTS.HEX_GRID_WIDTH;
+  const verticalStep = availableHeight / MAP_CONSTANTS.HEX_GRID_HEIGHT;
+  
+  // Базовые координаты
+  let x = coord.col * horizontalStep;
+  let y = coord.row * verticalStep;
+  
+  // Смещение для нечетных строк (B, D, F...) - на полшага вправо
   if (coord.row % 2 === 1) {
-    x += (hexWidth * 0.375) + 3; // Смещение на полгекса вправо + 2px (было +1px)
+    x += horizontalStep * 0.5;
   }
   
-  // Добавляем отступ от края
-  x += 0; // origin.x
-  y += 55; // origin.y
+  // Добавляем отступы от краев
+  x += MAP_CONSTANTS.MARGIN_LEFT;
+  y += MAP_CONSTANTS.MARGIN_TOP;
   
   return { x, y };
 }
@@ -368,21 +396,13 @@ export function offsetPath(a: OffsetCoord, b: OffsetCoord): OffsetCoord[] {
   return path;
 }
 
-// Расчет размеров SVG для карты
+// Расчет размеров SVG для карты (фиксированный размер)
 export function calculateMapSize(width: number, height: number, hexRadius: number): { width: number, height: number } {
-  const hexWidth = hexRadius * Math.sqrt(3);
-  
-  // Используем те же коэффициенты, что и в offsetToPixel
-  const horizontalSpacing = hexWidth * 0.75 + 12; // Соответствует формуле в offsetToPixel
-  const verticalSpacing = hexRadius * 1.5 + 2;   // Соответствует формуле в offsetToPixel
-  
-  // Учитываем максимальное смещение нечетных строк
-  const maxHorizontalOffset = (hexWidth * 0.375) + 3; // Максимальное смещение
-  
-  const mapWidth = width * horizontalSpacing + maxHorizontalOffset + 100; // +100 для отступов
-  const mapHeight = height * verticalSpacing + 100;
-  
-  return { width: mapWidth, height: mapHeight };
+  // Используем фиксированный размер, равный размеру подложки
+  return { 
+    width: MAP_CONSTANTS.BACKGROUND_WIDTH, 
+    height: MAP_CONSTANTS.BACKGROUND_HEIGHT 
+  };
 }
 
 // Получение углов гекса для offset координат

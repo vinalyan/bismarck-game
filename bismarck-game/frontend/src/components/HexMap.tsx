@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Hex } from './Hex';
 import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
 import { 
-  Point, OffsetCoord, offsetToPixel, offsetPolygonCorners, calculateMapSize
+  Point, OffsetCoord, offsetToPixel, offsetPolygonCorners, calculateMapSize, MAP_CONSTANTS
 } from '../utils/hexUtils';
 import './HexMap.css';
 
@@ -20,8 +20,8 @@ interface HexMapProps {
 }
 
 const HexMap: React.FC<HexMapProps> = ({
-  width = 35, // 35 гексов по горизонтали (1-35)
-  height = 33, // 33 гекса по вертикали (A-AH)
+  width = MAP_CONSTANTS.HEX_GRID_WIDTH, // 35 гексов по горизонтали (1-35)
+  height = MAP_CONSTANTS.HEX_GRID_HEIGHT, // 33 гекса по вертикали (A-AH)
   onHexClick,
   onHexHover,
   selectedHex,
@@ -30,7 +30,7 @@ const HexMap: React.FC<HexMapProps> = ({
 }) => {
   const [hexes, setHexes] = useState<Map<string, HexData>>(new Map());
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
-  const [hexRadius] = useState(35); // 0.5 см в пикселях (96 DPI)
+  const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
 
   // Генерируем координаты гексов
   useEffect(() => {
