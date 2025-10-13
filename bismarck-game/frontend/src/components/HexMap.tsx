@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Hex } from './Hex';
 import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
 import { 
-  Point, OffsetCoord, offsetToPixel, offsetPolygonCorners
+  Point, OffsetCoord, offsetToPixel, offsetPolygonCorners, calculateMapSize
 } from '../utils/hexUtils';
 import './HexMap.css';
 
@@ -16,6 +16,7 @@ interface HexMapProps {
   onHexHover?: (hex: HexCoordinate) => void;
   selectedHex?: HexCoordinate | null;
   highlightedHexes?: HexCoordinate[];
+  playerSide?: 'german' | 'allied';
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -24,11 +25,12 @@ const HexMap: React.FC<HexMapProps> = ({
   onHexClick,
   onHexHover,
   selectedHex,
-  highlightedHexes = []
+  highlightedHexes = [],
+  playerSide = 'german'
 }) => {
   const [hexes, setHexes] = useState<Map<string, HexData>>(new Map());
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
-  const [hexRadius] = useState(18.9); // 0.5 см в пикселях (96 DPI)
+  const [hexRadius] = useState(35); // 0.5 см в пикселях (96 DPI)
 
   // Генерируем координаты гексов
   useEffect(() => {
@@ -87,19 +89,8 @@ const HexMap: React.FC<HexMapProps> = ({
     }
   };
 
-  // Вычисляем размеры SVG с учетом увеличенных расстояний
-  const hexWidth = hexRadius * Math.sqrt(3);
-  const hexHeight = hexRadius * 2;
-  
-  // Используем те же коэффициенты, что и в offsetToPixel
-  const horizontalSpacing = hexWidth * 0.75 + 10; // Соответствует формуле в hexUtils
-  const verticalSpacing = hexRadius * 1.5 + 2;   // Соответствует формуле в hexUtils
-  
-  // Учитываем максимальное смещение нечетных строк
-  const maxHorizontalOffset = (hexWidth * 0.375) + 3; // Максимальное смещение
-  
-  const svgWidth = width * horizontalSpacing + maxHorizontalOffset + 100; // +100 для отступов
-  const svgHeight = height * verticalSpacing + 100;
+  // Вычисляем размеры SVG с использованием универсальной функции
+  const { width: svgWidth, height: svgHeight } = calculateMapSize(width, height, hexRadius);
 
   // Рендерим гексы
   const renderHexes = () => {
@@ -180,6 +171,23 @@ const HexMap: React.FC<HexMapProps> = ({
           }}
         >
           <defs>
+            {/* Фоновое изображение карты */}
+            <pattern 
+              id="mapBackground" 
+              patternUnits="userSpaceOnUse" 
+              width={svgWidth} 
+              height={svgHeight}
+              x="0" 
+              y="0"
+            >
+              <image 
+                href={`/assets/maps/${playerSide}-map.jpg`}
+                width={svgWidth} 
+                height={svgHeight} 
+                preserveAspectRatio="xMidYMid slice"
+              />
+            </pattern>
+            
             {/* Градиенты для разных типов гексов */}
             <radialGradient id="waterGradient" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="#4A90E2" />
@@ -194,6 +202,15 @@ const HexMap: React.FC<HexMapProps> = ({
               <stop offset="100%" stopColor="#A0522D" />
             </radialGradient>
           </defs>
+          
+          {/* Фоновое изображение карты */}
+          <rect 
+            x="0" 
+            y="0" 
+            width={svgWidth} 
+            height={svgHeight} 
+            fill="url(#mapBackground)"
+          />
           
           {renderHexes()}
         </svg>

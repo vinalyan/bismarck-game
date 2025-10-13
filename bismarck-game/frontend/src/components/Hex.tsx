@@ -38,20 +38,29 @@ const Hex: React.FC<HexProps> = ({
     let fill = '';
     let stroke = '#000';
     let strokeWidth = 1;
+    let fillOpacity = 1;
     
     // Цвет в зависимости от типа гекса
     switch (hexData.type) {
       case 'water':
         fill = 'url(#waterGradient)';
+        fillOpacity = 0.3; // Полупрозрачность для показа подложки
+        stroke = '#2E5C8A';
         break;
       case 'land':
         fill = 'url(#landGradient)';
+        fillOpacity = 0.4;
+        stroke = '#654321';
         break;
       case 'port':
         fill = 'url(#portGradient)';
+        fillOpacity = 0.5;
+        stroke = '#A0522D';
+        strokeWidth = 2;
         break;
       default:
         fill = '#cccccc';
+        fillOpacity = 0.3;
     }
     
     // Выделение выбранного гекса
@@ -66,7 +75,7 @@ const Hex: React.FC<HexProps> = ({
       strokeWidth = 2;
     }
     
-    return { fill, stroke, strokeWidth };
+    return { fill, stroke, strokeWidth, fillOpacity };
   };
 
   const hexStyle = getHexStyle();
@@ -83,6 +92,7 @@ const Hex: React.FC<HexProps> = ({
       <polygon
         points={points}
         fill={hexStyle.fill}
+        fillOpacity={hexStyle.fillOpacity}
         stroke={hexStyle.stroke}
         strokeWidth={hexStyle.strokeWidth}
         className="hex-shape"

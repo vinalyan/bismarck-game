@@ -230,6 +230,7 @@ const Game: React.FC = () => {
           <HexMap
             width={35}
             height={33}
+            playerSide={playerSide === PlayerSide.German ? 'german' : 'allied'}
             onHexClick={(coordinate: HexCoordinate) => {
               const hexId = `${coordinate.letter}${coordinate.number}`;
               handleHexClick(hexId);

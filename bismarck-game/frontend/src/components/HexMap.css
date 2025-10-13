@@ -72,6 +72,28 @@
   /* Убраны все анимации */
 }
 
+/* Стили для типов гексов с полупрозрачностью для показа подложки */
+.hex-shape.water {
+  fill: url(#waterGradient);
+  fill-opacity: 0.3; /* Полупрозрачность для показа подложки */
+  stroke: #2E5C8A;
+  stroke-width: 1;
+}
+
+.hex-shape.land {
+  fill: url(#landGradient);
+  fill-opacity: 0.4;
+  stroke: #654321;
+  stroke-width: 1;
+}
+
+.hex-shape.port {
+  fill: url(#portGradient);
+  fill-opacity: 0.5;
+  stroke: #A0522D;
+  stroke-width: 2;
+}
+
 /* Стили для координат */
 .hex-coordinate {
   font-family: 'Courier New', monospace;

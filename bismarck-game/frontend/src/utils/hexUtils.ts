@@ -286,7 +286,7 @@ export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
   const hexWidth = hexRadius * Math.sqrt(3); // Ширина гекса
   
   // Базовые координаты с увеличенными расстояниями
-  let x = coord.col * (hexWidth * 0.75 + 10); // 75% ширины + 5px между центрами (было +4px)
+  let x = coord.col * (hexWidth * 0.75 + 12); // 75% ширины + 5px между центрами (было +4px)
   let y = coord.row * (hexRadius * 1.5 + 2); // 1.5 радиуса + 2px между рядами (было +3px)
   
   // Смещение для нечетных строк (B, D, F...)
@@ -295,8 +295,8 @@ export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
   }
   
   // Добавляем отступ от края
-  x += 50; // origin.x
-  y += 50; // origin.y
+  x += 0; // origin.x
+  y += 55; // origin.y
   
   return { x, y };
 }
@@ -366,6 +366,23 @@ export function offsetPath(a: OffsetCoord, b: OffsetCoord): OffsetCoord[] {
   }
   
   return path;
+}
+
+// Расчет размеров SVG для карты
+export function calculateMapSize(width: number, height: number, hexRadius: number): { width: number, height: number } {
+  const hexWidth = hexRadius * Math.sqrt(3);
+  
+  // Используем те же коэффициенты, что и в offsetToPixel
+  const horizontalSpacing = hexWidth * 0.75 + 12; // Соответствует формуле в offsetToPixel
+  const verticalSpacing = hexRadius * 1.5 + 2;   // Соответствует формуле в offsetToPixel
+  
+  // Учитываем максимальное смещение нечетных строк
+  const maxHorizontalOffset = (hexWidth * 0.375) + 3; // Максимальное смещение
+  
+  const mapWidth = width * horizontalSpacing + maxHorizontalOffset + 100; // +100 для отступов
+  const mapHeight = height * verticalSpacing + 100;
+  
+  return { width: mapWidth, height: mapHeight };
 }
 
 // Получение углов гекса для offset координат
