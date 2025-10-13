@@ -278,21 +278,21 @@ export function hexLineDraw(a: Hex, b: Hex): Hex[] {
 // Константы для фиксированного размера карты
 export const MAP_CONSTANTS = {
   // Размеры подложки карты (в пикселях)
-  BACKGROUND_WIDTH: 8419,
-  BACKGROUND_HEIGHT: 7146,
+  BACKGROUND_WIDTH: 2104,
+  BACKGROUND_HEIGHT: 1786,
   
   // Размеры гексагональной сетки
   HEX_GRID_WIDTH: 35,   // A1-AH35
   HEX_GRID_HEIGHT: 33,  // A-AH
   
   // Стандартный радиус гекса (можно изменять)
-  DEFAULT_HEX_RADIUS: 18.9,
+  DEFAULT_HEX_RADIUS: 30,
   
   // Отступы от краев карты
-  MARGIN_LEFT: 27,
-  MARGIN_TOP: 61,
-  MARGIN_RIGHT: 27,
-  MARGIN_BOTTOM: 61
+  MARGIN_LEFT: 72,
+  MARGIN_TOP: 60,
+  MARGIN_RIGHT: -12,
+  MARGIN_BOTTOM: 15
 };
 
 // Offset координаты (col, row) - простая система для игровой логики
@@ -317,9 +317,9 @@ export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
   let x = coord.col * horizontalStep;
   let y = coord.row * verticalStep;
   
-  // Смещение для нечетных строк (B, D, F...) - на полшага вправо
+  // Смещение для нечетных строк (B, D, F...) - на полшага влево
   if (coord.row % 2 === 1) {
-    x += horizontalStep * 0.5;
+    x -= horizontalStep * 0.5;
   }
   
   // Добавляем отступы от краев
