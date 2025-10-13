@@ -39,14 +39,14 @@ const HexMap: React.FC<HexMapProps> = ({
     // Создаем гексы используя offset координаты (col, row)
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
-        // Генерируем правильные буквы: A-Y, затем AA-AH
+        // Генерируем правильные буквы: A-Z, затем AA-AH
         let letter: string;
-        if (row < 25) {
-          // A, B, C, ..., Y (0-24)
+        if (row < 26) {
+          // A, B, C, ..., Z (0-25)
           letter = String.fromCharCode(65 + row);
         } else {
-          // AA, AB, AC, ..., AH (25-33, но только до H)
-          const secondLetterIndex = row - 25;
+          // AA, AB, AC, ..., AG (26-32, только до G)
+          const secondLetterIndex = row - 26;
           letter = 'A' + String.fromCharCode(65 + secondLetterIndex);
         }
         const number = col + 1; // 1, 2, 3, ..., 35
