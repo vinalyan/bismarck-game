@@ -36,31 +36,32 @@ const Hex: React.FC<HexProps> = ({
   // Определяем стиль гекса в зависимости от типа и состояния
   const getHexStyle = () => {
     let fill = '';
-    let stroke = '#000';
+    let stroke = 'transparent'; // Полностью прозрачные границы
     let strokeWidth = 1;
-    let fillOpacity = 1;
+    let fillOpacity = 0; // Полностью прозрачные гексы
     
-    // Цвет в зависимости от типа гекса
+    // Цвет в зависимости от типа гекса (все прозрачные)
     switch (hexData.type) {
       case 'water':
         fill = 'url(#waterGradient)';
-        fillOpacity = 0.3; // Полупрозрачность для показа подложки
-        stroke = '#2E5C8A';
+        fillOpacity = 0; // Полная прозрачность
+        stroke = 'transparent';
         break;
       case 'land':
         fill = 'url(#landGradient)';
-        fillOpacity = 0.4;
-        stroke = '#654321';
+        fillOpacity = 0; // Полная прозрачность
+        stroke = 'transparent';
         break;
       case 'port':
         fill = 'url(#portGradient)';
-        fillOpacity = 0.5;
-        stroke = '#A0522D';
+        fillOpacity = 0; // Полная прозрачность
+        stroke = 'transparent';
         strokeWidth = 2;
         break;
       default:
         fill = '#cccccc';
-        fillOpacity = 0.3;
+        fillOpacity = 0; // Полная прозрачность
+        stroke = 'transparent';
     }
     
     // Выделение выбранного гекса
@@ -98,17 +99,6 @@ const Hex: React.FC<HexProps> = ({
         className="hex-shape"
       />
       
-      {/* Координаты гекса */}
-      <text
-        x={center.x}
-        y={center.y + 4}
-        textAnchor="middle"
-        fontSize="10"
-        fill="#ffffff"
-        className="hex-coordinate"
-      >
-        {coordinate.letter}{coordinate.number}
-      </text>
       
       {/* Юнит на гексе */}
       {hexData.hasUnit && hexData.unitId && (

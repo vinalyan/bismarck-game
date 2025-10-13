@@ -140,7 +140,6 @@ const HexMap: React.FC<HexMapProps> = ({
       <div className="map-info">
         <h3>Карта Атлантики</h3>
         <p>Размер: {width}×{height} гексов</p>
-        <p>Координаты: A1 - {String.fromCharCode(64 + height)}{width}</p>
       </div>
       
       <div className="map-controls">

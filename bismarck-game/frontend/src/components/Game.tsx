@@ -18,9 +18,15 @@ const Game: React.FC = () => {
     setLoading,
   } = useGameStore();
 
-  const [selectedHex, setSelectedHex] = useState<string | null>(null);
+  const [selectedHex, setSelectedHex] = useState<HexCoordinate | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [showUnitInfo, setShowUnitInfo] = useState(false);
+
+  // Обработчик клика по гексу
+  const handleHexClick = (coordinate: HexCoordinate) => {
+    setSelectedHex(coordinate);
+    setSelectedUnit(null); // Сбрасываем выбранный юнит при выборе нового гекса
+  };
 
   // Заглушка для карты (пока без реальной гексагональной карты)
   const generateHexGrid = () => {
@@ -79,15 +85,6 @@ const Game: React.FC = () => {
     }
   };
 
-  // Обработчик клика по гексу
-  const handleHexClick = (hexId: string) => {
-    setSelectedHex(hexId);
-    const hex = hexGrid.find(h => h.id === hexId);
-    if (hex?.hasUnit) {
-      setSelectedUnit(hexId);
-      setShowUnitInfo(true);
-    }
-  };
 
   // Возврат в лобби
   const handleBackToLobby = () => {
@@ -191,7 +188,7 @@ const Game: React.FC = () => {
             <div className="selected-info">
               <h3>Выбранная позиция</h3>
               <div className="hex-info">
-                <span>Координаты: {selectedHex}</span>
+                <span>Координаты: {selectedHex.letter}{selectedHex.number}</span>
                 {selectedUnit && (
                   <div className="unit-details">
                     <span>Юнит: {selectedUnit}</span>
@@ -232,18 +229,11 @@ const Game: React.FC = () => {
             width={MAP_CONSTANTS.HEX_GRID_WIDTH}
             height={MAP_CONSTANTS.HEX_GRID_HEIGHT}
             playerSide={playerSide === PlayerSide.German ? 'german' : 'allied'}
-            onHexClick={(coordinate: HexCoordinate) => {
-              const hexId = `${coordinate.letter}${coordinate.number}`;
-              handleHexClick(hexId);
-            }}
+            onHexClick={handleHexClick}
             onHexHover={(coordinate: HexCoordinate) => {
               // Можно добавить логику подсветки при наведении
             }}
-            selectedHex={selectedHex ? {
-              letter: selectedHex.charAt(0),
-              number: parseInt(selectedHex.slice(1)),
-              col: 0, row: 0
-            } : null}
+            selectedHex={selectedHex}
             highlightedHexes={[]}
           />
         </div>
