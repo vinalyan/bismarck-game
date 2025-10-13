@@ -277,28 +277,28 @@ export function hexLineDraw(a: Hex, b: Hex): Hex[] {
 
 // Константы для фиксированного размера карты
 export const MAP_CONSTANTS = {
-  // Размеры подложки карты (в пикселях)
-  BACKGROUND_WIDTH: 2104,
-  BACKGROUND_HEIGHT: 1786,
+  // Размеры подложки карты (в пикселях) - рассчитаны для 35.5x33 гексов
+  BACKGROUND_WIDTH: 1210,   // 35.5 гексов по ширине
+  BACKGROUND_HEIGHT: 1273,  // 33 гекса по высоте (оптимизировано)
   
   // Размеры гексагональной сетки
-  HEX_GRID_WIDTH: 35,   // A1-AH35
-  HEX_GRID_HEIGHT: 33,  // A-AH
+  HEX_GRID_WIDTH: 35.5,     // 35.5 гексов по горизонтали
+  HEX_GRID_HEIGHT: 33,      // 33 гекса по вертикали
   
-  // Стандартный радиус гекса (можно изменять)
-  DEFAULT_HEX_RADIUS: 30,
+  // Стандартный радиус гекса
+  DEFAULT_HEX_RADIUS: 25,
   
-  // Отступы от краев карты
+  // Отступы от краев карты (оптимизированы)
   MARGIN_LEFT: 72,
-  MARGIN_TOP: 60,
-  MARGIN_RIGHT: -12,
-  MARGIN_BOTTOM: 15
+  MARGIN_TOP: 30,           // Уменьшено для компактности
+  MARGIN_RIGHT: -15,
+  MARGIN_BOTTOM: 5          // Уменьшено для компактности
 };
 
 // Offset координаты (col, row) - простая система для игровой логики
 export interface OffsetCoord {
-  col: number; // 0-34 (горизонталь)
-  row: number; // 0-33 (вертикаль, буквы A-AH)
+  col: number; // 0-34.5 (горизонталь, 35.5 гексов)
+  row: number; // 0-32 (вертикаль, буквы A-AH, 33 гекса)
 }
 
 // Кастомная функция для преобразования offset координат в пиксели

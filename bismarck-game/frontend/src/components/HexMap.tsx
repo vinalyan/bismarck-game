@@ -20,7 +20,7 @@ interface HexMapProps {
 }
 
 const HexMap: React.FC<HexMapProps> = ({
-  width = MAP_CONSTANTS.HEX_GRID_WIDTH, // 35 гексов по горизонтали (1-35)
+  width = MAP_CONSTANTS.HEX_GRID_WIDTH, // 35.5 гексов по горизонтали
   height = MAP_CONSTANTS.HEX_GRID_HEIGHT, // 33 гекса по вертикали (A-AH)
   onHexClick,
   onHexHover,
