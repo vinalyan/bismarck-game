@@ -310,6 +310,155 @@ func getMigrations() []Migration {
 				DROP EXTENSION IF EXISTS "uuid-ossp";
 			`,
 		},
+		{
+			Version:     "002_units_tables",
+			Description: "Create units and related tables",
+			SQL: `
+				-- Naval units table
+				CREATE TABLE IF NOT EXISTS naval_units (
+					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+					name VARCHAR(100) NOT NULL,
+					type VARCHAR(50) NOT NULL,
+					class VARCHAR(50) NOT NULL,
+					owner VARCHAR(50) NOT NULL,
+					nationality VARCHAR(50) NOT NULL,
+					position VARCHAR(10) NOT NULL, -- Hex coordinate
+					evasion INTEGER DEFAULT 0,
+					base_evasion INTEGER DEFAULT 0,
+					speed_rating VARCHAR(2) DEFAULT 'M',
+					fuel INTEGER DEFAULT 0,
+					max_fuel INTEGER DEFAULT 0,
+					hull_boxes INTEGER DEFAULT 0,
+					current_hull INTEGER DEFAULT 0,
+					
+					-- Вооружение (простые числовые характеристики)
+					primary_armament_bow INTEGER DEFAULT 0,
+					primary_armament_stern INTEGER DEFAULT 0,
+					secondary_armament INTEGER DEFAULT 0,
+					
+					-- Базовые значения вооружения (неизменяемые)
+					base_primary_armament_bow INTEGER DEFAULT 0,
+					base_primary_armament_stern INTEGER DEFAULT 0,
+					base_secondary_armament INTEGER DEFAULT 0,
+					
+					torpedoes INTEGER DEFAULT 0,
+					max_torpedoes INTEGER DEFAULT 0,
+					radar_level INTEGER DEFAULT 0,
+					status VARCHAR(20) DEFAULT 'active',
+					detection_level VARCHAR(20) DEFAULT 'none',
+					last_known_pos VARCHAR(10),
+					task_force_id UUID,
+					damage JSONB DEFAULT '[]',
+					
+					-- Поля для тактического боя
+					tactical_position VARCHAR(20),
+					tactical_facing VARCHAR(20),
+					tactical_speed INTEGER,
+					evasion_effects JSONB DEFAULT '[]',
+					tactical_damage_taken JSONB DEFAULT '[]',
+					has_fired BOOLEAN DEFAULT false,
+					target_acquired VARCHAR(50),
+					torpedoes_used INTEGER DEFAULT 0,
+					movement_used INTEGER DEFAULT 0,
+					
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+				);
+
+				-- Air units table
+				CREATE TABLE IF NOT EXISTS air_units (
+					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+					type VARCHAR(50) NOT NULL,
+					owner VARCHAR(50) NOT NULL,
+					position VARCHAR(10) NOT NULL, -- Hex coordinate
+					base_position VARCHAR(10) NOT NULL,
+					max_speed INTEGER DEFAULT 0,
+					endurance INTEGER DEFAULT 0,
+					status VARCHAR(20) DEFAULT 'active',
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+				);
+
+
+				-- Task forces table
+				CREATE TABLE IF NOT EXISTS task_forces (
+					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+					name VARCHAR(100) NOT NULL,
+					owner VARCHAR(50) NOT NULL,
+					position VARCHAR(10) NOT NULL, -- Hex coordinate
+					speed INTEGER DEFAULT 0,
+					units JSONB DEFAULT '[]', -- Array of unit IDs
+					is_visible BOOLEAN DEFAULT true,
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+				);
+
+				-- Unit movements table
+				CREATE TABLE IF NOT EXISTS unit_movements (
+					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+					unit_id UUID NOT NULL,
+					from_pos VARCHAR(10) NOT NULL,
+					to_pos VARCHAR(10) NOT NULL,
+					path JSONB DEFAULT '[]', -- Array of coordinates
+					speed INTEGER DEFAULT 0,
+					fuel_cost INTEGER DEFAULT 0,
+					is_shadowed BOOLEAN DEFAULT false,
+					turn INTEGER NOT NULL,
+					phase VARCHAR(20) NOT NULL,
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+				);
+
+				-- Unit searches table
+				CREATE TABLE IF NOT EXISTS unit_searches (
+					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+					unit_id UUID NOT NULL,
+					target_hex VARCHAR(10) NOT NULL,
+					search_type VARCHAR(20) NOT NULL, -- "air", "naval", "radar"
+					search_factors INTEGER DEFAULT 0,
+					result VARCHAR(20) NOT NULL, -- "no_contact", "contact", "detection"
+					units_found JSONB DEFAULT '[]', -- Array of unit IDs
+					turn INTEGER NOT NULL,
+					phase VARCHAR(20) NOT NULL,
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+				);
+
+				-- Create indexes for better performance
+				CREATE INDEX IF NOT EXISTS idx_naval_units_game_id ON naval_units(game_id);
+				CREATE INDEX IF NOT EXISTS idx_naval_units_owner ON naval_units(owner);
+				CREATE INDEX IF NOT EXISTS idx_naval_units_position ON naval_units(position);
+				CREATE INDEX IF NOT EXISTS idx_naval_units_status ON naval_units(status);
+				CREATE INDEX IF NOT EXISTS idx_naval_units_task_force_id ON naval_units(task_force_id);
+				
+				CREATE INDEX IF NOT EXISTS idx_air_units_game_id ON air_units(game_id);
+				CREATE INDEX IF NOT EXISTS idx_air_units_owner ON air_units(owner);
+				CREATE INDEX IF NOT EXISTS idx_air_units_position ON air_units(position);
+				CREATE INDEX IF NOT EXISTS idx_air_units_status ON air_units(status);
+				
+				CREATE INDEX IF NOT EXISTS idx_task_forces_game_id ON task_forces(game_id);
+				CREATE INDEX IF NOT EXISTS idx_task_forces_owner ON task_forces(owner);
+				CREATE INDEX IF NOT EXISTS idx_task_forces_position ON task_forces(position);
+				
+				CREATE INDEX IF NOT EXISTS idx_unit_movements_game_id ON unit_movements(game_id);
+				CREATE INDEX IF NOT EXISTS idx_unit_movements_unit_id ON unit_movements(unit_id);
+				CREATE INDEX IF NOT EXISTS idx_unit_movements_turn_phase ON unit_movements(turn, phase);
+				
+				CREATE INDEX IF NOT EXISTS idx_unit_searches_game_id ON unit_searches(game_id);
+				CREATE INDEX IF NOT EXISTS idx_unit_searches_unit_id ON unit_searches(unit_id);
+				CREATE INDEX IF NOT EXISTS idx_unit_searches_turn_phase ON unit_searches(turn, phase);
+			`,
+			RollbackSQL: `
+				DROP TABLE IF EXISTS unit_searches;
+				DROP TABLE IF EXISTS unit_movements;
+				DROP TABLE IF EXISTS task_forces;
+				DROP TABLE IF EXISTS air_units;
+				DROP TABLE IF EXISTS naval_units;
+			`,
+		},
 	}
 }
 

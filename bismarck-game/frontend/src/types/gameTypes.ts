@@ -294,3 +294,237 @@ export enum ChatMessageType {
   Player = 'player',
   Game = 'game'
 }
+
+// ===== ТИПЫ ЮНИТОВ =====
+
+// Тип юнита
+export enum UnitType {
+  // Морские юниты (корабли)
+  Battleship = 'BB',        // Линейный корабль
+  Battlecruiser = 'BC',     // Линейный крейсер
+  AircraftCarrier = 'CV',   // Авианосец
+  HeavyCruiser = 'CA',      // Тяжелый крейсер
+  LightCruiser = 'CL',      // Легкий крейсер
+  Destroyer = 'DD',         // Флотилия эсминцев
+  CoastGuard = 'CG',        // Береговая охрана
+  Tanker = 'TK',            // Танкер
+  
+  // Воздушные юниты (самолеты)
+  CombatAircraft = 'B',     // Боевой самолет
+  ReconAircraft = 'R'       // Самолет-разведчик
+}
+
+// Класс скорости корабля
+export enum SpeedType {
+  Fast = 'F',        // Быстрый
+  Medium = 'M',      // Средний
+  Slow = 'S',        // Медленный
+  VerySlow = 'VS'    // Очень медленный
+}
+
+// Статус морского юнита
+export enum UnitStatus {
+  Active = 'active',
+  Damaged = 'damaged',
+  Sunk = 'sunk',
+  Repairing = 'repairing',
+  Refueling = 'refueling',
+  Hidden = 'hidden'
+}
+
+// Статус воздушного юнита
+export enum AirUnitStatus {
+  Landing = 'landing',     // Посадка
+  Refit = 'refit',         // Перевооружение
+  Operational = 'operational', // Операционный
+  OnRaid = 'on_raid'       // На рейде
+}
+
+// Уровень обнаружения
+export enum DetectionLevel {
+  None = 'none',
+  Sighted = 'sighted',
+  Shadowed = 'shadowed',
+  Lost = 'lost'
+}
+
+
+// Повреждение
+export interface Damage {
+  type: 'hull' | 'gun' | 'engine' | 'fire';
+  severity: number; // 1-3
+  location: 'bow' | 'stern' | 'port' | 'starboard' | 'center';
+  description: string; // описание
+  turnApplied: number; // ход, когда нанесено
+  createdAt: string;
+}
+
+// Морской юнит
+export interface NavalUnit {
+  id: string;
+  gameId: string;
+  name: string;
+  type: UnitType;
+  class: string;
+  owner: string;
+  nationality: string;
+  position: string; // Hex coordinate
+  evasion: number; // Скорость в узлах
+  baseEvasion: number;
+  speedRating: SpeedType; // F, M, S, VS
+  fuel: number;
+  maxFuel: number;
+  hullBoxes: number;
+  currentHull: number;
+  
+  // Вооружение (простые числовые характеристики)
+  primaryArmamentBow: number;    // Основное вооружение (нос) - текущее
+  primaryArmamentStern: number;  // Основное вооружение (корма) - текущее
+  secondaryArmament: number;     // Вспомогательное вооружение - текущее
+  
+  // Базовые значения вооружения (неизменяемые)
+  basePrimaryArmamentBow: number;    // Базовое основное вооружение (нос)
+  basePrimaryArmamentStern: number;  // Базовое основное вооружение (корма)
+  baseSecondaryArmament: number;     // Базовое вспомогательное вооружение
+  
+  torpedoes: number;
+  maxTorpedoes: number;
+  radarLevel: number; // 0, 1, 2 (RADAR I, RADAR II, RADAR II*)
+  status: UnitStatus;
+  detectionLevel: DetectionLevel;
+  lastKnownPos?: string;
+  taskForceId?: string;
+  damage: Damage[];
+  
+  // Поля для тактического боя (используются только во время боя)
+  tacticalPosition?: string; // Movement Zone ID
+  tacticalFacing?: 'closing' | 'opening' | 'breaking-off';
+  tacticalSpeed?: number;
+  evasionEffects: number[];
+  tacticalDamageTaken: Damage[];
+  hasFired: boolean;
+  targetAcquired?: string;
+  torpedoesUsed: number;
+  movementUsed: number;
+  
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Воздушный юнит
+export interface AirUnit {
+  id: string;
+  gameId: string;
+  type: UnitType; // B (боевой) или R (разведывательный)
+  owner: string;
+  position: string; // Hex coordinate
+  basePosition: string;
+  maxSpeed: number; // Максимальная скорость
+  endurance: number; // Дальность полета
+  status: AirUnitStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+// Оперативное соединение (Task Force)
+export interface TaskForce {
+  id: string;
+  gameId: string;
+  name: string;
+  owner: string;
+  position: string; // Hex coordinate
+  speed: number;
+  units: string[]; // IDs юнитов
+  isVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Движение юнита
+export interface UnitMovement {
+  id: string;
+  gameId: string;
+  unitId: string;
+  from: string; // Hex coordinate
+  to: string; // Hex coordinate
+  path: string[]; // Path coordinates
+  speed: number;
+  fuelCost: number;
+  isShadowed: boolean;
+  turn: number;
+  phase: GamePhase;
+  createdAt: string;
+}
+
+// Поиск юнита
+export interface UnitSearch {
+  id: string;
+  gameId: string;
+  unitId: string;
+  targetHex: string;
+  searchType: 'air' | 'naval' | 'radar';
+  searchFactors: number;
+  result: 'no_contact' | 'contact' | 'detection';
+  unitsFound: string[]; // IDs найденных юнитов
+  turn: number;
+  phase: GamePhase;
+  createdAt: string;
+}
+
+// ===== API ЗАПРОСЫ И ОТВЕТЫ ДЛЯ ЮНИТОВ =====
+
+// Запрос на движение юнита
+export interface MoveUnitRequest {
+  unitId: string;
+  to: string; // Hex coordinate
+  speed: number;
+  path?: string[]; // Optional path
+}
+
+// Запрос на поиск
+export interface SearchRequest {
+  unitId: string;
+  targetHex: string;
+  searchType: 'air' | 'naval' | 'radar';
+}
+
+// Запрос на создание Task Force
+export interface CreateTaskForceRequest {
+  name: string;
+  unitIds: string[];
+  formation: 'line' | 'diamond' | 'wedge' | 'scattered';
+}
+
+// Запрос на добавление юнита в Task Force
+export interface AddUnitToTaskForceRequest {
+  taskForceId: string;
+  unitId: string;
+}
+
+// Запрос на удаление юнита из Task Force
+export interface RemoveUnitFromTaskForceRequest {
+  taskForceId: string;
+  unitId: string;
+}
+
+// Ответ с информацией о юните
+export interface UnitResponse {
+  unit: NavalUnit | AirUnit;
+  canMove: boolean;
+  canSearch: boolean;
+  canFire: boolean;
+  availableActions: string[];
+  movementRange: number;
+  searchRange: number;
+}
+
+// Ответ с информацией о Task Force
+export interface TaskForceResponse {
+  taskForce: TaskForce;
+  units: (NavalUnit | AirUnit)[];
+  effectiveSpeed: number;
+  totalSearchFactors: number;
+  canForm: boolean;
+  canSplit: boolean;
+}

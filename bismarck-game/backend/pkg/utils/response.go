@@ -242,3 +242,13 @@ func ToJSONB(data interface{}) []byte {
 	}
 	return jsonData
 }
+
+// WriteErrorResponse записывает JSON ответ с ошибкой (для совместимости)
+func WriteErrorResponse(w http.ResponseWriter, status int, message string) {
+	WriteError(w, status, message)
+}
+
+// WriteSuccessResponse записывает JSON ответ с успешным результатом (для совместимости)
+func WriteSuccessResponse(w http.ResponseWriter, data interface{}) {
+	WriteSuccess(w, data)
+}
