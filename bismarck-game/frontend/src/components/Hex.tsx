@@ -13,6 +13,7 @@ interface HexProps {
   size: number;
   isSelected: boolean;
   isHighlighted: boolean;
+  isHighlightedGreen: boolean;
   onClick: () => void;
   onHover: () => void;
 }
@@ -25,6 +26,7 @@ const Hex: React.FC<HexProps> = ({
   size,
   isSelected,
   isHighlighted,
+  isHighlightedGreen,
   onClick,
   onHover
 }) => {
@@ -70,8 +72,11 @@ const Hex: React.FC<HexProps> = ({
       strokeWidth = 3;
     }
     
-    // Выделение подсвеченных гексов
-    if (isHighlighted) {
+    // Выделение подсвеченных гексов (приоритет: зеленое > желтое)
+    if (isHighlightedGreen) {
+      stroke = '#00ff00';
+      strokeWidth = 3;
+    } else if (isHighlighted) {
       stroke = '#ffff00';
       strokeWidth = 2;
     }
@@ -84,7 +89,7 @@ const Hex: React.FC<HexProps> = ({
 
   return (
     <g
-      className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+      className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''} ${isHighlightedGreen ? 'highlighted-green' : ''}`}
       onClick={onClick}
       onMouseEnter={onHover}
       style={{ cursor: 'pointer' }}

@@ -535,3 +535,61 @@
     grid-template-columns: repeat(8, 1fr);
   }
 }
+
+/* Стили для панели маршрута */
+.route-panel {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid #4a90e2;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.route-panel h3 {
+  margin: 0 0 1rem 0;
+  color: #4a90e2;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.route-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.route-hex {
+  background: rgba(74, 144, 226, 0.2);
+  padding: 0.5rem;
+  border-radius: 5px;
+  border: 1px solid #4a90e2;
+  font-size: 0.9rem;
+}
+
+.route-distance {
+  background: rgba(255, 215, 0, 0.2);
+  padding: 0.5rem;
+  border-radius: 5px;
+  border: 1px solid #ffd700;
+  font-size: 1rem;
+  font-weight: bold;
+  text-align: center;
+  color: #ffd700;
+}
+
+.route-instructions {
+  text-align: center;
+  color: #cccccc;
+  font-style: italic;
+}
+
+.route-points {
+  background: rgba(76, 175, 80, 0.2);
+  padding: 0.5rem;
+  border-radius: 5px;
+  border: 1px solid #4caf50;
+  font-size: 0.9rem;
+  text-align: center;
+  color: #4caf50;
+}

@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Hex } from './Hex';
 import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
 import { 
-  Point, OffsetCoord, offsetToPixel, offsetPolygonCorners, calculateMapSize, MAP_CONSTANTS
+  Point, OffsetCoord, offsetToPixel, offsetPolygonCorners, calculateMapSize, MAP_CONSTANTS, getCubeNeighbors
 } from '../utils/hexUtils';
 import './HexMap.css';
 
@@ -45,7 +45,7 @@ const HexMap: React.FC<HexMapProps> = ({
           // A, B, C, ..., Z (0-25)
           letter = String.fromCharCode(65 + row);
         } else {
-          // AA, AB, AC, ..., AG (26-32, только до G)
+          // AA, AB, AC, ..., AH (26-33)
           const secondLetterIndex = row - 26;
           letter = 'A' + String.fromCharCode(65 + secondLetterIndex);
         }
@@ -126,6 +126,7 @@ const HexMap: React.FC<HexMapProps> = ({
           size={hexRadius}
           isSelected={!!isSelected}
           isHighlighted={isHighlighted}
+          isHighlightedGreen={isHighlighted}
           onClick={() => handleHexClick(coordinate)}
           onHover={() => handleHexHover(coordinate)}
         />

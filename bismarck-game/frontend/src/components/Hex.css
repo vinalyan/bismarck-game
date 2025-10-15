@@ -84,6 +84,11 @@
   stroke-width: 2px !important;
 }
 
+.hex.highlighted-green .hex-shape {
+  stroke: #00ff00 !important;
+  stroke-width: 3px !important;
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
   .hex-coordinate {

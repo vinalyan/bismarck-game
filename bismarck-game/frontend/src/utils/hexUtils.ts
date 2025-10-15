@@ -185,7 +185,152 @@ export function polygonCorners(layout: Layout, h: Hex): Point[] {
   return corners;
 }
 
-// Преобразование offset координат в гексагональные
+// Преобразование offset координат в кубические с учетом смещения строк
+// Используем формулу: hex_num = row * HEX_GRID_WIDTH + col
+export function offsetToCube(offset: OffsetCoord): Hex {
+  const hex_num = offset.row * MAP_CONSTANTS.HEX_GRID_WIDTH + offset.col;
+  const r = Math.floor(hex_num / MAP_CONSTANTS.HEX_GRID_WIDTH);
+  const q = hex_num % MAP_CONSTANTS.HEX_GRID_WIDTH - Math.floor((r + 1) / 2);
+  const s = -q - r;
+  return hex(q, r, s);
+}
+
+// Преобразование кубических координат в offset с учетом смещения строк
+export function cubeToOffset(hex: Hex): OffsetCoord {
+  // Исправляем проблему с отрицательными q координатами
+  const col = hex.q + Math.floor((hex.r + 1) / 2);
+  const row = hex.r;
+  return { col, row };
+}
+
+// Расстояние между гексами через кубические координаты
+export function cubeDistance(hex_a: Hex, hex_b: Hex): number {
+  return Math.max(
+    Math.abs(hex_b.q - hex_a.q),
+    Math.abs(hex_b.r - hex_a.r),
+    Math.abs(hex_b.s - hex_a.s)
+  );
+}
+
+// Расстояние между гексами через offset координаты (удобная функция)
+export function offsetDistance(offset_a: OffsetCoord, offset_b: OffsetCoord): number {
+  const hex_a = offsetToCube(offset_a);
+  const hex_b = offsetToCube(offset_b);
+  return cubeDistance(hex_a, hex_b);
+}
+
+// Поиск соседних гексов через кубические координаты
+export function getCubeNeighbors(offset: OffsetCoord, maxDistance: number = 1): OffsetCoord[] {
+  const neighbors: OffsetCoord[] = [];
+  const centerCube = offsetToCube(offset);
+  
+  // Проверяем все гексы в пределах maxDistance
+  for (let q = -maxDistance; q <= maxDistance; q++) {
+    for (let r = Math.max(-maxDistance, -q - maxDistance); r <= Math.min(maxDistance, -q + maxDistance); r++) {
+      const s = -q - r;
+      
+      // Пропускаем центральный гекс
+      if (q === 0 && r === 0 && s === 0) continue;
+      
+      // Проверяем, что расстояние не превышает maxDistance
+      const distance = cubeDistance(centerCube, { q: centerCube.q + q, r: centerCube.r + r, s: centerCube.s + s });
+      if (distance > maxDistance) continue;
+      
+      // Преобразуем обратно в offset координаты
+      const neighborCube = { q: centerCube.q + q, r: centerCube.r + r, s: centerCube.s + s };
+      const neighborOffset = cubeToOffset(neighborCube);
+      
+      // Проверяем, что сосед в пределах карты
+      if (neighborOffset.col >= 0 && neighborOffset.col < MAP_CONSTANTS.HEX_GRID_WIDTH &&
+          neighborOffset.row >= 0 && neighborOffset.row < MAP_CONSTANTS.HEX_GRID_HEIGHT) {
+        neighbors.push(neighborOffset);
+      }
+    }
+  }
+  
+  return neighbors;
+}
+
+// Поиск 5 ближайших соседей через кубические координаты
+export function getClosestNeighbors(offset: OffsetCoord, count: number = 5): OffsetCoord[] {
+  const allNeighbors: { offset: OffsetCoord, distance: number }[] = [];
+  const centerCube = offsetToCube(offset);
+  
+  // Проверяем все гексы в радиусе 3 (достаточно для получения 5 ближайших)
+  for (let q = -3; q <= 3; q++) {
+    for (let r = Math.max(-3, -q - 3); r <= Math.min(3, -q + 3); r++) {
+      const s = -q - r;
+      
+      // Пропускаем центральный гекс
+      if (q === 0 && r === 0 && s === 0) continue;
+      
+      // Преобразуем обратно в offset координаты
+      const neighborCube = { q: centerCube.q + q, r: centerCube.r + r, s: centerCube.s + s };
+      const neighborOffset = cubeToOffset(neighborCube);
+      
+      // Проверяем, что сосед в пределах карты
+      if (neighborOffset.col >= 0 && neighborOffset.col < MAP_CONSTANTS.HEX_GRID_WIDTH &&
+          neighborOffset.row >= 0 && neighborOffset.row < MAP_CONSTANTS.HEX_GRID_HEIGHT) {
+        
+        const distance = cubeDistance(centerCube, neighborCube);
+        allNeighbors.push({ offset: neighborOffset, distance });
+      }
+    }
+  }
+  
+  // Сортируем по расстоянию и берем первые count
+  allNeighbors.sort((a, b) => a.distance - b.distance);
+  return allNeighbors.slice(0, count).map(n => n.offset);
+}
+
+// Построение пути между двумя гексами через кубические координаты
+export function buildPath(from: OffsetCoord, to: OffsetCoord): OffsetCoord[] {
+  const path: OffsetCoord[] = [];
+  const fromCube = offsetToCube(from);
+  const toCube = offsetToCube(to);
+  
+  const distance = cubeDistance(fromCube, toCube);
+  
+  // Если расстояние 0 или 1, возвращаем только конечные точки
+  if (distance <= 1) {
+    return [from, to];
+  }
+  
+  // Интерполируем путь
+  for (let i = 0; i <= distance; i++) {
+    const fraction = i / distance;
+    const interpolatedCube = {
+      q: Math.round(fromCube.q + (toCube.q - fromCube.q) * fraction),
+      r: Math.round(fromCube.r + (toCube.r - fromCube.r) * fraction),
+      s: Math.round(fromCube.s + (toCube.s - fromCube.s) * fraction)
+    };
+    
+    const interpolatedOffset = cubeToOffset(interpolatedCube);
+    
+    // Проверяем, что точка в пределах карты
+    if (interpolatedOffset.col >= 0 && interpolatedOffset.col < MAP_CONSTANTS.HEX_GRID_WIDTH &&
+        interpolatedOffset.row >= 0 && interpolatedOffset.row < MAP_CONSTANTS.HEX_GRID_HEIGHT) {
+      
+      // Избегаем дублирования соседних точек
+      if (path.length === 0 || 
+          cubeDistance(offsetToCube(path[path.length - 1]), interpolatedCube) > 0) {
+        path.push(interpolatedOffset);
+      }
+    }
+  }
+  
+  // Убеждаемся, что конечная точка включена
+  const lastPoint = path[path.length - 1];
+  if (!lastPoint || 
+      lastPoint.col !== to.col || 
+      lastPoint.row !== to.row) {
+    path.push(to);
+  }
+  
+  return path;
+}
+
+// Преобразование offset координат в гексагональные (legacy функции)
 export function qoffsetFromCube(offset: number, h: Hex): OffsetCoord {
   const col = h.q;
   const row = h.r + (h.q + offset * (h.q & 1)) / 2;
@@ -329,72 +474,9 @@ export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
   return { x, y };
 }
 
-// Получение соседних гексов для offset координат
-export function getOffsetNeighbors(coord: OffsetCoord): OffsetCoord[] {
-  const neighbors: OffsetCoord[] = [];
-  const isOddRow = coord.row % 2 === 1;
-  
-  // Определяем смещения для соседей в зависимости от четности строки
-  const neighborOffsets = isOddRow ? [
-    { col: -1, row: -1 }, { col: 0, row: -1 }, // Верхние соседи
-    { col: -1, row: 0 }, { col: 1, row: 0 },   // Боковые соседи
-    { col: -1, row: 1 }, { col: 0, row: 1 }    // Нижние соседи
-  ] : [
-    { col: 0, row: -1 }, { col: 1, row: -1 },  // Верхние соседи
-    { col: -1, row: 0 }, { col: 1, row: 0 },   // Боковые соседи
-    { col: 0, row: 1 }, { col: 1, row: 1 }     // Нижние соседи
-  ];
-  
-  // Добавляем всех соседей
-  for (const offset of neighborOffsets) {
-    neighbors.push({
-      col: coord.col + offset.col,
-      row: coord.row + offset.row
-    });
-  }
-  
-  return neighbors;
-}
 
-// Расстояние между offset координатами
-export function offsetDistance(a: OffsetCoord, b: OffsetCoord): number {
-  // Простая манхэттенская метрика для offset координат
-  return Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row));
-}
 
-// Проверка валидности offset координат
-export function isValidOffsetCoord(coord: OffsetCoord, width: number, height: number): boolean {
-  return coord.col >= 0 && coord.col < width && 
-         coord.row >= 0 && coord.row < height;
-}
 
-// Построение пути между offset координатами (простой алгоритм)
-export function offsetPath(a: OffsetCoord, b: OffsetCoord): OffsetCoord[] {
-  const path: OffsetCoord[] = [a];
-  
-  if (a.col === b.col && a.row === b.row) {
-    return path; // Уже в целевой точке
-  }
-  
-  let current = { ...a };
-  
-  // Простой алгоритм: сначала по горизонтали, потом по вертикали
-  while (current.col !== b.col || current.row !== b.row) {
-    if (current.col < b.col) {
-      current.col++;
-    } else if (current.col > b.col) {
-      current.col--;
-    } else if (current.row < b.row) {
-      current.row++;
-    } else if (current.row > b.row) {
-      current.row--;
-    }
-    
-    path.push({ ...current });
-  }
-  
-  return path;
-}
 
 // Расчет размеров SVG для карты (фиксированный размер)
 export function calculateMapSize(width: number, height: number, hexRadius: number): { width: number, height: number } {

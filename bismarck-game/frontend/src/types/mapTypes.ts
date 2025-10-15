@@ -1,6 +1,6 @@
 // Типы для гексагональной карты
 
-import { Hex, Point, OffsetCoord } from '../utils/hexUtils';
+import { Hex, Point, OffsetCoord, offsetToCube, cubeToOffset } from '../utils/hexUtils';
 
 // Координаты гекса (для отображения пользователю)
 export interface HexCoordinate {
@@ -16,14 +16,14 @@ export function coordinateToOffset(coord: HexCoordinate): OffsetCoord {
 }
 
 export function offsetToCoordinate(offset: OffsetCoord): HexCoordinate {
-  // Генерируем правильные буквы: A-Y, затем AA-AH
+  // Генерируем правильные буквы: A-Z, затем AA-AH
   let letter: string;
-  if (offset.row < 25) {
-    // A, B, C, ..., Y (0-24)
+  if (offset.row < 26) {
+    // A, B, C, ..., Z (0-25)
     letter = String.fromCharCode(65 + offset.row);
   } else {
-    // AA, AB, AC, ..., AH (25-33, но только до H)
-    const secondLetterIndex = offset.row - 25;
+    // AA, AB, AC, ..., AH (26-33)
+    const secondLetterIndex = offset.row - 26;
     letter = 'A' + String.fromCharCode(65 + secondLetterIndex);
   }
   const number = offset.col + 1; // 1, 2, 3, ..., 35
@@ -32,12 +32,15 @@ export function offsetToCoordinate(offset: OffsetCoord): HexCoordinate {
 
 // Обратная совместимость с cube координатами (если нужно)
 export function coordinateToHex(coord: HexCoordinate): Hex {
-  // Простое преобразование для совместимости
-  return { q: coord.col, r: coord.row, s: -coord.col - coord.row };
+  // Используем правильное преобразование offset в cube с учетом смещения строк
+  const offset = coordinateToOffset(coord);
+  return offsetToCube(offset);
 }
 
 export function hexToCoordinate(hex: Hex, letter: string, number: number): HexCoordinate {
-  return { letter, number, col: hex.q, row: hex.r };
+  // Используем правильное преобразование cube в offset с учетом смещения строк
+  const offset = cubeToOffset(hex);
+  return { letter, number, col: offset.col, row: offset.row };
 }
 
 // Типы гексов

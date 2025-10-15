@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { ViewType, GamePhase, PlayerSide, NotificationType } from '../types/gameTypes';
-import { HexCoordinate } from '../types/mapTypes';
-import { MAP_CONSTANTS } from '../utils/hexUtils';
+import { HexCoordinate, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
+import { MAP_CONSTANTS, getCubeNeighbors, cubeDistance, offsetToCube, buildPath } from '../utils/hexUtils';
 import HexMap from './HexMap';
 import './Game.css';
 
@@ -19,13 +19,52 @@ const Game: React.FC = () => {
   } = useGameStore();
 
   const [selectedHex, setSelectedHex] = useState<HexCoordinate | null>(null);
+  const [secondSelectedHex, setSecondSelectedHex] = useState<HexCoordinate | null>(null);
+  const [highlightedHexes, setHighlightedHexes] = useState<HexCoordinate[]>([]);
+  const [routePath, setRoutePath] = useState<HexCoordinate[]>([]);
+  const [routeDistance, setRouteDistance] = useState<number | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [showUnitInfo, setShowUnitInfo] = useState(false);
 
   // Обработчик клика по гексу
   const handleHexClick = (coordinate: HexCoordinate) => {
-    setSelectedHex(coordinate);
     setSelectedUnit(null); // Сбрасываем выбранный юнит при выборе нового гекса
+    
+    if (!selectedHex) {
+      // Первый выбор
+      setSelectedHex(coordinate);
+      setSecondSelectedHex(null);
+      setHighlightedHexes([]);
+      setRoutePath([]);
+      setRouteDistance(null);
+    } else if (!secondSelectedHex) {
+      // Второй выбор
+      setSecondSelectedHex(coordinate);
+      
+      // Рассчитываем расстояние между двумя гексами
+      const firstOffset = coordinateToOffset(selectedHex);
+      const secondOffset = coordinateToOffset(coordinate);
+      const firstCube = offsetToCube(firstOffset);
+      const secondCube = offsetToCube(secondOffset);
+      const distance = cubeDistance(firstCube, secondCube);
+      
+      setRouteDistance(distance);
+      
+      // Строим путь между гексами
+      const path = buildPath(firstOffset, secondOffset);
+      const pathCoordinates = path.map(offset => offsetToCoordinate(offset));
+      setRoutePath(pathCoordinates);
+      
+      // Выделяем путь
+      setHighlightedHexes(pathCoordinates);
+    } else {
+      // Третий клик - сбрасываем все
+      setSelectedHex(coordinate);
+      setSecondSelectedHex(null);
+      setHighlightedHexes([]);
+      setRoutePath([]);
+      setRouteDistance(null);
+    }
   };
 
   // Заглушка для карты (пока без реальной гексагональной карты)
@@ -234,12 +273,46 @@ const Game: React.FC = () => {
               // Можно добавить логику подсветки при наведении
             }}
             selectedHex={selectedHex}
-            highlightedHexes={[]}
+            highlightedHexes={highlightedHexes}
           />
         </div>
 
         {/* Правая панель - действия */}
         <div className="game-actions">
+          {/* Информация о маршруте */}
+          {(selectedHex || secondSelectedHex || routeDistance !== null) && (
+            <div className="route-panel">
+              <h3>Маршрут</h3>
+              <div className="route-info">
+                {selectedHex && (
+                  <div className="route-hex">
+                    <strong>От:</strong> {selectedHex.letter}{selectedHex.number}
+                  </div>
+                )}
+                {secondSelectedHex && (
+                  <div className="route-hex">
+                    <strong>До:</strong> {secondSelectedHex.letter}{secondSelectedHex.number}
+                  </div>
+                )}
+                {routeDistance !== null && (
+                  <div className="route-distance">
+                    <strong>Расстояние:</strong> {routeDistance} гексов
+                  </div>
+                )}
+                {routePath.length > 0 && (
+                  <div className="route-points">
+                    <strong>Путь:</strong> {routePath.length} точек
+                  </div>
+                )}
+                {selectedHex && secondSelectedHex && (
+                  <div className="route-instructions">
+                    <small>Кликните на третий гекс, чтобы сбросить выбор</small>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
           <div className="action-panel">
             <h3>Действия</h3>
             <div className="action-buttons">
