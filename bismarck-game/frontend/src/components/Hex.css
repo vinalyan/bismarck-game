@@ -148,6 +148,11 @@
   stroke-width: 3px !important;
 }
 
+.hex.second-selected .hex-shape {
+  stroke: #ff6600 !important;
+  stroke-width: 3px !important;
+}
+
 .hex.highlighted .hex-shape {
   stroke: #ffff00 !important;
   stroke-width: 2px !important;

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { ViewType, GamePhase, PlayerSide, NotificationType } from '../types/gameTypes';
 import { HexCoordinate, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
-import { MAP_CONSTANTS, getCubeNeighbors } from '../utils/hexUtils';
+import { MAP_CONSTANTS, getCubeNeighbors, offsetToCube, cubeToOffset, cubeDistance, buildPath } from '../utils/hexUtils';
 import HexMap from './HexMap';
 import './Game.css';
 
@@ -19,33 +19,99 @@ const Game: React.FC = () => {
   } = useGameStore();
 
   const [selectedHex, setSelectedHex] = useState<HexCoordinate | null>(null);
+  const [secondSelectedHex, setSecondSelectedHex] = useState<HexCoordinate | null>(null);
   const [neighborHexes, setNeighborHexes] = useState<HexCoordinate[]>([]);
+  const [routePath, setRoutePath] = useState<HexCoordinate[]>([]);
+  const [routeDistance, setRouteDistance] = useState<number>(0);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [showUnitInfo, setShowUnitInfo] = useState(false);
 
   // Обработчик клика по гексу
   const handleHexClick = (coordinate: HexCoordinate) => {
     setSelectedUnit(null); // Сбрасываем выбранный юнит при выборе нового гекса
-    setSelectedHex(coordinate);
     
-    // Вычисляем соседние гексы
-    const offsetCoord = coordinateToOffset(coordinate);
-    const neighborOffsets = getCubeNeighbors(offsetCoord, 1);
-    
-    // Преобразуем обратно в координаты и фильтруем только валидные
-    const neighbors: HexCoordinate[] = [];
-    neighborOffsets.forEach(neighborOffset => {
-      const neighborCoord = offsetToCoordinate(neighborOffset);
+    if (!selectedHex) {
+      // Первый выбор
+      setSelectedHex(coordinate);
+      setSecondSelectedHex(null);
+      setRoutePath([]);
+      setRouteDistance(0);
       
-      // Проверяем, что координата в пределах карты
-      if (neighborCoord.letter && neighborCoord.number && 
-          neighborCoord.row >= 0 && neighborCoord.row < MAP_CONSTANTS.HEX_GRID_HEIGHT &&
-          neighborCoord.col >= 0 && neighborCoord.col < MAP_CONSTANTS.HEX_GRID_WIDTH) {
-        neighbors.push(neighborCoord);
-      }
-    });
-    
-    setNeighborHexes(neighbors);
+      // Вычисляем соседние гексы
+      const offsetCoord = coordinateToOffset(coordinate);
+      const neighborOffsets = getCubeNeighbors(offsetCoord, 1);
+      
+      // Преобразуем обратно в координаты и фильтруем только валидные
+      const neighbors: HexCoordinate[] = [];
+      neighborOffsets.forEach(neighborOffset => {
+        const neighborCoord = offsetToCoordinate(neighborOffset);
+        
+        // Проверяем, что координата в пределах карты
+        if (neighborCoord.letter && neighborCoord.number && 
+            neighborCoord.row >= 0 && neighborCoord.row < MAP_CONSTANTS.HEX_GRID_HEIGHT &&
+            neighborCoord.col >= 0 && neighborCoord.col < MAP_CONSTANTS.HEX_GRID_WIDTH) {
+          neighbors.push(neighborCoord);
+        }
+      });
+      
+      setNeighborHexes(neighbors);
+    } else if (!secondSelectedHex) {
+      // Второй выбор - строим путь
+      setSecondSelectedHex(coordinate);
+      
+      // Строим путь между двумя гексами
+      const startOffset = coordinateToOffset(selectedHex);
+      const endOffset = coordinateToOffset(coordinate);
+      
+      const startCube = offsetToCube(startOffset);
+      const endCube = offsetToCube(endOffset);
+      
+      const distance = cubeDistance(startCube, endCube);
+      setRouteDistance(distance);
+      
+      // Строим путь
+      const path = buildPath(startOffset, endOffset);
+      const pathCoordinates: HexCoordinate[] = [];
+      
+      path.forEach(offset => {
+        const coord = offsetToCoordinate(offset);
+        
+        // Проверяем, что координата в пределах карты
+        if (coord.letter && coord.number && 
+            coord.row >= 0 && coord.row < MAP_CONSTANTS.HEX_GRID_HEIGHT &&
+            coord.col >= 0 && coord.col < MAP_CONSTANTS.HEX_GRID_WIDTH) {
+          pathCoordinates.push(coord);
+        }
+      });
+      
+      setRoutePath(pathCoordinates);
+      
+      // Очищаем соседние гексы при построении пути
+      setNeighborHexes([]);
+    } else {
+      // Третий клик - сбрасываем все и начинаем заново
+      setSelectedHex(coordinate);
+      setSecondSelectedHex(null);
+      setRoutePath([]);
+      setRouteDistance(0);
+      
+      // Вычисляем соседние гексы для нового первого выбора
+      const offsetCoord = coordinateToOffset(coordinate);
+      const neighborOffsets = getCubeNeighbors(offsetCoord, 1);
+      
+      const neighbors: HexCoordinate[] = [];
+      neighborOffsets.forEach(neighborOffset => {
+        const neighborCoord = offsetToCoordinate(neighborOffset);
+        
+        if (neighborCoord.letter && neighborCoord.number && 
+            neighborCoord.row >= 0 && neighborCoord.row < MAP_CONSTANTS.HEX_GRID_HEIGHT &&
+            neighborCoord.col >= 0 && neighborCoord.col < MAP_CONSTANTS.HEX_GRID_WIDTH) {
+          neighbors.push(neighborCoord);
+        }
+      });
+      
+      setNeighborHexes(neighbors);
+    }
   };
 
   // Заглушка для карты (пока без реальной гексагональной карты)
@@ -254,12 +320,50 @@ const Game: React.FC = () => {
               // Можно добавить логику подсветки при наведении
             }}
             selectedHex={selectedHex}
+            secondSelectedHex={secondSelectedHex}
             neighborHexes={neighborHexes}
+            routePath={routePath}
+            routeDistance={routeDistance}
           />
         </div>
 
         {/* Правая панель - действия */}
         <div className="game-actions">
+          
+          {/* Информация о пути */}
+          {(selectedHex || secondSelectedHex || routePath.length > 0) && (
+            <div className="route-info">
+              <h3>Информация о пути</h3>
+              <div className="route-details">
+                {selectedHex && (
+                  <div className="route-item">
+                    <span>Начальная точка:</span>
+                    <span className="route-value">{selectedHex.letter}{selectedHex.number}</span>
+                  </div>
+                )}
+                {secondSelectedHex && (
+                  <div className="route-item">
+                    <span>Конечная точка:</span>
+                    <span className="route-value">{secondSelectedHex.letter}{secondSelectedHex.number}</span>
+                  </div>
+                )}
+                {routeDistance > 0 && (
+                  <div className="route-item">
+                    <span>Расстояние:</span>
+                    <span className="route-value">{routeDistance} гексов</span>
+                  </div>
+                )}
+                {routePath.length > 0 && (
+                  <div className="route-item">
+                    <span>Путь:</span>
+                    <span className="route-value">
+                      {routePath.map(hex => `${hex.letter}${hex.number}`).join(' → ')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           
           <div className="action-panel">
             <h3>Действия</h3>

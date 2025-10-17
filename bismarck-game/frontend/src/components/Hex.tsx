@@ -12,6 +12,7 @@ interface HexProps {
   corners: Point[];
   size: number;
   isSelected: boolean;
+  isSecondSelected: boolean;
   isHighlighted: boolean;
   isHighlightedGreen: boolean;
   onClick: () => void;
@@ -27,6 +28,7 @@ const Hex: React.FC<HexProps> = ({
   corners,
   size,
   isSelected,
+  isSecondSelected,
   isHighlighted,
   isHighlightedGreen,
   onClick,
@@ -126,9 +128,12 @@ const Hex: React.FC<HexProps> = ({
         stroke = 'transparent';
     }
     
-    // Выделение выбранного гекса
-    if (isSelected) {
-      stroke = '#ff0000';
+    // Выделение выбранных гексов (приоритет: второй > первый)
+    if (isSecondSelected) {
+      stroke = '#ff6600'; // Оранжевый для второго выбранного
+      strokeWidth = 3;
+    } else if (isSelected) {
+      stroke = '#ff0000'; // Красный для первого выбранного
       strokeWidth = 3;
     }
     
@@ -150,7 +155,7 @@ const Hex: React.FC<HexProps> = ({
   return (
     <>
       <g
-        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''} ${isHighlightedGreen ? 'highlighted-green' : ''}`}
+        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isSecondSelected ? 'second-selected' : ''} ${isHighlighted ? 'highlighted' : ''} ${isHighlightedGreen ? 'highlighted-green' : ''}`}
         onClick={onClick}
         onMouseEnter={onHover}
         style={{ cursor: 'pointer' }}

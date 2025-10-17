@@ -15,7 +15,10 @@ interface HexMapProps {
   onHexClick?: (hex: HexCoordinate) => void;
   onHexHover?: (hex: HexCoordinate) => void;
   selectedHex?: HexCoordinate | null;
+  secondSelectedHex?: HexCoordinate | null;
   neighborHexes?: HexCoordinate[];
+  routePath?: HexCoordinate[];
+  routeDistance?: number;
   playerSide?: 'german' | 'allied';
 }
 
@@ -25,7 +28,10 @@ const HexMap: React.FC<HexMapProps> = ({
   onHexClick,
   onHexHover,
   selectedHex,
+  secondSelectedHex,
   neighborHexes = [],
+  routePath = [],
+  routeDistance = 0,
   playerSide = 'german'
 }) => {
   const [hexes, setHexes] = useState<Map<string, HexData>>(new Map());
@@ -317,8 +323,16 @@ const HexMap: React.FC<HexMapProps> = ({
         selectedHex.letter === coordinate.letter && 
         selectedHex.number === coordinate.number;
       
+      const isSecondSelected = secondSelectedHex && 
+        secondSelectedHex.letter === coordinate.letter && 
+        secondSelectedHex.number === coordinate.number;
+      
       const isNeighbor = neighborHexes.some(neighbor => 
         neighbor.letter === coordinate.letter && neighbor.number === coordinate.number
+      );
+      
+      const isInRoute = routePath.some(routeHex => 
+        routeHex.letter === coordinate.letter && routeHex.number === coordinate.number
       );
 
       hexElements.push(
@@ -330,8 +344,9 @@ const HexMap: React.FC<HexMapProps> = ({
           corners={corners}
           size={hexRadius}
           isSelected={!!isSelected}
+          isSecondSelected={!!isSecondSelected}
           isHighlighted={isNeighbor}
-          isHighlightedGreen={false}
+          isHighlightedGreen={isInRoute}
           onClick={() => handleHexClick(coordinate)}
           onHover={() => handleHexHover(coordinate)}
           onUnitHover={handleUnitHover}
