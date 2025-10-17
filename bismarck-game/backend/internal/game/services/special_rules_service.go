@@ -40,9 +40,9 @@ func (srs *SpecialRulesService) RegisterShipSpecialRules(shipConfig *config.Ship
 
 	// Регистрируем правила для корабля (используем ID корабля как ключ)
 	srs.ruleManager.RegisterUnitRules(shipConfig.ID, rules)
-	
-	srs.logger.Info("Зарегистрированы специальные правила для корабля", 
-		"shipID", shipConfig.ID, 
+
+	srs.logger.Info("Зарегистрированы специальные правила для корабля",
+		"shipID", shipConfig.ID,
 		"shipName", shipConfig.Name,
 		"rulesCount", len(rules))
 }
@@ -63,11 +63,11 @@ func (srs *SpecialRulesService) ApplySpecialRulesToUnit(unit *models.NavalUnit, 
 		if srs.ruleManager.CheckRuleConditions(unit.ID, rule.Type, context) {
 			// Применяем эффекты правила
 			srs.ruleManager.ApplyRuleEffects(unit, rule.Type, context)
-			
+
 			// Отмечаем правило как активированное
 			srs.ruleManager.TriggerRule(unit.ID, rule.Type, context)
-			
-			srs.logger.Debug("Применено специальное правило", 
+
+			srs.logger.Debug("Применено специальное правило",
 				"unitID", unit.ID,
 				"ruleType", rule.Type,
 				"context", context)
@@ -92,11 +92,11 @@ func (srs *SpecialRulesService) CheckUnreliableMainArmament(unit *models.NavalUn
 	// - Снижение точности стрельбы
 	// - Возможность заклинивания орудий
 	// - Увеличение времени перезарядки
-	
-	srs.logger.Debug("Проверка ненадежного главного вооружения", 
+
+	srs.logger.Debug("Проверка ненадежного главного вооружения",
 		"unitID", unit.ID,
 		"unitName", unit.Name)
-	
+
 	return true
 }
 
@@ -120,7 +120,7 @@ func (srs *SpecialRulesService) CheckSternGunsInitialPhaseOnly(unit *models.Nava
 	// Если не начальная фаза, отключаем кормовые орудия
 	if phase != "initial" {
 		unit.PrimaryArmamentStern = 0
-		srs.logger.Debug("Кормовые орудия отключены (не начальная фаза)", 
+		srs.logger.Debug("Кормовые орудия отключены (не начальная фаза)",
 			"unitID", unit.ID,
 			"phase", phase)
 		return true
@@ -128,10 +128,10 @@ func (srs *SpecialRulesService) CheckSternGunsInitialPhaseOnly(unit *models.Nava
 
 	// В начальной фазе восстанавливаем кормовые орудия
 	unit.PrimaryArmamentStern = unit.BasePrimaryArmamentStern
-	srs.logger.Debug("Кормовые орудия активны (начальная фаза)", 
+	srs.logger.Debug("Кормовые орудия активны (начальная фаза)",
 		"unitID", unit.ID,
 		"phase", phase)
-	
+
 	return true
 }
 
@@ -156,7 +156,7 @@ func (srs *SpecialRulesService) CheckNoMainGunsExtremeRange(unit *models.NavalUn
 	if rangeType == "extreme" {
 		unit.PrimaryArmamentBow = 0
 		unit.PrimaryArmamentStern = 0
-		srs.logger.Debug("Главный калибр отключен (экстремальная дистанция)", 
+		srs.logger.Debug("Главный калибр отключен (экстремальная дистанция)",
 			"unitID", unit.ID,
 			"range", rangeType)
 		return true
@@ -165,10 +165,10 @@ func (srs *SpecialRulesService) CheckNoMainGunsExtremeRange(unit *models.NavalUn
 	// На других дистанциях восстанавливаем главный калибр
 	unit.PrimaryArmamentBow = unit.BasePrimaryArmamentBow
 	unit.PrimaryArmamentStern = unit.BasePrimaryArmamentStern
-	srs.logger.Debug("Главный калибр активен", 
+	srs.logger.Debug("Главный калибр активен",
 		"unitID", unit.ID,
 		"range", rangeType)
-	
+
 	return true
 }
 
@@ -192,16 +192,16 @@ func (srs *SpecialRulesService) CheckRadarLossAfterFirstRound(unit *models.Naval
 	// Если раунд больше первого, отключаем радар
 	if round > 1 {
 		unit.RadarLevel = 0
-		srs.logger.Debug("Радар отключен (после первого раунда)", 
+		srs.logger.Debug("Радар отключен (после первого раунда)",
 			"unitID", unit.ID,
 			"round", round)
 		return true
 	}
 
-	srs.logger.Debug("Радар активен (первый раунд)", 
+	srs.logger.Debug("Радар активен (первый раунд)",
 		"unitID", unit.ID,
 		"round", round)
-	
+
 	return true
 }
 
@@ -247,7 +247,7 @@ func (srs *SpecialRulesService) ProcessBattlePhase(units []*models.NavalUnit, ph
 		srs.ApplySpecialRulesToUnit(unit, context)
 	}
 
-	srs.logger.Info("Обработаны специальные правила для фазы боя", 
+	srs.logger.Info("Обработаны специальные правила для фазы боя",
 		"phase", phase,
 		"round", round,
 		"unitsCount", len(units))
@@ -263,7 +263,7 @@ func (srs *SpecialRulesService) ProcessRangeChange(units []*models.NavalUnit, ra
 		srs.ApplySpecialRulesToUnit(unit, context)
 	}
 
-	srs.logger.Info("Обработаны специальные правила для дистанции", 
+	srs.logger.Info("Обработаны специальные правила для дистанции",
 		"range", rangeType,
 		"unitsCount", len(units))
 }
