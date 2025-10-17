@@ -15,7 +15,7 @@ interface HexMapProps {
   onHexClick?: (hex: HexCoordinate) => void;
   onHexHover?: (hex: HexCoordinate) => void;
   selectedHex?: HexCoordinate | null;
-  highlightedHexes?: HexCoordinate[];
+  neighborHexes?: HexCoordinate[];
   playerSide?: 'german' | 'allied';
 }
 
@@ -25,12 +25,20 @@ const HexMap: React.FC<HexMapProps> = ({
   onHexClick,
   onHexHover,
   selectedHex,
-  highlightedHexes = [],
+  neighborHexes = [],
   playerSide = 'german'
 }) => {
   const [hexes, setHexes] = useState<Map<string, HexData>>(new Map());
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
+  const [tooltip, setTooltip] = useState<{
+    show: boolean;
+    unitId: string;
+    unitType: string;
+    unitSide: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Генерируем координаты гексов
   useEffect(() => {
@@ -59,14 +67,164 @@ const HexMap: React.FC<HexMapProps> = ({
         };
         
         const hexId = `${letter}${number}`;
+        
+        // Добавляем тестовые юниты разных типов
+        let hasUnit = false;
+        let unitId = null;
+        let unitType = null;
+        let unitSide: 'german' | 'allied' | null = null;
+        
+        // BB - Линейный корабль в K15
+        if (letter === 'K' && number === 15) {
+          hasUnit = true;
+          unitId = 'Bismark';
+          unitType = 'BB';
+          unitSide = 'german';
+        }
+        // BC - Линейный крейсер в L15
+        else if (letter === 'L' && number === 15) {
+          hasUnit = true;
+          unitId = 'Scharnhorst';
+          unitType = 'BC';
+          unitSide = 'german';
+        }
+        // CV - Авианосец в M15
+        else if (letter === 'M' && number === 15) {
+          hasUnit = true;
+          unitId = 'Graf Zeppelin';
+          unitType = 'CV';
+          unitSide = 'german';
+        }
+        // CA - Тяжелый крейсер в N15
+        else if (letter === 'N' && number === 15) {
+          hasUnit = true;
+          unitId = 'Prinz Eugen';
+          unitType = 'CA';
+          unitSide = 'german';
+        }
+        // CL - Легкий крейсер в O15
+        else if (letter === 'O' && number === 15) {
+          hasUnit = true;
+          unitId = 'Nurnberg';
+          unitType = 'CL';
+          unitSide = 'german';
+        }
+        // DD - Эсминец в P15
+        else if (letter === 'P' && number === 15) {
+          hasUnit = true;
+          unitId = 'Z-23';
+          unitType = 'DD';
+          unitSide = 'german';
+        }
+        // CG - Береговая охрана в Q15
+        else if (letter === 'Q' && number === 15) {
+          hasUnit = true;
+          unitId = 'Coast Guard';
+          unitType = 'CG';
+          unitSide = 'german';
+        }
+        // TK - Танкер в R15
+        else if (letter === 'R' && number === 15) {
+          hasUnit = true;
+          unitId = 'Tanker';
+          unitType = 'TK';
+          unitSide = 'german';
+        }
+        // B - Бомбардировщик в S15
+        else if (letter === 'S' && number === 15) {
+          hasUnit = true;
+          unitId = 'Ju-88';
+          unitType = 'B';
+          unitSide = 'german';
+        }
+        // R - Разведчик в T15
+        else if (letter === 'T' && number === 15) {
+          hasUnit = true;
+          unitId = 'Fw-200';
+          unitType = 'R';
+          unitSide = 'german';
+        }
+        // Британские юниты - в ряду 20
+        // BB - Линейный корабль в K20
+        else if (letter === 'K' && number === 20) {
+          hasUnit = true;
+          unitId = 'Hood';
+          unitType = 'BB';
+          unitSide = 'allied';
+        }
+        // BC - Линейный крейсер в L20
+        else if (letter === 'L' && number === 20) {
+          hasUnit = true;
+          unitId = 'Prince of Wales';
+          unitType = 'BC';
+          unitSide = 'allied';
+        }
+        // CV - Авианосец в M20
+        else if (letter === 'M' && number === 20) {
+          hasUnit = true;
+          unitId = 'Ark Royal';
+          unitType = 'CV';
+          unitSide = 'allied';
+        }
+        // CA - Тяжелый крейсер в N20
+        else if (letter === 'N' && number === 20) {
+          hasUnit = true;
+          unitId = 'Norfolk';
+          unitType = 'CA';
+          unitSide = 'allied';
+        }
+        // CL - Легкий крейсер в O20
+        else if (letter === 'O' && number === 20) {
+          hasUnit = true;
+          unitId = 'Sheffield';
+          unitType = 'CL';
+          unitSide = 'allied';
+        }
+        // DD - Эсминец в P20
+        else if (letter === 'P' && number === 20) {
+          hasUnit = true;
+          unitId = 'Cossack';
+          unitType = 'DD';
+          unitSide = 'allied';
+        }
+        // CG - Береговая охрана в Q20
+        else if (letter === 'Q' && number === 20) {
+          hasUnit = true;
+          unitId = 'Coast Guard';
+          unitType = 'CG';
+          unitSide = 'allied';
+        }
+        // TK - Танкер в R20
+        else if (letter === 'R' && number === 20) {
+          hasUnit = true;
+          unitId = 'Tanker';
+          unitType = 'TK';
+          unitSide = 'allied';
+        }
+        // B - Бомбардировщик в S20
+        else if (letter === 'S' && number === 20) {
+          hasUnit = true;
+          unitId = 'Swordfish';
+          unitType = 'B';
+          unitSide = 'allied';
+        }
+        // R - Разведчик в T20
+        else if (letter === 'T' && number === 20) {
+          hasUnit = true;
+          unitId = 'Sunderland';
+          unitType = 'R';
+          unitSide = 'allied';
+        }
+        
         newHexes.set(hexId, {
           coordinate,
           type: 'water', // По умолчанию все гексы - вода
           isVisible: true,
           isHighlighted: false,
-          hasUnit: false,
-          unitId: null,
-          unitSide: null,
+          hasUnit,
+          unitId,
+          unitType,
+          unitSide,
           weather: 'clear',
           fogLevel: 0
         });
@@ -89,8 +247,55 @@ const HexMap: React.FC<HexMapProps> = ({
     }
   };
 
+  // Обработчики для tooltip
+  const handleUnitHover = (unitId: string, unitType: string, unitSide: string, x: number, y: number) => {
+    // Конвертируем координаты мыши в координаты относительно SVG
+    const svgRect = document.querySelector('.hex-map')?.getBoundingClientRect();
+    if (svgRect) {
+      const relativeX = x - svgRect.left;
+      const relativeY = y - svgRect.top;
+      
+      setTooltip({
+        show: true,
+        unitId,
+        unitType,
+        unitSide,
+        x: relativeX,
+        y: relativeY
+      });
+    }
+  };
+
+  const handleUnitLeave = () => {
+    setTooltip(null);
+  };
+
   // Вычисляем размеры SVG с использованием универсальной функции
   const { width: svgWidth, height: svgHeight } = calculateMapSize(width, height, hexRadius);
+
+  // Функция для получения описания юнита
+  const getUnitDescription = (unitType: string, unitId: string, unitSide: string) => {
+    const sideFlag = unitSide === 'german' ? '🇩🇪' : '🇬🇧';
+    const sideName = unitSide === 'german' ? 'Германия' : 'Союзники';
+    
+    const typeNames: { [key: string]: string } = {
+      'BB': 'Линкор',
+      'BC': 'Линейный крейсер',
+      'CV': 'Авианосец',
+      'CA': 'Тяжелый крейсер',
+      'CL': 'Легкий крейсер',
+      'DD': 'Эсминец',
+      'CG': 'Береговая охрана',
+      'TK': 'Танкер',
+      'B': 'Бомбардировщик',
+      'R': 'Разведчик',
+      'RE': 'Разведчик (долгий полет)'
+    };
+    
+    const typeName = typeNames[unitType] || unitType;
+    
+    return `${sideFlag} ${sideName} ${typeName}\n${unitId}`;
+  };
 
   // Рендерим гексы
   const renderHexes = () => {
@@ -112,8 +317,8 @@ const HexMap: React.FC<HexMapProps> = ({
         selectedHex.letter === coordinate.letter && 
         selectedHex.number === coordinate.number;
       
-      const isHighlighted = highlightedHexes.some(h => 
-        h.letter === coordinate.letter && h.number === coordinate.number
+      const isNeighbor = neighborHexes.some(neighbor => 
+        neighbor.letter === coordinate.letter && neighbor.number === coordinate.number
       );
 
       hexElements.push(
@@ -125,10 +330,12 @@ const HexMap: React.FC<HexMapProps> = ({
           corners={corners}
           size={hexRadius}
           isSelected={!!isSelected}
-          isHighlighted={isHighlighted}
-          isHighlightedGreen={isHighlighted}
+          isHighlighted={isNeighbor}
+          isHighlightedGreen={false}
           onClick={() => handleHexClick(coordinate)}
           onHover={() => handleHexHover(coordinate)}
+          onUnitHover={handleUnitHover}
+          onUnitLeave={handleUnitLeave}
         />
       );
     });
@@ -215,6 +422,39 @@ const HexMap: React.FC<HexMapProps> = ({
           {renderHexes()}
         </svg>
       </div>
+      
+      {/* Tooltip */}
+      {tooltip && (
+        <div
+          className="unit-tooltip"
+          style={{
+            position: 'absolute',
+            left: tooltip.x + 20,
+            top: tooltip.y - 30,
+            zIndex: 1000,
+            pointerEvents: 'none',
+            transform: 'translate(-50%, -100%)'
+          }}
+        >
+          {getUnitDescription(tooltip.unitType, tooltip.unitId, tooltip.unitSide).split('\n').map((line, index) => (
+            <div key={index}>{line}</div>
+          ))}
+          {/* Стрелочка */}
+          <div 
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 0,
+              height: 0,
+              borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent',
+              borderTop: '6px solid rgba(0, 0, 0, 0.95)'
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };

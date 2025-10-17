@@ -1,0 +1,25 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="64" height="64" fill="transparent"/>
+<!-- Фюзеляж -->
+<path d="M30 34H34V38H30V34Z" fill="#991b1b"/>
+<!-- Крылья (длиннее для дальности) -->
+<path d="M18 36H46V38H18V36Z" fill="#b91c1c"/>
+<!-- Хвост -->
+<path d="M32 30H34V34H32V30Z" fill="#991b1b"/>
+<!-- Кабина -->
+<circle cx="32" cy="35" r="1.5" fill="#dc2626"/>
+<!-- Двигатели (больше) -->
+<circle cx="22" cy="37" r="2.5" fill="#dc2626"/>
+<circle cx="42" cy="37" r="2.5" fill="#dc2626"/>
+<!-- Дополнительные топливные баки -->
+<rect x="20" y="35" width="2" height="4" fill="#b91c1c"/>
+<rect x="42" y="35" width="2" height="4" fill="#b91c1c"/>
+<!-- Антенны -->
+<line x1="32" y1="30" x2="32" y2="26" stroke="#f87171" stroke-width="1"/>
+<line x1="30" y1="28" x2="34" y2="28" stroke="#f87171" stroke-width="1"/>
+<!-- Индикатор Endurance -->
+<circle cx="32" cy="22" r="2" fill="#10b981" opacity="0.8"/>
+<!-- Детали -->
+<circle cx="26" cy="37" r="1" fill="#f87171"/>
+<circle cx="38" cy="37" r="1" fill="#f87171"/>
+</svg>

@@ -1,0 +1,21 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="64" height="64" fill="transparent"/>
+<!-- Корпус корабля -->
+<path d="M12 44H52V48H48V52H44V56H40V60H12V44Z" fill="#991b1b"/>
+<!-- Цистерны -->
+<path d="M16 40H20V44H16V40Z" fill="#b91c1c"/>
+<path d="M24 40H28V44H24V40Z" fill="#b91c1c"/>
+<path d="M32 40H36V44H32V40Z" fill="#b91c1c"/>
+<path d="M40 40H44V44H40V40Z" fill="#b91c1c"/>
+<path d="M48 40H52V44H48V40Z" fill="#b91c1c"/>
+<!-- Надстройка -->
+<path d="M28 32H36V40H28V32Z" fill="#dc2626"/>
+<!-- Труба -->
+<rect x="30" y="28" width="4" height="8" fill="#b91c1c"/>
+<!-- Детали -->
+<circle cx="18" cy="42" r="1" fill="#f87171"/>
+<circle cx="26" cy="42" r="1" fill="#f87171"/>
+<circle cx="34" cy="42" r="1" fill="#f87171"/>
+<circle cx="42" cy="42" r="1" fill="#f87171"/>
+<circle cx="50" cy="42" r="1" fill="#f87171"/>
+</svg>

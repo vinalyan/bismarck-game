@@ -1,0 +1,19 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="64" height="64" fill="transparent"/>
+<!-- Корпус корабля -->
+<path d="M8 40H56V44H52V48H48V52H44V56H40V60H8V40Z" fill="#1e3a8a"/>
+<!-- Палуба -->
+<path d="M12 36H52V40H12V36Z" fill="#1e40af"/>
+<!-- Надстройка (остров) -->
+<path d="M40 28H48V36H40V28Z" fill="#2563eb"/>
+<path d="M42 20H46V28H42V20Z" fill="#3b82f6"/>
+<!-- Трубы -->
+<rect x="44" y="16" width="4" height="12" fill="#1d4ed8"/>
+<!-- Антенны -->
+<line x1="44" y1="16" x2="44" y2="12" stroke="#60a5fa" stroke-width="2"/>
+<line x1="46" y1="16" x2="46" y2="12" stroke="#60a5fa" stroke-width="2"/>
+<!-- Самолеты на палубе -->
+<circle cx="20" cy="38" r="1" fill="#fbbf24"/>
+<circle cx="28" cy="38" r="1" fill="#fbbf24"/>
+<circle cx="36" cy="38" r="1" fill="#fbbf24"/>
+</svg>

@@ -1,0 +1,15 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="64" height="64" fill="transparent"/>
+<!-- Корпус корабля -->
+<path d="M18 50H46V54H42V58H18V50Z" fill="#1e3a8a"/>
+<!-- Надстройка -->
+<path d="M26 42H38V50H26V42Z" fill="#1e40af"/>
+<path d="M28 34H36V42H28V34Z" fill="#2563eb"/>
+<!-- Труба -->
+<rect x="30" y="30" width="4" height="8" fill="#1d4ed8"/>
+<!-- Радиомачта -->
+<line x1="32" y1="30" x2="32" y2="20" stroke="#60a5fa" stroke-width="2"/>
+<line x1="30" y1="22" x2="34" y2="22" stroke="#60a5fa" stroke-width="2"/>
+<!-- Детали -->
+<circle cx="32" cy="46" r="1" fill="#60a5fa"/>
+</svg>

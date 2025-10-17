@@ -1,0 +1,19 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="64" height="64" fill="transparent"/>
+<!-- Фюзеляж -->
+<path d="M28 32H36V40H28V32Z" fill="#991b1b"/>
+<!-- Крылья -->
+<path d="M16 36H48V40H16V36Z" fill="#b91c1c"/>
+<!-- Хвост -->
+<path d="M32 28H36V32H32V28Z" fill="#991b1b"/>
+<!-- Кабина -->
+<circle cx="32" cy="34" r="2" fill="#dc2626"/>
+<!-- Двигатели -->
+<circle cx="20" cy="38" r="3" fill="#dc2626"/>
+<circle cx="44" cy="38" r="3" fill="#dc2626"/>
+<!-- Бомбы -->
+<rect x="30" y="40" width="4" height="6" fill="#dc2626"/>
+<!-- Детали -->
+<circle cx="24" cy="38" r="1" fill="#f87171"/>
+<circle cx="40" cy="38" r="1" fill="#f87171"/>
+</svg>
