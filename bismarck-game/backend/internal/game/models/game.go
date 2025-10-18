@@ -1,6 +1,7 @@
 package models
 
 import (
+	"log"
 	"time"
 )
 
@@ -119,6 +120,11 @@ const (
 	PlayerSideAllied PlayerSide = "allied"
 )
 
+// MarshalJSON реализует интерфейс json.Marshaler для PlayerSide
+func (ps PlayerSide) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + string(ps) + `"`), nil
+}
+
 // CreateGameRequest представляет запрос на создание игры
 type CreateGameRequest struct {
 	Name     string       `json:"name" validate:"required,min=3,max=100"`
@@ -129,7 +135,8 @@ type CreateGameRequest struct {
 
 // JoinGameRequest представляет запрос на присоединение к игре
 type JoinGameRequest struct {
-	Password string `json:"password,omitempty"`
+	Side     PlayerSide `json:"side,omitempty"` // Желаемая сторона (german или allied)
+	Password string     `json:"password,omitempty"`
 }
 
 // GameResponse представляет ответ с информацией об игре
@@ -180,7 +187,7 @@ func (g *Game) ToResponse() GameResponse {
 
 // ToResponseWithUsernames преобразует Game в GameResponse с username
 func (g *Game) ToResponseWithUsernames(player1Username, player2Username string) GameResponse {
-	return GameResponse{
+	response := GameResponse{
 		ID:              g.ID,
 		Name:            g.Name,
 		Player1ID:       g.Player1ID,
@@ -201,6 +208,11 @@ func (g *Game) ToResponseWithUsernames(player1Username, player2Username string) 
 		StartedAt:       g.StartedAt,
 		LastActionAt:    g.LastActionAt,
 	}
+
+	// Отладочное логирование
+	log.Printf("ToResponseWithUsernames: Player1Side=%s, Player2Side=%s", response.Player1Side, response.Player2Side)
+
+	return response
 }
 
 // IsActive проверяет, активна ли игра

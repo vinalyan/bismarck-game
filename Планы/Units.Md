@@ -3,8 +3,8 @@
 | Name | UnitType | MaxFuel | BaseEvasion | RadarLevel | HullBoxes | BasePrimaryArmamentBow | BasePrimaryArmamentStern | BaseSecondaryArmament | MaxTorpedos |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **GERMAN SHIPS** | | | | | | | | | |
-| BISMARCK | BB | 18 | 30 | 0* | 12 | 8 | 2 | 8 | 0 |
-| TIRPITZ | BB | 19 | 30 | 0* | 12 | 8 | 2 | 8 | 4 |
+| BISMARCK | BB | 18 | 30 | 2 | 12 | 8 | 2 | 8 | 0 |
+| TIRPITZ | BB | 19 | 30 | 2 | 12 | 8 | 2 | 8 | 4 |
 | SCHARNHORST | BC | 18 | 31 | 2 | 9 | 6 | 3 | 2 | 0 |
 | GNEISENAU | BC | 18 | 31 | 2 | 9 | 6 | 3 | 2 | 0 |
 | PRINZ EUGEN | CA | 9 | 32 | 2 | 5 | 3 | 3 | 5 | 0 |

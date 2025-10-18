@@ -13,6 +13,7 @@ import (
 	"bismarck-game/backend/internal/api/middleware"
 	"bismarck-game/backend/internal/auth"
 	"bismarck-game/backend/internal/config"
+	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/internal/websocket"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
@@ -103,13 +104,25 @@ func (s *Server) setupRoutes() {
 		w.WriteHeader(http.StatusOK)
 	})
 
+	// Создаем сервисы
+	shipConfigService := services.NewShipConfigService()
+	unitLogger, _ := logger.New(logger.INFO, "unit-service", "stdout")
+	unitService := services.NewUnitService(s.db, unitLogger)
+
+	// Загружаем конфигурацию кораблей
+	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
+		logger.Error("Failed to load ship config", "error", err)
+	}
+
 	// Создаем обработчики
 	authHandler := handlers.NewAuthHandler(s.authService)
-	gameHandler := handlers.NewGameHandler(s.db)
+	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService)
+	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	gameHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
+	shipConfigHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 
 	// WebSocket маршрут
 	s.router.HandleFunc("/ws", s.handleWebSocket)

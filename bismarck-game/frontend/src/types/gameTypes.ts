@@ -152,6 +152,7 @@ export interface CreateGameRequest {
 // Запрос на присоединение к игре
 export interface JoinGameRequest {
   gameId: string;
+  side?: PlayerSide; // Желаемая сторона (german или allied)
   password?: string;
 }
 

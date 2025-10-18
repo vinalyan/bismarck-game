@@ -1,9 +1,11 @@
 // Гексагональная карта для игры Bismarck Chase
 // Использует алгоритмы из Red Blob Games: https://www.redblobgames.com/grids/hexagons/implementation.html
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Hex } from './Hex';
 import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
+import { MovementHex } from '../utils/movementUtils';
+import { ActiveHex } from '../utils/activeHexesUtils';
 import { 
   Point, OffsetCoord, offsetToPixel, offsetPolygonCorners, calculateMapSize, MAP_CONSTANTS, getCubeNeighbors
 } from '../utils/hexUtils';
@@ -14,12 +16,13 @@ interface HexMapProps {
   height?: number;
   onHexClick?: (hex: HexCoordinate) => void;
   onHexHover?: (hex: HexCoordinate) => void;
+  onUnitClick?: (unitId: string, unitData: any) => void;
   selectedHex?: HexCoordinate | null;
-  secondSelectedHex?: HexCoordinate | null;
-  neighborHexes?: HexCoordinate[];
-  routePath?: HexCoordinate[];
-  routeDistance?: number;
   playerSide?: 'german' | 'allied';
+  availableMovementHexes?: MovementHex[];
+  activeHexes?: ActiveHex[];
+  unitPositions?: Map<string, HexCoordinate>;
+  gameUnits?: any[]; // Добавляем данные юнитов из API
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -27,14 +30,14 @@ const HexMap: React.FC<HexMapProps> = ({
   height = MAP_CONSTANTS.HEX_GRID_HEIGHT, // 33 гекса по вертикали (A-AH)
   onHexClick,
   onHexHover,
+  onUnitClick,
   selectedHex,
-  secondSelectedHex,
-  neighborHexes = [],
-  routePath = [],
-  routeDistance = 0,
-  playerSide = 'german'
+  playerSide = 'german',
+  availableMovementHexes = [],
+  activeHexes = [],
+  unitPositions = new Map(),
+  gameUnits = []
 }) => {
-  const [hexes, setHexes] = useState<Map<string, HexData>>(new Map());
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
   const [tooltip, setTooltip] = useState<{
@@ -47,7 +50,7 @@ const HexMap: React.FC<HexMapProps> = ({
   } | null>(null);
 
   // Генерируем координаты гексов
-  useEffect(() => {
+  const hexes = useMemo(() => {
     const newHexes = new Map<string, HexData>();
     
     // Создаем гексы используя offset координаты (col, row)
@@ -74,153 +77,56 @@ const HexMap: React.FC<HexMapProps> = ({
         
         const hexId = `${letter}${number}`;
         
-        // Добавляем тестовые юниты разных типов
+        // Проверяем, есть ли юнит в этой позиции
         let hasUnit = false;
         let unitId = null;
         let unitType = null;
         let unitSide: 'german' | 'allied' | null = null;
-        
-        // BB - Линейный корабль в K15
-        if (letter === 'K' && number === 15) {
-          hasUnit = true;
-          unitId = 'Bismark';
-          unitType = 'BB';
-          unitSide = 'german';
-        }
-        // BC - Линейный крейсер в L15
-        else if (letter === 'L' && number === 15) {
-          hasUnit = true;
-          unitId = 'Scharnhorst';
-          unitType = 'BC';
-          unitSide = 'german';
-        }
-        // CV - Авианосец в M15
-        else if (letter === 'M' && number === 15) {
-          hasUnit = true;
-          unitId = 'Graf Zeppelin';
-          unitType = 'CV';
-          unitSide = 'german';
-        }
-        // CA - Тяжелый крейсер в N15
-        else if (letter === 'N' && number === 15) {
-          hasUnit = true;
-          unitId = 'Prinz Eugen';
-          unitType = 'CA';
-          unitSide = 'german';
-        }
-        // CL - Легкий крейсер в O15
-        else if (letter === 'O' && number === 15) {
-          hasUnit = true;
-          unitId = 'Nurnberg';
-          unitType = 'CL';
-          unitSide = 'german';
-        }
-        // DD - Эсминец в P15
-        else if (letter === 'P' && number === 15) {
-          hasUnit = true;
-          unitId = 'Z-23';
-          unitType = 'DD';
-          unitSide = 'german';
-        }
-        // CG - Береговая охрана в Q15
-        else if (letter === 'Q' && number === 15) {
-          hasUnit = true;
-          unitId = 'Coast Guard';
-          unitType = 'CG';
-          unitSide = 'german';
-        }
-        // TK - Танкер в R15
-        else if (letter === 'R' && number === 15) {
-          hasUnit = true;
-          unitId = 'Tanker';
-          unitType = 'TK';
-          unitSide = 'german';
-        }
-        // B - Бомбардировщик в S15
-        else if (letter === 'S' && number === 15) {
-          hasUnit = true;
-          unitId = 'Ju-88';
-          unitType = 'B';
-          unitSide = 'german';
-        }
-        // R - Разведчик в T15
-        else if (letter === 'T' && number === 15) {
-          hasUnit = true;
-          unitId = 'Fw-200';
-          unitType = 'R';
-          unitSide = 'german';
-        }
-        // Британские юниты - в ряду 20
-        // BB - Линейный корабль в K20
-        else if (letter === 'K' && number === 20) {
-          hasUnit = true;
-          unitId = 'Hood';
-          unitType = 'BB';
-          unitSide = 'allied';
-        }
-        // BC - Линейный крейсер в L20
-        else if (letter === 'L' && number === 20) {
-          hasUnit = true;
-          unitId = 'Prince of Wales';
-          unitType = 'BC';
-          unitSide = 'allied';
-        }
-        // CV - Авианосец в M20
-        else if (letter === 'M' && number === 20) {
-          hasUnit = true;
-          unitId = 'Ark Royal';
-          unitType = 'CV';
-          unitSide = 'allied';
-        }
-        // CA - Тяжелый крейсер в N20
-        else if (letter === 'N' && number === 20) {
-          hasUnit = true;
-          unitId = 'Norfolk';
-          unitType = 'CA';
-          unitSide = 'allied';
-        }
-        // CL - Легкий крейсер в O20
-        else if (letter === 'O' && number === 20) {
-          hasUnit = true;
-          unitId = 'Sheffield';
-          unitType = 'CL';
-          unitSide = 'allied';
-        }
-        // DD - Эсминец в P20
-        else if (letter === 'P' && number === 20) {
-          hasUnit = true;
-          unitId = 'Cossack';
-          unitType = 'DD';
-          unitSide = 'allied';
-        }
-        // CG - Береговая охрана в Q20
-        else if (letter === 'Q' && number === 20) {
-          hasUnit = true;
-          unitId = 'Coast Guard';
-          unitType = 'CG';
-          unitSide = 'allied';
-        }
-        // TK - Танкер в R20
-        else if (letter === 'R' && number === 20) {
-          hasUnit = true;
-          unitId = 'Tanker';
-          unitType = 'TK';
-          unitSide = 'allied';
-        }
-        // B - Бомбардировщик в S20
-        else if (letter === 'S' && number === 20) {
-          hasUnit = true;
-          unitId = 'Swordfish';
-          unitType = 'B';
-          unitSide = 'allied';
-        }
-        // R - Разведчик в T20
-        else if (letter === 'T' && number === 20) {
-          hasUnit = true;
-          unitId = 'Sunderland';
-          unitType = 'R';
-          unitSide = 'allied';
-        }
+
+        // Ищем юнит в этой позиции
+        unitPositions.forEach((pos, id) => {
+          if (pos.col === col && pos.row === row) {
+            hasUnit = true;
+            unitId = id;
+            
+            // Находим данные юнита в gameUnits
+            const unitData = gameUnits.find(unit => unit.id === id);
+            if (unitData) {
+              unitType = unitData.type;
+              unitSide = unitData.nationality === 'german' ? 'german' : 'allied';
+            } else {
+              // Fallback к старой логике, если данные не найдены
+              if (id === 'Bismark' || id === 'Scharnhorst' || id === 'Graf Zeppelin' || 
+                  id === 'Prinz Eugen' || id === 'Nurnberg' || id === 'Z-23' || 
+                  id === 'Ju-88' || id === 'Fw-200') {
+                unitSide = 'german';
+              } else {
+                unitSide = 'allied';
+              }
+
+              // Определяем тип юнита
+              if (id === 'Bismark' || id === 'Hood') {
+                unitType = 'BB';
+              } else if (id === 'Scharnhorst' || id === 'Prince of Wales') {
+                unitType = 'BC';
+              } else if (id === 'Graf Zeppelin' || id === 'Ark Royal') {
+                unitType = 'CV';
+              } else if (id === 'Prinz Eugen' || id === 'Norfolk') {
+                unitType = 'CA';
+              } else if (id === 'Nurnberg' || id === 'Sheffield') {
+                unitType = 'CL';
+              } else if (id === 'Z-23' || id === 'Cossack') {
+                unitType = 'DD';
+              } else if (id === 'Ju-88' || id === 'Swordfish') {
+                unitType = 'B';
+              } else if (id === 'Fw-200' || id === 'Sunderland') {
+                unitType = 'R';
+              } else {
+                unitType = 'CG'; // По умолчанию
+              }
+            }
+          }
+        });
         
         newHexes.set(hexId, {
           coordinate,
@@ -237,12 +143,19 @@ const HexMap: React.FC<HexMapProps> = ({
       }
     }
     
-    setHexes(newHexes);
-  }, [width, height]);
+    return newHexes;
+  }, [width, height, unitPositions, gameUnits]);
 
   // Обработчики событий
   const handleHexClick = (coordinate: HexCoordinate) => {
-    if (onHexClick) {
+    // Проверяем, является ли гекс активным
+    const isActiveHex = activeHexes.some(hex => 
+      hex.coordinate.col === coordinate.col && 
+      hex.coordinate.row === coordinate.row
+    );
+    
+    // Кликабелен только если гекс активный
+    if (isActiveHex && onHexClick) {
       onHexClick(coordinate);
     }
   };
@@ -322,17 +235,19 @@ const HexMap: React.FC<HexMapProps> = ({
       const isSelected = selectedHex && 
         selectedHex.letter === coordinate.letter && 
         selectedHex.number === coordinate.number;
-      
-      const isSecondSelected = secondSelectedHex && 
-        secondSelectedHex.letter === coordinate.letter && 
-        secondSelectedHex.number === coordinate.number;
-      
-      const isNeighbor = neighborHexes.some(neighbor => 
-        neighbor.letter === coordinate.letter && neighbor.number === coordinate.number
+
+      // Проверяем, является ли этот гекс доступным для движения
+      const isAvailableForMovement = availableMovementHexes.some(
+        movementHex => 
+          movementHex.coordinate.col === coordinate.col && 
+          movementHex.coordinate.row === coordinate.row
       );
-      
-      const isInRoute = routePath.some(routeHex => 
-        routeHex.letter === coordinate.letter && routeHex.number === coordinate.number
+
+      // Проверяем, является ли этот гекс активным
+      const activeHex = activeHexes.find(
+        hex => 
+          hex.coordinate.col === coordinate.col && 
+          hex.coordinate.row === coordinate.row
       );
 
       hexElements.push(
@@ -344,11 +259,11 @@ const HexMap: React.FC<HexMapProps> = ({
           corners={corners}
           size={hexRadius}
           isSelected={!!isSelected}
-          isSecondSelected={!!isSecondSelected}
-          isHighlighted={isNeighbor}
-          isHighlightedGreen={isInRoute}
+          isAvailableForMovement={isAvailableForMovement}
+          activeHex={activeHex}
           onClick={() => handleHexClick(coordinate)}
           onHover={() => handleHexHover(coordinate)}
+          onUnitClick={onUnitClick}
           onUnitHover={handleUnitHover}
           onUnitLeave={handleUnitLeave}
         />

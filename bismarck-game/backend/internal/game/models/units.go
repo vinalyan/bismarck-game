@@ -90,8 +90,9 @@ type NavalUnit struct {
 	Class       string    `json:"class" db:"class"`
 	Owner       string    `json:"owner" db:"owner"`
 	Nationality string    `json:"nationality" db:"nationality"`
-	Position    string    `json:"position" db:"position"` // Hex coordinate
-	Evasion     int       `json:"evasion" db:"evasion"`   // Скорость в узлах
+	Position    string    `json:"position" db:"position"`   // Hex coordinate
+	SetupHex    string    `json:"setup_hex" db:"setup_hex"` // Стартовая позиция при начале игры
+	Evasion     int       `json:"evasion" db:"evasion"`     // Скорость в узлах
 	BaseEvasion int       `json:"base_evasion" db:"base_evasion"`
 	SpeedRating SpeedType `json:"speed_rating" db:"speed_rating"` // F, M, S, VS
 	Fuel        int       `json:"fuel" db:"fuel"`

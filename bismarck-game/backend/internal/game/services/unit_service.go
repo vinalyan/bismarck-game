@@ -29,22 +29,22 @@ func NewUnitService(db *database.Database, logger *logger.Logger) *UnitService {
 func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 	query := `
 		INSERT INTO naval_units (
-			game_id, name, type, class, owner, nationality, position,
+			game_id, name, type, class, owner, nationality, position, setup_hex,
 			evasion, base_evasion, speed_rating, fuel, max_fuel,
 			hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
 			secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
 			base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			status, detection_level, damage
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-			$13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
-			$23, $24, $25
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+			$14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
+			$25, $26, $27
 		) RETURNING id, created_at, updated_at`
 
 	damageJSON, _ := json.Marshal(unit.Damage)
 
 	err := s.db.QueryRow(query,
-		unit.GameID, unit.Name, unit.Type, unit.Class, unit.Owner, unit.Nationality, unit.Position,
+		unit.GameID, unit.Name, unit.Type, unit.Class, unit.Owner, unit.Nationality, unit.Position, unit.SetupHex,
 		unit.Evasion, unit.BaseEvasion, unit.SpeedRating, unit.Fuel, unit.MaxFuel,
 		unit.HullBoxes, unit.CurrentHull, unit.PrimaryArmamentBow, unit.PrimaryArmamentStern,
 		unit.SecondaryArmament, unit.BasePrimaryArmamentBow, unit.BasePrimaryArmamentStern,
@@ -88,11 +88,12 @@ func (s *UnitService) CreateAirUnit(unit *models.AirUnit) error {
 // GetNavalUnitsByGameID возвращает все морские юниты игры
 func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, error) {
 	query := `
-		SELECT id, game_id, name, type, class, owner, nationality, position,
+		SELECT id, game_id, name, type, class, owner, nationality, position, setup_hex,
 			   evasion, base_evasion, speed_rating, fuel, max_fuel,
-			   hull_boxes, current_hull, guns, torpedoes, max_torpedoes,
-			   search_factors, radar_level, status, detection_level,
-			   is_visible, last_known_pos, task_force_id, markers, damage,
+			   hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
+			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
+			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
+			   status, detection_level, last_known_pos, task_force_id, damage,
 			   created_at, updated_at
 		FROM naval_units
 		WHERE game_id = $1
@@ -112,7 +113,7 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 		var lastKnownPos, taskForceID sql.NullString
 
 		err := rows.Scan(
-			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position,
+			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
 			&unit.Evasion, &unit.BaseEvasion, &unit.SpeedRating, &unit.Fuel, &unit.MaxFuel,
 			&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
 			&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
@@ -139,6 +140,53 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 	}
 
 	return units, rows.Err()
+}
+
+// GetNavalUnitByID возвращает морской юнит по ID
+func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error) {
+	query := `
+		SELECT id, game_id, name, type, class, owner, nationality, position, setup_hex,
+			   evasion, base_evasion, speed_rating, fuel, max_fuel,
+			   hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
+			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
+			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
+			   status, detection_level, last_known_pos, task_force_id, damage,
+			   created_at, updated_at
+		FROM naval_units
+		WHERE id = $1`
+
+	var unit models.NavalUnit
+	var damageJSON []byte
+	var lastKnownPos, taskForceID sql.NullString
+
+	err := s.db.QueryRow(query, unitID).Scan(
+		&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
+		&unit.Evasion, &unit.BaseEvasion, &unit.SpeedRating, &unit.Fuel, &unit.MaxFuel,
+		&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
+		&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
+		&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
+		&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
+		&unit.CreatedAt, &unit.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("naval unit not found")
+		}
+		s.logger.Error("Failed to get naval unit", "unit_id", unitID, "error", err)
+		return nil, fmt.Errorf("failed to get naval unit: %w", err)
+	}
+
+	// Парсим JSON поля
+	json.Unmarshal(damageJSON, &unit.Damage)
+
+	if lastKnownPos.Valid {
+		unit.LastKnownPos = &lastKnownPos.String
+	}
+	if taskForceID.Valid {
+		unit.TaskForceID = &taskForceID.String
+	}
+
+	return &unit, nil
 }
 
 // GetAirUnitsByGameID возвращает все воздушные юниты игры
@@ -176,52 +224,6 @@ func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, erro
 	}
 
 	return units, rows.Err()
-}
-
-// GetNavalUnitByID возвращает морской юнит по ID
-func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error) {
-	query := `
-		SELECT id, game_id, name, type, class, owner, nationality, position,
-			   evasion, base_evasion, speed_rating, fuel, max_fuel,
-			   hull_boxes, current_hull, guns, torpedoes, max_torpedoes,
-			   search_factors, radar_level, status, detection_level,
-			   is_visible, last_known_pos, task_force_id, markers, damage,
-			   created_at, updated_at
-		FROM naval_units
-		WHERE id = $1`
-
-	var unit models.NavalUnit
-	var damageJSON []byte
-	var lastKnownPos, taskForceID sql.NullString
-
-	err := s.db.QueryRow(query, unitID).Scan(
-		&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position,
-		&unit.Evasion, &unit.BaseEvasion, &unit.SpeedRating, &unit.Fuel, &unit.MaxFuel,
-		&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
-		&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
-		&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
-		&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
-		&unit.CreatedAt, &unit.UpdatedAt,
-	)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("naval unit not found")
-		}
-		s.logger.Error("Failed to get naval unit", "unit_id", unitID, "error", err)
-		return nil, fmt.Errorf("failed to get naval unit: %w", err)
-	}
-
-	// Парсим JSON поля
-	json.Unmarshal(damageJSON, &unit.Damage)
-
-	if lastKnownPos.Valid {
-		unit.LastKnownPos = &lastKnownPos.String
-	}
-	if taskForceID.Valid {
-		unit.TaskForceID = &taskForceID.String
-	}
-
-	return &unit, nil
 }
 
 // UpdateNavalUnit обновляет морской юнит
@@ -495,4 +497,100 @@ func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]mode
 	}
 
 	return navalUnits, airUnits, nil
+}
+
+// InitializeGameUnits инициализирует юниты для новой игры
+func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, player2ID string, shipConfigService *ShipConfigService) error {
+	// Получаем все корабли из конфигурации
+	allShips, err := shipConfigService.GetAvailableShips("")
+	if err != nil {
+		return fmt.Errorf("failed to get ship configurations: %w", err)
+	}
+
+	// Создаем юниты для каждой стороны
+	for _, shipConfig := range allShips {
+		// Определяем владельца юнита
+		var ownerID string
+		if shipConfig.Side == "german" {
+			ownerID = player1ID
+		} else if shipConfig.Side == "allied" {
+			ownerID = player2ID
+		} else {
+			continue // Пропускаем корабли без определенной стороны
+		}
+
+		// Создаем морской юнит
+		unit := &models.NavalUnit{
+			GameID:                   gameID,
+			Name:                     shipConfig.Name,
+			Type:                     models.UnitType(shipConfig.Type),
+			Class:                    shipConfig.Name, // Используем имя как класс
+			Owner:                    ownerID,
+			Nationality:              shipConfig.Side,
+			Position:                 shipConfig.SetupHex, // Используем setupHex как стартовую позицию
+			SetupHex:                 shipConfig.SetupHex,
+			Evasion:                  shipConfig.BaseEvasion,
+			BaseEvasion:              shipConfig.BaseEvasion,
+			SpeedRating:              models.SpeedType(shipConfig.SpeedType),
+			Fuel:                     shipConfig.MaxFuel,
+			MaxFuel:                  shipConfig.MaxFuel,
+			HullBoxes:                shipConfig.HullBoxes,
+			CurrentHull:              shipConfig.HullBoxes, // Начинаем с полным корпусом
+			PrimaryArmamentBow:       shipConfig.BasePrimaryArmamentBow,
+			PrimaryArmamentStern:     shipConfig.BasePrimaryArmamentStern,
+			SecondaryArmament:        shipConfig.BaseSecondaryArmament,
+			BasePrimaryArmamentBow:   shipConfig.BasePrimaryArmamentBow,
+			BasePrimaryArmamentStern: shipConfig.BasePrimaryArmamentStern,
+			BaseSecondaryArmament:    shipConfig.BaseSecondaryArmament,
+			Torpedoes:                shipConfig.MaxTorpedos,
+			MaxTorpedoes:             shipConfig.MaxTorpedos,
+			RadarLevel:               shipConfig.RadarLevel,
+			Status:                   models.UnitStatusActive,
+			DetectionLevel:           models.DetectionLevelNone,
+			Damage:                   []models.Damage{},
+			CreatedAt:                time.Now(),
+			UpdatedAt:                time.Now(),
+		}
+
+		// Создаем юнит в базе данных
+		err = s.CreateNavalUnit(unit)
+		if err != nil {
+			s.logger.Error("Failed to create unit for game",
+				"game_id", gameID,
+				"ship_name", shipConfig.Name,
+				"error", err)
+			return fmt.Errorf("failed to create unit %s: %w", shipConfig.Name, err)
+		}
+
+		s.logger.Info("Created unit for game",
+			"game_id", gameID,
+			"unit_id", unit.ID,
+			"ship_name", shipConfig.Name,
+			"side", shipConfig.Side,
+			"position", shipConfig.SetupHex)
+	}
+
+	s.logger.Info("Initialized all units for game", "game_id", gameID)
+	return nil
+}
+
+// GetVisibleUnits возвращает юниты, видимые для указанного игрока
+func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.NavalUnit, error) {
+	// Получаем все юниты игры
+	allUnits, err := s.GetNavalUnitsByGameID(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game units: %w", err)
+	}
+
+	// Фильтруем только юниты, видимые для игрока
+	var visibleUnits []models.NavalUnit
+	for _, unit := range allUnits {
+		// Игрок видит только свои юниты
+		if unit.Owner == playerID {
+			visibleUnits = append(visibleUnits, unit)
+		}
+		// TODO: Добавить логику для обнаруженных вражеских юнитов
+	}
+
+	return visibleUnits, nil
 }

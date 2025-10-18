@@ -3,6 +3,8 @@
 import React from 'react';
 import { HexCoordinate, HexData } from '../types/mapTypes';
 import { Point } from '../utils/hexUtils';
+import { shipUtils } from '../data/localShips';
+import { ActiveHex, ACTIVE_HEX_CONFIGS } from '../utils/activeHexesUtils';
 import './Hex.css';
 
 interface HexProps {
@@ -12,11 +14,11 @@ interface HexProps {
   corners: Point[];
   size: number;
   isSelected: boolean;
-  isSecondSelected: boolean;
-  isHighlighted: boolean;
-  isHighlightedGreen: boolean;
+  isAvailableForMovement?: boolean;
+  activeHex?: ActiveHex | null;
   onClick: () => void;
   onHover: () => void;
+  onUnitClick?: (unitId: string, unitData: any) => void;
   onUnitHover?: (unitId: string, unitType: string, unitSide: string, x: number, y: number) => void;
   onUnitLeave?: () => void;
 }
@@ -28,11 +30,11 @@ const Hex: React.FC<HexProps> = ({
   corners,
   size,
   isSelected,
-  isSecondSelected,
-  isHighlighted,
-  isHighlightedGreen,
+  isAvailableForMovement = false,
+  activeHex = null,
   onClick,
   onHover,
+  onUnitClick,
   onUnitHover,
   onUnitLeave
 }) => {
@@ -46,6 +48,20 @@ const Hex: React.FC<HexProps> = ({
       return `/assets/units/${unitSide}/air/Recon.svg`;
     }
     return `/assets/units/${unitSide}/${unitType}.svg`;
+  };
+
+  // Функция для получения имени юнита
+  const getUnitName = (unitType: string, unitSide: string) => {
+    // Fallback для авиации
+    const typeNames: { [key: string]: string } = {
+      'B': 'Бомбардировщик',
+      'R': 'Разведчик'
+    };
+
+    const sideName = unitSide === 'german' ? 'Немецкий' : 'Британский';
+    const typeName = typeNames[unitType] || shipUtils.getShipTypeName(unitType);
+    
+    return `${sideName} ${typeName}`;
   };
 
   // Функция для получения описания юнита
@@ -128,22 +144,28 @@ const Hex: React.FC<HexProps> = ({
         stroke = 'transparent';
     }
     
-    // Выделение выбранных гексов (приоритет: второй > первый)
-    if (isSecondSelected) {
-      stroke = '#ff6600'; // Оранжевый для второго выбранного
-      strokeWidth = 3;
-    } else if (isSelected) {
+    // Выделение выбранного гекса
+    if (isSelected) {
       stroke = '#ff0000'; // Красный для первого выбранного
       strokeWidth = 3;
     }
     
-    // Выделение подсвеченных гексов (приоритет: зеленое > желтое)
-    if (isHighlightedGreen) {
-      stroke = '#00ff00';
-      strokeWidth = 3;
-    } else if (isHighlighted) {
-      stroke = '#ffff00';
+    // Подсветка доступных гексов для движения (устаревший способ)
+    if (isAvailableForMovement) {
+      stroke = '#22C55E'; // Зеленый для доступных гексов
       strokeWidth = 2;
+      fillOpacity = 0.2; // Легкая подсветка
+    }
+    
+    // Подсветка активных гексов (новый способ)
+    if (activeHex) {
+      const config = ACTIVE_HEX_CONFIGS[activeHex.type];
+      if (config.enabled) {
+        stroke = config.strokeColor;
+        strokeWidth = config.strokeWidth;
+        fillOpacity = config.opacity;
+        fill = config.color;
+      }
     }
     
     return { fill, stroke, strokeWidth, fillOpacity };
@@ -155,10 +177,10 @@ const Hex: React.FC<HexProps> = ({
   return (
     <>
       <g
-        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isSecondSelected ? 'second-selected' : ''} ${isHighlighted ? 'highlighted' : ''} ${isHighlightedGreen ? 'highlighted-green' : ''}`}
+        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''}`}
         onClick={onClick}
         onMouseEnter={onHover}
-        style={{ cursor: 'pointer' }}
+        style={{ cursor: activeHex ? 'pointer' : 'default' }}
       >
       {/* Основной гекс */}
       <polygon
@@ -177,6 +199,22 @@ const Hex: React.FC<HexProps> = ({
           className="unit-container"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          onClick={(e) => {
+            e.stopPropagation(); // Останавливаем всплытие события
+            if (onUnitClick) {
+              onUnitClick(hexData.unitId!, {
+                id: hexData.unitId,
+                type: hexData.unitType,
+                side: hexData.unitSide,
+                position: coordinate,
+                name: getUnitName(hexData.unitType || '', hexData.unitSide || 'german'),
+                // Данные корабля будут загружены через API при необходимости
+                maxFuel: 10, // Временное значение, будет заменено данными из API
+                currentFuel: 8 // Временное значение, будет заменено данными из API
+              });
+            }
+          }}
+          style={{ cursor: 'pointer' }}
         >
           {/* Фоновый кружок для лучшей видимости */}
           <circle

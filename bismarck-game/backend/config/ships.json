@@ -7,13 +7,14 @@
       "side": "german",
       "maxFuel": 18,
       "baseEvasion": 30,
-      "radarLevel": 0,
+      "radarLevel": 2,
       "hullBoxes": 12,
       "basePrimaryArmamentBow": 8,
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 8,
       "maxTorpedos": 0,
-      "speedType": "M",
+      "speedType": "F",
+      "setupHex": "J30",
       "notes": "После первого раунда боя считается кораблем без радара",
       "specialRules": [
         {
@@ -23,59 +24,8 @@
         }
       ]
     },
-    {
-      "id": "tirpitz",
-      "name": "TIRPITZ",
-      "type": "BB",
-      "side": "german",
-      "maxFuel": 19,
-      "baseEvasion": 30,
-      "radarLevel": 0,
-      "hullBoxes": 12,
-      "basePrimaryArmamentBow": 8,
-      "basePrimaryArmamentStern": 2,
-      "baseSecondaryArmament": 8,
-      "maxTorpedos": 4,
-      "speedType": "M",
-      "notes": "После первого раунда боя считается кораблем без радара",
-      "specialRules": [
-        {
-          "type": "radar_loss_after_first_round",
-          "description": "После первого раунда боя считается кораблем без радара",
-          "isActive": true
-        }
-      ]
-    },
-    {
-      "id": "scharnhorst",
-      "name": "SCHARNHORST",
-      "type": "BC",
-      "side": "german",
-      "maxFuel": 18,
-      "baseEvasion": 31,
-      "radarLevel": 2,
-      "hullBoxes": 9,
-      "basePrimaryArmamentBow": 6,
-      "basePrimaryArmamentStern": 3,
-      "baseSecondaryArmament": 2,
-      "maxTorpedos": 0,
-      "speedType": "F"
-    },
-    {
-      "id": "gneisenau",
-      "name": "GNEISENAU",
-      "type": "BC",
-      "side": "german",
-      "maxFuel": 18,
-      "baseEvasion": 31,
-      "radarLevel": 2,
-      "hullBoxes": 9,
-      "basePrimaryArmamentBow": 6,
-      "basePrimaryArmamentStern": 3,
-      "baseSecondaryArmament": 2,
-      "maxTorpedos": 0,
-      "speedType": "F"
-    },
+ 
+ 
     {
       "id": "prinz_eugen",
       "name": "PRINZ EUGEN",
@@ -91,21 +41,7 @@
       "maxTorpedos": 0,
       "speedType": "F"
     },
-    {
-      "id": "koln",
-      "name": "KÖLN",
-      "type": "CL",
-      "side": "german",
-      "maxFuel": 12,
-      "baseEvasion": 33,
-      "radarLevel": 2,
-      "hullBoxes": 12,
-      "basePrimaryArmamentBow": 2,
-      "basePrimaryArmamentStern": 3,
-      "baseSecondaryArmament": 0,
-      "maxTorpedos": 0,
-      "speedType": "F"
-    },
+
     {
       "id": "5_zerstorerfl",
       "name": "5. ZERSTÖRERFL.",
@@ -145,11 +81,12 @@
       "baseEvasion": 27,
       "radarLevel": 2,
       "hullBoxes": 9,
+      "setupHex": "A15",
       "basePrimaryArmamentBow": 9,
       "basePrimaryArmamentStern": 5,
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
-      "speedType": "M",
+      "speedType": "S",
       "notes": "Имеет ненадежное главное вооружение",
       "specialRules": [
         {
@@ -172,7 +109,7 @@
       "basePrimaryArmamentStern": 5,
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
-      "speedType": "M",
+      "speedType": "S",
       "notes": "Имеет ненадежное главное вооружение",
       "specialRules": [
         {
@@ -730,6 +667,81 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F"
+    },
+    {
+      "id": "weissenburg",
+      "name": "WEISSENBURG",
+      "type": "TK",
+      "side": "german",
+      "maxFuel": 15,
+      "baseEvasion": 12,
+      "radarLevel": 0,
+      "hullBoxes": 6,
+      "basePrimaryArmamentBow": 0,
+      "basePrimaryArmamentStern": 0,
+      "baseSecondaryArmament": 0,
+      "maxTorpedos": 0,
+      "speedType": "VS"
+    },
+    {
+      "id": "belchen",
+      "name": "BELCHEN",
+      "type": "TK",
+      "side": "german",
+      "maxFuel": 15,
+      "baseEvasion": 12,
+      "radarLevel": 0,
+      "hullBoxes": 6,
+      "basePrimaryArmamentBow": 0,
+      "basePrimaryArmamentStern": 0,
+      "baseSecondaryArmament": 0,
+      "maxTorpedos": 0,
+      "speedType": "VS"
+    },
+    {
+      "id": "lotheringen",
+      "name": "LOTHERINGEN",
+      "type": "TK",
+      "side": "german",
+      "maxFuel": 15,
+      "baseEvasion": 12,
+      "radarLevel": 0,
+      "hullBoxes": 6,
+      "basePrimaryArmamentBow": 0,
+      "basePrimaryArmamentStern": 0,
+      "baseSecondaryArmament": 0,
+      "maxTorpedos": 0,
+      "speedType": "VS"
+    },
+    {
+      "id": "gonzenheim",
+      "name": "GONZENHEIM",
+      "type": "TK",
+      "side": "german",
+      "maxFuel": 15,
+      "baseEvasion": 9,
+      "radarLevel": 0,
+      "hullBoxes": 6,
+      "basePrimaryArmamentBow": 0,
+      "basePrimaryArmamentStern": 0,
+      "baseSecondaryArmament": 0,
+      "maxTorpedos": 0,
+      "speedType": "VS"
+    },
+    {
+      "id": "kota_pinang",
+      "name": "KOTA PINANG",
+      "type": "TK",
+      "side": "german",
+      "maxFuel": 15,
+      "baseEvasion": 14,
+      "radarLevel": 0,
+      "hullBoxes": 6,
+      "basePrimaryArmamentBow": 0,
+      "basePrimaryArmamentStern": 0,
+      "baseSecondaryArmament": 0,
+      "maxTorpedos": 0,
+      "speedType": "VS"
     }
   ]
 }

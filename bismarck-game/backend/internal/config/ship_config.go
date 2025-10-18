@@ -21,6 +21,7 @@ type ShipConfig struct {
 	BaseSecondaryArmament    int                 `json:"baseSecondaryArmament"`
 	MaxTorpedos              int                 `json:"maxTorpedos"`
 	SpeedType                string              `json:"speedType"`
+	SetupHex                 string              `json:"setupHex,omitempty"` // Стартовая позиция при начале игры
 	Notes                    string              `json:"notes,omitempty"`
 	SpecialRules             []SpecialRuleConfig `json:"specialRules,omitempty"`
 }

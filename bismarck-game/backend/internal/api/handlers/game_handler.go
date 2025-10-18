@@ -11,6 +11,7 @@ import (
 
 	"bismarck-game/backend/internal/api/middleware"
 	"bismarck-game/backend/internal/game/models"
+	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/utils"
 
@@ -19,13 +20,17 @@ import (
 
 // GameHandler представляет обработчик игр
 type GameHandler struct {
-	db *database.Database
+	db                *database.Database
+	unitService       *services.UnitService
+	shipConfigService *services.ShipConfigService
 }
 
 // NewGameHandler создает новый обработчик игр
-func NewGameHandler(db *database.Database) *GameHandler {
+func NewGameHandler(db *database.Database, unitService *services.UnitService, shipConfigService *services.ShipConfigService) *GameHandler {
 	return &GameHandler{
-		db: db,
+		db:                db,
+		unitService:       unitService,
+		shipConfigService: shipConfigService,
 	}
 }
 
@@ -168,6 +173,18 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error creating game: %v", err)
 		utils.WriteInternalError(w, "Failed to create game")
 		return
+	}
+
+	// Инициализируем юниты для игры
+	if game.Player1ID != "" && game.Player2ID != "" {
+		// Если оба игрока уже присоединились, инициализируем юниты
+		err = h.unitService.InitializeGameUnits(game.ID, game.Player1ID, game.Player2ID, h.shipConfigService)
+		if err != nil {
+			log.Printf("Error initializing game units: %v", err)
+			// Не прерываем создание игры, просто логируем ошибку
+		} else {
+			log.Printf("Game units initialized successfully for game %s", game.ID)
+		}
 	}
 
 	utils.WriteCreated(w, game.ToResponse())
@@ -456,19 +473,50 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	var updateQuery string
 	var updateArgs []interface{}
 
-	if game.Player1ID == "" {
-		// Свободна немецкая сторона (Player1)
-		updateQuery = `UPDATE games SET player1_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
-		updateArgs = []interface{}{userID, time.Now(), gameID}
-	} else if game.Player2ID == "" {
-		// Свободна союзническая сторона (Player2)
-		updateQuery = `UPDATE games SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
-		updateArgs = []interface{}{userID, time.Now(), gameID}
+	// Если игрок указал желаемую сторону
+	if req.Side != "" {
+		if req.Side == models.PlayerSideGerman {
+			// Игрок хочет быть немцем (Player1)
+			if game.Player1ID != "" {
+				utils.WriteValidationError(w, "German side is already taken", map[string]string{
+					"side": "German side is not available",
+				})
+				return
+			}
+			updateQuery = `UPDATE games SET player1_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
+			updateArgs = []interface{}{userID, time.Now(), gameID}
+		} else if req.Side == models.PlayerSideAllied {
+			// Игрок хочет быть союзником (Player2)
+			if game.Player2ID != "" {
+				utils.WriteValidationError(w, "Allied side is already taken", map[string]string{
+					"side": "Allied side is not available",
+				})
+				return
+			}
+			updateQuery = `UPDATE games SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
+			updateArgs = []interface{}{userID, time.Now(), gameID}
+		} else {
+			utils.WriteValidationError(w, "Invalid side", map[string]string{
+				"side": "Side must be 'german' or 'allied'",
+			})
+			return
+		}
 	} else {
-		utils.WriteValidationError(w, "Game is full", map[string]string{
-			"game": "Game already has two players",
-		})
-		return
+		// Если сторона не указана, занимаем первое свободное место
+		if game.Player1ID == "" {
+			// Свободна немецкая сторона (Player1)
+			updateQuery = `UPDATE games SET player1_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
+			updateArgs = []interface{}{userID, time.Now(), gameID}
+		} else if game.Player2ID == "" {
+			// Свободна союзническая сторона (Player2)
+			updateQuery = `UPDATE games SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
+			updateArgs = []interface{}{userID, time.Now(), gameID}
+		} else {
+			utils.WriteValidationError(w, "Game is full", map[string]string{
+				"game": "Game already has two players",
+			})
+			return
+		}
 	}
 
 	// Присоединяем игрока
@@ -477,6 +525,27 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.WriteInternalError(w, "Failed to join game")
 		return
+	}
+
+	// Проверяем, нужно ли инициализировать юниты (если теперь оба игрока присоединились)
+	var finalPlayer1ID, finalPlayer2ID string
+	if game.Player1ID == "" {
+		finalPlayer1ID = userID // Присоединился как немец
+		finalPlayer2ID = game.Player2ID
+	} else if game.Player2ID == "" {
+		finalPlayer1ID = game.Player1ID
+		finalPlayer2ID = userID // Присоединился как союзник
+	}
+
+	// Если оба игрока теперь присоединились, инициализируем юниты
+	if finalPlayer1ID != "" && finalPlayer2ID != "" {
+		err = h.unitService.InitializeGameUnits(gameID, finalPlayer1ID, finalPlayer2ID, h.shipConfigService)
+		if err != nil {
+			log.Printf("Error initializing game units after join: %v", err)
+			// Не прерываем присоединение к игре, просто логируем ошибку
+		} else {
+			log.Printf("Game units initialized successfully after join for game %s", gameID)
+		}
 	}
 
 	// Получаем username для присоединившегося игрока
@@ -662,6 +731,123 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	utils.WriteSuccess(w, map[string]string{"message": "Game deleted successfully"})
 }
 
+// GetGameUnits возвращает юниты игры, видимые для текущего игрока
+func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["id"]
+
+	if gameID == "" {
+		utils.WriteValidationError(w, "Game ID is required", map[string]string{
+			"id": "Game ID cannot be empty",
+		})
+		return
+	}
+
+	// Получаем ID пользователя из контекста
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.WriteUnauthorized(w, "Authentication required")
+		return
+	}
+
+	// Получаем видимые юниты для игрока
+	units, err := h.unitService.GetVisibleUnits(gameID, userID)
+	if err != nil {
+		log.Printf("Error getting game units: %v", err)
+		utils.WriteInternalError(w, "Failed to get game units")
+		return
+	}
+
+	utils.WriteSuccess(w, map[string]interface{}{
+		"units": units,
+	})
+}
+
+// UpdateUnitPosition обновляет позицию юнита
+func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["id"]
+	unitID := vars["unitId"]
+
+	if gameID == "" || unitID == "" {
+		utils.WriteValidationError(w, "Game ID and Unit ID are required", map[string]string{
+			"gameId": "Game ID cannot be empty",
+			"unitId": "Unit ID cannot be empty",
+		})
+		return
+	}
+
+	// Получаем ID пользователя из контекста
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		utils.WriteUnauthorized(w, "Authentication required")
+		return
+	}
+
+	// Парсим запрос
+	var req struct {
+		Position string `json:"position"`
+		Fuel     int    `json:"fuel,omitempty"`
+	}
+	if err = utils.ParseJSON(r, &req); err != nil {
+		utils.WriteValidationError(w, "Invalid request format", map[string]string{
+			"body": "Request body must be valid JSON",
+		})
+		return
+	}
+
+	if req.Position == "" {
+		utils.WriteValidationError(w, "Position is required", map[string]string{
+			"position": "Position cannot be empty",
+		})
+		return
+	}
+
+	// Проверяем, что юнит принадлежит пользователю
+	unit, err := h.unitService.GetNavalUnitByID(unitID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.WriteNotFound(w, "Unit not found")
+			return
+		}
+		utils.WriteInternalError(w, "Failed to get unit")
+		return
+	}
+
+	if unit.Owner != userID {
+		utils.WriteForbidden(w, "You can only move your own units")
+		return
+	}
+
+	// Обновляем позицию юнита
+	updateQuery := "UPDATE naval_units SET position = $1"
+	args := []interface{}{req.Position}
+	argIndex := 2
+
+	// Если указано топливо, обновляем и его
+	if req.Fuel >= 0 {
+		updateQuery += ", fuel = $" + strconv.Itoa(argIndex)
+		args = append(args, req.Fuel)
+		argIndex++
+	}
+
+	updateQuery += ", updated_at = $" + strconv.Itoa(argIndex) + " WHERE id = $" + strconv.Itoa(argIndex+1)
+	args = append(args, time.Now(), unitID)
+
+	_, err = h.db.Exec(updateQuery, args...)
+	if err != nil {
+		log.Printf("Error updating unit position: %v", err)
+		utils.WriteInternalError(w, "Failed to update unit position")
+		return
+	}
+
+	utils.WriteSuccess(w, map[string]interface{}{
+		"message":  "Unit position updated successfully",
+		"unitId":   unitID,
+		"position": req.Position,
+	})
+}
+
 // RegisterRoutes регистрирует маршруты игр
 func (h *GameHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	gameRouter := router.PathPrefix("/api/games").Subrouter()
@@ -677,6 +863,8 @@ func (h *GameHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	gameRouter.HandleFunc("", h.CreateGame).Methods("POST")
 	gameRouter.HandleFunc("", h.GetGames).Methods("GET")
 	gameRouter.HandleFunc("/{id}", h.GetGame).Methods("GET")
+	gameRouter.HandleFunc("/{id}/units", h.GetGameUnits).Methods("GET")
+	gameRouter.HandleFunc("/{id}/units/{unitId}/position", h.UpdateUnitPosition).Methods("PUT")
 	gameRouter.HandleFunc("/{id}/join", h.JoinGame).Methods("POST")
 	gameRouter.HandleFunc("/{id}/surrender", h.SurrenderGame).Methods("POST")
 	gameRouter.HandleFunc("/{id}", h.DeleteGame).Methods("DELETE")

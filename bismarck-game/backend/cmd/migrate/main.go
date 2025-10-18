@@ -324,6 +324,7 @@ func getMigrations() []Migration {
 					owner VARCHAR(50) NOT NULL,
 					nationality VARCHAR(50) NOT NULL,
 					position VARCHAR(10) NOT NULL, -- Hex coordinate
+					setup_hex VARCHAR(10), -- Стартовая позиция при начале игры
 					evasion INTEGER DEFAULT 0,
 					base_evasion INTEGER DEFAULT 0,
 					speed_rating VARCHAR(2) DEFAULT 'M',

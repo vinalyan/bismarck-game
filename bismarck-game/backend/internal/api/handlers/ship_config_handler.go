@@ -27,12 +27,23 @@ func (sch *ShipConfigHandler) GetAvailableShips(w http.ResponseWriter, r *http.R
 	vars := mux.Vars(r)
 	side := vars["side"]
 
+	// Если сторона не указана, возвращаем все корабли
 	if side == "" {
-		utils.WriteErrorResponse(w, http.StatusBadRequest, "сторона не указана")
-		return
+		side = ""
 	}
 
 	ships, err := sch.shipConfigService.GetAvailableShips(side)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "ошибка получения кораблей")
+		return
+	}
+
+	utils.WriteSuccessResponse(w, ships)
+}
+
+// GetAllShips возвращает все корабли
+func (sch *ShipConfigHandler) GetAllShips(w http.ResponseWriter, r *http.Request) {
+	ships, err := sch.shipConfigService.GetAvailableShips("")
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "ошибка получения кораблей")
 		return
@@ -218,4 +229,22 @@ func (sch *ShipConfigHandler) SearchShips(w http.ResponseWriter, r *http.Request
 	}
 
 	utils.WriteSuccessResponse(w, filteredShips)
+}
+
+// RegisterRoutes регистрирует маршруты для конфигурации кораблей
+func (sch *ShipConfigHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
+	// Создаем подроутер для API кораблей
+	shipsRouter := router.PathPrefix("/api/ships").Subrouter()
+
+	// Маршруты для получения кораблей
+	shipsRouter.HandleFunc("/side/{side}", sch.GetAvailableShips).Methods("GET")
+	shipsRouter.HandleFunc("/all", sch.GetAllShips).Methods("GET")
+	shipsRouter.HandleFunc("/types", sch.GetShipTypes).Methods("GET")
+	shipsRouter.HandleFunc("/type/{type}", sch.GetShipsByType).Methods("GET")
+	shipsRouter.HandleFunc("/config/{id}", sch.GetShipConfig).Methods("GET")
+	shipsRouter.HandleFunc("/search", sch.SearchShips).Methods("GET")
+	shipsRouter.HandleFunc("/stats", sch.GetConfigStats).Methods("GET")
+
+	// Маршрут для создания юнита из конфигурации
+	shipsRouter.HandleFunc("/create-unit", sch.CreateUnitFromConfig).Methods("POST")
 }

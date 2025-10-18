@@ -130,6 +130,7 @@ export const gameAPI = {
   // Присоединение к игре
   joinGame: async (data: JoinGameRequest): Promise<APIResponse<GameResponse>> => {
     const response = await apiClient.post(`/games/${data.gameId}/join`, {
+      side: data.side,
       password: data.password || ''
     });
     return response.data;

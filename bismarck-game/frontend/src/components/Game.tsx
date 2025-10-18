@@ -4,7 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { ViewType, GamePhase, PlayerSide, NotificationType } from '../types/gameTypes';
 import { HexCoordinate, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
-import { MAP_CONSTANTS, getCubeNeighbors, offsetToCube, cubeToOffset, cubeDistance, buildPath } from '../utils/hexUtils';
+import { shipUtils, LOCAL_SHIPS_DATA, localShipsUtils, ShipData } from '../data/localShips';
+import { movementUtils, MovementHex } from '../utils/movementUtils';
+import { activeHexesUtils, ActiveHex, useActiveHexes } from '../utils/activeHexesUtils';
+import { MAP_CONSTANTS } from '../utils/hexUtils';
+import { unitsAPI, GameUnit, UpdatePositionRequest } from '../services/api/unitsAPI';
 import HexMap from './HexMap';
 import './Game.css';
 
@@ -12,6 +16,7 @@ const Game: React.FC = () => {
   const {
     user,
     currentGame,
+    authToken,
     logout,
     setCurrentView,
     addNotification,
@@ -19,98 +24,292 @@ const Game: React.FC = () => {
   } = useGameStore();
 
   const [selectedHex, setSelectedHex] = useState<HexCoordinate | null>(null);
-  const [secondSelectedHex, setSecondSelectedHex] = useState<HexCoordinate | null>(null);
-  const [neighborHexes, setNeighborHexes] = useState<HexCoordinate[]>([]);
-  const [routePath, setRoutePath] = useState<HexCoordinate[]>([]);
-  const [routeDistance, setRouteDistance] = useState<number>(0);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
-  const [showUnitInfo, setShowUnitInfo] = useState(false);
+  const [selectedUnitData, setSelectedUnitData] = useState<any>(null);
+  const [availableMovementHexes, setAvailableMovementHexes] = useState<MovementHex[]>([]);
+  const [shipsData, setShipsData] = useState<ShipData[]>([]);
+  const [loadingShips, setLoadingShips] = useState(false);
+  const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  
+  // Состояние для позиций юнитов
+  const [unitPositions, setUnitPositions] = useState<Map<string, HexCoordinate>>(new Map());
 
-  // Обработчик клика по гексу
+  // Хук для управления активными гексами
+  const {
+    activeHexes,
+    enabledTypes,
+    addActiveHexes,
+    removeActiveHexesByType,
+    clearActiveHexes,
+    toggleType
+  } = useActiveHexes();
+
+  // Загружаем данные кораблей и юнитов при монтировании компонента
+  useEffect(() => {
+    // Используем локальные данные для конфигурации кораблей
+    setShipsData(LOCAL_SHIPS_DATA);
+    setLoadingShips(false);
+
+    // Загружаем юниты игры из API
+    const loadGameUnits = async () => {
+      if (!currentGame?.id || !authToken) {
+        return;
+      }
+
+      try {
+        setLoadingUnits(true);
+        const response = await unitsAPI.getGameUnits(currentGame.id, authToken);
+        
+        if (response.success && response.data && response.data.units) {
+          setGameUnits(response.data.units);
+          
+          // Создаем карту позиций юнитов
+          const positions = new Map<string, HexCoordinate>();
+          response.data.units.forEach(unit => {
+            if (unit.position && unit.position.trim() !== '') {
+              // Парсим позицию (например, "J30" -> {letter: "J", number: 30})
+              const match = unit.position.match(/^([A-Z]+)(\d+)$/);
+              if (match) {
+                const letter = match[1];
+                const number = parseInt(match[2]);
+                
+                // Преобразуем букву в row
+                let row: number;
+                if (letter.length === 1) {
+                  // A, B, C, ..., Z (0-25)
+                  row = letter.charCodeAt(0) - 65;
+                } else if (letter.length === 2 && letter.startsWith('A')) {
+                  // AA, AB, AC, ..., AH (26-33)
+                  row = 26 + (letter.charCodeAt(1) - 65);
+                } else {
+                  console.warn(`Invalid letter format: ${letter}`);
+                  return;
+                }
+                
+                // Создаем координату
+                const coordinate: HexCoordinate = {
+                  letter: letter,
+                  number: number,
+                  col: number - 1,
+                  row: row
+                };
+                positions.set(unit.id, coordinate);
+              }
+            }
+          });
+          setUnitPositions(positions);
+        } else {
+          console.error('Failed to load game units:', response.error);
+          addNotification({
+            type: NotificationType.Error,
+            title: 'Ошибка загрузки юнитов',
+            message: response.error || 'Не удалось загрузить юниты игры',
+            read: false
+          });
+        }
+      } catch (error) {
+        console.error('Error loading game units:', error);
+        addNotification({
+          type: NotificationType.Error,
+          title: 'Ошибка загрузки юнитов',
+          message: 'Произошла ошибка при загрузке юнитов игры',
+          read: false
+        });
+      } finally {
+        setLoadingUnits(false);
+      }
+    };
+
+    loadGameUnits();
+  }, [currentGame?.id, authToken, addNotification]);
+
+  // Обработчик клика по гексу для движения
   const handleHexClick = (coordinate: HexCoordinate) => {
-    setSelectedUnit(null); // Сбрасываем выбранный юнит при выборе нового гекса
+    // Проверяем, есть ли выбранный юнит
+    if (!selectedUnit || !selectedUnitData) {
+      return;
+    }
+
+    // Проверяем, является ли гекс активным для движения
+    const isMovementHex = activeHexes.some(hex => 
+      hex.type === 'movement' &&
+      hex.coordinate.col === coordinate.col && 
+      hex.coordinate.row === coordinate.row
+    );
+
+    if (isMovementHex) {
+      // Выполняем движение
+      handleMovement(coordinate);
+    }
+  };
+
+  // Обработчик движения
+  const handleMovement = async (targetCoordinate: HexCoordinate) => {
+    if (!selectedUnitData || !selectedUnitData.shipData || !currentGame?.id || !authToken) {
+      return;
+    }
+
+    // Рассчитываем стоимость движения
+    const movementCost = movementUtils.canReachHex(
+      selectedUnitData.shipData,
+      selectedUnitData.position,
+      targetCoordinate,
+      selectedUnitData.currentFuel
+    );
+
+    if (!movementCost.canReach) {
+      console.log('Невозможно добраться до этого гекса');
+      return;
+    }
+
+    const newFuel = selectedUnitData.currentFuel - movementCost.fuelCost;
+    const positionString = `${targetCoordinate.letter}${targetCoordinate.number}`;
+
+    try {
+      // Сохраняем позицию на сервере
+      const updateRequest: UpdatePositionRequest = {
+        position: positionString,
+        fuel: newFuel
+      };
+
+      const response = await unitsAPI.updateUnitPosition(
+        currentGame.id,
+        selectedUnit!,
+        updateRequest,
+        authToken
+      );
+
+      if (response.success) {
+        // Обновляем позицию юнита локально
+        const updatedUnitData = {
+          ...selectedUnitData,
+          position: targetCoordinate,
+          currentFuel: newFuel
+        };
+
+        setSelectedUnitData(updatedUnitData);
+
+        // Обновляем позицию юнита в состоянии
+        setUnitPositions(prev => {
+          const newPositions = new Map(prev);
+          newPositions.set(selectedUnit!, targetCoordinate);
+          return newPositions;
+        });
+
+        // Обновляем данные юнита в gameUnits
+        setGameUnits(prev => prev.map(unit => 
+          unit.id === selectedUnit 
+            ? { ...unit, position: positionString, fuel: newFuel }
+            : unit
+        ));
+
+        // Очищаем активные гексы
+        clearActiveHexes();
+        setAvailableMovementHexes([]);
+
+        // Пересчитываем доступные гексы для движения с новой позиции
+        const newAvailableHexes = movementUtils.getAvailableMovementHexes(
+          selectedUnitData.shipData,
+          targetCoordinate,
+          newFuel
+        );
+        setAvailableMovementHexes(newAvailableHexes);
+
+        // Добавляем новые активные гексы
+        const newMovementActiveHexes = activeHexesUtils.getMovementActiveHexes(
+          selectedUnitData.shipData,
+          targetCoordinate,
+          newFuel
+        );
+        addActiveHexes(newMovementActiveHexes);
+
+        console.log(`Юнит ${selectedUnit} перемещен в ${targetCoordinate.letter}${targetCoordinate.number}`);
+        console.log(`Потрачено топлива: ${movementCost.fuelCost}, осталось: ${newFuel}`);
+        
+        addNotification({
+          type: NotificationType.Success,
+          title: 'Движение выполнено',
+          message: `Юнит перемещен в ${positionString}`,
+          read: false
+        });
+      } else {
+        console.error('Failed to update unit position:', response.error);
+        addNotification({
+          type: NotificationType.Error,
+          title: 'Ошибка движения',
+          message: response.error || 'Не удалось сохранить позицию юнита',
+          read: false
+        });
+      }
+    } catch (error) {
+      console.error('Error updating unit position:', error);
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Ошибка движения',
+        message: 'Произошла ошибка при сохранении позиции юнита',
+        read: false
+      });
+    }
+  };
+
+  // Обработчик клика по юниту
+  const handleUnitClick = async (unitId: string, unitData: any) => {
+    setSelectedUnit(unitId);
+    setSelectedUnitData(unitData);
+
+    // Очищаем предыдущие активные гексы
+    clearActiveHexes();
+
+    // Получаем актуальную позицию юнита
+    const currentPosition = unitPositions.get(unitId) || unitData.position;
+
+    // Находим данные юнита в gameUnits
+    const gameUnit = gameUnits.find(unit => unit.id === unitId);
     
-    if (!selectedHex) {
-      // Первый выбор
-      setSelectedHex(coordinate);
-      setSecondSelectedHex(null);
-      setRoutePath([]);
-      setRouteDistance(0);
-      
-      // Вычисляем соседние гексы
-      const offsetCoord = coordinateToOffset(coordinate);
-      const neighborOffsets = getCubeNeighbors(offsetCoord, 1);
-      
-      // Преобразуем обратно в координаты и фильтруем только валидные
-      const neighbors: HexCoordinate[] = [];
-      neighborOffsets.forEach(neighborOffset => {
-        const neighborCoord = offsetToCoordinate(neighborOffset);
-        
-        // Проверяем, что координата в пределах карты
-        if (neighborCoord.letter && neighborCoord.number && 
-            neighborCoord.row >= 0 && neighborCoord.row < MAP_CONSTANTS.HEX_GRID_HEIGHT &&
-            neighborCoord.col >= 0 && neighborCoord.col < MAP_CONSTANTS.HEX_GRID_WIDTH) {
-          neighbors.push(neighborCoord);
-        }
-      });
-      
-      setNeighborHexes(neighbors);
-    } else if (!secondSelectedHex) {
-      // Второй выбор - строим путь
-      setSecondSelectedHex(coordinate);
-      
-      // Строим путь между двумя гексами
-      const startOffset = coordinateToOffset(selectedHex);
-      const endOffset = coordinateToOffset(coordinate);
-      
-      const startCube = offsetToCube(startOffset);
-      const endCube = offsetToCube(endOffset);
-      
-      const distance = cubeDistance(startCube, endCube);
-      setRouteDistance(distance);
-      
-      // Строим путь
-      const path = buildPath(startOffset, endOffset);
-      const pathCoordinates: HexCoordinate[] = [];
-      
-      path.forEach(offset => {
-        const coord = offsetToCoordinate(offset);
-        
-        // Проверяем, что координата в пределах карты
-        if (coord.letter && coord.number && 
-            coord.row >= 0 && coord.row < MAP_CONSTANTS.HEX_GRID_HEIGHT &&
-            coord.col >= 0 && coord.col < MAP_CONSTANTS.HEX_GRID_WIDTH) {
-          pathCoordinates.push(coord);
-        }
-      });
-      
-      setRoutePath(pathCoordinates);
-      
-      // Очищаем соседние гексы при построении пути
-      setNeighborHexes([]);
+    // Пытаемся найти данные корабля в локальных данных
+    let shipData = shipsData.find(ship => 
+      ship.type === (gameUnit?.type || unitData.type) && 
+      ship.side === (gameUnit?.nationality || unitData.side)
+    );
+
+    // Если не нашли, используем локальные утилиты
+    if (!shipData && (gameUnit?.type || unitData.type) && (gameUnit?.nationality || unitData.side)) {
+      const ships = localShipsUtils.getShipsByType(gameUnit?.type || unitData.type);
+      shipData = ships.find(ship => ship.side === (gameUnit?.nationality || unitData.side));
+    }
+
+    // Обновляем данные юнита с информацией о корабле
+    if (shipData) {
+      const updatedUnitData = {
+        ...unitData,
+        ...gameUnit, // Добавляем данные из API
+        position: currentPosition, // Используем актуальную позицию
+        shipData: shipData,
+        maxFuel: shipData.maxFuel,
+        currentFuel: gameUnit?.fuel || unitData.fuel || Math.floor(shipData.maxFuel * 0.85) // Используем реальное топливо из API
+      };
+      setSelectedUnitData(updatedUnitData);
+
+      // Рассчитываем доступные гексы для движения
+      if (currentPosition) {
+        const availableHexes = movementUtils.getAvailableMovementHexes(
+          shipData,
+          currentPosition,
+          updatedUnitData.currentFuel
+        );
+        setAvailableMovementHexes(availableHexes);
+
+        // Добавляем активные гексы для движения
+        const movementActiveHexes = activeHexesUtils.getMovementActiveHexes(
+          shipData,
+          currentPosition,
+          updatedUnitData.currentFuel
+        );
+        addActiveHexes(movementActiveHexes);
+      }
     } else {
-      // Третий клик - сбрасываем все и начинаем заново
-      setSelectedHex(coordinate);
-      setSecondSelectedHex(null);
-      setRoutePath([]);
-      setRouteDistance(0);
-      
-      // Вычисляем соседние гексы для нового первого выбора
-      const offsetCoord = coordinateToOffset(coordinate);
-      const neighborOffsets = getCubeNeighbors(offsetCoord, 1);
-      
-      const neighbors: HexCoordinate[] = [];
-      neighborOffsets.forEach(neighborOffset => {
-        const neighborCoord = offsetToCoordinate(neighborOffset);
-        
-        if (neighborCoord.letter && neighborCoord.number && 
-            neighborCoord.row >= 0 && neighborCoord.row < MAP_CONSTANTS.HEX_GRID_HEIGHT &&
-            neighborCoord.col >= 0 && neighborCoord.col < MAP_CONSTANTS.HEX_GRID_WIDTH) {
-          neighbors.push(neighborCoord);
-        }
-      });
-      
-      setNeighborHexes(neighbors);
+      setAvailableMovementHexes([]);
     }
   };
 
@@ -146,6 +345,17 @@ const Game: React.FC = () => {
   const playerSide = currentGame?.player1_id === user?.id 
     ? currentGame?.player1_side 
     : currentGame?.player2_side;
+
+  // Отладочная информация
+  console.log('Debug Game Info:', {
+    userId: user?.id,
+    player1Id: currentGame?.player1_id,
+    player2Id: currentGame?.player2_id,
+    player1Side: currentGame?.player1_side,
+    player2Side: currentGame?.player2_side,
+    calculatedPlayerSide: playerSide,
+    isPlayer1: currentGame?.player1_id === user?.id
+  });
 
   const opponentSide = playerSide === PlayerSide.German 
     ? PlayerSide.Allied 
@@ -319,48 +529,122 @@ const Game: React.FC = () => {
             onHexHover={(coordinate: HexCoordinate) => {
               // Можно добавить логику подсветки при наведении
             }}
+            onUnitClick={handleUnitClick}
             selectedHex={selectedHex}
-            secondSelectedHex={secondSelectedHex}
-            neighborHexes={neighborHexes}
-            routePath={routePath}
-            routeDistance={routeDistance}
+            availableMovementHexes={availableMovementHexes}
+            activeHexes={activeHexes}
+            unitPositions={unitPositions}
+            gameUnits={gameUnits}
           />
         </div>
 
         {/* Правая панель - действия */}
         <div className="game-actions">
           
-          {/* Информация о пути */}
-          {(selectedHex || secondSelectedHex || routePath.length > 0) && (
-            <div className="route-info">
-              <h3>Информация о пути</h3>
-              <div className="route-details">
-                {selectedHex && (
-                  <div className="route-item">
-                    <span>Начальная точка:</span>
-                    <span className="route-value">{selectedHex.letter}{selectedHex.number}</span>
+          {/* Информация о выбранном юните */}
+          {selectedUnitData && (
+            <div className="unit-info">
+              <h3>Выбранный юнит</h3>
+              <div className="unit-details">
+                <div className="detail-item">
+                  <span>Название:</span>
+                  <span className="detail-value">{selectedUnitData.name}</span>
+                </div>
+                <div className="detail-item">
+                  <span>Тип:</span>
+                  <span className="detail-value">{selectedUnitData.type}</span>
+                </div>
+                <div className="detail-item">
+                  <span>Позиция:</span>
+                  <span className="detail-value">{selectedUnitData.position ? `${selectedUnitData.position.letter}${selectedUnitData.position.number}` : 'Неизвестно'}</span>
+                </div>
+                <div className="detail-item">
+                  <span>Топливо:</span>
+                  <span className="detail-value">
+                    {selectedUnitData?.currentFuel || 85}/{selectedUnitData?.maxFuel || 100}
+                  </span>
                   </div>
-                )}
-                {secondSelectedHex && (
-                  <div className="route-item">
-                    <span>Конечная точка:</span>
-                    <span className="route-value">{secondSelectedHex.letter}{secondSelectedHex.number}</span>
+                {selectedUnitData?.shipData && (
+                  <>
+                    <div className="detail-item">
+                      <span>Скорость:</span>
+                      <span className="detail-value">
+                        {selectedUnitData.shipData.speedType === 'F' ? 'Быстрый' :
+                         selectedUnitData.shipData.speedType === 'M' ? 'Средний' :
+                         selectedUnitData.shipData.speedType === 'S' ? 'Медленный' :
+                         selectedUnitData.shipData.speedType === 'VS' ? 'Очень медленный' :
+                         selectedUnitData.shipData.speedType}
+                      </span>
                   </div>
-                )}
-                {routeDistance > 0 && (
-                  <div className="route-item">
-                    <span>Расстояние:</span>
-                    <span className="route-value">{routeDistance} гексов</span>
+                    <div className="detail-item">
+                      <span>Уклонение:</span>
+                      <span className="detail-value">{selectedUnitData.shipData.baseEvasion}</span>
                   </div>
-                )}
-                {routePath.length > 0 && (
-                  <div className="route-item">
-                    <span>Путь:</span>
-                    <span className="route-value">
-                      {routePath.map(hex => `${hex.letter}${hex.number}`).join(' → ')}
+                    <div className="detail-item">
+                      <span>Радар:</span>
+                      <span className="detail-value">
+                        {shipUtils.getRadarDescription(selectedUnitData.shipData)}
                     </span>
                   </div>
+                  </>
                 )}
+              </div>
+
+              
+              {/* Доступные действия */}
+              <div className="unit-actions">
+                <h4>Доступные действия:</h4>
+                <div className="action-buttons">
+                  <button 
+                    className="action-button"
+                    onClick={() => {
+                      // TODO: Реализовать оперативные соединения
+                      console.log('Оперативные соединения для юнита:', selectedUnit);
+                    }}
+                  >
+                    ⚓ Оперативные соединения
+                  </button>
+                  <button 
+                    className="action-button"
+                    onClick={() => {
+                      // TODO: Реализовать заправку
+                      console.log('Заправка для юнита:', selectedUnit);
+                    }}
+                  >
+                    ⛽ Заправка
+                  </button>
+                  <button 
+                    className="action-button"
+                    onClick={() => {
+                      // TODO: Реализовать патруль
+                      console.log('Патруль для юнита:', selectedUnit);
+                    }}
+                  >
+                    🛡️ Заявить патруль
+                  </button>
+                  <button 
+                    className="action-button"
+                    onClick={() => {
+                      // TODO: Реализовать ремонт
+                      console.log('Ремонт для юнита:', selectedUnit);
+                    }}
+                  >
+                    🛠️ Попытка ремонта
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Информация о выбранном гексе */}
+          {selectedHex && !selectedUnitData && (
+            <div className="hex-info">
+              <h3>Выбранный гекс</h3>
+              <div className="hex-details">
+                <div className="hex-item">
+                  <span>Координата:</span>
+                  <span className="hex-value">{selectedHex.letter}{selectedHex.number}</span>
+                </div>
               </div>
             </div>
           )}
@@ -411,46 +695,6 @@ const Game: React.FC = () => {
         </div>
       </div>
 
-      {/* Модальное окно с информацией о юните */}
-      {showUnitInfo && selectedUnit && (
-        <div className="modal-overlay" onClick={() => setShowUnitInfo(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Информация о юните</h3>
-              <button 
-                className="modal-close"
-                onClick={() => setShowUnitInfo(false)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="unit-details">
-                <div className="detail-item">
-                  <span>Тип:</span>
-                  <span>Линкор Бисмарк</span>
-                </div>
-                <div className="detail-item">
-                  <span>Сторона:</span>
-                  <span>🇩🇪 Немцы</span>
-                </div>
-                <div className="detail-item">
-                  <span>Позиция:</span>
-                  <span>{selectedUnit}</span>
-                </div>
-                <div className="detail-item">
-                  <span>Топливо:</span>
-                  <span>85%</span>
-                </div>
-                <div className="detail-item">
-                  <span>Состояние:</span>
-                  <span>Активен</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
