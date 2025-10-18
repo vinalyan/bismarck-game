@@ -8,8 +8,6 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/lib/pq v1.10.9
 	github.com/redis/go-redis/v9 v9.0.5
-	github.com/swaggo/http-swagger v1.3.4
-	github.com/swaggo/swag v1.16.2
 	golang.org/x/crypto v0.14.0
 )
 

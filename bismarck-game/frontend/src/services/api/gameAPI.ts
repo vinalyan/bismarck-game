@@ -1,6 +1,6 @@
 // API клиент для связи с бекендом
 
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig, AxiosError } from 'axios';
 import {
   APIResponse,
   RegisterRequest,
@@ -30,14 +30,14 @@ const apiClient: AxiosInstance = axios.create({
 
 // Интерцептор для добавления токена авторизации
 apiClient.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
+  (error: AxiosError) => {
     return Promise.reject(error);
   }
 );
@@ -47,7 +47,7 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;
   },
-  (error) => {
+  (error: AxiosError) => {
     if (error.response?.status === 401) {
       // Токен истек или недействителен
       localStorage.removeItem('authToken');

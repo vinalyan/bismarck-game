@@ -123,12 +123,12 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	movement, err := h.movementService.ExecuteMovement(unit, movementReq.ToHex)
 	if err != nil {
 		h.logger.Error("Failed to execute movement", "error", err, "unit_id", unitID, "to_hex", movementReq.ToHex)
-		
+
 		response := models.MovementResponse{
 			Success: false,
 			Message: err.Error(),
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(response)
@@ -137,11 +137,11 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 
 	// Успешный ответ
 	response := models.MovementResponse{
-		Success:      true,
-		Message:      "Movement executed successfully",
-		Movement:     movement,
-		FuelCost:     movement.FuelCost,
-		NewPosition:  movement.ToHex,
+		Success:     true,
+		Message:     "Movement executed successfully",
+		Movement:    movement,
+		FuelCost:    movement.FuelCost,
+		NewPosition: movement.ToHex,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -225,7 +225,7 @@ func (h *MovementHandler) GetVisibleUnits(w http.ResponseWriter, r *http.Request
 	for i, vu := range visibleUnits {
 		visibleUnitsValues[i] = *vu
 	}
-	
+
 	lastKnownPositionsValues := make([]models.LastKnownPosition, len(lastKnownPositions))
 	for i, lkp := range lastKnownPositions {
 		lastKnownPositionsValues[i] = *lkp
@@ -234,7 +234,7 @@ func (h *MovementHandler) GetVisibleUnits(w http.ResponseWriter, r *http.Request
 	response := models.VisibilityResponse{
 		VisibleUnits:       visibleUnitsValues,
 		LastKnownPositions: lastKnownPositionsValues,
-		Turn:               1, // Упрощенная реализация
+		Turn:               1,          // Упрощенная реализация
 		Phase:              "movement", // Упрощенная реализация
 	}
 

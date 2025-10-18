@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import axios from 'axios';
 
+// Базовый URL API
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 // Типы для движения
 export interface MovementRequest {
   unit_id: string;
@@ -85,19 +88,19 @@ export interface VisibilityUpdate {
 export const movementAPI = {
   // Получить доступные ходы для юнита
   getAvailableMoves: async (gameId: string, unitId: string): Promise<AvailableMovesResponse> => {
-    const response = await axios.get(`/api/games/${gameId}/units/${unitId}/available-moves`);
+    const response = await axios.get(`${API_BASE_URL}/api/games/${gameId}/units/${unitId}/available-moves`);
     return response.data;
   },
 
   // Выполнить движение юнита
   moveUnit: async (gameId: string, unitId: string, movementRequest: MovementRequest): Promise<MovementResponse> => {
-    const response = await axios.post(`/api/games/${gameId}/units/${unitId}/move`, movementRequest);
+    const response = await axios.post(`${API_BASE_URL}/api/games/${gameId}/units/${unitId}/move`, movementRequest);
     return response.data;
   },
 
   // Получить историю движения юнита
   getMovementHistory: async (gameId: string, unitId: string, limit: number = 10): Promise<MovementHistory[]> => {
-    const response = await axios.get(`/api/games/${gameId}/units/${unitId}/movement-history`, {
+    const response = await axios.get(`${API_BASE_URL}/api/games/${gameId}/units/${unitId}/movement-history`, {
       params: { limit }
     });
     return response.data;
@@ -105,7 +108,7 @@ export const movementAPI = {
 
   // Получить видимые юниты для игрока
   getVisibleUnits: async (gameId: string, playerId: string): Promise<VisibilityResponse> => {
-    const response = await axios.get(`/api/games/${gameId}/visibility/units`, {
+    const response = await axios.get(`${API_BASE_URL}/api/games/${gameId}/visibility/units`, {
       headers: { 'X-Player-ID': playerId }
     });
     return response.data;
@@ -113,7 +116,7 @@ export const movementAPI = {
 
   // Обновить видимость юнита
   updateVisibility: async (gameId: string, playerId: string, visibilityUpdate: VisibilityUpdate): Promise<void> => {
-    await axios.post(`/api/games/${gameId}/visibility/update`, visibilityUpdate, {
+    await axios.post(`${API_BASE_URL}/api/games/${gameId}/visibility/update`, visibilityUpdate, {
       headers: { 'X-Player-ID': playerId }
     });
   },

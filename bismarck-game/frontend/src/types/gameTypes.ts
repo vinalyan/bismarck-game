@@ -145,7 +145,7 @@ export interface GameResponse {
 export interface CreateGameRequest {
   name: string;
   side: PlayerSide;
-  settings: Partial<GameSettings>;
+  settings: GameSettings;
   password?: string;
 }
 
