@@ -834,11 +834,11 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 
 	// Обновляем поля движения согласно правилам игры
 	if req.HexesMoved >= 0 {
-		// Обновляем previous_turn_moved_hexes с текущим значением moved_hexes
-		updateQuery += ", previous_turn_moved_hexes = moved_hexes"
+		// Обновляем previous_turn_moved_hexes с текущим значением movement_used
+		updateQuery += ", previous_turn_moved_hexes = movement_used"
 
-		// Обновляем moved_hexes с новым значением
-		updateQuery += ", moved_hexes = $" + strconv.Itoa(argIndex)
+		// Обновляем movement_used с новым значением
+		updateQuery += ", movement_used = $" + strconv.Itoa(argIndex)
 		args = append(args, req.HexesMoved)
 		argIndex++
 
