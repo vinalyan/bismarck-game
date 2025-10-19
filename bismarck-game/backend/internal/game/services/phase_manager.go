@@ -111,6 +111,12 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		return nil, err
 	}
 
+	// Запускаем начальную фазу
+	err = pm.StartPhase(gameID, turnNumber, initialPhase)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start initial phase: %v", err)
+	}
+
 	log.Printf("Started turn %d for game %s with phase %s", turnNumber, gameID, initialPhase)
 	return turn, nil
 }
@@ -193,6 +199,35 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 	}
 
 	log.Printf("Started phase %s for game %s turn %d", phase, gameID, turnNumber)
+
+	// Автоматически завершаем фазу через 2 секунды (заглушка)
+	go func() {
+		time.Sleep(2 * time.Second)
+		
+		// Проверяем, что фаза все еще активна
+		currentTurn, err := pm.GetCurrentPhase(gameID)
+		if err != nil || currentTurn == nil || currentTurn.CurrentPhase != phase {
+			log.Printf("Phase %s no longer active, skipping auto-completion", phase)
+			return
+		}
+
+		// Автоматически завершаем фазу
+		err = pm.CompletePhase(gameID, turnNumber, phase)
+		if err != nil {
+			log.Printf("Failed to auto-complete phase %s: %v", phase, err)
+			return
+		}
+
+		// Переходим к следующей фазе
+		err = pm.NextPhase(gameID)
+		if err != nil {
+			log.Printf("Failed to advance to next phase after %s: %v", phase, err)
+			return
+		}
+
+		log.Printf("Auto-completed phase %s and advanced to next phase", phase)
+	}()
+
 	return nil
 }
 
@@ -352,7 +387,13 @@ func (pm *PhaseManager) NextPhase(gameID string) error {
 
 	// Переходим к следующей фазе
 	nextPhase := phases[currentIndex+1]
-	return pm.StartPhase(gameID, turn.TurnNumber, nextPhase)
+	err = pm.StartPhase(gameID, turn.TurnNumber, nextPhase)
+	if err != nil {
+		return fmt.Errorf("failed to start next phase: %v", err)
+	}
+
+	log.Printf("Advanced to next phase %s for game %s turn %d", nextPhase, gameID, turn.TurnNumber)
+	return nil
 }
 
 // CompleteTurn завершает ход

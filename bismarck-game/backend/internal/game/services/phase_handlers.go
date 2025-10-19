@@ -1,5 +1,7 @@
 package services
 
+import "log"
+
 // SetupPhaseHandler обрабатывает фазу подготовки
 type SetupPhaseHandler struct{}
 
@@ -38,6 +40,7 @@ func (h *VisibilityPhaseHandler) CanStart(gameID string, turn int) (bool, error)
 
 func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - определение видимости юнитов
+	log.Printf("Visibility phase started for game %s turn %d", gameID, turn)
 	return nil
 }
 
@@ -67,6 +70,7 @@ func (h *PursuitPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 
 func (h *PursuitPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - преследование кораблей
+	log.Printf("Pursuit phase started for game %s turn %d", gameID, turn)
 	return nil
 }
 
@@ -96,6 +100,7 @@ func (h *MovementPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 
 func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - движение кораблей
+	log.Printf("Movement phase started for game %s turn %d", gameID, turn)
 	return nil
 }
 
@@ -125,6 +130,7 @@ func (h *SearchPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 
 func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - поиск противника
+	log.Printf("Search phase started for game %s turn %d", gameID, turn)
 	return nil
 }
 
@@ -154,6 +160,7 @@ func (h *AirAttackPhaseHandler) CanStart(gameID string, turn int) (bool, error) 
 
 func (h *AirAttackPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - атаки с воздуха
+	log.Printf("Air attack phase started for game %s turn %d", gameID, turn)
 	return nil
 }
 
@@ -183,6 +190,7 @@ func (h *NavalCombatPhaseHandler) CanStart(gameID string, turn int) (bool, error
 
 func (h *NavalCombatPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - морской бой
+	log.Printf("Naval combat phase started for game %s turn %d", gameID, turn)
 	return nil
 }
 
@@ -212,6 +220,7 @@ func (h *ChancePhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 
 func (h *ChancePhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - случайные события
+	log.Printf("Chance phase started for game %s turn %d", gameID, turn)
 	return nil
 }
 
@@ -241,6 +250,7 @@ func (h *AdminPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 
 func (h *AdminPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - административные действия
+	log.Printf("Admin phase started for game %s turn %d", gameID, turn)
 	return nil
 }
 
