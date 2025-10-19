@@ -221,7 +221,7 @@ export const movementUtils = {
     previousTurn?: PreviousTurnInfo,
     remainingMovement?: number
   ): MovementHex[] => {
-    const maxDistance = remainingMovement || movementUtils.getMaxMovementDistance(ship);
+    const maxDistance = remainingMovement !== undefined ? remainingMovement : movementUtils.getMaxMovementDistance(ship);
     const availableHexes: MovementHex[] = [];
 
     // Преобразуем текущую позицию в кубические координаты

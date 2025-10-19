@@ -150,15 +150,13 @@ const Hex: React.FC<HexProps> = ({
       strokeWidth = 3;
     }
     
-    // Подсветка доступных гексов для движения (устаревший способ)
+    // Подсветка доступных гексов для движения (приоритетный способ)
     if (isAvailableForMovement) {
       stroke = '#22C55E'; // Зеленый для доступных гексов
       strokeWidth = 2;
       fillOpacity = 0.2; // Легкая подсветка
-    }
-    
-    // Подсветка активных гексов (новый способ)
-    if (activeHex) {
+    } else if (activeHex) {
+      // Подсветка активных гексов (альтернативный способ, только если нет доступных для движения)
       const config = ACTIVE_HEX_CONFIGS[activeHex.type];
       if (config.enabled) {
         stroke = config.strokeColor;

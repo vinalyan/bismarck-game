@@ -440,11 +440,37 @@ const Game: React.FC = () => {
     // Очищаем предыдущие активные гексы
     clearActiveHexes();
 
+    // Проверяем, что мы находимся в фазе движения
+    const currentPhase = getTurnData(currentTurn)?.current_phase;
+    console.log('Current phase in handleUnitClick:', currentPhase);
+    if (currentPhase !== 'movement') {
+      console.log('Not in movement phase, not showing movement hexes');
+      setAvailableMovementHexes([]);
+      return;
+    }
+
     // Получаем актуальную позицию юнита
     const currentPosition = unitPositions.get(unitId) || unitData.position;
 
-    // Находим данные юнита в gameUnits
-    const gameUnit = gameUnits.find(unit => unit.id === unitId);
+    // Получаем актуальные данные юнита с сервера
+    let gameUnit: GameUnit | undefined;
+    try {
+      if (currentGame?.id && authToken) {
+        const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
+        if (unitsResponse.success && unitsResponse.data) {
+          gameUnit = unitsResponse.data.units.find((unit: GameUnit) => unit.id === unitId);
+          console.log('Fresh unit data from server:', gameUnit);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching fresh unit data:', error);
+    }
+
+    // Если не удалось получить свежие данные, используем локальные
+    if (!gameUnit) {
+      gameUnit = gameUnits.find(unit => unit.id === unitId);
+      console.log('Using cached unit data:', gameUnit);
+    }
     
     // Пытаемся найти данные корабля в локальных данных
     let shipData = shipsData.find(ship => 
@@ -478,11 +504,27 @@ const Game: React.FC = () => {
           turnNumber: updatedUnitData.last_move_turn || 0
         };
 
+        // Рассчитываем оставшуюся дальность движения
+        const maxMovementRange = movementUtils.getMaxMovementDistance(shipData);
+        const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 1;
+        const remainingMovement = (updatedUnitData.last_move_turn === currentTurnNumber) 
+          ? Math.max(0, maxMovementRange - (updatedUnitData.movement_used || 0))
+          : maxMovementRange;
+
+        console.log('Movement calculation:', {
+          maxMovementRange,
+          currentTurnNumber,
+          lastMoveTurn: updatedUnitData.last_move_turn,
+          movementUsed: updatedUnitData.movement_used,
+          remainingMovement
+        });
+
         const availableHexes = movementUtils.getAvailableMovementHexes(
           shipData,
           currentPosition,
           updatedUnitData.currentFuel,
-          previousTurnInfo
+          previousTurnInfo,
+          remainingMovement
         );
         console.log('Available movement hexes calculated:', availableHexes);
         setAvailableMovementHexes(availableHexes);
@@ -638,6 +680,10 @@ const Game: React.FC = () => {
     }
 
     try {
+      // Очищаем активные гексы при завершении фазы
+      clearActiveHexes();
+      setAvailableMovementHexes([]);
+      
       // Переходим к следующей фазе
       await phaseAPI.nextPhase({ game_id: currentGame.id });
       
@@ -944,7 +990,7 @@ const Game: React.FC = () => {
             selectedHex={selectedHex}
             playerSide={playerSide}
             availableMovementHexes={availableMovementHexes}
-            activeHexes={activeHexes}
+            activeHexes={[]}
             unitPositions={unitPositions}
             gameUnits={gameUnits}
           />
