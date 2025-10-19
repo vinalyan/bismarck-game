@@ -460,6 +460,26 @@ func getMigrations() []Migration {
 				DROP TABLE IF EXISTS naval_units;
 			`,
 		},
+		{
+			Version:     "003_movement_tracking",
+			Description: "Add movement tracking fields for game rules",
+			SQL: `
+				-- Добавляем поля для отслеживания движения согласно правилам игры
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS previous_turn_moved_hexes INTEGER DEFAULT 0;
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS last_move_turn INTEGER DEFAULT 0;
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS no_movement_turns_left INTEGER DEFAULT 0;
+				
+				-- Добавляем комментарии для понимания полей
+				COMMENT ON COLUMN naval_units.previous_turn_moved_hexes IS 'Количество гексов, пройденных в предыдущий ход';
+				COMMENT ON COLUMN naval_units.last_move_turn IS 'Номер хода последнего движения';
+				COMMENT ON COLUMN naval_units.no_movement_turns_left IS 'Оставшиеся ходы без движения (для VS и S кораблей)';
+			`,
+			RollbackSQL: `
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS no_movement_turns_left;
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS last_move_turn;
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS previous_turn_moved_hexes;
+			`,
+		},
 	}
 }
 

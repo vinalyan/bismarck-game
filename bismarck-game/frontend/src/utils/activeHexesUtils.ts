@@ -3,7 +3,7 @@
 import React from 'react';
 import { HexCoordinate } from '../types/mapTypes';
 import { ShipData } from '../data/localShips';
-import { movementUtils, MovementHex } from './movementUtils';
+import { movementUtils, MovementHex, PreviousTurnInfo } from './movementUtils';
 
 // Типы активных гексов
 export type ActiveHexType = 
@@ -117,12 +117,14 @@ export const activeHexesUtils = {
   getMovementActiveHexes: (
     ship: ShipData,
     currentPosition: HexCoordinate,
-    currentFuel: number
+    currentFuel: number,
+    previousTurn?: PreviousTurnInfo
   ): ActiveHex[] => {
     const movementHexes = movementUtils.getAvailableMovementHexes(
       ship,
       currentPosition,
-      currentFuel
+      currentFuel,
+      previousTurn
     );
 
     return movementHexes.map(hex => ({

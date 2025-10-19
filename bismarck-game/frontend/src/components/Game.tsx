@@ -146,20 +146,58 @@ const Game: React.FC = () => {
 
   // Обработчик движения
   const handleMovement = async (targetCoordinate: HexCoordinate) => {
-    if (!selectedUnitData || !selectedUnitData.shipData || !currentGame?.id || !authToken) {
+    if (!selectedUnitData || !currentGame?.id || !authToken) {
       return;
     }
 
-    // Рассчитываем стоимость движения
+    // Создаем объект с данными корабля из API для расчета движения
+    const shipDataFromAPI: ShipData = {
+      id: selectedUnitData.id,
+      name: selectedUnitData.name,
+      type: selectedUnitData.type,
+      side: selectedUnitData.side,
+      maxFuel: selectedUnitData.max_fuel,
+      baseEvasion: selectedUnitData.base_evasion,
+      radarLevel: selectedUnitData.radar_level || 0,
+      hullBoxes: selectedUnitData.hull_boxes || 0,
+      basePrimaryArmamentBow: selectedUnitData.base_primary_armament_bow || 0,
+      basePrimaryArmamentStern: selectedUnitData.base_primary_armament_stern || 0,
+      baseSecondaryArmament: selectedUnitData.base_secondary_armament || 0,
+      maxTorpedos: selectedUnitData.max_torpedoes || 0,
+      speedType: selectedUnitData.speed_rating,
+      setupHex: selectedUnitData.setup_hex
+    };
+
+    // Создаем информацию о предыдущем ходе (пока заглушка, нужно получать с сервера)
+    const previousTurnInfo = {
+      movedHexes: selectedUnitData.previous_turn_moved_hexes || 0,
+      turnNumber: selectedUnitData.last_move_turn || 0
+    };
+
+    // Отладочная информация
+    console.log('🔍 Отладка движения Bismarck:');
+    console.log('  - previous_turn_moved_hexes:', selectedUnitData.previous_turn_moved_hexes);
+    console.log('  - last_move_turn:', selectedUnitData.last_move_turn);
+    console.log('  - moved_hexes:', selectedUnitData.moved_hexes);
+    console.log('  - previousTurnInfo:', previousTurnInfo);
+
+    // Рассчитываем стоимость движения согласно правилам игры
     const movementCost = movementUtils.canReachHex(
-      selectedUnitData.shipData,
+      shipDataFromAPI,
       selectedUnitData.position,
       targetCoordinate,
-      selectedUnitData.currentFuel
+      selectedUnitData.currentFuel,
+      previousTurnInfo
     );
 
     if (!movementCost.canReach) {
-      console.log('Невозможно добраться до этого гекса');
+      console.log('Невозможно добраться до этого гекса:', movementCost.reason);
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Движение невозможно',
+        message: movementCost.reason || 'Неизвестная причина',
+        read: false
+      });
       return;
     }
 
@@ -170,7 +208,8 @@ const Game: React.FC = () => {
       // Сохраняем позицию на сервере
       const updateRequest: UpdatePositionRequest = {
         position: positionString,
-        fuel: newFuel
+        fuel: newFuel,
+        hexesMoved: movementCost.distance // Отправляем количество гексов, на которое переместился юнит
       };
 
       const response = await unitsAPI.updateUnitPosition(
@@ -208,11 +247,18 @@ const Game: React.FC = () => {
         clearActiveHexes();
         setAvailableMovementHexes([]);
 
+        // Обновляем информацию о предыдущем ходе для следующего движения
+        const updatedPreviousTurnInfo = {
+          movedHexes: movementCost.distance, // Текущее движение становится предыдущим
+          turnNumber: (previousTurnInfo?.turnNumber || 0) + 1
+        };
+
         // Пересчитываем доступные гексы для движения с новой позиции
         const newAvailableHexes = movementUtils.getAvailableMovementHexes(
           selectedUnitData.shipData,
           targetCoordinate,
-          newFuel
+          newFuel,
+          updatedPreviousTurnInfo
         );
         setAvailableMovementHexes(newAvailableHexes);
 
@@ -220,7 +266,8 @@ const Game: React.FC = () => {
         const newMovementActiveHexes = activeHexesUtils.getMovementActiveHexes(
           selectedUnitData.shipData,
           targetCoordinate,
-          newFuel
+          newFuel,
+          updatedPreviousTurnInfo
         );
         addActiveHexes(newMovementActiveHexes);
 
@@ -293,10 +340,17 @@ const Game: React.FC = () => {
 
       // Рассчитываем доступные гексы для движения
       if (currentPosition) {
+        // Создаем информацию о предыдущем ходе
+        const previousTurnInfo = {
+          movedHexes: updatedUnitData.previous_turn_moved_hexes || 0,
+          turnNumber: updatedUnitData.last_move_turn || 0
+        };
+
         const availableHexes = movementUtils.getAvailableMovementHexes(
           shipData,
           currentPosition,
-          updatedUnitData.currentFuel
+          updatedUnitData.currentFuel,
+          previousTurnInfo
         );
         setAvailableMovementHexes(availableHexes);
 
@@ -304,7 +358,8 @@ const Game: React.FC = () => {
         const movementActiveHexes = activeHexesUtils.getMovementActiveHexes(
           shipData,
           currentPosition,
-          updatedUnitData.currentFuel
+          updatedUnitData.currentFuel,
+          previousTurnInfo
         );
         addActiveHexes(movementActiveHexes);
       }
@@ -381,6 +436,52 @@ const Game: React.FC = () => {
     }
   };
 
+  // Обработчик заправки всех кораблей
+  const handleRefuelAllShips = async () => {
+    if (!currentGame?.id || !authToken || gameUnits.length === 0) {
+      return;
+    }
+
+    try {
+      // Обновляем топливо для всех кораблей
+      const updatedUnits = gameUnits.map(unit => {
+        const newFuel = Math.min(unit.fuel + 4, unit.max_fuel || 18); // Не превышаем максимальное топливо
+        return { ...unit, fuel: newFuel };
+      });
+
+      // Обновляем состояние
+      setGameUnits(updatedUnits);
+
+      // Обновляем выбранный юнит, если он есть
+      if (selectedUnitData) {
+        const updatedSelectedUnit = updatedUnits.find(unit => unit.id === selectedUnit);
+        if (updatedSelectedUnit) {
+          setSelectedUnitData({
+            ...selectedUnitData,
+            currentFuel: updatedSelectedUnit.fuel
+          });
+        }
+      }
+
+      // Показываем уведомление
+      addNotification({
+        type: NotificationType.Success,
+        title: 'Заправка завершена',
+        message: `Все корабли получили +4 топлива`,
+        read: false
+      });
+
+      console.log('Все корабли заправлены на +4 топлива');
+    } catch (error) {
+      console.error('Error refueling ships:', error);
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Ошибка заправки',
+        message: 'Произошла ошибка при заправке кораблей',
+        read: false
+      });
+    }
+  };
 
   // Возврат в лобби
   const handleBackToLobby = () => {
@@ -442,41 +543,38 @@ const Game: React.FC = () => {
       <div className="game-content">
         {/* Левая панель - информация об игре */}
         <div className="game-sidebar">
-          <div className="game-status">
-            <h3>Статус игры</h3>
-            <div className="status-item">
-              <span>Фаза:</span>
-              <span className="status-value">{getCurrentPhaseText(currentGame.current_phase)}</span>
-            </div>
-            <div className="status-item">
-              <span>Ход:</span>
-              <span className="status-value">{currentGame.current_turn}</span>
-            </div>
-            <div className="status-item">
-              <span>Ваша сторона:</span>
-              <span className="status-value">
-                {playerSide === PlayerSide.German ? '🇩🇪 Немцы' : '🇬🇧 Союзники'}
-              </span>
-            </div>
-          </div>
-
-          {/* Информация о юнитах */}
+          {/* Информация о юнитах игрока */}
           <div className="units-info">
             <h3>Ваши юниты</h3>
+            {loadingUnits ? (
+              <div className="loading">Загрузка юнитов...</div>
+            ) : gameUnits.filter(unit => unit.position && unit.position.trim() !== '').length > 0 ? (
             <div className="unit-list">
-              <div className="unit-item">
-                <span className="unit-type">🚢 Линкор Бисмарк</span>
-                <span className="unit-status">В море</span>
+                {gameUnits
+                  .filter(unit => unit.position && unit.position.trim() !== '')
+                  .map((unit) => (
+                    <div key={unit.id} className="unit-item">
+                      <div className="unit-header">
+                        <span className="unit-name">{unit.name}</span>
+                        <span className="unit-type">{unit.type}</span>
+                      </div>
+                      <div className="unit-status">
+                        <span>Позиция: {unit.position}</span>
+                        <span>Топливо: {unit.fuel || 0}/{unit.max_fuel || 0}</span>
+                        <span>Скорость: {
+                          unit.speed_rating === 'F' ? 'Быстрый' :
+                          unit.speed_rating === 'M' ? 'Средний' :
+                          unit.speed_rating === 'S' ? 'Медленный' :
+                          unit.speed_rating === 'VS' ? 'Очень медленный' :
+                          unit.speed_rating || 'Неизвестно'
+                        }</span>
               </div>
-              <div className="unit-item">
-                <span className="unit-type">🚢 Тяжелый крейсер Принц Ойген</span>
-                <span className="unit-status">В море</span>
               </div>
-              <div className="unit-item">
-                <span className="unit-type">✈️ Разведчик</span>
-                <span className="unit-status">В полете</span>
+                  ))}
               </div>
-            </div>
+            ) : (
+              <div className="no-units">Нет юнитов на карте</div>
+            )}
           </div>
 
           {/* Выбранный гекс/юнит */}
@@ -499,27 +597,6 @@ const Game: React.FC = () => {
 
         {/* Центральная область - карта */}
         <div className="game-map">
-          <div className="map-header">
-            <h3>Карта Северной Атлантики</h3>
-            <div className="map-legend">
-              <div className="legend-item">
-                <div className="legend-color water"></div>
-                <span>Вода</span>
-              </div>
-              <div className="legend-item">
-                <div className="legend-color land"></div>
-                <span>Суша</span>
-              </div>
-              <div className="legend-item">
-                <div className="legend-color german-unit"></div>
-                <span>🇩🇪 Немецкие юниты</span>
-              </div>
-              <div className="legend-item">
-                <div className="legend-color allied-unit"></div>
-                <span>🇬🇧 Союзнические юниты</span>
-              </div>
-            </div>
-          </div>
           
           <HexMap
             width={MAP_CONSTANTS.HEX_GRID_WIDTH}
@@ -564,26 +641,29 @@ const Game: React.FC = () => {
                     {selectedUnitData?.currentFuel || 85}/{selectedUnitData?.maxFuel || 100}
                   </span>
                   </div>
-                {selectedUnitData?.shipData && (
+                {selectedUnitData && (
                   <>
                     <div className="detail-item">
                       <span>Скорость:</span>
                       <span className="detail-value">
-                        {selectedUnitData.shipData.speedType === 'F' ? 'Быстрый' :
-                         selectedUnitData.shipData.speedType === 'M' ? 'Средний' :
-                         selectedUnitData.shipData.speedType === 'S' ? 'Медленный' :
-                         selectedUnitData.shipData.speedType === 'VS' ? 'Очень медленный' :
-                         selectedUnitData.shipData.speedType}
+                        {selectedUnitData.speed_rating === 'F' ? 'Быстрый' :
+                         selectedUnitData.speed_rating === 'M' ? 'Средний' :
+                         selectedUnitData.speed_rating === 'S' ? 'Медленный' :
+                         selectedUnitData.speed_rating === 'VS' ? 'Очень медленный' :
+                         selectedUnitData.speed_rating}
                       </span>
                   </div>
                     <div className="detail-item">
                       <span>Уклонение:</span>
-                      <span className="detail-value">{selectedUnitData.shipData.baseEvasion}</span>
+                      <span className="detail-value">{selectedUnitData.base_evasion}</span>
                   </div>
                     <div className="detail-item">
                       <span>Радар:</span>
                       <span className="detail-value">
-                        {shipUtils.getRadarDescription(selectedUnitData.shipData)}
+                        {selectedUnitData.radar_level === 0 ? 'Нет радара' :
+                         selectedUnitData.radar_level === 1 ? 'RADAR I' :
+                         selectedUnitData.radar_level === 2 ? 'RADAR II' :
+                         `RADAR ${selectedUnitData.radar_level}`}
                     </span>
                   </div>
                   </>
@@ -654,21 +734,10 @@ const Game: React.FC = () => {
             <div className="action-buttons">
               <button 
                 className="action-button"
-                disabled={currentGame.current_phase !== GamePhase.Movement}
+                onClick={handleRefuelAllShips}
+                disabled={!currentGame || gameUnits.length === 0}
               >
-                Движение
-              </button>
-              <button 
-                className="action-button"
-                disabled={currentGame.current_phase !== GamePhase.Search}
-              >
-                Поиск
-              </button>
-              <button 
-                className="action-button"
-                disabled={currentGame.current_phase !== GamePhase.Combat}
-              >
-                Бой
+                Заправить (+4 топлива всем кораблям)
               </button>
               <button className="action-button">
                 Завершить ход

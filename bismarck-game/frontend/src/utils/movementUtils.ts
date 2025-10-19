@@ -13,24 +13,92 @@ export interface MovementHex {
   isReachable: boolean;
 }
 
+// Интерфейс для информации о предыдущем ходе
+export interface PreviousTurnInfo {
+  movedHexes: number; // Количество гексов, пройденных в предыдущий ход
+  turnNumber: number; // Номер хода
+}
+
+// Интерфейс для результата расчета движения
+export interface MovementResult {
+  canMove: boolean;
+  maxHexes: number;
+  fuelCost: number;
+  reason?: string; // Причина, если движение невозможно
+}
+
 // Утилиты для расчета движения
 export const movementUtils = {
-  // Получить максимальное расстояние движения для корабля
+  // Получить максимальное расстояние движения для корабля согласно правилам игры
   getMaxMovementDistance: (ship: ShipData): number => {
-    return shipUtils.getMaxMovementDistance(ship.speedType);
+    switch (ship.speedType) {
+      case 'F': return 2; // Быстрый - до 2 гексов
+      case 'M': return 1; // Средний - 1 гекс
+      case 'S': return 1; // Медленный - 1 гекс
+      case 'VS': return 1; // Очень медленный - 1 гекс
+      default: return 1;
+    }
   },
 
-  // Получить стоимость топлива за движение на 1 гекс
+  // Рассчитать стоимость топлива и возможность движения согласно правилам игры
+  calculateMovementCost: (
+    ship: ShipData, 
+    hexesToMove: number, 
+    previousTurn?: PreviousTurnInfo
+  ): MovementResult => {
+    switch (ship.speedType) {
+      case 'VS': // Очень медленный (танкеры)
+        if (hexesToMove > 1) {
+          return { canMove: false, maxHexes: 1, fuelCost: 0, reason: 'VS корабли могут двигаться только на 1 гекс' };
+        }
+        // VS корабли не тратят топливо, но имеют ограничения по времени
+        return { canMove: true, maxHexes: 1, fuelCost: 0 };
+
+      case 'S': // Медленный
+        if (hexesToMove > 1) {
+          return { canMove: false, maxHexes: 1, fuelCost: 0, reason: 'S корабли могут двигаться только на 1 гекс' };
+        }
+        // S корабли не тратят топливо, но имеют ограничения по времени
+        return { canMove: true, maxHexes: 1, fuelCost: 0 };
+
+      case 'M': // Средний
+        if (hexesToMove > 1) {
+          return { canMove: false, maxHexes: 1, fuelCost: 0, reason: 'M корабли могут двигаться только на 1 гекс' };
+        }
+        // M корабли тратят 1 FP только если двигались в предыдущий ход
+        if (previousTurn && previousTurn.movedHexes > 0) {
+          return { canMove: true, maxHexes: 1, fuelCost: 1 };
+        }
+        return { canMove: true, maxHexes: 1, fuelCost: 0 };
+
+      case 'F': // Быстрый
+        if (hexesToMove > 2) {
+          return { canMove: false, maxHexes: 2, fuelCost: 0, reason: 'F корабли могут двигаться максимум на 2 гекса' };
+        }
+        
+        if (hexesToMove === 0 || hexesToMove === 1) {
+          return { canMove: true, maxHexes: 2, fuelCost: 0 };
+        }
+        
+        if (hexesToMove === 2) {
+          if (!previousTurn || previousTurn.movedHexes === 0 || previousTurn.movedHexes === 1) {
+            return { canMove: true, maxHexes: 2, fuelCost: 1 };
+          } else if (previousTurn.movedHexes === 2) {
+            return { canMove: true, maxHexes: 2, fuelCost: 2 };
+          }
+        }
+        
+        return { canMove: true, maxHexes: 2, fuelCost: 0 };
+
+      default:
+        return { canMove: false, maxHexes: 0, fuelCost: 0, reason: 'Неизвестный тип скорости' };
+    }
+  },
+
+  // Получить стоимость топлива за движение (устаревший метод, используйте calculateMovementCost)
   getFuelCostPerHex: (ship: ShipData): number => {
-    // Базовая стоимость топлива зависит от класса скорости
-    const fuelCostMap: { [key: string]: number } = {
-      'F': 1,  // Быстрый - 1 топливо за гекс
-      'M': 1,  // Средний - 1 топливо за гекс  
-      'S': 1,  // Медленный - 1 топливо за гекс
-      'VS': 1  // Очень медленный - 1 топливо за гекс
-    };
-    
-    return fuelCostMap[ship.speedType] || 1;
+    // Этот метод устарел, используйте calculateMovementCost для правильных расчетов
+    return 1;
   },
 
   // Получить все соседние гексы (6 направлений) через кубические координаты
@@ -58,14 +126,14 @@ export const movementUtils = {
     });
   },
 
-  // Получить все доступные гексы для движения через кубические координаты
+  // Получить все доступные гексы для движения согласно правилам игры
   getAvailableMovementHexes: (
     ship: ShipData, 
     currentPosition: HexCoordinate, 
-    currentFuel: number
+    currentFuel: number,
+    previousTurn?: PreviousTurnInfo
   ): MovementHex[] => {
     const maxDistance = movementUtils.getMaxMovementDistance(ship);
-    const fuelCostPerHex = movementUtils.getFuelCostPerHex(ship);
     const availableHexes: MovementHex[] = [];
 
     // Преобразуем текущую позицию в кубические координаты
@@ -81,11 +149,12 @@ export const movementUtils = {
       const distance = cubeDistance(currentCube, targetCube);
       
       // Проверяем, что расстояние не превышает максимальное
-      if (distance <= maxDistance) {
-        const fuelCost = distance * fuelCostPerHex;
+      if (distance <= maxDistance && distance > 0) {
+        // Рассчитываем стоимость движения согласно правилам игры
+        const movementResult = movementUtils.calculateMovementCost(ship, distance, previousTurn);
         
-        // Проверяем, хватает ли топлива
-        if (currentFuel >= fuelCost) {
+        // Проверяем, может ли корабль двигаться и хватает ли топлива
+        if (movementResult.canMove && currentFuel >= movementResult.fuelCost) {
           // Конвертируем обратно в буквенно-цифровые координаты
           let letter: string;
           if (offset.row < 26) {
@@ -104,7 +173,7 @@ export const movementUtils = {
               number: number
             },
             distance: distance,
-            fuelCost: fuelCost,
+            fuelCost: movementResult.fuelCost,
             isReachable: true
           };
           
@@ -116,15 +185,15 @@ export const movementUtils = {
     return availableHexes;
   },
 
-  // Проверить, может ли корабль дойти до определенного гекса через кубические координаты
+  // Проверить, может ли корабль дойти до определенного гекса согласно правилам игры
   canReachHex: (
     ship: ShipData, 
     from: HexCoordinate, 
     to: HexCoordinate, 
-    currentFuel: number
-  ): { canReach: boolean; fuelCost: number; distance: number } => {
+    currentFuel: number,
+    previousTurn?: PreviousTurnInfo
+  ): { canReach: boolean; fuelCost: number; distance: number; reason?: string } => {
     const maxDistance = movementUtils.getMaxMovementDistance(ship);
-    const fuelCostPerHex = movementUtils.getFuelCostPerHex(ship);
     
     // Преобразуем координаты в кубические
     const fromOffset = { col: from.col, row: from.row };
@@ -136,15 +205,30 @@ export const movementUtils = {
     const distance = cubeDistance(fromCube, toCube);
     
     // Проверяем, что расстояние не превышает максимальное
-    if (distance <= maxDistance) {
-      const fuelCost = distance * fuelCostPerHex;
+    if (distance <= maxDistance && distance > 0) {
+      // Рассчитываем стоимость движения согласно правилам игры
+      const movementResult = movementUtils.calculateMovementCost(ship, distance, previousTurn);
       
-      // Проверяем, хватает ли топлива
-      if (currentFuel >= fuelCost) {
+      // Проверяем, может ли корабль двигаться и хватает ли топлива
+      if (movementResult.canMove && currentFuel >= movementResult.fuelCost) {
         return {
           canReach: true,
-          fuelCost: fuelCost,
+          fuelCost: movementResult.fuelCost,
           distance: distance
+        };
+      } else if (!movementResult.canMove) {
+        return {
+          canReach: false,
+          fuelCost: 0,
+          distance: distance,
+          reason: movementResult.reason
+        };
+      } else {
+        return {
+          canReach: false,
+          fuelCost: movementResult.fuelCost,
+          distance: distance,
+          reason: 'Недостаточно топлива'
         };
       }
     }
@@ -152,7 +236,8 @@ export const movementUtils = {
     return {
       canReach: false,
       fuelCost: 0,
-      distance: 0
+      distance: distance,
+      reason: 'Расстояние превышает максимальное'
     };
   },
 

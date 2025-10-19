@@ -39,31 +39,8 @@ export const LOCAL_SHIPS_DATA: ShipData[] = [
     basePrimaryArmamentStern: 2,
     baseSecondaryArmament: 8,
     maxTorpedos: 0,
-    speedType: "S",
+    speedType: "F",
     setupHex: "J30",
-    notes: "После первого раунда боя считается кораблем без радара",
-    specialRules: [
-      {
-        type: "radar_loss_after_first_round",
-        description: "После первого раунда боя считается кораблем без радара",
-        isActive: true
-      }
-    ]
-  },
-  {
-    id: "tirpitz",
-    name: "TIRPITZ",
-    type: "BB",
-    side: "german",
-    maxFuel: 19,
-    baseEvasion: 30,
-    radarLevel: 2,
-    hullBoxes: 12,
-    basePrimaryArmamentBow: 8,
-    basePrimaryArmamentStern: 2,
-    baseSecondaryArmament: 8,
-    maxTorpedos: 4,
-    speedType: "S",
     notes: "После первого раунда боя считается кораблем без радара",
     specialRules: [
       {

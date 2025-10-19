@@ -786,8 +786,9 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 
 	// Парсим запрос
 	var req struct {
-		Position string `json:"position"`
-		Fuel     int    `json:"fuel,omitempty"`
+		Position   string `json:"position"`
+		Fuel       int    `json:"fuel,omitempty"`
+		HexesMoved int    `json:"hexesMoved,omitempty"` // Количество гексов, на которое переместился юнит
 	}
 	if err = utils.ParseJSON(r, &req); err != nil {
 		utils.WriteValidationError(w, "Invalid request format", map[string]string{
@@ -819,7 +820,7 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Обновляем позицию юнита
+	// Обновляем позицию юнита и поля движения
 	updateQuery := "UPDATE naval_units SET position = $1"
 	args := []interface{}{req.Position}
 	argIndex := 2
@@ -829,6 +830,20 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 		updateQuery += ", fuel = $" + strconv.Itoa(argIndex)
 		args = append(args, req.Fuel)
 		argIndex++
+	}
+
+	// Обновляем поля движения согласно правилам игры
+	if req.HexesMoved >= 0 {
+		// Обновляем previous_turn_moved_hexes с текущим значением moved_hexes
+		updateQuery += ", previous_turn_moved_hexes = moved_hexes"
+
+		// Обновляем moved_hexes с новым значением
+		updateQuery += ", moved_hexes = $" + strconv.Itoa(argIndex)
+		args = append(args, req.HexesMoved)
+		argIndex++
+
+		// Обновляем last_move_turn (пока используем простую логику - увеличиваем на 1)
+		updateQuery += ", last_move_turn = last_move_turn + 1"
 	}
 
 	updateQuery += ", updated_at = $" + strconv.Itoa(argIndex) + " WHERE id = $" + strconv.Itoa(argIndex+1)

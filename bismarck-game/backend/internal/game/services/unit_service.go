@@ -94,6 +94,7 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
+			   previous_turn_moved_hexes, last_move_turn, movement_used,
 			   created_at, updated_at
 		FROM naval_units
 		WHERE game_id = $1
@@ -119,6 +120,7 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 			&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
 			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 			&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
+			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed,
 			&unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {
@@ -151,6 +153,7 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
+			   previous_turn_moved_hexes, last_move_turn, movement_used,
 			   created_at, updated_at
 		FROM naval_units
 		WHERE id = $1`
@@ -166,6 +169,7 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 		&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
 		&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 		&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
+		&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed,
 		&unit.CreatedAt, &unit.UpdatedAt,
 	)
 	if err != nil {

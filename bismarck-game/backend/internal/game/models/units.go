@@ -130,6 +130,11 @@ type NavalUnit struct {
 	TorpedoesUsed       int      `json:"torpedoes_used" db:"torpedoes_used"`
 	MovementUsed        int      `json:"movement_used" db:"movement_used"`
 
+	// Поля для отслеживания движения согласно правилам игры
+	PreviousTurnMovedHexes int `json:"previous_turn_moved_hexes" db:"previous_turn_moved_hexes"` // Количество гексов, пройденных в предыдущий ход
+	LastMoveTurn           int `json:"last_move_turn" db:"last_move_turn"`                       // Номер хода последнего движения
+	NoMovementTurnsLeft    int `json:"no_movement_turns_left" db:"no_movement_turns_left"`       // Оставшиеся ходы без движения (для VS и S кораблей)
+
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }

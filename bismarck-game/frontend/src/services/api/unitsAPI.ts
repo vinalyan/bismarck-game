@@ -60,6 +60,7 @@ export interface UnitsResponse {
 export interface UpdatePositionRequest {
   position: string;
   fuel?: number;
+  hexesMoved?: number; // Количество гексов, на которое переместился юнит
 }
 
 // Интерфейс для ответа обновления позиции
