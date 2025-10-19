@@ -28,7 +28,7 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Интерцептор для добавления токена авторизации
+// Interceptor для добавления токена авторизации
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('authToken');

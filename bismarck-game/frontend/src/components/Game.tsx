@@ -582,7 +582,7 @@ const Game: React.FC = () => {
           </div>
 
           {/* Панель управления фазами */}
-          <PhasePanel />
+          <PhasePanel gameId={currentGame.id} />
 
           {/* Выбранный гекс/юнит */}
           {selectedHex && (

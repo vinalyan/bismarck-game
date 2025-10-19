@@ -258,21 +258,26 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var game models.Game
 		var settingsJSON []byte
-		var player2ID sql.NullString
+		var player1ID, player2ID sql.NullString
 		var completedAt sql.NullTime
 		var player1Username, player2Username sql.NullString
 		err := rows.Scan(
-			&game.ID, &game.Name, &game.Player1ID, &player2ID,
+			&game.ID, &game.Name, &player1ID, &player2ID,
 			&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 			&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
 			&completedAt, &player1Username, &player2Username,
 		)
 		if err != nil {
+			log.Printf("Failed to scan game: %v", err)
+			log.Printf("Game ID: %s, Name: %s", game.ID, game.Name)
 			utils.WriteInternalError(w, "Failed to scan game")
 			return
 		}
 
 		// Обрабатываем nullable поля
+		if player1ID.Valid {
+			game.Player1ID = player1ID.String
+		}
 		if player2ID.Valid {
 			game.Player2ID = player2ID.String
 		}
