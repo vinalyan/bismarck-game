@@ -108,6 +108,7 @@ func (s *Server) setupRoutes() {
 	shipConfigService := services.NewShipConfigService()
 	unitLogger, _ := logger.New(logger.INFO, "unit-service", "stdout")
 	unitService := services.NewUnitService(s.db, unitLogger)
+	phaseManager := services.NewPhaseManager(s.db.GetConnection())
 
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
@@ -118,11 +119,13 @@ func (s *Server) setupRoutes() {
 	authHandler := handlers.NewAuthHandler(s.authService)
 	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService)
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService)
+	phaseHandler := handlers.NewPhaseHandler(phaseManager)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	gameHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	shipConfigHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
+	phaseHandler.RegisterRoutes(s.router)
 
 	// WebSocket маршрут
 	s.router.HandleFunc("/ws", s.handleWebSocket)

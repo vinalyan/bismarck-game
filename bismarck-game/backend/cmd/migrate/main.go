@@ -480,6 +480,60 @@ func getMigrations() []Migration {
 				ALTER TABLE naval_units DROP COLUMN IF EXISTS previous_turn_moved_hexes;
 			`,
 		},
+		{
+			Version:     "004_game_phases",
+			Description: "Add game phases and turn management tables",
+			SQL: `
+				-- Таблица ходов игры
+				CREATE TABLE IF NOT EXISTS game_turns (
+					id VARCHAR(255) PRIMARY KEY,
+					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+					turn_number INTEGER NOT NULL,
+					current_phase VARCHAR(50) NOT NULL,
+					status VARCHAR(20) NOT NULL DEFAULT 'active',
+					start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+					end_time TIMESTAMP WITH TIME ZONE,
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					UNIQUE(game_id, turn_number)
+				);
+				
+				-- Таблица записей о фазах
+				CREATE TABLE IF NOT EXISTS phase_records (
+					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+					phase VARCHAR(50) NOT NULL,
+					turn INTEGER NOT NULL,
+					status VARCHAR(20) NOT NULL DEFAULT 'pending',
+					start_time TIMESTAMP WITH TIME ZONE,
+					end_time TIMESTAMP WITH TIME ZONE,
+					duration INTEGER DEFAULT 0,
+					data TEXT DEFAULT '{}',
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					UNIQUE(phase, turn)
+				);
+				
+				-- Индексы для производительности
+				CREATE INDEX IF NOT EXISTS idx_game_turns_game_id ON game_turns(game_id);
+				CREATE INDEX IF NOT EXISTS idx_game_turns_turn_number ON game_turns(turn_number);
+				CREATE INDEX IF NOT EXISTS idx_game_turns_status ON game_turns(status);
+				
+				CREATE INDEX IF NOT EXISTS idx_phase_records_phase ON phase_records(phase);
+				CREATE INDEX IF NOT EXISTS idx_phase_records_turn ON phase_records(turn);
+				CREATE INDEX IF NOT EXISTS idx_phase_records_status ON phase_records(status);
+				
+				-- Комментарии для понимания таблиц
+				COMMENT ON TABLE game_turns IS 'Управление ходами игры';
+				COMMENT ON TABLE phase_records IS 'Записи о фазах каждого хода';
+				COMMENT ON COLUMN game_turns.current_phase IS 'Текущая активная фаза хода';
+				COMMENT ON COLUMN phase_records.duration IS 'Длительность фазы в секундах';
+				COMMENT ON COLUMN phase_records.data IS 'JSON данные фазы';
+			`,
+			RollbackSQL: `
+				DROP TABLE IF EXISTS phase_records;
+				DROP TABLE IF EXISTS game_turns;
+			`,
+		},
 	}
 }
 

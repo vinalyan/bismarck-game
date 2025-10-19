@@ -1,0 +1,240 @@
+.phase-panel {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  max-width: 600px;
+}
+
+.phase-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.phase-panel-header h3 {
+  margin: 0;
+  color: #212529;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.turn-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.turn-number {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.current-phase {
+  font-size: 0.8rem;
+  color: #6c757d;
+  background: #e9ecef;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  border: 1px solid #f5c6cb;
+}
+
+.phases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.phase-item {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.phase-item.current {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.phase-item.completed {
+  background: #f8fff9;
+  border-color: #10b981;
+}
+
+.phase-item.skipped {
+  background: #fffbf0;
+  border-color: #f59e0b;
+}
+
+.phase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.phase-info {
+  flex: 1;
+}
+
+.phase-name {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.phase-description {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6c757d;
+  line-height: 1.4;
+}
+
+.phase-status {
+  margin-left: 12px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.phase-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.action-button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.start-button {
+  background: #3b82f6;
+  color: white;
+}
+
+.start-button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.complete-button {
+  background: #10b981;
+  color: white;
+}
+
+.complete-button:hover:not(:disabled) {
+  background: #059669;
+}
+
+.action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.phase-timing {
+  display: flex;
+  gap: 16px;
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.start-time,
+.end-time {
+  display: flex;
+  align-items: center;
+}
+
+.phase-panel-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #dee2e6;
+  text-align: center;
+}
+
+.next-phase-button {
+  background: #6366f1;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.next-phase-button:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.next-phase-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .phase-panel {
+    margin: 8px 0;
+    padding: 12px;
+  }
+  
+  .phase-panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .turn-info {
+    align-items: flex-start;
+  }
+  
+  .phase-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .phase-status {
+    margin-left: 0;
+    align-self: flex-start;
+  }
+  
+  .phase-actions {
+    flex-wrap: wrap;
+  }
+  
+  .phase-timing {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

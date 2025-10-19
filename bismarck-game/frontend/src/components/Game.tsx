@@ -9,7 +9,10 @@ import { movementUtils, MovementHex } from '../utils/movementUtils';
 import { activeHexesUtils, ActiveHex, useActiveHexes } from '../utils/activeHexesUtils';
 import { MAP_CONSTANTS } from '../utils/hexUtils';
 import { unitsAPI, GameUnit, UpdatePositionRequest } from '../services/api/unitsAPI';
+import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
+import { GamePhase as PhaseType } from '../types/phaseTypes';
 import HexMap from './HexMap';
+import PhasePanel from './PhasePanel';
 import './Game.css';
 
 const Game: React.FC = () => {
@@ -28,6 +31,7 @@ const Game: React.FC = () => {
   const [selectedUnitData, setSelectedUnitData] = useState<any>(null);
   const [availableMovementHexes, setAvailableMovementHexes] = useState<MovementHex[]>([]);
   const [shipsData, setShipsData] = useState<ShipData[]>([]);
+  const [currentTurn, setCurrentTurn] = useState<GameTurn | null>(null);
   const [loadingShips, setLoadingShips] = useState(false);
   const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
