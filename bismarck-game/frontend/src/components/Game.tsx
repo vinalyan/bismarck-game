@@ -506,8 +506,12 @@ const Game: React.FC = () => {
       };
       setSelectedUnitData(updatedUnitData);
 
-      // Рассчитываем доступные гексы для движения
-      if (currentPosition) {
+      // Проверяем текущую фазу - движение доступно только в фазе movement
+      const turnData = getTurnData(currentTurn);
+      const isMovementPhase = turnData && turnData.current_phase === 'movement';
+
+      // Рассчитываем доступные гексы для движения только в фазе movement
+      if (currentPosition && isMovementPhase) {
         // Создаем информацию о предыдущем ходе
         const previousTurnInfo = {
           movedHexes: updatedUnitData.previous_turn_moved_hexes || 0,
@@ -530,6 +534,20 @@ const Game: React.FC = () => {
           previousTurnInfo
         );
         addActiveHexes(movementActiveHexes);
+      } else {
+        // Если не в фазе movement, очищаем активные гексы
+        setAvailableMovementHexes([]);
+        
+        // Показываем уведомление, если игрок пытается двигать юнит не в фазе движения
+        if (currentPosition && !isMovementPhase) {
+          const currentPhaseName = turnData ? getPhaseDisplayName(turnData.current_phase) : 'неизвестная';
+          addNotification({
+            type: NotificationType.Info,
+            title: 'Движение недоступно',
+            message: `Движение юнитов доступно только в фазе "Движение". Текущая фаза: ${currentPhaseName}`,
+            read: false
+          });
+        }
       }
     } else {
       setAvailableMovementHexes([]);
