@@ -23,14 +23,16 @@ type GameHandler struct {
 	db                *database.Database
 	unitService       *services.UnitService
 	shipConfigService *services.ShipConfigService
+	phaseManager      *services.PhaseManager
 }
 
 // NewGameHandler создает новый обработчик игр
-func NewGameHandler(db *database.Database, unitService *services.UnitService, shipConfigService *services.ShipConfigService) *GameHandler {
+func NewGameHandler(db *database.Database, unitService *services.UnitService, shipConfigService *services.ShipConfigService, phaseManager *services.PhaseManager) *GameHandler {
 	return &GameHandler{
 		db:                db,
 		unitService:       unitService,
 		shipConfigService: shipConfigService,
+		phaseManager:      phaseManager,
 	}
 }
 
@@ -550,6 +552,45 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 			// Не прерываем присоединение к игре, просто логируем ошибку
 		} else {
 			log.Printf("Game units initialized successfully after join for game %s", gameID)
+			
+			// Автоматически запускаем setup фазу (размещение кораблей)
+			// Это происходит в фоне, не блокируя ответ
+			go func() {
+				// Создаем setup фазу для размещения кораблей
+				setupTurn := &models.GameTurn{
+					ID:           fmt.Sprintf("%s-setup", gameID),
+					GameID:       gameID,
+					TurnNumber:   0, // Setup фаза имеет номер 0
+					CurrentPhase: models.PhaseSetup,
+					Status:       "active",
+					StartTime:    time.Now(),
+				}
+				
+				// Сохраняем setup фазу в базу данных
+				query := `
+					INSERT INTO game_turns (id, game_id, turn_number, current_phase, status, start_time, created_at, updated_at)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+				`
+				_, err := h.db.GetConnection().Exec(query, 
+					setupTurn.ID, setupTurn.GameID, setupTurn.TurnNumber,
+					setupTurn.CurrentPhase, setupTurn.Status, setupTurn.StartTime, 
+					time.Now(), time.Now())
+				
+				if err != nil {
+					log.Printf("Error creating setup phase: %v", err)
+				} else {
+					log.Printf("Setup phase created successfully for game %s", gameID)
+					
+					// Обновляем текущую фазу игры
+					_, err = h.db.GetConnection().Exec(`
+						UPDATE games SET current_phase = $1, updated_at = $2 WHERE id = $3
+					`, models.PhaseSetup, time.Now(), gameID)
+					
+					if err != nil {
+						log.Printf("Error updating game phase to setup: %v", err)
+					}
+				}
+			}()
 		}
 	}
 

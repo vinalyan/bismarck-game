@@ -117,7 +117,7 @@ func (s *Server) setupRoutes() {
 
 	// Создаем обработчики
 	authHandler := handlers.NewAuthHandler(s.authService)
-	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService)
+	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService, phaseManager)
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService)
 	phaseHandler := handlers.NewPhaseHandler(phaseManager)
 

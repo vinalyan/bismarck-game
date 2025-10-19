@@ -147,10 +147,9 @@ func GetPhaseConfigs() map[GamePhase]PhaseConfig {
 
 // GetPhaseSequence возвращает последовательность фаз для хода
 func GetPhaseSequence(turnNumber int) []GamePhase {
-	// Для первого хода: setup → movement → search → air_attack → naval_combat → chance → admin
+	// Для первого хода: movement → search → air_attack → naval_combat → chance → admin
 	if turnNumber == 1 {
 		return []GamePhase{
-			PhaseSetup,
 			PhaseMovement,
 			PhaseSearch,
 			PhaseAirAttack,

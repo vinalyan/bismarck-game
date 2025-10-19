@@ -50,12 +50,20 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 	}
 	turnNumber := lastTurnNumber + 1
 
+	// Определяем начальную фазу в зависимости от номера хода
+	var initialPhase models.GamePhase
+	if turnNumber == 1 {
+		initialPhase = models.PhaseMovement // Первый ход начинается с фазы movement
+	} else {
+		initialPhase = models.PhaseVisibility // Остальные ходы начинаются с фазы visibility
+	}
+
 	// Создаем запись о ходе
 	turn := &models.GameTurn{
 		ID:           fmt.Sprintf("%s-turn-%d", gameID, turnNumber),
 		GameID:       gameID,
 		TurnNumber:   turnNumber,
-		CurrentPhase: models.PhaseSetup,
+		CurrentPhase: initialPhase,
 		Status:       "active",
 		StartTime:    time.Now(),
 	}
@@ -71,15 +79,30 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		return nil, fmt.Errorf("failed to create turn: %v", err)
 	}
 
-	// Обновляем основную таблицу games
+	// Обновляем основную таблицу games с правильной начальной фазой
 	updateGameQuery := `
 		UPDATE games 
 		SET current_turn = $1, current_phase = $2, updated_at = $3
 		WHERE id = $4
 	`
-	_, err = pm.db.Exec(updateGameQuery, turnNumber, models.PhaseSetup, time.Now(), gameID)
+	_, err = pm.db.Exec(updateGameQuery, turnNumber, initialPhase, time.Now(), gameID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update game: %v", err)
+	}
+
+	// Если это первый ход, завершаем setup фазу
+	if turnNumber == 1 {
+		// Завершаем setup фазу (turn_number = 0)
+		_, err = pm.db.Exec(`
+			UPDATE game_turns 
+			SET status = 'completed', end_time = $1, updated_at = $2
+			WHERE game_id = $3 AND turn_number = 0
+		`, time.Now(), time.Now(), gameID)
+		if err != nil {
+			log.Printf("Warning: failed to complete setup phase: %v", err)
+		} else {
+			log.Printf("Setup phase completed for game %s", gameID)
+		}
 	}
 
 	// Инициализируем фазы для хода
@@ -88,7 +111,7 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		return nil, err
 	}
 
-	log.Printf("Started turn %d for game %s with phase %s", turnNumber, gameID, models.PhaseSetup)
+	log.Printf("Started turn %d for game %s with phase %s", turnNumber, gameID, initialPhase)
 	return turn, nil
 }
 
@@ -98,9 +121,9 @@ func (pm *PhaseManager) initializePhasesForTurn(gameID string, turnNumber int) e
 
 	for _, phase := range phases {
 		record := &models.PhaseRecord{
-			Phase:  phase,
-			Turn:   turnNumber,
-			Status: models.PhaseStatusPending,
+			Phase:      phase,
+			TurnNumber: turnNumber,
+			Status:     models.PhaseStatusPending,
 		}
 
 		// Пропускаем фазы в первом ходу
