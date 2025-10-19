@@ -510,8 +510,13 @@ const Game: React.FC = () => {
       const turnData = getTurnData(currentTurn);
       const isMovementPhase = turnData && turnData.current_phase === 'movement';
 
-      // Рассчитываем доступные гексы для движения только в фазе movement
-      if (currentPosition && isMovementPhase) {
+      // Проверяем, двигался ли уже юнит в текущем ходу
+      const currentTurnNumber = turnData ? turnData.turn_number : 0;
+      const hasMovedThisTurn = updatedUnitData.last_move_turn === currentTurnNumber && 
+                               (updatedUnitData.moved_hexes || 0) > 0;
+
+      // Рассчитываем доступные гексы для движения только в фазе movement и если юнит еще не двигался
+      if (currentPosition && isMovementPhase && !hasMovedThisTurn) {
         // Создаем информацию о предыдущем ходе
         const previousTurnInfo = {
           movedHexes: updatedUnitData.previous_turn_moved_hexes || 0,
@@ -535,18 +540,27 @@ const Game: React.FC = () => {
         );
         addActiveHexes(movementActiveHexes);
       } else {
-        // Если не в фазе movement, очищаем активные гексы
+        // Если не в фазе movement или юнит уже двигался, очищаем активные гексы
         setAvailableMovementHexes([]);
         
-        // Показываем уведомление, если игрок пытается двигать юнит не в фазе движения
-        if (currentPosition && !isMovementPhase) {
-          const currentPhaseName = turnData ? getPhaseDisplayName(turnData.current_phase) : 'неизвестная';
-          addNotification({
-            type: NotificationType.Info,
-            title: 'Движение недоступно',
-            message: `Движение юнитов доступно только в фазе "Движение". Текущая фаза: ${currentPhaseName}`,
-            read: false
-          });
+        // Показываем уведомление
+        if (currentPosition) {
+          if (!isMovementPhase) {
+            const currentPhaseName = turnData ? getPhaseDisplayName(turnData.current_phase) : 'неизвестная';
+            addNotification({
+              type: NotificationType.Info,
+              title: 'Движение недоступно',
+              message: `Движение юнитов доступно только в фазе "Движение". Текущая фаза: ${currentPhaseName}`,
+              read: false
+            });
+          } else if (hasMovedThisTurn) {
+            addNotification({
+              type: NotificationType.Info,
+              title: 'Движение недоступно',
+              message: `Юнит ${updatedUnitData.name} уже двигался в этом ходу. Один юнит может двигаться только один раз за ход.`,
+              read: false
+            });
+          }
         }
       }
     } else {
@@ -878,7 +892,7 @@ const Game: React.FC = () => {
                 <div className="hex-item">
                   <span>Координата:</span>
                   <span className="hex-value">{selectedHex.letter}{selectedHex.number}</span>
-                </div>
+                  </div>
               </div>
             </div>
           )}
