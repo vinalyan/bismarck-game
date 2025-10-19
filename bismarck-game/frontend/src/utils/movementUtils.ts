@@ -126,64 +126,6 @@ export const movementUtils = {
     });
   },
 
-  // Получить все доступные гексы для движения согласно правилам игры
-  getAvailableMovementHexes: (
-    ship: ShipData, 
-    currentPosition: HexCoordinate, 
-    currentFuel: number,
-    previousTurn?: PreviousTurnInfo
-  ): MovementHex[] => {
-    const maxDistance = movementUtils.getMaxMovementDistance(ship);
-    const availableHexes: MovementHex[] = [];
-
-    // Преобразуем текущую позицию в кубические координаты
-    const currentOffset = { col: currentPosition.col, row: currentPosition.row };
-    const currentCube = offsetToCube(currentOffset);
-
-    // Получаем все гексы в радиусе maxDistance через кубические координаты
-    const neighborOffsets = getCubeNeighbors(currentOffset, maxDistance);
-    
-    neighborOffsets.forEach(offset => {
-      // Рассчитываем расстояние через кубические координаты
-      const targetCube = offsetToCube(offset);
-      const distance = cubeDistance(currentCube, targetCube);
-      
-      // Проверяем, что расстояние не превышает максимальное
-      if (distance <= maxDistance && distance > 0) {
-        // Рассчитываем стоимость движения согласно правилам игры
-        const movementResult = movementUtils.calculateMovementCost(ship, distance, previousTurn);
-        
-        // Проверяем, может ли корабль двигаться и хватает ли топлива
-        if (movementResult.canMove && currentFuel >= movementResult.fuelCost) {
-          // Конвертируем обратно в буквенно-цифровые координаты
-          let letter: string;
-          if (offset.row < 26) {
-            letter = String.fromCharCode(65 + offset.row);
-          } else {
-            const secondLetterIndex = offset.row - 26;
-            letter = 'A' + String.fromCharCode(65 + secondLetterIndex);
-          }
-          const number = offset.col + 1;
-          
-          const movementHex: MovementHex = {
-            coordinate: {
-              col: offset.col,
-              row: offset.row,
-              letter: letter,
-              number: number
-            },
-            distance: distance,
-            fuelCost: movementResult.fuelCost,
-            isReachable: true
-          };
-          
-          availableHexes.push(movementHex);
-        }
-      }
-    });
-
-    return availableHexes;
-  },
 
   // Проверить, может ли корабль дойти до определенного гекса согласно правилам игры
   canReachHex: (
@@ -269,5 +211,65 @@ export const movementUtils = {
     }
     
     return path;
+  },
+
+  // Получить доступные гексы для движения с учетом оставшейся дальности
+  getAvailableMovementHexes: (
+    ship: ShipData,
+    currentPosition: HexCoordinate,
+    currentFuel: number,
+    previousTurn?: PreviousTurnInfo,
+    remainingMovement?: number
+  ): MovementHex[] => {
+    const maxDistance = remainingMovement || movementUtils.getMaxMovementDistance(ship);
+    const availableHexes: MovementHex[] = [];
+
+    // Преобразуем текущую позицию в кубические координаты
+    const currentOffset = { col: currentPosition.col, row: currentPosition.row };
+    const currentCube = offsetToCube(currentOffset);
+
+    // Получаем все гексы в радиусе maxDistance через кубические координаты
+    const neighborOffsets = getCubeNeighbors(currentOffset, maxDistance);
+
+    neighborOffsets.forEach(offset => {
+      // Рассчитываем расстояние через кубические координаты
+      const targetCube = offsetToCube(offset);
+      const distance = cubeDistance(currentCube, targetCube);
+
+      // Проверяем, что расстояние не превышает максимальное
+      if (distance <= maxDistance && distance > 0) {
+        // Рассчитываем стоимость движения согласно правилам игры
+        const movementResult = movementUtils.calculateMovementCost(ship, distance, previousTurn);
+
+        // Проверяем, может ли корабль двигаться и хватает ли топлива
+        if (movementResult.canMove && currentFuel >= movementResult.fuelCost) {
+          // Конвертируем обратно в буквенно-цифровые координаты
+          let letter: string;
+          if (offset.row < 26) {
+            letter = String.fromCharCode(65 + offset.row);
+          } else {
+            const secondLetterIndex = offset.row - 26;
+            letter = 'A' + String.fromCharCode(65 + secondLetterIndex);
+          }
+          const number = offset.col + 1;
+
+          const movementHex: MovementHex = {
+            coordinate: {
+              col: offset.col,
+              row: offset.row,
+              letter: letter,
+              number: number
+            },
+            distance: distance,
+            fuelCost: movementResult.fuelCost,
+            isReachable: true
+          };
+
+          availableHexes.push(movementHex);
+        }
+      }
+    });
+
+    return availableHexes;
   }
 };

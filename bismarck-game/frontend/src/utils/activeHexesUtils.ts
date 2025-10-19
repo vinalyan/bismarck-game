@@ -3,7 +3,7 @@
 import React from 'react';
 import { HexCoordinate } from '../types/mapTypes';
 import { ShipData } from '../data/localShips';
-import { movementUtils, MovementHex, PreviousTurnInfo } from './movementUtils';
+import { movementUtils, PreviousTurnInfo } from './movementUtils';
 
 // Типы активных гексов
 export type ActiveHexType = 
@@ -118,13 +118,15 @@ export const activeHexesUtils = {
     ship: ShipData,
     currentPosition: HexCoordinate,
     currentFuel: number,
-    previousTurn?: PreviousTurnInfo
+    previousTurn?: PreviousTurnInfo,
+    remainingMovement?: number
   ): ActiveHex[] => {
     const movementHexes = movementUtils.getAvailableMovementHexes(
       ship,
       currentPosition,
       currentFuel,
-      previousTurn
+      previousTurn || { movedHexes: 0, turnNumber: 0 },
+      remainingMovement
     );
 
     return movementHexes.map(hex => ({
@@ -300,4 +302,32 @@ export const useActiveHexes = () => {
     toggleType,
     setEnabledTypes
   };
+};
+
+// Функция для получения активных гексов движения
+export const getMovementActiveHexes = (
+  ship: ShipData,
+  currentPosition: HexCoordinate,
+  currentFuel: number,
+  previousTurn: PreviousTurnInfo,
+  remainingMovement?: number
+): ActiveHex[] => {
+  const availableHexes = movementUtils.getAvailableMovementHexes(
+    ship,
+    currentPosition,
+    currentFuel,
+    previousTurn,
+    remainingMovement
+  );
+
+  return availableHexes.map(hex => ({
+    coordinate: hex.coordinate,
+    type: 'movement' as ActiveHexType,
+    priority: 1,
+    metadata: {
+      distance: hex.distance,
+      fuelCost: hex.fuelCost,
+      isReachable: hex.isReachable
+    }
+  }));
 };

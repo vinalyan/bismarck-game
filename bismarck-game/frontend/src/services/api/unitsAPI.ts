@@ -43,6 +43,8 @@ export interface GameUnit {
   target_acquired: any;
   torpedoes_used: number;
   movement_used: number;
+  previous_turn_moved_hexes: number;
+  last_move_turn: number;
   created_at: string;
   updated_at: string;
 }

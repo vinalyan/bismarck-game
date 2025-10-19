@@ -280,8 +280,6 @@ const Game: React.FC = () => {
       // Это обновит currentGame.current_phase
       if (currentGame?.id) {
         // Можно добавить API вызов для обновления информации об игре
-        // Пока что просто логируем
-        console.log('Game updated event received');
       }
     };
 
@@ -292,29 +290,16 @@ const Game: React.FC = () => {
     };
   }, [currentGame?.id]);
 
-  // Обработчик клика по гексу для движения
-  const handleHexClick = (coordinate: HexCoordinate) => {
-    // Проверяем, есть ли выбранный юнит
-    if (!selectedUnit || !selectedUnitData) {
-      return;
-    }
-
-    // Проверяем, является ли гекс активным для движения
-    const isMovementHex = activeHexes.some(hex => 
-      hex.type === 'movement' &&
-      hex.coordinate.col === coordinate.col && 
-      hex.coordinate.row === coordinate.row
-    );
-
-    if (isMovementHex) {
-      // Выполняем движение
-      handleMovement(coordinate);
-    }
-  };
 
   // Обработчик движения
   const handleMovement = async (targetCoordinate: HexCoordinate) => {
+    console.log('handleMovement called:', targetCoordinate);
+    console.log('selectedUnitData:', selectedUnitData);
+    console.log('currentGame:', currentGame);
+    console.log('authToken:', authToken);
+    
     if (!selectedUnitData || !currentGame?.id || !authToken) {
+      console.log('Missing required data for movement');
       return;
     }
 
@@ -342,12 +327,6 @@ const Game: React.FC = () => {
       turnNumber: selectedUnitData.last_move_turn || 0
     };
 
-    // Отладочная информация
-    console.log('🔍 Отладка движения Bismarck:');
-    console.log('  - previous_turn_moved_hexes:', selectedUnitData.previous_turn_moved_hexes);
-    console.log('  - last_move_turn:', selectedUnitData.last_move_turn);
-    console.log('  - moved_hexes:', selectedUnitData.moved_hexes);
-    console.log('  - previousTurnInfo:', previousTurnInfo);
 
     // Рассчитываем стоимость движения согласно правилам игры
     const movementCost = movementUtils.canReachHex(
@@ -359,7 +338,6 @@ const Game: React.FC = () => {
     );
 
     if (!movementCost.canReach) {
-      console.log('Невозможно добраться до этого гекса:', movementCost.reason);
       addNotification({
         type: NotificationType.Error,
         title: 'Движение невозможно',
@@ -380,12 +358,21 @@ const Game: React.FC = () => {
         hexesMoved: movementCost.distance // Отправляем количество гексов, на которое переместился юнит
       };
 
+      console.log('Sending movement request:', {
+        gameId: currentGame.id,
+        unitId: selectedUnit!,
+        updateRequest,
+        authToken: authToken ? 'present' : 'missing'
+      });
+      
       const response = await unitsAPI.updateUnitPosition(
         currentGame.id,
         selectedUnit!,
         updateRequest,
         authToken
       );
+      
+      console.log('Movement response:', response);
 
       if (response.success) {
         // Обновляем позицию юнита локально
@@ -415,33 +402,9 @@ const Game: React.FC = () => {
         clearActiveHexes();
         setAvailableMovementHexes([]);
 
-        // Обновляем информацию о предыдущем ходе для следующего движения
-        const updatedPreviousTurnInfo = {
-          movedHexes: movementCost.distance, // Текущее движение становится предыдущим
-          turnNumber: (previousTurnInfo?.turnNumber || 0) + 1
-        };
+        // Убираем отображение активных гексов после движения
+        // Активные гексы больше не отображаются автоматически
 
-        // Пересчитываем доступные гексы для движения с новой позиции
-        const newAvailableHexes = movementUtils.getAvailableMovementHexes(
-          selectedUnitData.shipData,
-          targetCoordinate,
-          newFuel,
-          updatedPreviousTurnInfo
-        );
-        setAvailableMovementHexes(newAvailableHexes);
-
-        // Добавляем новые активные гексы
-        const newMovementActiveHexes = activeHexesUtils.getMovementActiveHexes(
-          selectedUnitData.shipData,
-          targetCoordinate,
-          newFuel,
-          updatedPreviousTurnInfo
-        );
-        addActiveHexes(newMovementActiveHexes);
-
-        console.log(`Юнит ${selectedUnit} перемещен в ${targetCoordinate.letter}${targetCoordinate.number}`);
-        console.log(`Потрачено топлива: ${movementCost.fuelCost}, осталось: ${newFuel}`);
-        
         addNotification({
           type: NotificationType.Success,
           title: 'Движение выполнено',
@@ -470,6 +433,7 @@ const Game: React.FC = () => {
 
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
+    console.log('handleUnitClick called:', unitId, unitData);
     setSelectedUnit(unitId);
     setSelectedUnitData(unitData);
 
@@ -506,17 +470,8 @@ const Game: React.FC = () => {
       };
       setSelectedUnitData(updatedUnitData);
 
-      // Проверяем текущую фазу - движение доступно только в фазе movement
-      const turnData = getTurnData(currentTurn);
-      const isMovementPhase = turnData && turnData.current_phase === 'movement';
-
-      // Проверяем, двигался ли уже юнит в текущем ходу
-      const currentTurnNumber = turnData ? turnData.turn_number : 0;
-      const hasMovedThisTurn = updatedUnitData.last_move_turn === currentTurnNumber && 
-                               (updatedUnitData.moved_hexes || 0) > 0;
-
-      // Рассчитываем доступные гексы для движения только в фазе movement и если юнит еще не двигался
-      if (currentPosition && isMovementPhase && !hasMovedThisTurn) {
+      // Рассчитываем доступные гексы для движения
+      if (currentPosition) {
         // Создаем информацию о предыдущем ходе
         const previousTurnInfo = {
           movedHexes: updatedUnitData.previous_turn_moved_hexes || 0,
@@ -529,42 +484,47 @@ const Game: React.FC = () => {
           updatedUnitData.currentFuel,
           previousTurnInfo
         );
+        console.log('Available movement hexes calculated:', availableHexes);
         setAvailableMovementHexes(availableHexes);
-
-        // Добавляем активные гексы для движения
-        const movementActiveHexes = activeHexesUtils.getMovementActiveHexes(
-          shipData,
-          currentPosition,
-          updatedUnitData.currentFuel,
-          previousTurnInfo
-        );
-        addActiveHexes(movementActiveHexes);
-      } else {
-        // Если не в фазе movement или юнит уже двигался, очищаем активные гексы
-        setAvailableMovementHexes([]);
-        
-        // Показываем уведомление
-        if (currentPosition) {
-          if (!isMovementPhase) {
-            const currentPhaseName = turnData ? getPhaseDisplayName(turnData.current_phase) : 'неизвестная';
-            addNotification({
-              type: NotificationType.Info,
-              title: 'Движение недоступно',
-              message: `Движение юнитов доступно только в фазе "Движение". Текущая фаза: ${currentPhaseName}`,
-              read: false
-            });
-          } else if (hasMovedThisTurn) {
-            addNotification({
-              type: NotificationType.Info,
-              title: 'Движение недоступно',
-              message: `Юнит ${updatedUnitData.name} уже двигался в этом ходу. Один юнит может двигаться только один раз за ход.`,
-              read: false
-            });
-          }
-        }
       }
     } else {
+      console.log('No ship data found for unit');
       setAvailableMovementHexes([]);
+    }
+  };
+
+  // Обработчик клика по гексу
+  const handleHexClick = (coordinate: HexCoordinate) => {
+    console.log('handleHexClick called:', coordinate);
+    
+    // Проверяем, есть ли выбранный юнит
+    if (!selectedUnit || !selectedUnitData) {
+      console.log('No selected unit or unit data');
+      return;
+    }
+
+    // Проверяем, что мы находимся в фазе движения
+    const currentPhase = getTurnData(currentTurn)?.current_phase;
+    console.log('Current phase:', currentPhase);
+    if (currentPhase !== 'movement') {
+      console.log('Not in movement phase');
+      return;
+    }
+
+    // Проверяем, является ли гекс доступным для движения
+    const isAvailableForMovement = availableMovementHexes.some(hex => 
+      hex.coordinate.col === coordinate.col && 
+      hex.coordinate.row === coordinate.row
+    );
+    console.log('Is available for movement:', isAvailableForMovement);
+    console.log('Available movement hexes:', availableMovementHexes);
+
+    if (isAvailableForMovement) {
+      console.log('Executing movement to:', coordinate);
+      // Выполняем движение
+      handleMovement(coordinate);
+    } else {
+      console.log('Hex not available for movement');
     }
   };
 
@@ -601,16 +561,6 @@ const Game: React.FC = () => {
     ? currentGame?.player1_side 
     : currentGame?.player2_side;
 
-  // Отладочная информация
-  console.log('Debug Game Info:', {
-    userId: user?.id,
-    player1Id: currentGame?.player1_id,
-    player2Id: currentGame?.player2_id,
-    player1Side: currentGame?.player1_side,
-    player2Side: currentGame?.player2_side,
-    calculatedPlayerSide: playerSide,
-    isPlayer1: currentGame?.player1_id === user?.id
-  });
 
   const opponentSide = playerSide === PlayerSide.German 
     ? PlayerSide.Allied 
@@ -670,8 +620,6 @@ const Game: React.FC = () => {
         message: `Все корабли получили +4 топлива`,
         read: false
       });
-
-      console.log('Все корабли заправлены на +4 топлива');
     } catch (error) {
       console.error('Error refueling ships:', error);
       addNotification({
@@ -690,13 +638,6 @@ const Game: React.FC = () => {
     }
 
     try {
-      // Очищаем активные гексы и снимаем выделение с юнита
-      clearActiveHexes();
-      setAvailableMovementHexes([]);
-      setSelectedUnit(null);
-      setSelectedUnitData(null);
-      setSelectedHex(null);
-
       // Переходим к следующей фазе
       await phaseAPI.nextPhase({ game_id: currentGame.id });
       
@@ -711,8 +652,6 @@ const Game: React.FC = () => {
         message: `Переход к следующей фазе`,
         read: false
       });
-
-      console.log('Фаза завершена, переход к следующей');
     } catch (error) {
       console.error('Error completing phase:', error);
       addNotification({
@@ -944,8 +883,6 @@ const Game: React.FC = () => {
                             message: 'Первый ход успешно начат',
                             read: false
                           });
-                          
-                          console.log('Первый ход начат успешно');
                         } catch (error) {
                           console.error('Ошибка начала хода:', error);
                           addNotification({
@@ -997,6 +934,20 @@ const Game: React.FC = () => {
               <span className="weather-value">Слабое</span>
             </div>
           </div>
+        </div>
+
+        {/* Основная область карты */}
+        <div className="map-container">
+          <HexMap
+            onHexClick={handleHexClick}
+            onUnitClick={handleUnitClick}
+            selectedHex={selectedHex}
+            playerSide={playerSide}
+            availableMovementHexes={availableMovementHexes}
+            activeHexes={activeHexes}
+            unitPositions={unitPositions}
+            gameUnits={gameUnits}
+          />
         </div>
       </div>
 

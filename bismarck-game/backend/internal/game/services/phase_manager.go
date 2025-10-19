@@ -95,6 +95,19 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		return nil, fmt.Errorf("failed to update game: %v", err)
 	}
 
+	// Сбрасываем данные о движении для всех юнитов в игре
+	resetMovementQuery := `
+		UPDATE naval_units 
+		SET movement_used = 0, last_move_turn = 0, updated_at = $1
+		WHERE game_id = $2
+	`
+	_, err = pm.db.Exec(resetMovementQuery, time.Now(), gameID)
+	if err != nil {
+		log.Printf("Warning: failed to reset movement data: %v", err)
+	} else {
+		log.Printf("Movement data reset for all units in game %s turn %d", gameID, turnNumber)
+	}
+
 	// Если это первый ход, завершаем setup фазу
 	if turnNumber == 1 {
 		// Завершаем setup фазу (turn_number = 0)
@@ -195,6 +208,17 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 	_, err = pm.db.Exec(query, phase, now, gameID, turnNumber)
 	if err != nil {
 		return fmt.Errorf("failed to update current phase: %v", err)
+	}
+
+	// Обновляем текущую фазу в основной таблице games
+	query = `
+		UPDATE games 
+		SET current_phase = $1, updated_at = $2
+		WHERE id = $3
+	`
+	_, err = pm.db.Exec(query, phase, now, gameID)
+	if err != nil {
+		return fmt.Errorf("failed to update game current phase: %v", err)
 	}
 
 	// Запускаем обработчик фазы

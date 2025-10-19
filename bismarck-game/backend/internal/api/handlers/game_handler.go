@@ -12,8 +12,9 @@ import (
 	"bismarck-game/backend/internal/api/middleware"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
+	"bismarck-game/backend/internal/game/utils"
 	"bismarck-game/backend/pkg/database"
-	"bismarck-game/backend/pkg/utils"
+	pkgutils "bismarck-game/backend/pkg/utils"
 
 	"github.com/gorilla/mux"
 )
@@ -55,16 +56,16 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
 		log.Printf("CreateGame: Failed to get user ID: %v", err)
-		utils.WriteUnauthorized(w, "Authentication required")
+		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
 	}
 
 	log.Printf("CreateGame: User ID: %s", userID)
 
 	var req models.CreateGameRequest
-	if err = utils.ParseJSON(r, &req); err != nil {
+	if err = pkgutils.ParseJSON(r, &req); err != nil {
 		log.Printf("CreateGame: Failed to parse JSON: %v", err)
-		utils.WriteValidationError(w, "Invalid request format", map[string]string{
+		pkgutils.WriteValidationError(w, "Invalid request format", map[string]string{
 			"body": "Request body must be valid JSON",
 		})
 		return
@@ -74,28 +75,28 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 
 	// Валидация полей
 	if req.Name == "" {
-		utils.WriteValidationError(w, "Game name is required", map[string]string{
+		pkgutils.WriteValidationError(w, "Game name is required", map[string]string{
 			"name": "Game name cannot be empty",
 		})
 		return
 	}
 
 	if len(req.Name) < 3 || len(req.Name) > 100 {
-		utils.WriteValidationError(w, "Invalid game name length", map[string]string{
+		pkgutils.WriteValidationError(w, "Invalid game name length", map[string]string{
 			"name": "Game name must be between 3 and 100 characters",
 		})
 		return
 	}
 
 	if req.Side == "" {
-		utils.WriteValidationError(w, "Player side is required", map[string]string{
+		pkgutils.WriteValidationError(w, "Player side is required", map[string]string{
 			"side": "Player side must be 'german' or 'allied'",
 		})
 		return
 	}
 
 	if req.Side != models.PlayerSideGerman && req.Side != models.PlayerSideAllied {
-		utils.WriteValidationError(w, "Invalid player side", map[string]string{
+		pkgutils.WriteValidationError(w, "Invalid player side", map[string]string{
 			"side": "Player side must be 'german' or 'allied'",
 		})
 		return
@@ -166,14 +167,14 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		game.CurrentTurn,
 		game.CurrentPhase,
 		game.Status,
-		utils.ToJSONB(game.Settings),
+		pkgutils.ToJSONB(game.Settings),
 		game.CreatedAt,
 		game.UpdatedAt,
 	).Scan(&game.ID)
 
 	if err != nil {
 		log.Printf("Error creating game: %v", err)
-		utils.WriteInternalError(w, "Failed to create game")
+		pkgutils.WriteInternalError(w, "Failed to create game")
 		return
 	}
 
@@ -189,7 +190,7 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	utils.WriteCreated(w, game.ToResponse())
+	pkgutils.WriteCreated(w, game.ToResponse())
 }
 
 // GetGames возвращает список игр
@@ -230,7 +231,7 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 	countQuery := "SELECT COUNT(*) FROM games " + whereClause
 	err := h.db.GetConnection().QueryRowContext(r.Context(), countQuery, args...).Scan(&total)
 	if err != nil {
-		utils.WriteInternalError(w, "Failed to count games")
+		pkgutils.WriteInternalError(w, "Failed to count games")
 		return
 	}
 
@@ -251,7 +252,7 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := h.db.GetConnection().QueryContext(r.Context(), query, args...)
 	if err != nil {
-		utils.WriteInternalError(w, "Failed to get games")
+		pkgutils.WriteInternalError(w, "Failed to get games")
 		return
 	}
 	defer rows.Close()
@@ -272,7 +273,7 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("Failed to scan game: %v", err)
 			log.Printf("Game ID: %s, Name: %s", game.ID, game.Name)
-			utils.WriteInternalError(w, "Failed to scan game")
+			pkgutils.WriteInternalError(w, "Failed to scan game")
 			return
 		}
 
@@ -289,7 +290,7 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 
 		// Десериализуем настройки игры
 		if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
-			utils.WriteInternalError(w, "Failed to parse game settings")
+			pkgutils.WriteInternalError(w, "Failed to parse game settings")
 			return
 		}
 
@@ -307,11 +308,11 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = rows.Err(); err != nil {
-		utils.WriteInternalError(w, "Failed to iterate games")
+		pkgutils.WriteInternalError(w, "Failed to iterate games")
 		return
 	}
 
-	utils.WritePaginatedResponse(w, games, page, perPage, total)
+	pkgutils.WritePaginatedResponse(w, games, page, perPage, total)
 }
 
 // GetGame возвращает информацию об игре
@@ -321,7 +322,7 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if gameID == "" {
-		utils.WriteValidationError(w, "Game ID is required", map[string]string{
+		pkgutils.WriteValidationError(w, "Game ID is required", map[string]string{
 			"id": "Game ID cannot be empty",
 		})
 		return
@@ -348,10 +349,10 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			utils.WriteNotFound(w, "Game not found")
+			pkgutils.WriteNotFound(w, "Game not found")
 			return
 		}
-		utils.WriteInternalError(w, "Failed to get game")
+		pkgutils.WriteInternalError(w, "Failed to get game")
 		return
 	}
 
@@ -365,11 +366,11 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 
 	// Десериализуем настройки игры
 	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
-		utils.WriteInternalError(w, "Failed to parse game settings")
+		pkgutils.WriteInternalError(w, "Failed to parse game settings")
 		return
 	}
 
-	utils.WriteSuccess(w, game.ToResponse())
+	pkgutils.WriteSuccess(w, game.ToResponse())
 }
 
 // JoinGame присоединяет игрока к игре
@@ -378,7 +379,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	gameID := vars["id"]
 
 	if gameID == "" {
-		utils.WriteValidationError(w, "Game ID is required", map[string]string{
+		pkgutils.WriteValidationError(w, "Game ID is required", map[string]string{
 			"id": "Game ID cannot be empty",
 		})
 		return
@@ -387,13 +388,13 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
-		utils.WriteUnauthorized(w, "Authentication required")
+		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
 	}
 
 	var req models.JoinGameRequest
-	if err = utils.ParseJSON(r, &req); err != nil {
-		utils.WriteValidationError(w, "Invalid request format", map[string]string{
+	if err = pkgutils.ParseJSON(r, &req); err != nil {
+		pkgutils.WriteValidationError(w, "Invalid request format", map[string]string{
 			"body": "Request body must be valid JSON",
 		})
 		return
@@ -423,10 +424,10 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			utils.WriteNotFound(w, "Game not found")
+			pkgutils.WriteNotFound(w, "Game not found")
 			return
 		}
-		utils.WriteInternalError(w, "Failed to get game")
+		pkgutils.WriteInternalError(w, "Failed to get game")
 		return
 	}
 
@@ -443,7 +444,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 
 	// Десериализуем настройки игры
 	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
-		utils.WriteInternalError(w, "Failed to parse game settings")
+		pkgutils.WriteInternalError(w, "Failed to parse game settings")
 		return
 	}
 
@@ -455,7 +456,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 
 	// Проверяем, можно ли присоединиться к игре
 	if !game.CanJoin() {
-		utils.WriteValidationError(w, "Cannot join this game", map[string]string{
+		pkgutils.WriteValidationError(w, "Cannot join this game", map[string]string{
 			"game": "Game is not available for joining",
 		})
 		return
@@ -465,7 +466,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	// Но разрешаем присоединиться, если создатель выбрал другую сторону
 	if game.Player1ID == userID && game.Player2ID == userID {
 		// Пользователь уже в игре с обеих сторон (не должно происходить)
-		utils.WriteValidationError(w, "You are already in this game", map[string]string{
+		pkgutils.WriteValidationError(w, "You are already in this game", map[string]string{
 			"game": "You are already participating in this game",
 		})
 		return
@@ -474,7 +475,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	// Если пользователь уже в игре с одной стороны, не позволяем присоединиться с другой
 	if (game.Player1ID == userID && req.Side == models.PlayerSideGerman) ||
 		(game.Player2ID == userID && req.Side == models.PlayerSideAllied) {
-		utils.WriteValidationError(w, "You are already in this game", map[string]string{
+		pkgutils.WriteValidationError(w, "You are already in this game", map[string]string{
 			"game": "You are already participating in this game",
 		})
 		return
@@ -483,7 +484,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	// Проверяем пароль, если игра приватная
 	if game.Settings.PrivateLobby && game.Settings.Password != "" {
 		if req.Password != game.Settings.Password {
-			utils.WriteValidationError(w, "Invalid password", map[string]string{
+			pkgutils.WriteValidationError(w, "Invalid password", map[string]string{
 				"password": "Incorrect game password",
 			})
 			return
@@ -499,7 +500,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		if req.Side == models.PlayerSideGerman {
 			// Игрок хочет быть немцем (Player1)
 			if game.Player1ID != "" {
-				utils.WriteValidationError(w, "German side is already taken", map[string]string{
+				pkgutils.WriteValidationError(w, "German side is already taken", map[string]string{
 					"side": "German side is not available",
 				})
 				return
@@ -509,7 +510,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		} else if req.Side == models.PlayerSideAllied {
 			// Игрок хочет быть союзником (Player2)
 			if game.Player2ID != "" {
-				utils.WriteValidationError(w, "Allied side is already taken", map[string]string{
+				pkgutils.WriteValidationError(w, "Allied side is already taken", map[string]string{
 					"side": "Allied side is not available",
 				})
 				return
@@ -517,7 +518,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 			updateQuery = `UPDATE games SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
 			updateArgs = []interface{}{userID, time.Now(), gameID}
 		} else {
-			utils.WriteValidationError(w, "Invalid side", map[string]string{
+			pkgutils.WriteValidationError(w, "Invalid side", map[string]string{
 				"side": "Side must be 'german' or 'allied'",
 			})
 			return
@@ -533,7 +534,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 			updateQuery = `UPDATE games SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
 			updateArgs = []interface{}{userID, time.Now(), gameID}
 		} else {
-			utils.WriteValidationError(w, "Game is full", map[string]string{
+			pkgutils.WriteValidationError(w, "Game is full", map[string]string{
 				"game": "Game already has two players",
 			})
 			return
@@ -544,7 +545,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	_, err = h.db.GetConnection().ExecContext(r.Context(), updateQuery, updateArgs...)
 
 	if err != nil {
-		utils.WriteInternalError(w, "Failed to join game")
+		pkgutils.WriteInternalError(w, "Failed to join game")
 		return
 	}
 
@@ -612,7 +613,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	var currentPlayerUsername string
 	err = h.db.GetConnection().QueryRowContext(r.Context(), "SELECT username FROM users WHERE id = $1", userID).Scan(&currentPlayerUsername)
 	if err != nil {
-		utils.WriteInternalError(w, "Failed to get player username")
+		pkgutils.WriteInternalError(w, "Failed to get player username")
 		return
 	}
 
@@ -636,7 +637,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		player2UsernameStr = ""
 	}
 
-	utils.WriteSuccess(w, game.ToResponseWithUsernames(player1UsernameStr, player2UsernameStr))
+	pkgutils.WriteSuccess(w, game.ToResponseWithUsernames(player1UsernameStr, player2UsernameStr))
 }
 
 // SurrenderGame сдача в игре
@@ -645,7 +646,7 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	gameID := vars["id"]
 
 	if gameID == "" {
-		utils.WriteValidationError(w, "Game ID is required", map[string]string{
+		pkgutils.WriteValidationError(w, "Game ID is required", map[string]string{
 			"id": "Game ID cannot be empty",
 		})
 		return
@@ -654,7 +655,7 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
-		utils.WriteUnauthorized(w, "Authentication required")
+		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
 	}
 
@@ -678,22 +679,22 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			utils.WriteNotFound(w, "Game not found")
+			pkgutils.WriteNotFound(w, "Game not found")
 			return
 		}
-		utils.WriteInternalError(w, "Failed to get game")
+		pkgutils.WriteInternalError(w, "Failed to get game")
 		return
 	}
 
 	// Проверяем, что пользователь является игроком в этой игре
 	if !game.IsPlayer(userID) {
-		utils.WriteForbidden(w, "You are not a player in this game")
+		pkgutils.WriteForbidden(w, "You are not a player in this game")
 		return
 	}
 
 	// Проверяем, что игра активна
 	if !game.IsActive() {
-		utils.WriteValidationError(w, "Game is not active", map[string]string{
+		pkgutils.WriteValidationError(w, "Game is not active", map[string]string{
 			"game": "Cannot surrender in a non-active game",
 		})
 		return
@@ -711,11 +712,11 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	`, winner, models.VictoryTypeStrategic, now, gameID)
 
 	if err != nil {
-		utils.WriteInternalError(w, "Failed to surrender game")
+		pkgutils.WriteInternalError(w, "Failed to surrender game")
 		return
 	}
 
-	utils.WriteSuccess(w, map[string]interface{}{
+	pkgutils.WriteSuccess(w, map[string]interface{}{
 		"message": "Game surrendered successfully",
 		"winner":  winner,
 	})
@@ -727,7 +728,7 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	gameID := vars["id"]
 
 	if gameID == "" {
-		utils.WriteValidationError(w, "Game ID is required", map[string]string{
+		pkgutils.WriteValidationError(w, "Game ID is required", map[string]string{
 			"id": "Game ID cannot be empty",
 		})
 		return
@@ -736,7 +737,7 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
-		utils.WriteUnauthorized(w, "Authentication required")
+		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
 	}
 
@@ -760,22 +761,22 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			utils.WriteNotFound(w, "Game not found")
+			pkgutils.WriteNotFound(w, "Game not found")
 			return
 		}
-		utils.WriteInternalError(w, "Failed to get game")
+		pkgutils.WriteInternalError(w, "Failed to get game")
 		return
 	}
 
 	// Проверяем, что пользователь является создателем игры
 	if game.Player1ID != userID {
-		utils.WriteForbidden(w, "Only the game creator can delete the game")
+		pkgutils.WriteForbidden(w, "Only the game creator can delete the game")
 		return
 	}
 
 	// Проверяем, что игра еще не началась
 	if game.Status != models.GameStatusWaiting {
-		utils.WriteValidationError(w, "Cannot delete active game", map[string]string{
+		pkgutils.WriteValidationError(w, "Cannot delete active game", map[string]string{
 			"game": "Only waiting games can be deleted",
 		})
 		return
@@ -784,11 +785,11 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	// Удаляем игру
 	_, err = h.db.Exec("DELETE FROM games WHERE id = $1", gameID)
 	if err != nil {
-		utils.WriteInternalError(w, "Failed to delete game")
+		pkgutils.WriteInternalError(w, "Failed to delete game")
 		return
 	}
 
-	utils.WriteSuccess(w, map[string]string{"message": "Game deleted successfully"})
+	pkgutils.WriteSuccess(w, map[string]string{"message": "Game deleted successfully"})
 }
 
 // GetGameUnits возвращает юниты игры, видимые для текущего игрока
@@ -797,7 +798,7 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 	gameID := vars["id"]
 
 	if gameID == "" {
-		utils.WriteValidationError(w, "Game ID is required", map[string]string{
+		pkgutils.WriteValidationError(w, "Game ID is required", map[string]string{
 			"id": "Game ID cannot be empty",
 		})
 		return
@@ -806,7 +807,7 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
-		utils.WriteUnauthorized(w, "Authentication required")
+		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
 	}
 
@@ -814,11 +815,11 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 	units, err := h.unitService.GetVisibleUnits(gameID, userID)
 	if err != nil {
 		log.Printf("Error getting game units: %v", err)
-		utils.WriteInternalError(w, "Failed to get game units")
+		pkgutils.WriteInternalError(w, "Failed to get game units")
 		return
 	}
 
-	utils.WriteSuccess(w, map[string]interface{}{
+	pkgutils.WriteSuccess(w, map[string]interface{}{
 		"units": units,
 	})
 }
@@ -830,7 +831,7 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 	unitID := vars["unitId"]
 
 	if gameID == "" || unitID == "" {
-		utils.WriteValidationError(w, "Game ID and Unit ID are required", map[string]string{
+		pkgutils.WriteValidationError(w, "Game ID and Unit ID are required", map[string]string{
 			"gameId": "Game ID cannot be empty",
 			"unitId": "Unit ID cannot be empty",
 		})
@@ -840,7 +841,7 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 	// Получаем ID пользователя из контекста
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
-		utils.WriteUnauthorized(w, "Authentication required")
+		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
 	}
 
@@ -850,15 +851,15 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 		Fuel       int    `json:"fuel,omitempty"`
 		HexesMoved int    `json:"hexesMoved,omitempty"` // Количество гексов, на которое переместился юнит
 	}
-	if err = utils.ParseJSON(r, &req); err != nil {
-		utils.WriteValidationError(w, "Invalid request format", map[string]string{
+	if err = pkgutils.ParseJSON(r, &req); err != nil {
+		pkgutils.WriteValidationError(w, "Invalid request format", map[string]string{
 			"body": "Request body must be valid JSON",
 		})
 		return
 	}
 
 	if req.Position == "" {
-		utils.WriteValidationError(w, "Position is required", map[string]string{
+		pkgutils.WriteValidationError(w, "Position is required", map[string]string{
 			"position": "Position cannot be empty",
 		})
 		return
@@ -868,16 +869,50 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 	unit, err := h.unitService.GetNavalUnitByID(unitID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			utils.WriteNotFound(w, "Unit not found")
+			pkgutils.WriteNotFound(w, "Unit not found")
 			return
 		}
-		utils.WriteInternalError(w, "Failed to get unit")
+		pkgutils.WriteInternalError(w, "Failed to get unit")
 		return
 	}
 
 	if unit.Owner != userID {
-		utils.WriteForbidden(w, "You can only move your own units")
+		pkgutils.WriteForbidden(w, "You can only move your own units")
 		return
+	}
+
+	// Получаем текущий ход игры
+	var currentTurn int
+	err = h.db.GetConnection().QueryRowContext(r.Context(), "SELECT current_turn FROM games WHERE id = $1", gameID).Scan(&currentTurn)
+	if err != nil {
+		log.Printf("Error getting current turn: %v", err)
+		pkgutils.WriteInternalError(w, "Failed to get current turn")
+		return
+	}
+
+	// Проверяем ограничения движения
+	if req.HexesMoved > 0 {
+		// Проверяем максимальную дальность движения за ход
+		maxRange := utils.GetMaxMovementRange(unit.SpeedRating)
+
+		// Если юнит уже двигался в этом ходу, проверяем общее движение
+		if unit.LastMoveTurn == currentTurn {
+			totalMovement := unit.MovementUsed + req.HexesMoved
+			if totalMovement > maxRange {
+				pkgutils.WriteValidationError(w, "Invalid movement distance", map[string]string{
+					"movement": fmt.Sprintf("Unit can move maximum %d hexes per turn (already moved %d hexes)", maxRange, unit.MovementUsed),
+				})
+				return
+			}
+		} else {
+			// Если это первое движение в ходу, проверяем только текущее движение
+			if req.HexesMoved > maxRange {
+				pkgutils.WriteValidationError(w, "Invalid movement distance", map[string]string{
+					"movement": fmt.Sprintf("Unit can move maximum %d hexes per turn", maxRange),
+				})
+				return
+			}
+		}
 	}
 
 	// Обновляем позицию юнита и поля движения
@@ -897,13 +932,22 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 		// Обновляем previous_turn_moved_hexes с текущим значением movement_used
 		updateQuery += ", previous_turn_moved_hexes = movement_used"
 
-		// Обновляем movement_used с новым значением
-		updateQuery += ", movement_used = $" + strconv.Itoa(argIndex)
+		// Если юнит уже двигался в этом ходу, добавляем к существующему движению
+		// Иначе устанавливаем новое значение
+		if unit.LastMoveTurn == currentTurn {
+			// Добавляем к существующему движению
+			updateQuery += ", movement_used = movement_used + $" + strconv.Itoa(argIndex)
+		} else {
+			// Устанавливаем новое значение движения
+			updateQuery += ", movement_used = $" + strconv.Itoa(argIndex)
+		}
 		args = append(args, req.HexesMoved)
 		argIndex++
 
-		// Обновляем last_move_turn (пока используем простую логику - увеличиваем на 1)
-		updateQuery += ", last_move_turn = last_move_turn + 1"
+		// Устанавливаем last_move_turn на текущий ход
+		updateQuery += ", last_move_turn = $" + strconv.Itoa(argIndex)
+		args = append(args, currentTurn)
+		argIndex++
 	}
 
 	updateQuery += ", updated_at = $" + strconv.Itoa(argIndex) + " WHERE id = $" + strconv.Itoa(argIndex+1)
@@ -912,11 +956,11 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 	_, err = h.db.Exec(updateQuery, args...)
 	if err != nil {
 		log.Printf("Error updating unit position: %v", err)
-		utils.WriteInternalError(w, "Failed to update unit position")
+		pkgutils.WriteInternalError(w, "Failed to update unit position")
 		return
 	}
 
-	utils.WriteSuccess(w, map[string]interface{}{
+	pkgutils.WriteSuccess(w, map[string]interface{}{
 		"message":  "Unit position updated successfully",
 		"unitId":   unitID,
 		"position": req.Position,

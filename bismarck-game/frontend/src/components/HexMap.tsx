@@ -148,14 +148,14 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Обработчики событий
   const handleHexClick = (coordinate: HexCoordinate) => {
-    // Проверяем, является ли гекс активным
-    const isActiveHex = activeHexes.some(hex => 
+    // Проверяем, является ли гекс доступным для движения
+    const isAvailableForMovement = availableMovementHexes.some(hex => 
       hex.coordinate.col === coordinate.col && 
       hex.coordinate.row === coordinate.row
     );
     
-    // Кликабелен только если гекс активный
-    if (isActiveHex && onHexClick) {
+    // Кликабелен только если гекс доступен для движения
+    if (isAvailableForMovement && onHexClick) {
       onHexClick(coordinate);
     }
   };

@@ -86,7 +86,7 @@
       "basePrimaryArmamentStern": 5,
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
-      "speedType": "S",
+      "speedType": "F",
       "notes": "Имеет ненадежное главное вооружение",
       "specialRules": [
         {
