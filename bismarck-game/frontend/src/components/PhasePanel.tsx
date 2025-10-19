@@ -158,16 +158,21 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
     const isGameReady = currentGame.status === 'active' && !!currentGame.player2_id;
     const hasNoActiveTurn = !currentTurn;
     
+    // Проверяем, что это первый ход (нет завершенных ходов)
+    const isFirstTurn = !currentGame.current_turn || currentGame.current_turn === 0;
+    
     console.log('PhasePanel canStartTurn check:', {
       currentUserId,
       player1Id: currentGame.player1_id,
       isPlayer1,
       isGameReady,
       hasNoActiveTurn,
-      canStart: isPlayer1 && isGameReady && hasNoActiveTurn
+      isFirstTurn,
+      currentTurn: currentGame.current_turn,
+      canStart: isPlayer1 && isGameReady && hasNoActiveTurn && isFirstTurn
     });
     
-    return isPlayer1 && isGameReady && hasNoActiveTurn;
+    return isPlayer1 && isGameReady && hasNoActiveTurn && isFirstTurn;
   };
 
   if (!currentTurn) {

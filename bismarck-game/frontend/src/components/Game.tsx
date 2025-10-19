@@ -487,6 +487,40 @@ const Game: React.FC = () => {
     }
   };
 
+  // Завершение текущей фазы
+  const handleCompletePhase = async () => {
+    if (!currentGame?.id || !authToken || !currentTurn) {
+      return;
+    }
+
+    try {
+      // Переходим к следующей фазе
+      await phaseAPI.nextPhase({ game_id: currentGame.id });
+      
+      // Обновляем информацию о текущем ходе
+      const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
+      setCurrentTurn(updatedTurn);
+
+      // Показываем уведомление
+      addNotification({
+        type: NotificationType.Success,
+        title: 'Фаза завершена',
+        message: `Переход к следующей фазе`,
+        read: false
+      });
+
+      console.log('Фаза завершена, переход к следующей');
+    } catch (error) {
+      console.error('Error completing phase:', error);
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Ошибка завершения фазы',
+        message: 'Произошла ошибка при завершении фазы',
+        read: false
+      });
+    }
+  };
+
   // Возврат в лобби
   const handleBackToLobby = () => {
     setCurrentView(ViewType.Lobby);
@@ -757,7 +791,11 @@ const Game: React.FC = () => {
               >
                 Заправить (+4 топлива всем кораблям)
               </button>
-              <button className="action-button">
+              <button 
+                className="action-button"
+                onClick={handleCompletePhase}
+                disabled={!currentTurn || currentTurn.current_phase !== 'movement'}
+              >
                 Завершить ход
               </button>
             </div>

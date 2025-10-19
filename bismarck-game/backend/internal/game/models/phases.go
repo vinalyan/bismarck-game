@@ -147,8 +147,21 @@ func GetPhaseConfigs() map[GamePhase]PhaseConfig {
 
 // GetPhaseSequence возвращает последовательность фаз для хода
 func GetPhaseSequence(turnNumber int) []GamePhase {
-	phases := []GamePhase{
-		PhaseSetup,
+	// Для первого хода: setup → movement → search → air_attack → naval_combat → chance → admin
+	if turnNumber == 1 {
+		return []GamePhase{
+			PhaseSetup,
+			PhaseMovement,
+			PhaseSearch,
+			PhaseAirAttack,
+			PhaseNavalCombat,
+			PhaseChance,
+			PhaseAdmin,
+		}
+	}
+
+	// Для остальных ходов: visibility → pursuit → movement → search → air_attack → naval_combat → chance → admin
+	return []GamePhase{
 		PhaseVisibility,
 		PhasePursuit,
 		PhaseMovement,
@@ -158,19 +171,6 @@ func GetPhaseSequence(turnNumber int) []GamePhase {
 		PhaseChance,
 		PhaseAdmin,
 	}
-
-	// В первом ходу пропускаем фазы видимости и преследования
-	if turnNumber == 1 {
-		filtered := []GamePhase{PhaseSetup}
-		for _, phase := range phases[1:] {
-			if phase != PhaseVisibility && phase != PhasePursuit {
-				filtered = append(filtered, phase)
-			}
-		}
-		return filtered
-	}
-
-	return phases
 }
 
 // GetPhaseConfig возвращает конфигурацию для фазы
