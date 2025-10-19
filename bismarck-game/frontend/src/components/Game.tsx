@@ -690,6 +690,13 @@ const Game: React.FC = () => {
     }
 
     try {
+      // Очищаем активные гексы и снимаем выделение с юнита
+      clearActiveHexes();
+      setAvailableMovementHexes([]);
+      setSelectedUnit(null);
+      setSelectedUnitData(null);
+      setSelectedHex(null);
+
       // Переходим к следующей фазе
       await phaseAPI.nextPhase({ game_id: currentGame.id });
       
