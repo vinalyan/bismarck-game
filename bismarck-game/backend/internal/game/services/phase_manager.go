@@ -121,9 +121,9 @@ func (pm *PhaseManager) initializePhasesForTurn(gameID string, turnNumber int) e
 
 	for _, phase := range phases {
 		record := &models.PhaseRecord{
-			Phase:      phase,
-			TurnNumber: turnNumber,
-			Status:     models.PhaseStatusPending,
+			Phase:  phase,
+			Turn:   turnNumber,
+			Status: models.PhaseStatusPending,
 		}
 
 		// Пропускаем фазы в первом ходу
