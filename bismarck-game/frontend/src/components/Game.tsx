@@ -32,6 +32,7 @@ const Game: React.FC = () => {
   const [availableMovementHexes, setAvailableMovementHexes] = useState<MovementHex[]>([]);
   const [shipsData, setShipsData] = useState<ShipData[]>([]);
   const [currentTurn, setCurrentTurn] = useState<GameTurn | GameTurnResponse | null>(null);
+  const [phaseTimer, setPhaseTimer] = useState<number | null>(null);
 
   // Helper функция для получения данных хода
   const getTurnData = (turn: GameTurn | GameTurnResponse | null): GameTurn | null => {
@@ -175,6 +176,88 @@ const Game: React.FC = () => {
 
     loadCurrentTurn();
   }, [currentGame?.id]);
+
+  // Автоматическое обновление информации о текущей фазе каждые 2 секунды
+  useEffect(() => {
+    if (!currentGame?.id) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const turn = await phaseAPI.getCurrentPhase(currentGame.id);
+        const previousTurn = currentTurn;
+        
+        setCurrentTurn(turn);
+        
+        // Проверяем, изменилась ли фаза
+        if (previousTurn && turn) {
+          const previousTurnData = getTurnData(previousTurn);
+          const currentTurnData = getTurnData(turn);
+          
+          if (previousTurnData && currentTurnData) {
+            // Если изменилась фаза или ход
+            if (previousTurnData.current_phase !== currentTurnData.current_phase ||
+                previousTurnData.turn_number !== currentTurnData.turn_number) {
+              
+              // Показываем уведомление о смене фазы
+              if (previousTurnData.current_phase !== currentTurnData.current_phase) {
+                addNotification({
+                  type: NotificationType.Info,
+                  title: 'Смена фазы',
+                  message: `Переход к фазе: ${getPhaseDisplayName(currentTurnData.current_phase)}`,
+                  read: false
+                });
+              }
+              
+              // Показываем уведомление о новом ходе
+              if (previousTurnData.turn_number !== currentTurnData.turn_number) {
+                addNotification({
+                  type: NotificationType.Success,
+                  title: 'Новый ход',
+                  message: `Начат ход ${currentTurnData.turn_number}`,
+                  read: false
+                });
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error updating current turn:', error);
+      }
+    }, 2000); // Обновляем каждые 2 секунды
+
+    return () => clearInterval(interval);
+  }, [currentGame?.id, currentTurn, addNotification]);
+
+  // Таймер обратного отсчета для автоматических фаз
+  useEffect(() => {
+    const turnData = getTurnData(currentTurn);
+    if (!turnData || !turnData.current_phase) {
+      setPhaseTimer(null);
+      return;
+    }
+
+    // Фазы с автоматическим переходом
+    const autoTransitionPhases = ['visibility', 'pursuit', 'search', 'air_attack', 'naval_combat', 'chance', 'admin'];
+    
+    if (autoTransitionPhases.includes(turnData.current_phase)) {
+      setPhaseTimer(1); // 1 секунда до автоматического перехода (соответствует бэкенду)
+      
+      const timer = setInterval(() => {
+        setPhaseTimer(prev => {
+          if (prev === null || prev <= 1) {
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    } else {
+      setPhaseTimer(null);
+    }
+  }, [currentTurn]);
 
   // Обработчик обновления хода
   useEffect(() => {
@@ -634,24 +717,42 @@ const Game: React.FC = () => {
         <div className="game-title">
           <h1>🎮 {currentGame.name}</h1>
           <div className="game-info">
-            <span className="phase-info">
-              Фаза: {(() => {
-                const turnData = getTurnData(currentTurn);
-                if (turnData && turnData.current_phase) {
-                  return getPhaseDisplayName(turnData.current_phase);
-                }
-                return getPhaseDisplayName(currentGame.current_phase);
-              })()}
+            <div className="phase-display">
+              <span className="phase-label">Текущая фаза:</span>
+              <span className="phase-value">
+                {(() => {
+                  const turnData = getTurnData(currentTurn);
+                  if (turnData && turnData.current_phase) {
+                    return getPhaseDisplayName(turnData.current_phase);
+                  }
+                  return getPhaseDisplayName(currentGame.current_phase);
+                })()}
+              </span>
+              <span className="phase-status">
+                {(() => {
+                  const turnData = getTurnData(currentTurn);
+                  if (turnData && turnData.status === 'active') {
+                    if (phaseTimer !== null) {
+                      return `🟢 Активна (${phaseTimer}с)`;
+                    }
+                    return '🟢 Активна';
+                  }
+                  return '⚪ Ожидание';
+                })()}
             </span>
-            <span className="turn-info">
-              Ход: {(() => {
-                const turnData = getTurnData(currentTurn);
-                if (turnData && turnData.turn_number !== undefined) {
-                  return turnData.turn_number;
-                }
-                return currentGame.current_turn;
-              })()}
+            </div>
+            <div className="turn-display">
+              <span className="turn-label">Ход:</span>
+              <span className="turn-value">
+                {(() => {
+                  const turnData = getTurnData(currentTurn);
+                  if (turnData && turnData.turn_number !== undefined) {
+                    return turnData.turn_number;
+                  }
+                  return currentGame.current_turn;
+                })()}
             </span>
+            </div>
           </div>
         </div>
         
@@ -750,103 +851,6 @@ const Game: React.FC = () => {
         {/* Правая панель - действия */}
         <div className="game-actions">
           
-          {/* Информация о выбранном юните */}
-          {selectedUnitData && (
-            <div className="unit-info">
-              <h3>Выбранный юнит</h3>
-              <div className="unit-details">
-                <div className="detail-item">
-                  <span>Название:</span>
-                  <span className="detail-value">{selectedUnitData.name}</span>
-                </div>
-                <div className="detail-item">
-                  <span>Тип:</span>
-                  <span className="detail-value">{selectedUnitData.type}</span>
-                </div>
-                <div className="detail-item">
-                  <span>Позиция:</span>
-                  <span className="detail-value">{selectedUnitData.position ? `${selectedUnitData.position.letter}${selectedUnitData.position.number}` : 'Неизвестно'}</span>
-                </div>
-                <div className="detail-item">
-                  <span>Топливо:</span>
-                  <span className="detail-value">
-                    {selectedUnitData?.currentFuel || 85}/{selectedUnitData?.maxFuel || 100}
-                  </span>
-                  </div>
-                {selectedUnitData && (
-                  <>
-                    <div className="detail-item">
-                      <span>Скорость:</span>
-                      <span className="detail-value">
-                        {selectedUnitData.speed_rating === 'F' ? 'Быстрый' :
-                         selectedUnitData.speed_rating === 'M' ? 'Средний' :
-                         selectedUnitData.speed_rating === 'S' ? 'Медленный' :
-                         selectedUnitData.speed_rating === 'VS' ? 'Очень медленный' :
-                         selectedUnitData.speed_rating}
-                      </span>
-                  </div>
-                    <div className="detail-item">
-                      <span>Уклонение:</span>
-                      <span className="detail-value">{selectedUnitData.base_evasion}</span>
-                  </div>
-                    <div className="detail-item">
-                      <span>Радар:</span>
-                      <span className="detail-value">
-                        {selectedUnitData.radar_level === 0 ? 'Нет радара' :
-                         selectedUnitData.radar_level === 1 ? 'RADAR I' :
-                         selectedUnitData.radar_level === 2 ? 'RADAR II' :
-                         `RADAR ${selectedUnitData.radar_level}`}
-                    </span>
-                  </div>
-                  </>
-                )}
-              </div>
-
-              
-              {/* Доступные действия */}
-              <div className="unit-actions">
-                <h4>Доступные действия:</h4>
-                <div className="action-buttons">
-                  <button 
-                    className="action-button"
-                    onClick={() => {
-                      // TODO: Реализовать оперативные соединения
-                      console.log('Оперативные соединения для юнита:', selectedUnit);
-                    }}
-                  >
-                    ⚓ Оперативные соединения
-                  </button>
-                  <button 
-                    className="action-button"
-                    onClick={() => {
-                      // TODO: Реализовать заправку
-                      console.log('Заправка для юнита:', selectedUnit);
-                    }}
-                  >
-                    ⛽ Заправка
-                  </button>
-                  <button 
-                    className="action-button"
-                    onClick={() => {
-                      // TODO: Реализовать патруль
-                      console.log('Патруль для юнита:', selectedUnit);
-                    }}
-                  >
-                    🛡️ Заявить патруль
-                  </button>
-                  <button 
-                    className="action-button"
-                    onClick={() => {
-                      // TODO: Реализовать ремонт
-                      console.log('Ремонт для юнита:', selectedUnit);
-                    }}
-                  >
-                    🛠️ Попытка ремонта
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Информация о выбранном гексе */}
           {selectedHex && !selectedUnitData && (

@@ -31,13 +31,42 @@
   margin-top: 0.25rem;
 }
 
-.phase-info, .turn-info {
+.phase-display, .turn-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   background: rgba(74, 144, 226, 0.2);
-  padding: 0.25rem 0.75rem;
+  padding: 0.5rem 1rem;
   border-radius: 20px;
-  font-weight: 600;
   border: 1px solid #4a90e2;
   font-size: 0.9rem;
+}
+
+.phase-label, .turn-label {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  margin-bottom: 0.25rem;
+}
+
+.phase-value, .turn-value {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #4a90e2;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.phase-value {
+  color: #ffd700; /* Золотой цвет для фазы */
+}
+
+.turn-value {
+  color: #00ff88; /* Зеленый цвет для хода */
+}
+
+.phase-status {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  opacity: 0.9;
 }
 
 .game-controls {

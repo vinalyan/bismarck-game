@@ -47,6 +47,11 @@ type GameTurn struct {
 	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
 }
 
+// PhaseManagerInterface представляет интерфейс для управления фазами
+type PhaseManagerInterface interface {
+	NextPhase(gameID string) error
+}
+
 // PhaseHandler представляет обработчик фазы
 type PhaseHandler interface {
 	CanStart(gameID string, turn int) (bool, error)
@@ -55,6 +60,7 @@ type PhaseHandler interface {
 	Complete(gameID string, turn int) error
 	GetName() string
 	GetDescription() string
+	SetPhaseManager(pm PhaseManagerInterface)
 }
 
 // PhaseConfig представляет конфигурацию фазы

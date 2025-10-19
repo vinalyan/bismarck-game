@@ -1,6 +1,11 @@
 package services
 
-import "log"
+import (
+	"log"
+	"time"
+
+	"bismarck-game/backend/internal/game/models"
+)
 
 // SetupPhaseHandler обрабатывает фазу подготовки
 type SetupPhaseHandler struct{}
@@ -31,8 +36,14 @@ func (h *SetupPhaseHandler) GetDescription() string {
 	return "Размещение юнитов на карте"
 }
 
+func (h *SetupPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+	// SetupPhaseHandler не использует автоматический переход
+}
+
 // VisibilityPhaseHandler обрабатывает фазу видимости
-type VisibilityPhaseHandler struct{}
+type VisibilityPhaseHandler struct {
+	phaseManager models.PhaseManagerInterface
+}
 
 func (h *VisibilityPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
@@ -40,7 +51,25 @@ func (h *VisibilityPhaseHandler) CanStart(gameID string, turn int) (bool, error)
 
 func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - определение видимости юнитов
-	log.Printf("Visibility phase started for game %s turn %d", gameID, turn)
+	log.Printf("Сработал переход в фазу visibility ход %d", turn)
+
+	// TODO: логика фазы будет реализована здесь
+
+	// Автоматически переходим к следующей фазе через 1 секунду
+	go func() {
+		time.Sleep(1 * time.Second)
+		if h.phaseManager != nil {
+			err := h.phaseManager.NextPhase(gameID)
+			if err != nil {
+				log.Printf("Failed to advance to next phase after visibility: %v", err)
+			} else {
+				log.Printf("Visibility phase completed, advanced to next phase")
+			}
+		} else {
+			log.Printf("Visibility phase completed, but no phase manager available")
+		}
+	}()
+
 	return nil
 }
 
@@ -61,8 +90,14 @@ func (h *VisibilityPhaseHandler) GetDescription() string {
 	return "Определение видимости юнитов"
 }
 
+func (h *VisibilityPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+	h.phaseManager = pm
+}
+
 // PursuitPhaseHandler обрабатывает фазу преследования
-type PursuitPhaseHandler struct{}
+type PursuitPhaseHandler struct {
+	phaseManager models.PhaseManagerInterface
+}
 
 func (h *PursuitPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
@@ -70,7 +105,25 @@ func (h *PursuitPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 
 func (h *PursuitPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - преследование кораблей
-	log.Printf("Pursuit phase started for game %s turn %d", gameID, turn)
+	log.Printf("Сработал переход в фазу pursuit ход %d", turn)
+
+	// TODO: логика фазы будет реализована здесь
+
+	// Автоматически переходим к следующей фазе через 1 секунду
+	go func() {
+		time.Sleep(1 * time.Second)
+		if h.phaseManager != nil {
+			err := h.phaseManager.NextPhase(gameID)
+			if err != nil {
+				log.Printf("Failed to advance to next phase after pursuit: %v", err)
+			} else {
+				log.Printf("Pursuit phase completed, advanced to next phase")
+			}
+		} else {
+			log.Printf("Pursuit phase completed, but no phase manager available")
+		}
+	}()
+
 	return nil
 }
 
@@ -91,8 +144,14 @@ func (h *PursuitPhaseHandler) GetDescription() string {
 	return "Преследование кораблей"
 }
 
+func (h *PursuitPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+	h.phaseManager = pm
+}
+
 // MovementPhaseHandler обрабатывает фазу движения
-type MovementPhaseHandler struct{}
+type MovementPhaseHandler struct {
+	phaseManager models.PhaseManagerInterface
+}
 
 func (h *MovementPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
@@ -121,8 +180,14 @@ func (h *MovementPhaseHandler) GetDescription() string {
 	return "Движение кораблей"
 }
 
+func (h *MovementPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+	// MovementPhaseHandler не использует автоматический переход
+}
+
 // SearchPhaseHandler обрабатывает фазу поиска
-type SearchPhaseHandler struct{}
+type SearchPhaseHandler struct {
+	phaseManager models.PhaseManagerInterface
+}
 
 func (h *SearchPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
@@ -130,7 +195,25 @@ func (h *SearchPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 
 func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - поиск противника
-	log.Printf("Search phase started for game %s turn %d", gameID, turn)
+	log.Printf("Сработал переход в фазу search ход %d", turn)
+
+	// TODO: логика фазы будет реализована здесь
+
+	// Автоматически переходим к следующей фазе через 1 секунду
+	go func() {
+		time.Sleep(1 * time.Second)
+		if h.phaseManager != nil {
+			err := h.phaseManager.NextPhase(gameID)
+			if err != nil {
+				log.Printf("Failed to advance to next phase after search: %v", err)
+			} else {
+				log.Printf("Search phase completed, advanced to next phase")
+			}
+		} else {
+			log.Printf("Search phase completed, but no phase manager available")
+		}
+	}()
+
 	return nil
 }
 
@@ -151,8 +234,14 @@ func (h *SearchPhaseHandler) GetDescription() string {
 	return "Поиск противника"
 }
 
+func (h *SearchPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+	h.phaseManager = pm
+}
+
 // AirAttackPhaseHandler обрабатывает фазу воздушной атаки
-type AirAttackPhaseHandler struct{}
+type AirAttackPhaseHandler struct {
+	phaseManager models.PhaseManagerInterface
+}
 
 func (h *AirAttackPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
@@ -160,7 +249,25 @@ func (h *AirAttackPhaseHandler) CanStart(gameID string, turn int) (bool, error) 
 
 func (h *AirAttackPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - атаки с воздуха
-	log.Printf("Air attack phase started for game %s turn %d", gameID, turn)
+	log.Printf("Сработал переход в фазу air_attack ход %d", turn)
+
+	// TODO: логика фазы будет реализована здесь
+
+	// Автоматически переходим к следующей фазе через 1 секунду
+	go func() {
+		time.Sleep(1 * time.Second)
+		if h.phaseManager != nil {
+			err := h.phaseManager.NextPhase(gameID)
+			if err != nil {
+				log.Printf("Failed to advance to next phase after air_attack: %v", err)
+			} else {
+				log.Printf("Air attack phase completed, advanced to next phase")
+			}
+		} else {
+			log.Printf("Air attack phase completed, but no phase manager available")
+		}
+	}()
+
 	return nil
 }
 
@@ -181,8 +288,14 @@ func (h *AirAttackPhaseHandler) GetDescription() string {
 	return "Атаки с воздуха"
 }
 
+func (h *AirAttackPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+	h.phaseManager = pm
+}
+
 // NavalCombatPhaseHandler обрабатывает фазу морского боя
-type NavalCombatPhaseHandler struct{}
+type NavalCombatPhaseHandler struct {
+	phaseManager models.PhaseManagerInterface
+}
 
 func (h *NavalCombatPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
@@ -190,7 +303,25 @@ func (h *NavalCombatPhaseHandler) CanStart(gameID string, turn int) (bool, error
 
 func (h *NavalCombatPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - морской бой
-	log.Printf("Naval combat phase started for game %s turn %d", gameID, turn)
+	log.Printf("Сработал переход в фазу naval_combat ход %d", turn)
+
+	// TODO: логика фазы будет реализована здесь
+
+	// Автоматически переходим к следующей фазе через 1 секунду
+	go func() {
+		time.Sleep(1 * time.Second)
+		if h.phaseManager != nil {
+			err := h.phaseManager.NextPhase(gameID)
+			if err != nil {
+				log.Printf("Failed to advance to next phase after naval_combat: %v", err)
+			} else {
+				log.Printf("Naval combat phase completed, advanced to next phase")
+			}
+		} else {
+			log.Printf("Naval combat phase completed, but no phase manager available")
+		}
+	}()
+
 	return nil
 }
 
@@ -211,8 +342,14 @@ func (h *NavalCombatPhaseHandler) GetDescription() string {
 	return "Боевые действия на море"
 }
 
+func (h *NavalCombatPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+	h.phaseManager = pm
+}
+
 // ChancePhaseHandler обрабатывает фазу случайных событий
-type ChancePhaseHandler struct{}
+type ChancePhaseHandler struct {
+	phaseManager models.PhaseManagerInterface
+}
 
 func (h *ChancePhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
@@ -220,7 +357,25 @@ func (h *ChancePhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 
 func (h *ChancePhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - случайные события
-	log.Printf("Chance phase started for game %s turn %d", gameID, turn)
+	log.Printf("Сработал переход в фазу chance ход %d", turn)
+
+	// TODO: логика фазы будет реализована здесь
+
+	// Автоматически переходим к следующей фазе через 1 секунду
+	go func() {
+		time.Sleep(1 * time.Second)
+		if h.phaseManager != nil {
+			err := h.phaseManager.NextPhase(gameID)
+			if err != nil {
+				log.Printf("Failed to advance to next phase after chance: %v", err)
+			} else {
+				log.Printf("Chance phase completed, advanced to next phase")
+			}
+		} else {
+			log.Printf("Chance phase completed, but no phase manager available")
+		}
+	}()
+
 	return nil
 }
 
@@ -241,8 +396,14 @@ func (h *ChancePhaseHandler) GetDescription() string {
 	return "Обработка случайных событий"
 }
 
+func (h *ChancePhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+	h.phaseManager = pm
+}
+
 // AdminPhaseHandler обрабатывает административную фазу
-type AdminPhaseHandler struct{}
+type AdminPhaseHandler struct {
+	phaseManager models.PhaseManagerInterface
+}
 
 func (h *AdminPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
@@ -250,7 +411,25 @@ func (h *AdminPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 
 func (h *AdminPhaseHandler) Start(gameID string, turn int) error {
 	// Заглушка - административные действия
-	log.Printf("Admin phase started for game %s turn %d", gameID, turn)
+	log.Printf("Сработал переход в фазу admin ход %d", turn)
+
+	// TODO: логика фазы будет реализована здесь
+
+	// Автоматически переходим к следующей фазе через 1 секунду
+	go func() {
+		time.Sleep(1 * time.Second)
+		if h.phaseManager != nil {
+			err := h.phaseManager.NextPhase(gameID)
+			if err != nil {
+				log.Printf("Failed to advance to next phase after admin: %v", err)
+			} else {
+				log.Printf("Admin phase completed, advanced to next phase")
+			}
+		} else {
+			log.Printf("Admin phase completed, but no phase manager available")
+		}
+	}()
+
 	return nil
 }
 
@@ -269,4 +448,8 @@ func (h *AdminPhaseHandler) GetName() string {
 
 func (h *AdminPhaseHandler) GetDescription() string {
 	return "Подведение итогов хода"
+}
+
+func (h *AdminPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+	h.phaseManager = pm
 }
