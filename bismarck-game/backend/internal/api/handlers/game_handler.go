@@ -402,7 +402,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем игру
 	var game models.Game
 	var settingsJSON []byte
-	var player2ID sql.NullString
+	var player1ID, player2ID sql.NullString
 	var completedAt sql.NullTime
 	var player1Username sql.NullString
 	query := `
@@ -415,7 +415,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	`
 
 	err = h.db.GetConnection().QueryRowContext(r.Context(), query, gameID).Scan(
-		&game.ID, &game.Name, &game.Player1ID, &player2ID,
+		&game.ID, &game.Name, &player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
 		&completedAt, &player1Username,
@@ -431,6 +431,9 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Обрабатываем nullable поля
+	if player1ID.Valid {
+		game.Player1ID = player1ID.String
+	}
 	if player2ID.Valid {
 		game.Player2ID = player2ID.String
 	}
@@ -459,9 +462,20 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Проверяем, что пользователь не является создателем игры
-	if game.Player1ID == userID || game.Player2ID == userID {
-		utils.WriteValidationError(w, "Cannot join your own game", map[string]string{
-			"game": "You cannot join a game you created",
+	// Но разрешаем присоединиться, если создатель выбрал другую сторону
+	if game.Player1ID == userID && game.Player2ID == userID {
+		// Пользователь уже в игре с обеих сторон (не должно происходить)
+		utils.WriteValidationError(w, "You are already in this game", map[string]string{
+			"game": "You are already participating in this game",
+		})
+		return
+	}
+
+	// Если пользователь уже в игре с одной стороны, не позволяем присоединиться с другой
+	if (game.Player1ID == userID && req.Side == models.PlayerSideGerman) ||
+		(game.Player2ID == userID && req.Side == models.PlayerSideAllied) {
+		utils.WriteValidationError(w, "You are already in this game", map[string]string{
+			"game": "You are already participating in this game",
 		})
 		return
 	}
@@ -552,7 +566,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 			// Не прерываем присоединение к игре, просто логируем ошибку
 		} else {
 			log.Printf("Game units initialized successfully after join for game %s", gameID)
-			
+
 			// Автоматически запускаем setup фазу (размещение кораблей)
 			// Это происходит в фоне, не блокируя ответ
 			go func() {
@@ -565,27 +579,27 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 					Status:       "active",
 					StartTime:    time.Now(),
 				}
-				
+
 				// Сохраняем setup фазу в базу данных
 				query := `
 					INSERT INTO game_turns (id, game_id, turn_number, current_phase, status, start_time, created_at, updated_at)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 				`
-				_, err := h.db.GetConnection().Exec(query, 
+				_, err := h.db.GetConnection().Exec(query,
 					setupTurn.ID, setupTurn.GameID, setupTurn.TurnNumber,
-					setupTurn.CurrentPhase, setupTurn.Status, setupTurn.StartTime, 
+					setupTurn.CurrentPhase, setupTurn.Status, setupTurn.StartTime,
 					time.Now(), time.Now())
-				
+
 				if err != nil {
 					log.Printf("Error creating setup phase: %v", err)
 				} else {
 					log.Printf("Setup phase created successfully for game %s", gameID)
-					
+
 					// Обновляем текущую фазу игры
 					_, err = h.db.GetConnection().Exec(`
 						UPDATE games SET current_phase = $1, updated_at = $2 WHERE id = $3
 					`, models.PhaseSetup, time.Now(), gameID)
-					
+
 					if err != nil {
 						log.Printf("Error updating game phase to setup: %v", err)
 					}

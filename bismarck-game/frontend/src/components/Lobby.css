@@ -209,6 +209,17 @@
   font-size: 14px;
 }
 
+.game-turn {
+  margin: 8px 0 !important;
+  color: #333 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  background: #e3f2fd;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border-left: 3px solid #2196f3;
+}
+
 .game-creator {
   font-weight: 500;
   color: #333 !important;

@@ -38,9 +38,17 @@ export interface StartTurnRequest {
 // API функции для управления фазами
 export const phaseAPI = {
   // Получить текущую фазу игры
-  getCurrentPhase: async (gameId: string): Promise<GameTurn> => {
-    const response = await apiClient.get(`/api/phases/current?game_id=${gameId}`);
-    return response.data.data;
+  getCurrentPhase: async (gameId: string): Promise<GameTurn | null> => {
+    try {
+      const response = await apiClient.get(`/api/phases/current?game_id=${gameId}`);
+      return response.data.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        // Нет активного хода
+        return null;
+      }
+      throw error;
+    }
   },
 
   // Получить записи о фазах для хода

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GameTurn, PhaseRecord, GamePhase, PhaseStatus, getPhaseConfig, getPhaseStatusText, getPhaseStatusColor, getPhaseSequence } from '../types/phaseTypes';
+import { Game } from '../types/gameTypes';
 import { phaseAPI } from '../services/api/phaseAPI';
 import './PhasePanel.css';
 
@@ -8,11 +9,7 @@ interface PhasePanelProps {
   currentTurn?: GameTurn;
   onPhaseChange?: (phase: GamePhase) => void;
   currentUserId?: string;
-  currentGame?: {
-    player1_id: string;
-    player2_id?: string;
-    status: string;
-  };
+  currentGame?: Game;
 }
 
 const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseChange, currentUserId, currentGame }) => {
@@ -22,7 +19,7 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
 
   // Загружаем записи о фазах при изменении хода
   useEffect(() => {
-    if (currentTurn) {
+    if (currentTurn && currentTurn.turn_number) {
       loadPhaseRecords(currentTurn.turn_number);
     }
   }, [currentTurn]);
@@ -122,6 +119,14 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
       } else {
         // Если newTurn не содержит turn_number, загружаем ход 1
         await loadPhaseRecords(1);
+      }
+      
+      // Обновляем информацию о текущем ходе
+      const updatedTurn = await phaseAPI.getCurrentPhase(gameId);
+      if (updatedTurn) {
+        // Уведомляем родительский компонент об обновлении хода
+        // Это нужно для обновления состояния в Game.tsx
+        window.dispatchEvent(new CustomEvent('turnUpdated', { detail: updatedTurn }));
       }
     } catch (err) {
       setError('Ошибка начала хода');

@@ -39,6 +39,12 @@ export interface GameTurn {
   updated_at: string;
 }
 
+// Тип для ответа API, который может содержать обернутые данные
+export interface GameTurnResponse {
+  data?: GameTurn;
+  success?: boolean;
+}
+
 export interface PhaseConfig {
   phase: GamePhase;
   name: string;

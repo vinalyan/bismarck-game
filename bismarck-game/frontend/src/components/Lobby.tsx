@@ -414,6 +414,11 @@ const Lobby: React.FC = () => {
                       Сложность: {game.settings?.difficulty || 'Стандартная'}, 
                       Лимит времени: {game.settings?.time_limit_minutes || 180} мин
                     </p>
+                    {game.status === GameStatus.InProgress && (
+                      <p className="game-turn">
+                        📊 Ход: {game.current_turn} | Фаза: {game.current_phase}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="game-status">

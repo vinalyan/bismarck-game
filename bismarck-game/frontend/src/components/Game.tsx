@@ -10,9 +10,9 @@ import { activeHexesUtils, ActiveHex, useActiveHexes } from '../utils/activeHexe
 import { MAP_CONSTANTS } from '../utils/hexUtils';
 import { unitsAPI, GameUnit, UpdatePositionRequest } from '../services/api/unitsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
+import { GameTurnResponse } from '../types/phaseTypes';
 import { GamePhase as PhaseType } from '../types/phaseTypes';
 import HexMap from './HexMap';
-import PhasePanel from './PhasePanel';
 import './Game.css';
 
 const Game: React.FC = () => {
@@ -31,7 +31,35 @@ const Game: React.FC = () => {
   const [selectedUnitData, setSelectedUnitData] = useState<any>(null);
   const [availableMovementHexes, setAvailableMovementHexes] = useState<MovementHex[]>([]);
   const [shipsData, setShipsData] = useState<ShipData[]>([]);
-  const [currentTurn, setCurrentTurn] = useState<GameTurn | null>(null);
+  const [currentTurn, setCurrentTurn] = useState<GameTurn | GameTurnResponse | null>(null);
+
+  // Helper функция для получения данных хода
+  const getTurnData = (turn: GameTurn | GameTurnResponse | null): GameTurn | null => {
+    if (!turn) return null;
+    if ('data' in turn && turn.data) {
+      return turn.data;
+    }
+    if ('turn_number' in turn) {
+      return turn as GameTurn;
+    }
+    return null;
+  };
+
+  // Helper функция для отображения названий фаз
+  const getPhaseDisplayName = (phase: string): string => {
+    const phaseNames: { [key: string]: string } = {
+      'setup': 'Подготовка',
+      'visibility': 'Видимость',
+      'pursuit': 'Преследование',
+      'movement': 'Движение',
+      'search': 'Поиск',
+      'air_attack': 'Воздушная атака',
+      'naval_combat': 'Морской бой',
+      'chance': 'Случайное событие',
+      'admin': 'Администрирование'
+    };
+    return phaseNames[phase] || phase;
+  };
   const [loadingShips, setLoadingShips] = useState(false);
   const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
@@ -127,6 +155,59 @@ const Game: React.FC = () => {
 
     loadGameUnits();
   }, [currentGame?.id, authToken, addNotification]);
+
+  // Загружаем информацию о текущем ходе при монтировании компонента
+  useEffect(() => {
+    const loadCurrentTurn = async () => {
+      if (!currentGame?.id) {
+        return;
+      }
+
+      try {
+        const turn = await phaseAPI.getCurrentPhase(currentGame.id);
+        setCurrentTurn(turn);
+      } catch (error) {
+        console.error('Error loading current turn:', error);
+        // Если нет активного хода, устанавливаем null
+        setCurrentTurn(null);
+      }
+    };
+
+    loadCurrentTurn();
+  }, [currentGame?.id]);
+
+  // Обработчик обновления хода
+  useEffect(() => {
+    const handleTurnUpdate = (event: CustomEvent) => {
+      const updatedTurn = event.detail;
+      setCurrentTurn(updatedTurn);
+    };
+
+    window.addEventListener('turnUpdated', handleTurnUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('turnUpdated', handleTurnUpdate as EventListener);
+    };
+  }, []);
+
+  // Обработчик обновления игры
+  useEffect(() => {
+    const handleGameUpdate = async () => {
+      // Перезагружаем информацию об игре из store
+      // Это обновит currentGame.current_phase
+      if (currentGame?.id) {
+        // Можно добавить API вызов для обновления информации об игре
+        // Пока что просто логируем
+        console.log('Game updated event received');
+      }
+    };
+
+    window.addEventListener('gameUpdated', handleGameUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('gameUpdated', handleGameUpdate as EventListener);
+    };
+  }, [currentGame?.id]);
 
   // Обработчик клика по гексу для движения
   const handleHexClick = (coordinate: HexCoordinate) => {
@@ -554,10 +635,22 @@ const Game: React.FC = () => {
           <h1>🎮 {currentGame.name}</h1>
           <div className="game-info">
             <span className="phase-info">
-              Фаза: {getCurrentPhaseText(currentGame.current_phase)}
+              Фаза: {(() => {
+                const turnData = getTurnData(currentTurn);
+                if (turnData && turnData.current_phase) {
+                  return getPhaseDisplayName(turnData.current_phase);
+                }
+                return getPhaseDisplayName(currentGame.current_phase);
+              })()}
             </span>
             <span className="turn-info">
-              Ход: {currentGame.current_turn}
+              Ход: {(() => {
+                const turnData = getTurnData(currentTurn);
+                if (turnData && turnData.turn_number !== undefined) {
+                  return turnData.turn_number;
+                }
+                return currentGame.current_turn;
+              })()}
             </span>
           </div>
         </div>
@@ -615,19 +708,6 @@ const Game: React.FC = () => {
             )}
           </div>
 
-          {/* Панель управления фазами */}
-          <PhasePanel 
-            gameId={currentGame.id} 
-            currentTurn={currentTurn || undefined}
-            currentUserId={user?.id}
-            currentGame={currentGame}
-            onPhaseChange={(phase) => {
-              // Обновляем текущую фазу в состоянии
-              if (currentTurn) {
-                setCurrentTurn({ ...currentTurn, current_phase: phase as any });
-              }
-            }}
-          />
 
           {/* Выбранный гекс/юнит */}
           {selectedHex && (
@@ -784,6 +864,63 @@ const Game: React.FC = () => {
           <div className="action-panel">
             <h3>Действия</h3>
             <div className="action-buttons">
+              {/* Кнопка "Начать ход 1" - только для немецкого игрока на фазе setup */}
+              {(() => {
+                const isGermanPlayer = currentGame?.player1_id === user?.id;
+                const isGameReady = currentGame?.status === 'active' && !!currentGame?.player2_id;
+                // Кнопка показывается только если активный ход - это setup фаза (turn_number = 0)
+                const turnData = getTurnData(currentTurn);
+                const isSetupTurn = turnData && turnData.turn_number === 0 && turnData.current_phase === 'setup';
+                
+                
+                // Кнопка показывается только для немецкого игрока на setup фазе
+                if (isGermanPlayer && isGameReady && isSetupTurn) {
+                  return (
+              <button 
+                      className="action-button primary"
+                      onClick={async () => {
+                        if (!currentGame?.id) return;
+                        
+                        try {
+                          // Начинаем первый ход
+                          await phaseAPI.startTurn({ game_id: currentGame.id });
+                          
+                          // Обновляем информацию о текущем ходе
+                          const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
+                          setCurrentTurn(updatedTurn);
+                          
+                          // Уведомляем об обновлении хода
+                          window.dispatchEvent(new CustomEvent('turnUpdated', { detail: updatedTurn }));
+                          
+                          // Обновляем информацию об игре (чтобы current_phase обновился)
+                          window.dispatchEvent(new CustomEvent('gameUpdated'));
+                          
+                          addNotification({
+                            type: NotificationType.Success,
+                            title: 'Ход начат',
+                            message: 'Первый ход успешно начат',
+                            read: false
+                          });
+                          
+                          console.log('Первый ход начат успешно');
+                        } catch (error) {
+                          console.error('Ошибка начала хода:', error);
+                          addNotification({
+                            type: NotificationType.Error,
+                            title: 'Ошибка',
+                            message: 'Не удалось начать ход',
+                            read: false
+                          });
+                        }
+                      }}
+                    >
+                      🚀 Начать ход 1
+              </button>
+                  );
+                }
+                return null;
+              })()}
+              
               <button 
                 className="action-button"
                 onClick={handleRefuelAllShips}
@@ -794,7 +931,7 @@ const Game: React.FC = () => {
               <button 
                 className="action-button"
                 onClick={handleCompletePhase}
-                disabled={!currentTurn || currentTurn.current_phase !== 'movement'}
+                disabled={!currentTurn || getTurnData(currentTurn)?.current_phase !== 'movement'}
               >
                 Завершить ход
               </button>
