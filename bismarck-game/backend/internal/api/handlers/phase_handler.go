@@ -7,6 +7,7 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/utils"
+
 	"github.com/gorilla/mux"
 )
 
@@ -204,8 +205,7 @@ func (h *PhaseHandler) NextPhase(w http.ResponseWriter, r *http.Request) {
 // StartTurn начинает новый ход
 func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		GameID     string `json:"game_id"`
-		TurnNumber int    `json:"turn_number"`
+		GameID string `json:"game_id"`
 	}
 
 	if err := utils.ParseJSON(r, &req); err != nil {
@@ -222,14 +222,7 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.TurnNumber <= 0 {
-		utils.WriteValidationError(w, "Turn number must be positive", map[string]string{
-			"turn_number": "Turn number must be a positive integer",
-		})
-		return
-	}
-
-	err := h.phaseManager.StartTurn(req.GameID, req.TurnNumber)
+	turn, err := h.phaseManager.StartTurn(req.GameID)
 	if err != nil {
 		utils.WriteInternalError(w, "Failed to start turn: "+err.Error())
 		return
@@ -237,6 +230,7 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
+		"data":    turn,
 		"message": "Turn started successfully",
 	})
 }
@@ -267,7 +261,7 @@ func (h *PhaseHandler) GetPhaseInfo(w http.ResponseWriter, r *http.Request) {
 // GetAllPhases возвращает информацию о всех фазах
 func (h *PhaseHandler) GetAllPhases(w http.ResponseWriter, r *http.Request) {
 	configs := models.GetPhaseConfigs()
-	
+
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"data":    configs,
@@ -275,16 +269,13 @@ func (h *PhaseHandler) GetAllPhases(w http.ResponseWriter, r *http.Request) {
 }
 
 // RegisterRoutes регистрирует маршруты для управления фазами
-func (h *PhaseHandler) RegisterRoutes(router interface{}) {
-	// Используем type assertion для поддержки разных типов роутеров
-	if muxRouter, ok := router.(*mux.Router); ok {
-		muxRouter.HandleFunc("/api/phases/current", h.GetCurrentPhase)
-		muxRouter.HandleFunc("/api/phases/records", h.GetPhaseRecords)
-		muxRouter.HandleFunc("/api/phases/start", h.StartPhase)
-		muxRouter.HandleFunc("/api/phases/complete", h.CompletePhase)
-		muxRouter.HandleFunc("/api/phases/next", h.NextPhase)
-		muxRouter.HandleFunc("/api/phases/turn/start", h.StartTurn)
-		muxRouter.HandleFunc("/api/phases/info", h.GetPhaseInfo)
-		muxRouter.HandleFunc("/api/phases/all", h.GetAllPhases)
-	}
+func (h *PhaseHandler) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("/api/phases/current", h.GetCurrentPhase).Methods("GET")
+	router.HandleFunc("/api/phases/records", h.GetPhaseRecords).Methods("GET")
+	router.HandleFunc("/api/phases/start", h.StartPhase).Methods("POST")
+	router.HandleFunc("/api/phases/complete", h.CompletePhase).Methods("POST")
+	router.HandleFunc("/api/phases/next", h.NextPhase).Methods("POST")
+	router.HandleFunc("/api/phases/turn/start", h.StartTurn).Methods("POST")
+	router.HandleFunc("/api/phases/info", h.GetPhaseInfo).Methods("GET")
+	router.HandleFunc("/api/phases/all", h.GetAllPhases).Methods("GET")
 }

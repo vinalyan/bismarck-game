@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { GameTurn, PhaseRecord, PhaseConfig } from '../../types/phaseTypes';
 
+// Экспортируем GameTurn для использования в других файлах
+export type { GameTurn } from '../../types/phaseTypes';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 // Создаем экземпляр axios с базовой конфигурацией
