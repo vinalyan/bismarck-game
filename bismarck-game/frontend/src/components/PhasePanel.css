@@ -44,6 +44,18 @@
   border-radius: 4px;
 }
 
+.turn-start-time {
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.turn-status {
+  font-size: 0.75rem;
+  color: #28a745;
+  font-weight: 500;
+}
+
 .error-message {
   background: #f8d7da;
   color: #721c24;
@@ -51,6 +63,46 @@
   border-radius: 4px;
   margin-bottom: 16px;
   border: 1px solid #f5c6cb;
+}
+
+.start-turn-section {
+  text-align: center;
+  padding: 20px;
+  background: #e3f2fd;
+  border-radius: 8px;
+  border: 2px solid #2196f3;
+}
+
+.start-turn-section p {
+  margin: 0 0 16px 0;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.start-turn-button {
+  background: #2196f3;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 140px;
+}
+
+.start-turn-button:hover:not(:disabled) {
+  background: #1976d2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+.start-turn-button:disabled {
+  background: #90caf9;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .phases-list {

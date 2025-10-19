@@ -8,7 +8,7 @@ import (
 const (
 	// PhaseSetup - Подготовка (только в первом ходу)
 	PhaseSetup GamePhase = "setup"
-	
+
 	// PhasePursuit - Фаза преследования (пропустить на 1-м ходу)
 	PhasePursuit GamePhase = "pursuit"
 )
@@ -25,26 +25,26 @@ const (
 
 // PhaseRecord представляет запись о фазе
 type PhaseRecord struct {
-	Phase     GamePhase  `json:"phase" db:"phase"`
-	Turn      int        `json:"turn" db:"turn"`
+	Phase     GamePhase   `json:"phase" db:"phase"`
+	Turn      int         `json:"turn" db:"turn_number"`
 	Status    PhaseStatus `json:"status" db:"status"`
-	StartTime *time.Time `json:"start_time" db:"start_time"`
-	EndTime   *time.Time `json:"end_time" db:"end_time"`
-	Duration  int        `json:"duration" db:"duration"` // в секундах
-	Data      string     `json:"data" db:"data"`         // JSON данные фазы
+	StartTime *time.Time  `json:"start_time" db:"start_time"`
+	EndTime   *time.Time  `json:"end_time" db:"end_time"`
+	Duration  int         `json:"duration" db:"duration"` // в секундах
+	Data      string      `json:"data" db:"data"`         // JSON данные фазы
 }
 
 // GameTurn представляет ход игры
 type GameTurn struct {
-	ID          string    `json:"id" db:"id"`
-	GameID      string    `json:"game_id" db:"game_id"`
-	TurnNumber  int       `json:"turn_number" db:"turn_number"`
-	CurrentPhase GamePhase `json:"current_phase" db:"current_phase"`
-	Status      string    `json:"status" db:"status"` // "active", "completed"
-	StartTime   time.Time `json:"start_time" db:"start_time"`
-	EndTime     *time.Time `json:"end_time" db:"end_time"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ID           string     `json:"id" db:"id"`
+	GameID       string     `json:"game_id" db:"game_id"`
+	TurnNumber   int        `json:"turn_number" db:"turn_number"`
+	CurrentPhase GamePhase  `json:"current_phase" db:"current_phase"`
+	Status       string     `json:"status" db:"status"` // "active", "completed"
+	StartTime    time.Time  `json:"start_time" db:"start_time"`
+	EndTime      *time.Time `json:"end_time" db:"end_time"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // PhaseHandler представляет обработчик фазы
@@ -62,15 +62,15 @@ type PhaseConfig struct {
 	Phase       GamePhase `json:"phase"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	Duration    int       `json:"duration"` // в секундах, 0 = без ограничений
+	Duration    int       `json:"duration"`       // в секундах, 0 = без ограничений
 	SkipOnTurn1 bool      `json:"skip_on_turn_1"` // пропускать в первом ходу
-	Required    bool      `json:"required"` // обязательная фаза
+	Required    bool      `json:"required"`       // обязательная фаза
 }
 
 // GetPhaseConfigs возвращает конфигурации всех фаз
-func GetPhaseConfigs() []PhaseConfig {
-	return []PhaseConfig{
-		{
+func GetPhaseConfigs() map[GamePhase]PhaseConfig {
+	return map[GamePhase]PhaseConfig{
+		PhaseSetup: {
 			Phase:       PhaseSetup,
 			Name:        "Подготовка",
 			Description: "Расстановка юнитов на карте. Немецкий игрок расставляет танкеры.",
@@ -78,7 +78,7 @@ func GetPhaseConfigs() []PhaseConfig {
 			SkipOnTurn1: false,
 			Required:    true,
 		},
-		{
+		PhaseVisibility: {
 			Phase:       PhaseVisibility,
 			Name:        "Фаза видимости",
 			Description: "Определение погоды и уровня видимости.",
@@ -86,7 +86,7 @@ func GetPhaseConfigs() []PhaseConfig {
 			SkipOnTurn1: true,
 			Required:    true,
 		},
-		{
+		PhasePursuit: {
 			Phase:       PhasePursuit,
 			Name:        "Фаза преследования",
 			Description: "Попытки преследования обнаруженных кораблей.",
@@ -94,7 +94,7 @@ func GetPhaseConfigs() []PhaseConfig {
 			SkipOnTurn1: true,
 			Required:    true,
 		},
-		{
+		PhaseMovement: {
 			Phase:       PhaseMovement,
 			Name:        "Фаза движения",
 			Description: "Движение морских и воздушных юнитов.",
@@ -102,7 +102,7 @@ func GetPhaseConfigs() []PhaseConfig {
 			SkipOnTurn1: false,
 			Required:    true,
 		},
-		{
+		PhaseSearch: {
 			Phase:       PhaseSearch,
 			Name:        "Фаза поиска",
 			Description: "Поиск и обнаружение юнитов противника.",
@@ -110,7 +110,7 @@ func GetPhaseConfigs() []PhaseConfig {
 			SkipOnTurn1: false,
 			Required:    true,
 		},
-		{
+		PhaseAirAttack: {
 			Phase:       PhaseAirAttack,
 			Name:        "Фаза воздушного боя",
 			Description: "Воздушные атаки и бои.",
@@ -118,7 +118,7 @@ func GetPhaseConfigs() []PhaseConfig {
 			SkipOnTurn1: false,
 			Required:    true,
 		},
-		{
+		PhaseNavalCombat: {
 			Phase:       PhaseNavalCombat,
 			Name:        "Фаза морского боя",
 			Description: "Морские сражения между кораблями.",
@@ -126,7 +126,7 @@ func GetPhaseConfigs() []PhaseConfig {
 			SkipOnTurn1: false,
 			Required:    true,
 		},
-		{
+		PhaseChance: {
 			Phase:       PhaseChance,
 			Name:        "Фаза случайных событий",
 			Description: "Случайные события: контакт с подлодкой, охота на конвои.",
@@ -134,7 +134,7 @@ func GetPhaseConfigs() []PhaseConfig {
 			SkipOnTurn1: false,
 			Required:    true,
 		},
-		{
+		PhaseAdmin: {
 			Phase:       PhaseAdmin,
 			Name:        "Админская фаза",
 			Description: "Административные действия: подсчет очков, проверка условий победы.",
@@ -146,7 +146,7 @@ func GetPhaseConfigs() []PhaseConfig {
 }
 
 // GetPhaseSequence возвращает последовательность фаз для хода
-func GetPhaseSequence(turn int) []GamePhase {
+func GetPhaseSequence(turnNumber int) []GamePhase {
 	phases := []GamePhase{
 		PhaseSetup,
 		PhaseVisibility,
@@ -158,9 +158,9 @@ func GetPhaseSequence(turn int) []GamePhase {
 		PhaseChance,
 		PhaseAdmin,
 	}
-	
+
 	// В первом ходу пропускаем фазы видимости и преследования
-	if turn == 1 {
+	if turnNumber == 1 {
 		filtered := []GamePhase{PhaseSetup}
 		for _, phase := range phases[1:] {
 			if phase != PhaseVisibility && phase != PhasePursuit {
@@ -169,17 +169,15 @@ func GetPhaseSequence(turn int) []GamePhase {
 		}
 		return filtered
 	}
-	
+
 	return phases
 }
 
 // GetPhaseConfig возвращает конфигурацию для фазы
 func GetPhaseConfig(phase GamePhase) *PhaseConfig {
 	configs := GetPhaseConfigs()
-	for _, config := range configs {
-		if config.Phase == phase {
-			return &config
-		}
+	if config, exists := configs[phase]; exists {
+		return &config
 	}
 	return nil
 }

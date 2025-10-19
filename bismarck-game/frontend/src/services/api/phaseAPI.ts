@@ -33,7 +33,6 @@ export interface NextPhaseRequest {
 
 export interface StartTurnRequest {
   game_id: string;
-  turn_number: number;
 }
 
 // API функции для управления фазами
@@ -66,8 +65,9 @@ export const phaseAPI = {
   },
 
   // Начать новый ход
-  startTurn: async (request: StartTurnRequest): Promise<void> => {
-    await apiClient.post('/api/phases/turn/start', request);
+  startTurn: async (request: StartTurnRequest): Promise<GameTurn> => {
+    const response = await apiClient.post('/api/phases/turn/start', request);
+    return response.data.data;
   },
 
   // Получить информацию о фазе

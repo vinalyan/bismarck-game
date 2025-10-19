@@ -582,7 +582,18 @@ const Game: React.FC = () => {
           </div>
 
           {/* Панель управления фазами */}
-          <PhasePanel gameId={currentGame.id} />
+          <PhasePanel 
+            gameId={currentGame.id} 
+            currentTurn={currentTurn || undefined}
+            currentUserId={user?.id}
+            currentGame={currentGame}
+            onPhaseChange={(phase) => {
+              // Обновляем текущую фазу в состоянии
+              if (currentTurn) {
+                setCurrentTurn({ ...currentTurn, current_phase: phase as any });
+              }
+            }}
+          />
 
           {/* Выбранный гекс/юнит */}
           {selectedHex && (

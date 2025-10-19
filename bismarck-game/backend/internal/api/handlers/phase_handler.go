@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -74,11 +75,16 @@ func (h *PhaseHandler) GetPhaseRecords(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Getting phase records for game: %s, turn: %d", gameID, turnNumber)
+
 	records, err := h.phaseManager.GetPhaseRecords(gameID, turnNumber)
 	if err != nil {
+		log.Printf("Failed to get phase records: %v", err)
 		utils.WriteInternalError(w, "Failed to get phase records")
 		return
 	}
+
+	log.Printf("Found %d phase records", len(records))
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
@@ -222,11 +228,16 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Starting turn for game: %s", req.GameID)
+
 	turn, err := h.phaseManager.StartTurn(req.GameID)
 	if err != nil {
+		log.Printf("Failed to start turn: %v", err)
 		utils.WriteInternalError(w, "Failed to start turn: "+err.Error())
 		return
 	}
+
+	log.Printf("Turn started successfully: %+v", turn)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,

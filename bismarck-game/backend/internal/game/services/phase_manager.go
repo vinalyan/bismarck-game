@@ -71,12 +71,24 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		return nil, fmt.Errorf("failed to create turn: %v", err)
 	}
 
+	// Обновляем основную таблицу games
+	updateGameQuery := `
+		UPDATE games 
+		SET current_turn = $1, current_phase = $2, updated_at = $3
+		WHERE id = $4
+	`
+	_, err = pm.db.Exec(updateGameQuery, turnNumber, models.PhaseSetup, time.Now(), gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update game: %v", err)
+	}
+
 	// Инициализируем фазы для хода
 	err = pm.initializePhasesForTurn(gameID, turnNumber)
 	if err != nil {
 		return nil, err
 	}
 
+	log.Printf("Started turn %d for game %s with phase %s", turnNumber, gameID, models.PhaseSetup)
 	return turn, nil
 }
 
@@ -98,10 +110,11 @@ func (pm *PhaseManager) initializePhasesForTurn(gameID string, turnNumber int) e
 		}
 
 		query := `
-			INSERT INTO phase_records (phase, turn, status, data, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6)
+			INSERT INTO phase_records (game_id, turn_number, phase, status, data, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			ON CONFLICT (game_id, turn_number, phase) DO NOTHING
 		`
-		_, err := pm.db.Exec(query, record.Phase, record.Turn, record.Status,
+		_, err := pm.db.Exec(query, gameID, turnNumber, record.Phase, record.Status,
 			"{}", time.Now(), time.Now())
 		if err != nil {
 			return fmt.Errorf("failed to initialize phase %s: %v", phase, err)
@@ -132,9 +145,9 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 	query := `
 		UPDATE phase_records 
 		SET status = $1, start_time = $2, updated_at = $3
-		WHERE phase = $4 AND turn = $5
+		WHERE game_id = $4 AND turn_number = $5 AND phase = $6
 	`
-	_, err = pm.db.Exec(query, models.PhaseStatusActive, now, now, phase, turnNumber)
+	_, err = pm.db.Exec(query, models.PhaseStatusActive, now, now, gameID, turnNumber, phase)
 	if err != nil {
 		return fmt.Errorf("failed to start phase: %v", err)
 	}
@@ -187,9 +200,9 @@ func (pm *PhaseManager) CompletePhase(gameID string, turnNumber int, phase model
 	query := `
 		UPDATE phase_records 
 		SET status = $1, end_time = $2, updated_at = $3
-		WHERE phase = $4 AND turn = $5
+		WHERE game_id = $4 AND turn_number = $5 AND phase = $6
 	`
-	_, err = pm.db.Exec(query, models.PhaseStatusCompleted, now, now, phase, turnNumber)
+	_, err = pm.db.Exec(query, models.PhaseStatusCompleted, now, now, gameID, turnNumber, phase)
 	if err != nil {
 		return fmt.Errorf("failed to complete phase: %v", err)
 	}
@@ -232,9 +245,9 @@ func (pm *PhaseManager) GetCurrentPhase(gameID string) (*models.GameTurn, error)
 // GetPhaseRecords возвращает записи о фазах для хода
 func (pm *PhaseManager) GetPhaseRecords(gameID string, turnNumber int) ([]models.PhaseRecord, error) {
 	query := `
-		SELECT phase, turn, status, start_time, end_time, duration, data
+		SELECT phase, turn_number, status, start_time, end_time, data
 		FROM phase_records
-		WHERE turn = $1
+		WHERE game_id = $1 AND turn_number = $2
 		ORDER BY 
 			CASE phase
 				WHEN 'setup' THEN 1
@@ -249,7 +262,7 @@ func (pm *PhaseManager) GetPhaseRecords(gameID string, turnNumber int) ([]models
 			END
 	`
 
-	rows, err := pm.db.Query(query, turnNumber)
+	rows, err := pm.db.Query(query, gameID, turnNumber)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query phase records: %v", err)
 	}
@@ -261,7 +274,7 @@ func (pm *PhaseManager) GetPhaseRecords(gameID string, turnNumber int) ([]models
 		var startTime, endTime sql.NullTime
 
 		err := rows.Scan(&record.Phase, &record.Turn, &record.Status,
-			&startTime, &endTime, &record.Duration, &record.Data)
+			&startTime, &endTime, &record.Data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan phase record: %v", err)
 		}

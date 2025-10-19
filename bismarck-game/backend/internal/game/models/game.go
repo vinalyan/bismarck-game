@@ -21,7 +21,6 @@ type GamePhase string
 
 const (
 	PhaseVisibility  GamePhase = "visibility"
-	PhaseShadow      GamePhase = "shadow"
 	PhaseMovement    GamePhase = "movement"
 	PhaseSearch      GamePhase = "search"
 	PhaseAirAttack   GamePhase = "air_attack"
@@ -272,7 +271,7 @@ func IsValidStatus(status string) bool {
 // IsValidPhase проверяет, является ли фаза валидной
 func IsValidPhase(phase string) bool {
 	switch GamePhase(phase) {
-	case PhaseVisibility, PhaseShadow, PhaseMovement, PhaseSearch, PhaseAirAttack, PhaseNavalCombat, PhaseChance, PhaseAdmin, PhaseWaiting:
+	case PhaseVisibility, PhaseMovement, PhaseSearch, PhaseAirAttack, PhaseNavalCombat, PhaseChance, PhaseAdmin, PhaseWaiting:
 		return true
 	default:
 		return false
