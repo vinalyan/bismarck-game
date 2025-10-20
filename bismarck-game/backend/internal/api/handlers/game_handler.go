@@ -12,7 +12,6 @@ import (
 	"bismarck-game/backend/internal/api/middleware"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
-	"bismarck-game/backend/internal/game/utils"
 	"bismarck-game/backend/pkg/database"
 	pkgutils "bismarck-game/backend/pkg/utils"
 
@@ -893,7 +892,7 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 	// Проверяем ограничения движения
 	if req.HexesMoved > 0 {
 		// Проверяем максимальную дальность движения за ход
-		maxRange := utils.GetMaxMovementRange(unit.SpeedRating)
+		maxRange := unit.SpeedRating.GetMaxMovementDistance()
 
 		// Если юнит уже двигался в этом ходу, проверяем общее движение
 		if unit.LastMoveTurn == currentTurn {
@@ -918,27 +917,7 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 	// Рассчитываем расход топлива согласно правилам игры
 	fuelCost := 0
 	if req.HexesMoved > 0 {
-		switch unit.SpeedRating {
-		case models.SpeedTypeFast: // F тип - Быстрый
-			if req.HexesMoved == 1 {
-				fuelCost = 0 // Движение на 1 гекс бесплатно
-			} else if req.HexesMoved == 2 {
-				// Движение на 2 гекса зависит от предыдущего движения
-				previousMovement := unit.PreviousTurnMovedHexes
-				if previousMovement == 0 || previousMovement == 1 {
-					fuelCost = 1 // После 0 или 1 гекса в предыдущий ход
-				} else if previousMovement >= 2 {
-					fuelCost = 2 // После 2+ гексов в предыдущий ход
-				}
-			}
-		case models.SpeedTypeMedium: // M тип - Средний
-			if req.HexesMoved == 1 && unit.PreviousTurnMovedHexes == 1 {
-				fuelCost = 1 // Тратит 1 FP только если двигался на 1 гекс в предыдущий ход
-			}
-			// Иначе 0 FP
-		case models.SpeedTypeSlow, models.SpeedTypeVerySlow: // S и VS типы
-			fuelCost = 0 // Не тратят топливо
-		}
+		fuelCost = unit.SpeedRating.CalculateFuelCost(req.HexesMoved, unit.PreviousTurnMovedHexes)
 	}
 
 	// Обновляем позицию юнита и поля движения

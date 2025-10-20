@@ -505,22 +505,37 @@ const Game: React.FC = () => {
         };
 
         // Рассчитываем оставшуюся дальность движения
-        const maxMovementRange = movementUtils.getMaxMovementDistance(shipData);
+        // Используем speed_rating из API (приоритет) или fallback на локальные данные
+        const speedType = gameUnit?.speed_rating || shipData?.speedType || 'M';
+        const maxMovementRange = movementUtils.getMaxMovementDistance({ 
+          speedType: speedType 
+        } as any);
         const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 1;
         const remainingMovement = (updatedUnitData.last_move_turn === currentTurnNumber) 
           ? Math.max(0, maxMovementRange - (updatedUnitData.movement_used || 0))
           : maxMovementRange;
 
-        console.log('Movement calculation:', {
+        console.log('Movement calculation debug:', {
+          unitName: updatedUnitData.name,
+          speedType: speedType,
+          gameUnitSpeedRating: gameUnit?.speed_rating,
+          shipDataSpeedType: shipData?.speedType,
           maxMovementRange,
           currentTurnNumber,
           lastMoveTurn: updatedUnitData.last_move_turn,
           movementUsed: updatedUnitData.movement_used,
-          remainingMovement
+          remainingMovement,
+          currentFuel: updatedUnitData.currentFuel
         });
 
+        // Создаем объект с правильным speedType для расчета движения
+        const movementShipData = {
+          ...shipData,
+          speedType: speedType
+        };
+
         const availableHexes = movementUtils.getAvailableMovementHexes(
-          shipData,
+          movementShipData,
           currentPosition,
           updatedUnitData.currentFuel,
           previousTurnInfo,

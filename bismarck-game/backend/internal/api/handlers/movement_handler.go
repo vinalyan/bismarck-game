@@ -56,6 +56,15 @@ func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Логируем результат для отладки
+	h.logger.Info("Available moves calculated",
+		"unit_id", unitID,
+		"unit_name", unit.Name,
+		"position", unit.Position,
+		"speed_rating", unit.SpeedRating,
+		"available_hexes_count", len(availableHexes),
+		"available_hexes", availableHexes)
+
 	// Рассчитываем стоимость топлива для каждого хода
 	fuelCosts := make(map[string]int)
 	for _, hex := range availableHexes {
@@ -72,7 +81,7 @@ func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Reque
 		UnitID:         unitID,
 		CurrentHex:     unit.Position,
 		AvailableHexes: availableHexes,
-		MaxDistance:    models.GetSpeedClass(unit.Type).GetMaxMovementDistance(),
+		MaxDistance:    unit.SpeedRating.GetMaxMovementDistance(),
 		FuelCosts:      fuelCosts,
 	}
 

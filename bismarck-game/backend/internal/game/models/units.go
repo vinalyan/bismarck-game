@@ -49,6 +49,56 @@ const (
 	SpeedTypeVerySlow SpeedType = "VS"
 )
 
+// GetMaxMovementDistance возвращает максимальное расстояние движения для класса скорости
+func (st SpeedType) GetMaxMovementDistance() int {
+	switch st {
+	case SpeedTypeFast:
+		return 2
+	case SpeedTypeMedium, SpeedTypeSlow, SpeedTypeVerySlow:
+		return 1
+	default:
+		return 1
+	}
+}
+
+// CanMoveThisTurn проверяет, может ли юнит двигаться в этот ход
+func (st SpeedType) CanMoveThisTurn(previousTurnMoved int) bool {
+	switch st {
+	case SpeedTypeFast, SpeedTypeMedium:
+		return true // Могут двигаться каждый ход
+	case SpeedTypeSlow, SpeedTypeVerySlow:
+		return previousTurnMoved == 0 // Могут двигаться только если не двигались в предыдущем ходу
+	default:
+		return true
+	}
+}
+
+// CalculateFuelCost рассчитывает стоимость топлива для движения
+func (st SpeedType) CalculateFuelCost(hexesToMove int, previousTurnMoved int) int {
+	switch st {
+	case SpeedTypeFast:
+		if hexesToMove == 1 {
+			return 0 // Бесплатное движение на 1 гекс
+		} else if hexesToMove == 2 {
+			if previousTurnMoved == 0 || previousTurnMoved == 1 {
+				return 1 // 1 FP за 2 гекса после 0-1 гекса в предыдущем ходу
+			} else {
+				return 2 // 2 FP за 2 гекса после 2 гексов в предыдущем ходу
+			}
+		}
+		return 0
+	case SpeedTypeMedium:
+		if hexesToMove == 1 && previousTurnMoved == 1 {
+			return 1 // 1 FP за движение после движения в предыдущем ходу
+		}
+		return 0
+	case SpeedTypeSlow, SpeedTypeVerySlow:
+		return 0 // Не тратят топливо
+	default:
+		return 0
+	}
+}
+
 // UnitStatus представляет статус юнита
 type UnitStatus string
 
@@ -131,9 +181,10 @@ type NavalUnit struct {
 	MovementUsed        int      `json:"movement_used" db:"movement_used"`
 
 	// Поля для отслеживания движения согласно правилам игры
-	PreviousTurnMovedHexes int `json:"previous_turn_moved_hexes" db:"previous_turn_moved_hexes"` // Количество гексов, пройденных в предыдущий ход
-	LastMoveTurn           int `json:"last_move_turn" db:"last_move_turn"`                       // Номер хода последнего движения
-	NoMovementTurnsLeft    int `json:"no_movement_turns_left" db:"no_movement_turns_left"`       // Оставшиеся ходы без движения (для VS и S кораблей)
+	PreviousTurnMovedHexes int  `json:"previous_turn_moved_hexes" db:"previous_turn_moved_hexes"` // Количество гексов, пройденных в предыдущий ход
+	LastMoveTurn           int  `json:"last_move_turn" db:"last_move_turn"`                       // Номер хода последнего движения
+	NoMovementTurnsLeft    int  `json:"no_movement_turns_left" db:"no_movement_turns_left"`       // Оставшиеся ходы без движения (для VS и S кораблей)
+	IsActivated            bool `json:"is_activated" db:"is_activated"`                           // Флаг активации юнита в текущем ходу
 
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`

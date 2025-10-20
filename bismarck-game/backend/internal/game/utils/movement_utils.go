@@ -4,23 +4,6 @@ import (
 	"bismarck-game/backend/internal/game/models"
 )
 
-// GetMaxMovementRange возвращает максимальную дальность движения для юнита
-// в зависимости от его типа скорости
-func GetMaxMovementRange(speedType models.SpeedType) int {
-	switch speedType {
-	case models.SpeedTypeFast: // F - Быстрый
-		return 2
-	case models.SpeedTypeMedium: // M - Средний
-		return 1
-	case models.SpeedTypeSlow: // S - Медленный
-		return 1
-	case models.SpeedTypeVerySlow: // VS - Очень медленный
-		return 1
-	default:
-		return 1 // По умолчанию 1 гекс
-	}
-}
-
 // CanMoveInTurn проверяет, может ли юнит двигаться в текущем ходу
 // Юнит может двигаться только один раз за ход
 func CanMoveInTurn(unit *models.NavalUnit, currentTurn int) bool {
@@ -36,7 +19,7 @@ func GetRemainingMovementRange(unit *models.NavalUnit, currentTurn int) int {
 	}
 
 	// Возвращаем максимальную дальность движения
-	return GetMaxMovementRange(unit.SpeedRating)
+	return unit.SpeedRating.GetMaxMovementDistance()
 }
 
 // IsValidMovement проверяет, является ли движение валидным
@@ -47,7 +30,7 @@ func IsValidMovement(unit *models.NavalUnit, currentTurn int, hexesToMove int) b
 	}
 
 	// Проверяем, не превышает ли движение максимальную дальность
-	maxRange := GetMaxMovementRange(unit.SpeedRating)
+	maxRange := unit.SpeedRating.GetMaxMovementDistance()
 	return hexesToMove <= maxRange && hexesToMove > 0
 }
 
@@ -57,7 +40,7 @@ func GetMovementOptions(unit *models.NavalUnit, currentTurn int) []int {
 		return []int{} // Не может двигаться
 	}
 
-	maxRange := GetMaxMovementRange(unit.SpeedRating)
+	maxRange := unit.SpeedRating.GetMaxMovementDistance()
 	options := make([]int, maxRange)
 
 	// Создаем массив с возможными вариантами движения (1, 2, ..., maxRange)

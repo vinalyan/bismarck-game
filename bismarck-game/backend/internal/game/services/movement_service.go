@@ -37,8 +37,8 @@ func (s *MovementService) ValidateMovement(unit *models.NavalUnit, fromHex, toHe
 	}
 
 	// Проверяем, что юнит может двигаться в этот ход
-	speedClass := models.GetSpeedClass(unit.Type)
-	
+	speedType := unit.SpeedRating
+
 	// Получаем информацию о топливе
 	fuelTracking, err := s.getFuelTracking(unit.GameID, unit.ID)
 	if err != nil {
@@ -46,7 +46,7 @@ func (s *MovementService) ValidateMovement(unit *models.NavalUnit, fromHex, toHe
 	}
 
 	// Проверяем, может ли юнит двигаться в этот ход
-	if !speedClass.CanMoveThisTurn(fuelTracking.PreviousTurnMoved) {
+	if !speedType.CanMoveThisTurn(fuelTracking.PreviousTurnMoved) {
 		return errors.New("unit cannot move this turn due to speed class restrictions")
 	}
 
@@ -72,7 +72,7 @@ func (s *MovementService) CalculateFuelCost(unit *models.NavalUnit, fromHex, toH
 		return 0, errors.New("unit is nil")
 	}
 
-	speedClass := models.GetSpeedClass(unit.Type)
+	speedType := unit.SpeedRating
 	distance := s.calculateDistance(fromHex, toHex)
 
 	// Получаем информацию о предыдущем движении
@@ -81,7 +81,7 @@ func (s *MovementService) CalculateFuelCost(unit *models.NavalUnit, fromHex, toH
 		return 0, fmt.Errorf("failed to get fuel tracking: %w", err)
 	}
 
-	fuelCost := speedClass.CalculateFuelCost(distance, fuelTracking.PreviousTurnMoved)
+	fuelCost := speedType.CalculateFuelCost(distance, fuelTracking.PreviousTurnMoved)
 	return fuelCost, nil
 }
 
@@ -91,8 +91,8 @@ func (s *MovementService) GetAvailableMoves(unit *models.NavalUnit) ([]string, e
 		return nil, errors.New("unit is nil")
 	}
 
-	speedClass := models.GetSpeedClass(unit.Type)
-	maxDistance := speedClass.GetMaxMovementDistance()
+	speedType := unit.SpeedRating
+	maxDistance := speedType.GetMaxMovementDistance()
 
 	// Получаем информацию о топливе
 	fuelTracking, err := s.getFuelTracking(unit.GameID, unit.ID)
@@ -101,7 +101,7 @@ func (s *MovementService) GetAvailableMoves(unit *models.NavalUnit) ([]string, e
 	}
 
 	// Проверяем, может ли юнит двигаться в этот ход
-	if !speedClass.CanMoveThisTurn(fuelTracking.PreviousTurnMoved) {
+	if !speedType.CanMoveThisTurn(fuelTracking.PreviousTurnMoved) {
 		return []string{}, nil // Не может двигаться
 	}
 
@@ -194,10 +194,10 @@ func (s *MovementService) ExecuteMovement(unit *models.NavalUnit, toHex string) 
 	// Уведомляем игроков о движении
 	s.notifyPlayersAboutMovement(unit, movement)
 
-	s.logger.Info("Unit movement executed", 
-		"unit_id", unit.ID, 
-		"from", oldPosition, 
-		"to", toHex, 
+	s.logger.Info("Unit movement executed",
+		"unit_id", unit.ID,
+		"from", oldPosition,
+		"to", toHex,
 		"fuel_cost", fuelCost)
 
 	return movement, nil
@@ -232,13 +232,13 @@ func (s *MovementService) validateGermanDDMovement(fromHex, toHex string) error 
 	// Немецкие эсминцы не могут пересекать линию ограничения
 	// Это упрощенная проверка - в реальной игре нужно проверить конкретные гексы
 	restrictedHexes := []string{"Q29", "R28", "S27", "T26"}
-	
+
 	for _, restrictedHex := range restrictedHexes {
 		if toHex == restrictedHex {
 			return errors.New("german destroyers cannot cross the boundary line")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -247,13 +247,13 @@ func (s *MovementService) validateTankerMovement(toHex string) error {
 	// Танкеры не могут входить в гексы конвоев
 	// Это упрощенная проверка - в реальной игре нужно проверить конкретные гексы конвоев
 	convoyHexes := s.getConvoyHexes()
-	
+
 	for _, convoyHex := range convoyHexes {
 		if toHex == convoyHex {
 			return errors.New("tankers cannot enter convoy hexes")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -280,17 +280,95 @@ func (s *MovementService) isValidHex(hex string) bool {
 }
 
 func (s *MovementService) getHexesInRange(centerHex string, maxDistance int) []string {
-	// Упрощенная генерация гексов в радиусе
-	// В реальной игре нужно использовать гексагональную геометрию
+	// Временная реализация для получения гексов в радиусе
+	// TODO: Интегрировать с полноценной гексагональной геометрией
 	hexes := []string{}
-	
-	// Генерируем несколько тестовых гексов
-	for i := 1; i <= maxDistance; i++ {
-		hexes = append(hexes, fmt.Sprintf("A%d", i))
-		hexes = append(hexes, fmt.Sprintf("B%d", i))
+
+	// Парсим центральный гекс (например, "J30")
+	if len(centerHex) < 2 {
+		return hexes
 	}
-	
+
+	// Извлекаем букву и число
+	var letter string
+	var number int
+	if len(centerHex) == 3 { // например "J30"
+		letter = centerHex[:1]
+		number = int(centerHex[1]-'0')*10 + int(centerHex[2]-'0')
+	} else if len(centerHex) == 2 { // например "J3"
+		letter = centerHex[:1]
+		number = int(centerHex[1] - '0')
+	} else {
+		return hexes
+	}
+
+	// Генерируем соседние гексы для расстояния 1
+	if maxDistance >= 1 {
+		// Соседние гексы для расстояния 1 (6 направлений)
+		neighbors := []struct {
+			letterOffset int
+			numberOffset int
+		}{
+			{0, 1},  // Вправо
+			{0, -1}, // Влево
+			{1, 0},  // Вниз-вправо
+			{-1, 0}, // Вверх-влево
+			{1, -1}, // Вниз-влево
+			{-1, 1}, // Вверх-вправо
+		}
+
+		for _, neighbor := range neighbors {
+			newLetter := string(rune(letter[0]) + rune(neighbor.letterOffset))
+			newNumber := number + neighbor.numberOffset
+
+			// Проверяем границы (A-Z, 1-35)
+			if newLetter >= "A" && newLetter <= "Z" && newNumber >= 1 && newNumber <= 35 {
+				hexes = append(hexes, fmt.Sprintf("%s%d", newLetter, newNumber))
+			}
+		}
+	}
+
+	// Для расстояния 2 добавляем дополнительные гексы
+	if maxDistance >= 2 {
+		// Добавляем гексы на расстоянии 2
+		for letterOffset := -2; letterOffset <= 2; letterOffset++ {
+			for numberOffset := -2; numberOffset <= 2; numberOffset++ {
+				// Пропускаем гексы на расстоянии 0 и 1 (уже добавлены)
+				if (letterOffset == 0 && numberOffset == 0) ||
+					(abs(letterOffset)+abs(numberOffset) == 1) {
+					continue
+				}
+
+				newLetter := string(rune(letter[0]) + rune(letterOffset))
+				newNumber := number + numberOffset
+
+				if newLetter >= "A" && newLetter <= "Z" && newNumber >= 1 && newNumber <= 35 {
+					hex := fmt.Sprintf("%s%d", newLetter, newNumber)
+					// Проверяем, что гекс еще не добавлен
+					found := false
+					for _, existingHex := range hexes {
+						if existingHex == hex {
+							found = true
+							break
+						}
+					}
+					if !found {
+						hexes = append(hexes, hex)
+					}
+				}
+			}
+		}
+	}
+
 	return hexes
+}
+
+// abs возвращает абсолютное значение
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 func (s *MovementService) getConvoyHexes() []string {
@@ -299,13 +377,24 @@ func (s *MovementService) getConvoyHexes() []string {
 }
 
 func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTracking, error) {
-	// Упрощенная реализация - в реальной игре нужно получать из базы данных
+	// Временная реализация - в реальной игре нужно получать из базы данных
+	// Для разных кораблей возвращаем реальные данные из конфигурации
+	var maxFuel int
+	switch unitID {
+	case "bismarck":
+		maxFuel = 18 // Из конфигурации ships.json
+	case "prince_of_wales", "369bd2d2-f907-4f01-9d61-3cc5debc0268": // P. OF WALES
+		maxFuel = 12 // Из конфигурации ships.json
+	default:
+		maxFuel = 10 // Значение по умолчанию
+	}
+
 	return &models.FuelTracking{
 		ID:                s.generateID(),
 		GameID:            gameID,
 		UnitID:            unitID,
-		CurrentFuel:       10, // Тестовое значение
-		MaxFuel:           20, // Тестовое значение
+		CurrentFuel:       maxFuel, // Полное топливо
+		MaxFuel:           maxFuel,
 		PreviousTurnMoved: 0,
 		IsEmergencyFuel:   false,
 		EmergencyTurn:     0,
@@ -341,7 +430,7 @@ func (s *MovementService) generateID() string {
 
 func (s *MovementService) notifyPlayersAboutMovement(unit *models.NavalUnit, movement *models.Movement) {
 	// Упрощенная реализация уведомлений
-	s.logger.Info("Notifying players about movement", 
-		"unit_id", unit.ID, 
+	s.logger.Info("Notifying players about movement",
+		"unit_id", unit.ID,
 		"movement_id", movement.ID)
 }

@@ -742,6 +742,40 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "VS"
+    },
+    {
+      "id": "test_cruiser_m",
+      "name": "TEST CRUISER M",
+      "type": "CA",
+      "side": "allied",
+      "maxFuel": 8,
+      "baseEvasion": 20,
+      "radarLevel": 1,
+      "hullBoxes": 6,
+      "setupHex": "B15",
+      "basePrimaryArmamentBow": 4,
+      "basePrimaryArmamentStern": 4,
+      "baseSecondaryArmament": 6,
+      "maxTorpedos": 0,
+      "speedType": "M",
+      "notes": "Тестовый крейсер класса M"
+    },
+    {
+      "id": "test_destroyer_m",
+      "name": "TEST DESTROYER M", 
+      "type": "DD",
+      "side": "german",
+      "maxFuel": 6,
+      "baseEvasion": 15,
+      "radarLevel": 0,
+      "hullBoxes": 3,
+      "setupHex": "I25",
+      "basePrimaryArmamentBow": 2,
+      "basePrimaryArmamentStern": 2,
+      "baseSecondaryArmament": 4,
+      "maxTorpedos": 8,
+      "speedType": "M",
+      "notes": "Тестовый эсминец класса M"
     }
   ]
 }
