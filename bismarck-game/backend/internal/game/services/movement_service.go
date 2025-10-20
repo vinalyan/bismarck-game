@@ -10,6 +10,11 @@ import (
 	"bismarck-game/backend/pkg/logger"
 )
 
+// Cube представляет кубические координаты гекса
+type Cube struct {
+	Q, R, S int
+}
+
 // MovementService предоставляет методы для работы с движением юнитов
 type MovementService struct {
 	db                *database.Database
@@ -260,18 +265,19 @@ func (s *MovementService) validateTankerMovement(toHex string) error {
 // Вспомогательные методы
 
 func (s *MovementService) calculateDistance(fromHex, toHex string) int {
-	// Упрощенный расчет расстояния - в реальной игре нужно использовать гексагональную геометрию
-	// Пока возвращаем 1 для соседних гексов, 2 для дальних
-	if s.areAdjacentHexes(fromHex, toHex) {
-		return 1
-	}
-	return 2
+	// Преобразуем гексы в кубические координаты и рассчитываем расстояние
+	fromCube := s.HexToCube(fromHex)
+	toCube := s.HexToCube(toHex)
+
+	// Расстояние в гексагональной сетке: (|q1-q2| + |r1-r2| + |s1-s2|) / 2
+	distance := (abs(fromCube.Q-toCube.Q) + abs(fromCube.R-toCube.R) + abs(fromCube.S-toCube.S)) / 2
+	return distance
 }
 
 func (s *MovementService) areAdjacentHexes(hex1, hex2 string) bool {
-	// Упрощенная проверка соседства - в реальной игре нужно использовать гексагональную геометрию
-	// Пока считаем, что все гексы соседние
-	return true
+	// Проверяем, являются ли гексы соседними (расстояние = 1)
+	distance := s.calculateDistance(hex1, hex2)
+	return distance == 1
 }
 
 func (s *MovementService) isValidHex(hex string) bool {
@@ -433,4 +439,66 @@ func (s *MovementService) notifyPlayersAboutMovement(unit *models.NavalUnit, mov
 	s.logger.Info("Notifying players about movement",
 		"unit_id", unit.ID,
 		"movement_id", movement.ID)
+}
+
+// HexToCube преобразует гекс (например, "J30") в кубические координаты
+func (s *MovementService) HexToCube(hex string) Cube {
+	// Парсим гекс (например, "J30")
+	if len(hex) < 2 {
+		return Cube{0, 0, 0}
+	}
+
+	// Извлекаем букву и число
+	var letter string
+	var number int
+	if len(hex) == 3 { // например "J30"
+		letter = hex[:1]
+		number = int(hex[1]-'0')*10 + int(hex[2]-'0')
+	} else if len(hex) == 2 { // например "J3"
+		letter = hex[:1]
+		number = int(hex[1] - '0')
+	} else {
+		return Cube{0, 0, 0}
+	}
+
+	// Преобразуем букву в номер строки
+	row := int(letter[0] - 'A')
+	col := number - 1
+
+	// Преобразуем offset координаты в кубические
+	// Используем формулу из фронтенда: q = col - floor((row + 1) / 2)
+	q := col - (row+1)/2
+	r := row
+	sCoord := -q - r
+
+	return Cube{Q: q, R: r, S: sCoord}
+}
+
+// CalculateDistance публичный метод для расчета расстояния
+func (s *MovementService) CalculateDistance(fromHex, toHex string) int {
+	return s.calculateDistance(fromHex, toHex)
+}
+
+// AreAdjacentHexes публичный метод для проверки соседства
+func (s *MovementService) AreAdjacentHexes(hex1, hex2 string) bool {
+	return s.areAdjacentHexes(hex1, hex2)
+}
+
+// CubeToHex преобразует кубические координаты обратно в гекс
+func (s *MovementService) CubeToHex(cube Cube) string {
+	// Преобразуем кубические координаты в offset координаты
+	// Используем формулу: col = q + floor((r + 1) / 2), row = r
+	col := cube.Q + (cube.R+1)/2
+	row := cube.R
+
+	// Проверяем границы
+	if row < 0 || row > 25 || col < 0 || col > 35 {
+		return "INVALID"
+	}
+
+	// Преобразуем в буквенно-цифровое представление
+	letter := string(rune('A' + row))
+	number := col + 1
+
+	return fmt.Sprintf("%s%d", letter, number)
 }

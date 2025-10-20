@@ -506,7 +506,8 @@ const Game: React.FC = () => {
 
         // Рассчитываем оставшуюся дальность движения
         // Используем speed_rating из API (приоритет) или fallback на локальные данные
-        const speedType = gameUnit?.speed_rating || shipData?.speedType || 'M';
+        const rawSpeedType = gameUnit?.speed_rating || shipData?.speedType || 'M';
+        const speedType: 'F' | 'M' | 'S' | 'VS' = (['F', 'M', 'S', 'VS'].includes(rawSpeedType) ? rawSpeedType : 'M') as 'F' | 'M' | 'S' | 'VS';
         const maxMovementRange = movementUtils.getMaxMovementDistance({ 
           speedType: speedType 
         } as any);
