@@ -110,6 +110,12 @@ func (s *Server) setupRoutes() {
 	unitService := services.NewUnitService(s.db, unitLogger)
 	phaseManager := services.NewPhaseManager(s.db.GetConnection())
 
+	// Создаем сервисы для движения
+	visibilityLogger, _ := logger.New(logger.INFO, "visibility-service", "stdout")
+	visibilityService := services.NewVisibilityService(s.db, visibilityLogger)
+	movementLogger, _ := logger.New(logger.INFO, "movement-service", "stdout")
+	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService)
+
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
 		logger.Error("Failed to load ship config", "error", err)
@@ -120,12 +126,14 @@ func (s *Server) setupRoutes() {
 	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService, phaseManager)
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService)
 	phaseHandler := handlers.NewPhaseHandler(phaseManager)
+	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, movementLogger)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	gameHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	shipConfigHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	phaseHandler.RegisterRoutes(s.router)
+	movementHandler.RegisterRoutes(s.router)
 
 	// WebSocket маршрут
 	s.router.HandleFunc("/ws", s.handleWebSocket)

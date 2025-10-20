@@ -327,3 +327,15 @@ func (h *MovementHandler) getMovementHistory(gameID, unitID string, limit int) (
 		},
 	}, nil
 }
+
+// RegisterRoutes регистрирует маршруты для движения
+func (h *MovementHandler) RegisterRoutes(router *mux.Router) {
+	// Маршруты для движения юнитов
+	router.HandleFunc("/api/games/{gameId}/units/{unitId}/available-moves", h.GetAvailableMoves).Methods("GET")
+	router.HandleFunc("/api/games/{gameId}/units/{unitId}/move", h.MoveUnit).Methods("POST")
+	router.HandleFunc("/api/games/{gameId}/units/{unitId}/movement-history", h.GetMovementHistory).Methods("GET")
+
+	// Маршруты для видимости
+	router.HandleFunc("/api/games/{gameId}/visibility/units", h.GetVisibleUnits).Methods("GET")
+	router.HandleFunc("/api/games/{gameId}/visibility/update", h.UpdateVisibility).Methods("POST")
+}

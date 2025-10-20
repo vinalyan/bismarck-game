@@ -77,6 +77,23 @@ CREATE TABLE IF NOT EXISTS phase_records (
     UNIQUE(game_id, turn_number, phase)
 );
 
+-- Movements table (for tracking unit movements)
+CREATE TABLE IF NOT EXISTS movements (
+    id VARCHAR(255) PRIMARY KEY,
+    game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+    unit_id VARCHAR(255) NOT NULL,
+    from_hex VARCHAR(10) NOT NULL,
+    to_hex VARCHAR(10) NOT NULL,
+    path JSONB NOT NULL DEFAULT '[]',
+    fuel_cost INTEGER NOT NULL DEFAULT 0,
+    hexes_moved INTEGER NOT NULL DEFAULT 0,
+    movement_type VARCHAR(20) NOT NULL DEFAULT 'normal',
+    turn INTEGER NOT NULL,
+    phase VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -90,3 +107,6 @@ CREATE INDEX IF NOT EXISTS idx_game_turns_game_id ON game_turns(game_id);
 CREATE INDEX IF NOT EXISTS idx_game_turns_turn_number ON game_turns(turn_number);
 CREATE INDEX IF NOT EXISTS idx_phase_records_game_id ON phase_records(game_id);
 CREATE INDEX IF NOT EXISTS idx_phase_records_turn_phase ON phase_records(turn_number, phase);
+CREATE INDEX IF NOT EXISTS idx_movements_game_id ON movements(game_id);
+CREATE INDEX IF NOT EXISTS idx_movements_unit_id ON movements(unit_id);
+CREATE INDEX IF NOT EXISTS idx_movements_turn ON movements(turn);

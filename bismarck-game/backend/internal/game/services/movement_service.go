@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -20,14 +21,18 @@ type MovementService struct {
 	db                *database.Database
 	logger            *logger.Logger
 	visibilityService *VisibilityService
+	phaseManager      *PhaseManager
+	unitService       *UnitService
 }
 
 // NewMovementService создает новый сервис движения
-func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService) *MovementService {
+func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService, phaseManager *PhaseManager, unitService *UnitService) *MovementService {
 	return &MovementService{
 		db:                db,
 		logger:            logger,
 		visibilityService: visibilityService,
+		phaseManager:      phaseManager,
+		unitService:       unitService,
 	}
 }
 
@@ -187,6 +192,12 @@ func (s *MovementService) ExecuteMovement(unit *models.NavalUnit, toHex string) 
 	fuelTracking.PreviousTurnMoved = movement.HexesMoved
 	fuelTracking.UpdatedAt = time.Now()
 
+	// Обновляем юнит в базе данных (позиция и топливо)
+	if err := s.unitService.UpdateNavalUnit(unit); err != nil {
+		return nil, fmt.Errorf("failed to update unit position: %w", err)
+	}
+
+	// Обновляем топливо отдельно (для отслеживания движения)
 	if err := s.updateFuelTracking(fuelTracking); err != nil {
 		return nil, fmt.Errorf("failed to update fuel tracking: %w", err)
 	}
@@ -383,26 +394,28 @@ func (s *MovementService) getConvoyHexes() []string {
 }
 
 func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTracking, error) {
-	// Временная реализация - в реальной игре нужно получать из базы данных
-	// Для разных кораблей возвращаем реальные данные из конфигурации
-	var maxFuel int
-	switch unitID {
-	case "bismarck":
-		maxFuel = 18 // Из конфигурации ships.json
-	case "prince_of_wales", "369bd2d2-f907-4f01-9d61-3cc5debc0268": // P. OF WALES
-		maxFuel = 12 // Из конфигурации ships.json
-	default:
-		maxFuel = 10 // Значение по умолчанию
+	// Получаем данные о топливе из базы данных
+	query := `
+		SELECT fuel, max_fuel, previous_turn_moved_hexes, last_move_turn
+		FROM naval_units 
+		WHERE id = $1 AND game_id = $2`
+
+	var fuel, maxFuel, previousTurnMoved, lastMoveTurn int
+
+	err := s.db.QueryRow(query, unitID, gameID).Scan(&fuel, &maxFuel, &previousTurnMoved, &lastMoveTurn)
+	if err != nil {
+		s.logger.Error("Failed to get fuel tracking", "error", err, "unit_id", unitID)
+		return nil, fmt.Errorf("failed to get fuel tracking: %w", err)
 	}
 
 	return &models.FuelTracking{
-		ID:                s.generateID(),
+		ID:                fmt.Sprintf("fuel_%s_%s", gameID, unitID),
 		GameID:            gameID,
 		UnitID:            unitID,
-		CurrentFuel:       maxFuel, // Полное топливо
+		CurrentFuel:       fuel,
 		MaxFuel:           maxFuel,
-		PreviousTurnMoved: 0,
-		IsEmergencyFuel:   false,
+		PreviousTurnMoved: previousTurnMoved,
+		IsEmergencyFuel:   false, // TODO: реализовать логику аварийного топлива
 		EmergencyTurn:     0,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
@@ -410,23 +423,75 @@ func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTr
 }
 
 func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) error {
-	// Упрощенная реализация - в реальной игре нужно обновлять в базе данных
+	// Обновляем топливо в базе данных
+	query := `
+		UPDATE naval_units SET 
+			fuel = $1, 
+			previous_turn_moved_hexes = $2,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = $3 AND game_id = $4`
+
+	_, err := s.db.Exec(query,
+		fuelTracking.CurrentFuel,
+		fuelTracking.PreviousTurnMoved,
+		fuelTracking.UnitID,
+		fuelTracking.GameID,
+	)
+
+	if err != nil {
+		s.logger.Error("Failed to update fuel tracking", "error", err, "unit_id", fuelTracking.UnitID)
+		return fmt.Errorf("failed to update fuel tracking: %w", err)
+	}
+
+	s.logger.Info("Fuel tracking updated", "unit_id", fuelTracking.UnitID, "fuel", fuelTracking.CurrentFuel)
 	return nil
 }
 
 func (s *MovementService) saveMovement(movement *models.Movement) error {
-	// Упрощенная реализация - в реальной игре нужно сохранять в базе данных
+	// Сохраняем движение в базе данных
+	query := `
+		INSERT INTO movements (
+			id, game_id, unit_id, from_hex, to_hex, path, fuel_cost, 
+			hexes_moved, movement_type, turn, phase, created_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+		)`
+
+	pathJSON, _ := json.Marshal(movement.Path)
+
+	_, err := s.db.Exec(query,
+		movement.ID, movement.GameID, movement.UnitID, movement.FromHex, movement.ToHex,
+		pathJSON, movement.FuelCost, movement.HexesMoved, movement.MovementType,
+		movement.Turn, movement.Phase, movement.CreatedAt, movement.UpdatedAt,
+	)
+
+	if err != nil {
+		s.logger.Error("Failed to save movement", "error", err, "movement_id", movement.ID)
+		return fmt.Errorf("failed to save movement: %w", err)
+	}
+
+	s.logger.Info("Movement saved", "movement_id", movement.ID, "unit_id", movement.UnitID)
 	return nil
 }
 
 func (s *MovementService) getCurrentTurn(gameID string) int {
-	// Упрощенная реализация - в реальной игре нужно получать из базы данных
-	return 1
+	// Получаем текущий ход из PhaseManager
+	turn, err := s.phaseManager.GetCurrentPhase(gameID)
+	if err != nil || turn == nil {
+		s.logger.Warn("Failed to get current turn, using fallback", "game_id", gameID, "error", err)
+		return 1 // fallback
+	}
+	return turn.TurnNumber
 }
 
 func (s *MovementService) getCurrentPhase(gameID string) string {
-	// Упрощенная реализация - в реальной игре нужно получать из базы данных
-	return "movement"
+	// Получаем текущую фазу из PhaseManager
+	turn, err := s.phaseManager.GetCurrentPhase(gameID)
+	if err != nil || turn == nil {
+		s.logger.Warn("Failed to get current phase, using fallback", "game_id", gameID, "error", err)
+		return "movement" // fallback
+	}
+	return string(turn.CurrentPhase)
 }
 
 func (s *MovementService) generateID() string {

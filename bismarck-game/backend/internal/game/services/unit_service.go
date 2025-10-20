@@ -277,8 +277,11 @@ func (s *UnitService) UpdateAirUnit(unit *models.AirUnit) error {
 	return nil
 }
 
-// MoveUnit перемещает юнит
+// MoveUnit перемещает юнит (устаревший метод - используйте MovementService.ExecuteMovement)
+// Deprecated: Этот метод устарел. Используйте MovementService.ExecuteMovement для полной валидации и логики движения.
 func (s *UnitService) MoveUnit(unitID string, to string, speed int, fuelCost int, path []string, turn int, phase models.GamePhase) error {
+	s.logger.Warn("UnitService.MoveUnit is deprecated, use MovementService.ExecuteMovement instead", "unit_id", unitID)
+
 	// Сначала получаем текущую позицию юнита
 	unit, err := s.GetNavalUnitByID(unitID)
 	if err != nil {
