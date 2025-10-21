@@ -955,6 +955,23 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 		updateQuery += ", last_move_turn = $" + strconv.Itoa(argIndex)
 		args = append(args, currentTurn)
 		argIndex++
+
+		// Проверяем ограничения движения для медленных кораблей (S и VS)
+		if unit.SpeedRating == models.SpeedTypeSlow || unit.SpeedRating == models.SpeedTypeVerySlow {
+			// Проверяем, может ли юнит двигаться в этом ходу
+			if unit.NoMovementTurnsLeft > 0 {
+				pkgutils.WriteValidationError(w, "Unit cannot move this turn due to movement restrictions", map[string]string{
+					"movement": fmt.Sprintf("Unit cannot move for %d more turns", unit.NoMovementTurnsLeft),
+				})
+				return
+			}
+
+			// Устанавливаем ограничения движения после движения
+			restrictionTurns := unit.SpeedRating.GetMovementRestrictionAfterMove()
+			updateQuery += ", no_movement_turns_left = $" + strconv.Itoa(argIndex)
+			args = append(args, restrictionTurns)
+			argIndex++
+		}
 	}
 
 	updateQuery += ", updated_at = $" + strconv.Itoa(argIndex) + " WHERE id = $" + strconv.Itoa(argIndex+1)

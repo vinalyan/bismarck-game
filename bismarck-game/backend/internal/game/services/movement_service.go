@@ -195,8 +195,27 @@ func (s *MovementService) ExecuteMovement(unit *models.NavalUnit, toHex string) 
 	fuelTracking.UpdatedAt = time.Now()
 
 	// Устанавливаем ограничения движения для медленных кораблей
+	s.logger.Info("Checking movement restrictions",
+		"unit_id", unit.ID,
+		"speed_rating", unit.SpeedRating,
+		"speed_rating_type", fmt.Sprintf("%T", unit.SpeedRating),
+		"SpeedTypeSlow", models.SpeedTypeSlow,
+		"SpeedTypeVerySlow", models.SpeedTypeVerySlow,
+		"is_slow", unit.SpeedRating == models.SpeedTypeSlow,
+		"is_very_slow", unit.SpeedRating == models.SpeedTypeVerySlow)
+
 	if unit.SpeedRating == models.SpeedTypeSlow || unit.SpeedRating == models.SpeedTypeVerySlow {
+		oldValue := unit.NoMovementTurnsLeft
 		unit.NoMovementTurnsLeft = unit.SpeedRating.GetMovementRestrictionAfterMove()
+		s.logger.Info("Setting movement restrictions",
+			"unit_id", unit.ID,
+			"speed_rating", unit.SpeedRating,
+			"old_no_movement_turns_left", oldValue,
+			"new_no_movement_turns_left", unit.NoMovementTurnsLeft)
+	} else {
+		s.logger.Info("No movement restrictions applied",
+			"unit_id", unit.ID,
+			"speed_rating", unit.SpeedRating)
 	}
 
 	// Обновляем юнит в базе данных (позиция, топливо и ограничения)

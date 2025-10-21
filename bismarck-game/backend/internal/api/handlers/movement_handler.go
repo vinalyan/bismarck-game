@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -16,14 +17,16 @@ import (
 type MovementHandler struct {
 	movementService   *services.MovementService
 	visibilityService *services.VisibilityService
+	unitService       *services.UnitService
 	logger            *logger.Logger
 }
 
 // NewMovementHandler создает новый обработчик движения
-func NewMovementHandler(movementService *services.MovementService, visibilityService *services.VisibilityService, logger *logger.Logger) *MovementHandler {
+func NewMovementHandler(movementService *services.MovementService, visibilityService *services.VisibilityService, unitService *services.UnitService, logger *logger.Logger) *MovementHandler {
 	return &MovementHandler{
 		movementService:   movementService,
 		visibilityService: visibilityService,
+		unitService:       unitService,
 		logger:            logger,
 	}
 }
@@ -92,9 +95,11 @@ func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Reque
 // MoveUnit выполняет движение юнита
 // POST /api/games/{gameId}/units/{unitId}/move
 func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
+	h.logger.Info("MoveUnit called", "method", r.Method, "url", r.URL.Path)
 	vars := mux.Vars(r)
 	gameID := vars["gameId"]
 	unitID := vars["unitId"]
+	h.logger.Info("MoveUnit parameters", "game_id", gameID, "unit_id", unitID)
 
 	if gameID == "" || unitID == "" {
 		http.Error(w, "Game ID and Unit ID are required", http.StatusBadRequest)
@@ -121,12 +126,19 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем юнит
+	h.logger.Info("Getting unit for movement", "game_id", gameID, "unit_id", unitID)
 	unit, err := h.getUnit(gameID, unitID)
 	if err != nil {
 		h.logger.Error("Failed to get unit", "error", err, "game_id", gameID, "unit_id", unitID)
 		http.Error(w, "Unit not found", http.StatusNotFound)
 		return
 	}
+
+	h.logger.Info("Unit retrieved successfully",
+		"unit_id", unit.ID,
+		"name", unit.Name,
+		"speed_rating", unit.SpeedRating,
+		"position", unit.Position)
 
 	// Выполняем движение
 	movement, err := h.movementService.ExecuteMovement(unit, movementReq.ToHex)
@@ -302,16 +314,27 @@ func (h *MovementHandler) UpdateVisibility(w http.ResponseWriter, r *http.Reques
 // Вспомогательные методы
 
 func (h *MovementHandler) getUnit(gameID, unitID string) (*models.NavalUnit, error) {
-	// Упрощенная реализация - в реальной игре нужно получать из базы данных
-	return &models.NavalUnit{
-		ID:       unitID,
-		GameID:   gameID,
-		Type:     models.UnitTypeBattleship,
-		Owner:    "german",
-		Position: "K15",
-		MaxFuel:  20,
-		Status:   models.UnitStatusActive,
-	}, nil
+	// Получаем юнит из базы данных через unitService
+	unit, err := h.unitService.GetNavalUnitByID(unitID)
+	if err != nil {
+		h.logger.Error("Failed to get unit from database", "error", err, "unit_id", unitID)
+		return nil, fmt.Errorf("failed to get unit: %w", err)
+	}
+
+	// Проверяем, что юнит принадлежит указанной игре
+	if unit.GameID != gameID {
+		h.logger.Error("Unit does not belong to specified game", "unit_id", unitID, "unit_game_id", unit.GameID, "requested_game_id", gameID)
+		return nil, fmt.Errorf("unit does not belong to game")
+	}
+
+	h.logger.Info("Unit loaded from database",
+		"unit_id", unit.ID,
+		"name", unit.Name,
+		"speed_rating", unit.SpeedRating,
+		"position", unit.Position,
+		"no_movement_turns_left", unit.NoMovementTurnsLeft)
+
+	return unit, nil
 }
 
 func (h *MovementHandler) getMovementHistory(gameID, unitID string, limit int) ([]*models.MovementHistory, error) {

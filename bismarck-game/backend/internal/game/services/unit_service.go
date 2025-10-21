@@ -153,7 +153,7 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
-			   previous_turn_moved_hexes, last_move_turn, movement_used,
+			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
 			   created_at, updated_at
 		FROM naval_units
 		WHERE id = $1`
@@ -169,7 +169,7 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 		&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
 		&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 		&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
-		&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed,
+		&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
 		&unit.CreatedAt, &unit.UpdatedAt,
 	)
 	if err != nil {
@@ -243,6 +243,12 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 		WHERE id = $1`
 
 	damageJSON, _ := json.Marshal(unit.Damage)
+
+	s.logger.Info("Updating naval unit in database",
+		"unit_id", unit.ID,
+		"position", unit.Position,
+		"no_movement_turns_left", unit.NoMovementTurnsLeft,
+		"speed_rating", unit.SpeedRating)
 
 	_, err := s.db.Exec(query,
 		unit.ID, unit.Position, unit.Evasion, unit.Fuel,

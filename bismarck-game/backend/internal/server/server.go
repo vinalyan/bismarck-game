@@ -126,7 +126,7 @@ func (s *Server) setupRoutes() {
 	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService, phaseManager)
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService)
 	phaseHandler := handlers.NewPhaseHandler(phaseManager)
-	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, movementLogger)
+	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, unitService, movementLogger)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
