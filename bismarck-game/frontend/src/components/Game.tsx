@@ -383,6 +383,8 @@ const Game: React.FC = () => {
           ...selectedUnitData,
           position: targetCoordinate,
           currentFuel: newFuel,
+          movement_used: movementCost.distance, // Устанавливаем использованное движение
+          last_move_turn: getTurnData(currentTurn)?.turn_number || 0, // Устанавливаем ход движения
           // Для S и VS типов устанавливаем ограничения движения
           no_movement_turns_left: movementRestriction
         };
@@ -419,6 +421,8 @@ const Game: React.FC = () => {
                 ...unit, 
                 position: positionString, 
                 fuel: newFuel,
+                movement_used: movementCost.distance, // Устанавливаем использованное движение
+                last_move_turn: getTurnData(currentTurn)?.turn_number || 0, // Устанавливаем ход движения
                 // Для S и VS типов устанавливаем ограничения движения
                 no_movement_turns_left: movementRestriction
               }
@@ -482,6 +486,14 @@ const Game: React.FC = () => {
     
     // Используем обновленные данные из selectedUnitData если они есть
     const unitDataToUse = selectedUnitData && selectedUnitData.id === unitId ? selectedUnitData : unitData;
+    
+    // Проверяем, не двигался ли юнит уже в этом ходу (один юнит = одно движение за ход)
+    const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 0;
+    if (unitDataToUse?.last_move_turn === currentTurnNumber) {
+      console.log('Unit already moved this turn, not showing movement hexes');
+      setAvailableMovementHexes([]);
+      return;
+    }
 
     // Получаем актуальные данные юнита с сервера
     let gameUnit: GameUnit | undefined;

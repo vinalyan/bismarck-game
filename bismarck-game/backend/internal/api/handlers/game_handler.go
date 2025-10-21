@@ -889,28 +889,25 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Проверяем ограничения движения
-	if req.HexesMoved > 0 {
+	// Проверяем ограничения движения: один юнит = одно движение за ход
+	if req.HexesMoved >= 0 {
 		// Проверяем максимальную дальность движения за ход
 		maxRange := unit.SpeedRating.GetMaxMovementDistance()
 
-		// Если юнит уже двигался в этом ходу, проверяем общее движение
-		if unit.LastMoveTurn == currentTurn {
-			totalMovement := unit.MovementUsed + req.HexesMoved
-			if totalMovement > maxRange {
-				pkgutils.WriteValidationError(w, "Invalid movement distance", map[string]string{
-					"movement": fmt.Sprintf("Unit can move maximum %d hexes per turn (already moved %d hexes)", maxRange, unit.MovementUsed),
-				})
-				return
-			}
-		} else {
-			// Если это первое движение в ходу, проверяем только текущее движение
+		// Если это первое движение в ходу, проверяем только максимальную дальность
+		if unit.LastMoveTurn != currentTurn {
 			if req.HexesMoved > maxRange {
 				pkgutils.WriteValidationError(w, "Invalid movement distance", map[string]string{
 					"movement": fmt.Sprintf("Unit can move maximum %d hexes per turn", maxRange),
 				})
 				return
 			}
+		} else {
+			// Если юнит уже двигался в этом ходу, блокируем любое дополнительное движение
+			pkgutils.WriteValidationError(w, "Unit already moved this turn", map[string]string{
+				"movement": "Unit can only move once per turn",
+			})
+			return
 		}
 	}
 
@@ -940,14 +937,8 @@ func (h *GameHandler) UpdateUnitPosition(w http.ResponseWriter, r *http.Request)
 		updateQuery += ", previous_turn_moved_hexes = movement_used"
 
 		// Если юнит уже двигался в этом ходу, добавляем к существующему движению
-		// Иначе устанавливаем новое значение
-		if unit.LastMoveTurn == currentTurn {
-			// Добавляем к существующему движению
-			updateQuery += ", movement_used = movement_used + $" + strconv.Itoa(argIndex)
-		} else {
-			// Устанавливаем новое значение движения
-			updateQuery += ", movement_used = $" + strconv.Itoa(argIndex)
-		}
+		// Устанавливаем значение движения (один юнит = одно движение за ход)
+		updateQuery += ", movement_used = $" + strconv.Itoa(argIndex)
 		args = append(args, req.HexesMoved)
 		argIndex++
 

@@ -62,6 +62,12 @@ func (s *MovementService) ValidateMovement(unit *models.NavalUnit, fromHex, toHe
 		return errors.New("unit cannot move this turn due to movement restrictions")
 	}
 
+	// Проверяем, что юнит еще не двигался в этом ходу (один юнит = одно движение за ход)
+	// TODO: Нужно получить текущий ход игры для проверки
+	// if unit.LastMoveTurn == currentTurn {
+	//     return errors.New("unit already moved this turn")
+	// }
+
 	// Проверяем аварийное топливо
 	if fuelTracking.IsEmergencyFuel {
 		// При аварийном топливе можно двигаться только на 1 гекс
