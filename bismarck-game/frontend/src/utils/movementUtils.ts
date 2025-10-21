@@ -224,6 +224,11 @@ export const movementUtils = {
   ): MovementHex[] => {
     // Проверяем ограничения движения для медленных кораблей
     if ((ship.speedType === 'S' || ship.speedType === 'VS') && noMovementTurnsLeft && noMovementTurnsLeft > 0) {
+      console.log('Movement blocked due to restrictions:', {
+        shipName: ship.name,
+        speedType: ship.speedType,
+        noMovementTurnsLeft: noMovementTurnsLeft
+      });
       return []; // Не может двигаться из-за ограничений
     }
 

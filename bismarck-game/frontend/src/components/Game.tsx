@@ -376,11 +376,32 @@ const Game: React.FC = () => {
 
       if (response.success) {
         // Обновляем позицию юнита локально
+        const movementRestriction = (selectedUnitData.speed_rating === 'S') ? 2 : 
+                                   (selectedUnitData.speed_rating === 'VS') ? 4 : 0;
+        
         const updatedUnitData = {
           ...selectedUnitData,
           position: targetCoordinate,
-          currentFuel: newFuel
+          currentFuel: newFuel,
+          // Для S и VS типов устанавливаем ограничения движения
+          no_movement_turns_left: movementRestriction
         };
+
+        console.log('Movement completed, setting restrictions:', {
+          unitName: selectedUnitData.name,
+          speedRating: selectedUnitData.speed_rating,
+          movementRestriction: movementRestriction
+        });
+
+        // Добавляем уведомление о блокировке движения
+        if (movementRestriction > 0) {
+          addNotification({
+            type: NotificationType.Info,
+            title: 'Движение заблокировано',
+            message: `${selectedUnitData.name} заблокирован на ${movementRestriction} ход${movementRestriction > 1 ? 'а' : ''} из-за ограничений скорости`,
+            read: false
+          });
+        }
 
         setSelectedUnitData(updatedUnitData);
 
@@ -394,7 +415,13 @@ const Game: React.FC = () => {
         // Обновляем данные юнита в gameUnits
         setGameUnits(prev => prev.map(unit => 
           unit.id === selectedUnit 
-            ? { ...unit, position: positionString, fuel: newFuel }
+            ? { 
+                ...unit, 
+                position: positionString, 
+                fuel: newFuel,
+                // Для S и VS типов устанавливаем ограничения движения
+                no_movement_turns_left: movementRestriction
+              }
             : unit
         ));
 
@@ -434,6 +461,7 @@ const Game: React.FC = () => {
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
     console.log('handleUnitClick called:', unitId, unitData);
+    console.log('Current selectedUnitData before update:', selectedUnitData);
     setSelectedUnit(unitId);
     setSelectedUnitData(unitData);
 
@@ -451,6 +479,9 @@ const Game: React.FC = () => {
 
     // Получаем актуальную позицию юнита
     const currentPosition = unitPositions.get(unitId) || unitData.position;
+    
+    // Используем обновленные данные из selectedUnitData если они есть
+    const unitDataToUse = selectedUnitData && selectedUnitData.id === unitId ? selectedUnitData : unitData;
 
     // Получаем актуальные данные юнита с сервера
     let gameUnit: GameUnit | undefined;
@@ -460,6 +491,13 @@ const Game: React.FC = () => {
         if (unitsResponse.success && unitsResponse.data) {
           gameUnit = unitsResponse.data.units.find((unit: GameUnit) => unit.id === unitId);
           console.log('Fresh unit data from server:', gameUnit);
+          console.log('VS Tanker server data:', {
+            id: gameUnit?.id,
+            name: gameUnit?.name,
+            speed_rating: gameUnit?.speed_rating,
+            no_movement_turns_left: gameUnit?.no_movement_turns_left,
+            position: gameUnit?.position
+          });
         }
       }
     } catch (error) {
@@ -535,13 +573,24 @@ const Game: React.FC = () => {
           speedType: speedType
         };
 
+        // Используем данные из unitDataToUse если они есть, иначе из gameUnit
+        const noMovementTurnsLeft = unitDataToUse?.no_movement_turns_left ?? gameUnit?.no_movement_turns_left ?? 0;
+        console.log('Movement restriction check:', {
+          unitName: updatedUnitData.name,
+          speedType: speedType,
+          noMovementTurnsLeft: noMovementTurnsLeft,
+          unitDataToUseNoMovement: unitDataToUse?.no_movement_turns_left,
+          gameUnitNoMovement: gameUnit?.no_movement_turns_left,
+          canMove: !((speedType === 'S' || speedType === 'VS') && noMovementTurnsLeft > 0)
+        });
+
         const availableHexes = movementUtils.getAvailableMovementHexes(
           movementShipData,
           currentPosition,
           updatedUnitData.currentFuel,
           previousTurnInfo,
           remainingMovement,
-          gameUnit?.no_movement_turns_left || 0
+          noMovementTurnsLeft
         );
         console.log('Available movement hexes calculated:', availableHexes);
         setAvailableMovementHexes(availableHexes);
