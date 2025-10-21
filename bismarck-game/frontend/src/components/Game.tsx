@@ -540,7 +540,8 @@ const Game: React.FC = () => {
           currentPosition,
           updatedUnitData.currentFuel,
           previousTurnInfo,
-          remainingMovement
+          remainingMovement,
+          gameUnit?.no_movement_turns_left || 0
         );
         console.log('Available movement hexes calculated:', availableHexes);
         setAvailableMovementHexes(availableHexes);

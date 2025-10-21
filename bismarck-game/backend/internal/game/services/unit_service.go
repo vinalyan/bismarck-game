@@ -238,6 +238,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 			current_hull = $5, torpedoes = $6, status = $7,
 			detection_level = $8, last_known_pos = $9,
 			task_force_id = $10, damage = $11,
+			no_movement_turns_left = $12,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1`
 
@@ -247,7 +248,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 		unit.ID, unit.Position, unit.Evasion, unit.Fuel,
 		unit.CurrentHull, unit.Torpedoes, unit.Status,
 		unit.DetectionLevel, unit.LastKnownPos,
-		unit.TaskForceID, damageJSON,
+		unit.TaskForceID, damageJSON, unit.NoMovementTurnsLeft,
 	)
 	if err != nil {
 		s.logger.Error("Failed to update naval unit", "unit_id", unit.ID, "error", err)

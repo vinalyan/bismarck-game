@@ -520,6 +520,40 @@ export const LOCAL_SHIPS_DATA: ShipData[] = [
     maxTorpedos: 8,
     speedType: "M",
     notes: "Тестовый эсминец класса M"
+  },
+  {
+    id: "test_cruiser_s",
+    name: "TEST CRUISER S",
+    type: "CA",
+    side: "allied",
+    maxFuel: 10,
+    baseEvasion: 18,
+    radarLevel: 1,
+    hullBoxes: 8,
+    setupHex: "C10",
+    basePrimaryArmamentBow: 6,
+    basePrimaryArmamentStern: 6,
+    baseSecondaryArmament: 8,
+    maxTorpedos: 0,
+    speedType: "S",
+    notes: "Тестовый крейсер класса S (медленный)"
+  },
+  {
+    id: "test_tanker_vs",
+    name: "TEST TANKER VS",
+    type: "TK",
+    side: "german",
+    maxFuel: 25,
+    baseEvasion: 5,
+    radarLevel: 0,
+    hullBoxes: 12,
+    setupHex: "H20",
+    basePrimaryArmamentBow: 0,
+    basePrimaryArmamentStern: 0,
+    baseSecondaryArmament: 2,
+    maxTorpedos: 0,
+    speedType: "VS",
+    notes: "Тестовый танкер класса VS (очень медленный)"
   }
 ];
 

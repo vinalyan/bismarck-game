@@ -45,6 +45,7 @@ export interface GameUnit {
   movement_used: number;
   previous_turn_moved_hexes: number;
   last_move_turn: number;
+  no_movement_turns_left: number;
   created_at: string;
   updated_at: string;
 }

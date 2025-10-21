@@ -99,6 +99,20 @@ func (st SpeedType) CalculateFuelCost(hexesToMove int, previousTurnMoved int) in
 	}
 }
 
+// GetMovementRestrictionAfterMove возвращает количество ходов без движения после движения
+func (st SpeedType) GetMovementRestrictionAfterMove() int {
+	switch st {
+	case SpeedTypeFast, SpeedTypeMedium:
+		return 0 // Нет ограничений
+	case SpeedTypeSlow:
+		return 2 // Не может двигаться 2 хода после движения
+	case SpeedTypeVerySlow:
+		return 4 // Не может двигаться 4 хода после движения
+	default:
+		return 0
+	}
+}
+
 // UnitStatus представляет статус юнита
 type UnitStatus string
 

@@ -51,14 +51,14 @@ export const movementUtils = {
         if (hexesToMove > 1) {
           return { canMove: false, maxHexes: 1, fuelCost: 0, reason: 'VS корабли могут двигаться только на 1 гекс' };
         }
-        // VS корабли не тратят топливо, но имеют ограничения по времени
+        // VS корабли не тратят топливо, но имеют ограничения по времени (4 хода без движения)
         return { canMove: true, maxHexes: 1, fuelCost: 0 };
 
       case 'S': // Медленный
         if (hexesToMove > 1) {
           return { canMove: false, maxHexes: 1, fuelCost: 0, reason: 'S корабли могут двигаться только на 1 гекс' };
         }
-        // S корабли не тратят топливо, но имеют ограничения по времени
+        // S корабли не тратят топливо, но имеют ограничения по времени (2 хода без движения)
         return { canMove: true, maxHexes: 1, fuelCost: 0 };
 
       case 'M': // Средний
@@ -219,8 +219,14 @@ export const movementUtils = {
     currentPosition: HexCoordinate,
     currentFuel: number,
     previousTurn?: PreviousTurnInfo,
-    remainingMovement?: number
+    remainingMovement?: number,
+    noMovementTurnsLeft?: number
   ): MovementHex[] => {
+    // Проверяем ограничения движения для медленных кораблей
+    if ((ship.speedType === 'S' || ship.speedType === 'VS') && noMovementTurnsLeft && noMovementTurnsLeft > 0) {
+      return []; // Не может двигаться из-за ограничений
+    }
+
     const maxDistance = remainingMovement !== undefined ? remainingMovement : movementUtils.getMaxMovementDistance(ship);
     const availableHexes: MovementHex[] = [];
 

@@ -97,7 +97,7 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 
 	// Сбрасываем данные о движении для всех юнитов в игре
 	// ВАЖНО: сначала сохраняем движение предыдущего хода в previous_turn_moved_hexes,
-	// затем обнуляем счетчики текущего хода
+	// затем обнуляем счетчики текущего хода и уменьшаем ограничения движения
 	resetMovementQuery := `
 		UPDATE naval_units 
 		SET 
@@ -105,6 +105,7 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 			movement_used = 0, 
 			last_move_turn = 0, 
 			is_activated = false,
+			no_movement_turns_left = GREATEST(0, no_movement_turns_left - 1),
 			updated_at = $1
 		WHERE game_id = $2
 	`

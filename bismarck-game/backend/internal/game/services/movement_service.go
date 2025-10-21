@@ -9,6 +9,8 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
+
+	"github.com/google/uuid"
 )
 
 // Cube представляет кубические координаты гекса
@@ -192,7 +194,12 @@ func (s *MovementService) ExecuteMovement(unit *models.NavalUnit, toHex string) 
 	fuelTracking.PreviousTurnMoved = movement.HexesMoved
 	fuelTracking.UpdatedAt = time.Now()
 
-	// Обновляем юнит в базе данных (позиция и топливо)
+	// Устанавливаем ограничения движения для медленных кораблей
+	if unit.SpeedRating == models.SpeedTypeSlow || unit.SpeedRating == models.SpeedTypeVerySlow {
+		unit.NoMovementTurnsLeft = unit.SpeedRating.GetMovementRestrictionAfterMove()
+	}
+
+	// Обновляем юнит в базе данных (позиция, топливо и ограничения)
 	if err := s.unitService.UpdateNavalUnit(unit); err != nil {
 		return nil, fmt.Errorf("failed to update unit position: %w", err)
 	}
@@ -237,6 +244,13 @@ func (s *MovementService) validateMovementRestrictions(unit *models.NavalUnit, f
 	if unit.Type == models.UnitTypeTanker {
 		if err := s.validateTankerMovement(toHex); err != nil {
 			return err
+		}
+	}
+
+	// Проверяем ограничения для медленных кораблей (S и VS)
+	if unit.SpeedRating == models.SpeedTypeSlow || unit.SpeedRating == models.SpeedTypeVerySlow {
+		if unit.NoMovementTurnsLeft > 0 {
+			return fmt.Errorf("unit cannot move this turn due to movement restrictions (no_movement_turns_left: %d)", unit.NoMovementTurnsLeft)
 		}
 	}
 
@@ -450,19 +464,18 @@ func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) 
 func (s *MovementService) saveMovement(movement *models.Movement) error {
 	// Сохраняем движение в базе данных
 	query := `
-		INSERT INTO movements (
-			id, game_id, unit_id, from_hex, to_hex, path, fuel_cost, 
-			hexes_moved, movement_type, turn, phase, created_at, updated_at
+		INSERT INTO unit_movements (
+			id, game_id, unit_id, from_pos, to_pos, path, fuel_cost, 
+			speed, turn, phase, created_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 		)`
 
 	pathJSON, _ := json.Marshal(movement.Path)
 
 	_, err := s.db.Exec(query,
 		movement.ID, movement.GameID, movement.UnitID, movement.FromHex, movement.ToHex,
-		pathJSON, movement.FuelCost, movement.HexesMoved, movement.MovementType,
-		movement.Turn, movement.Phase, movement.CreatedAt, movement.UpdatedAt,
+		pathJSON, movement.FuelCost, movement.HexesMoved, movement.Turn, movement.Phase, movement.CreatedAt,
 	)
 
 	if err != nil {
@@ -495,8 +508,8 @@ func (s *MovementService) getCurrentPhase(gameID string) string {
 }
 
 func (s *MovementService) generateID() string {
-	// Упрощенная генерация ID - в реальной игре нужно использовать UUID
-	return fmt.Sprintf("movement_%d", time.Now().UnixNano())
+	// Генерируем UUID для движения
+	return uuid.New().String()
 }
 
 func (s *MovementService) notifyPlayersAboutMovement(unit *models.NavalUnit, movement *models.Movement) {
