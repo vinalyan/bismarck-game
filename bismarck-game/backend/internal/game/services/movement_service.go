@@ -58,8 +58,8 @@ func (s *MovementService) ValidateMovement(unit *models.NavalUnit, fromHex, toHe
 	}
 
 	// Проверяем, может ли юнит двигаться в этот ход
-	if !speedType.CanMoveThisTurn(fuelTracking.PreviousTurnMoved) {
-		return errors.New("unit cannot move this turn due to speed class restrictions")
+	if !speedType.CanMoveThisTurn(unit.NoMovementTurnsLeft) {
+		return errors.New("unit cannot move this turn due to movement restrictions")
 	}
 
 	// Проверяем аварийное топливо
@@ -113,7 +113,7 @@ func (s *MovementService) GetAvailableMoves(unit *models.NavalUnit) ([]string, e
 	}
 
 	// Проверяем, может ли юнит двигаться в этот ход
-	if !speedType.CanMoveThisTurn(fuelTracking.PreviousTurnMoved) {
+	if !speedType.CanMoveThisTurn(unit.NoMovementTurnsLeft) {
 		return []string{}, nil // Не может двигаться
 	}
 
@@ -266,12 +266,7 @@ func (s *MovementService) validateMovementRestrictions(unit *models.NavalUnit, f
 		}
 	}
 
-	// Проверяем ограничения для медленных кораблей (S и VS)
-	if unit.SpeedRating == models.SpeedTypeSlow || unit.SpeedRating == models.SpeedTypeVerySlow {
-		if unit.NoMovementTurnsLeft > 0 {
-			return fmt.Errorf("unit cannot move this turn due to movement restrictions (no_movement_turns_left: %d)", unit.NoMovementTurnsLeft)
-		}
-	}
+	// Проверка ограничений для медленных кораблей (S и VS) теперь выполняется в CanMoveThisTurn
 
 	return nil
 }

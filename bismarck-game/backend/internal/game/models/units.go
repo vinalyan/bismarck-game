@@ -62,12 +62,12 @@ func (st SpeedType) GetMaxMovementDistance() int {
 }
 
 // CanMoveThisTurn проверяет, может ли юнит двигаться в этот ход
-func (st SpeedType) CanMoveThisTurn(previousTurnMoved int) bool {
+func (st SpeedType) CanMoveThisTurn(noMovementTurnsLeft int) bool {
 	switch st {
 	case SpeedTypeFast, SpeedTypeMedium:
 		return true // Могут двигаться каждый ход
 	case SpeedTypeSlow, SpeedTypeVerySlow:
-		return previousTurnMoved == 0 // Могут двигаться только если не двигались в предыдущем ходу
+		return noMovementTurnsLeft == 0 // Могут двигаться только если нет ограничений движения
 	default:
 		return true
 	}
