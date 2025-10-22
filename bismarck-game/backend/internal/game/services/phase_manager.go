@@ -397,6 +397,12 @@ func (pm *PhaseManager) NextPhase(gameID string) error {
 
 	// Если это последняя фаза, завершаем ход
 	if currentIndex >= len(phases)-1 {
+		// Специальная обработка для setup фазы - начинаем первый ход
+		if turn.CurrentPhase == models.PhaseSetup {
+			log.Printf("Setup phase completed, starting first turn for game %s", gameID)
+			_, err = pm.StartTurn(gameID)
+			return err
+		}
 		return pm.CompleteTurn(gameID, turn.TurnNumber)
 	}
 
