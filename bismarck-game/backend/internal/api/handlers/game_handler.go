@@ -577,31 +577,42 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Successfully joined player to game")
 
 	// Обновляем объект game после SQL запроса
+	log.Printf("DEBUG: Before updating game object: Player1ID=%s, Player2ID=%s", game.Player1ID, game.Player2ID)
 	if game.Player1ID == "" {
 		// Присоединился как немец (Player1)
 		game.Player1ID = userID
+		log.Printf("DEBUG: Updated Player1ID to %s", userID)
 	} else if game.Player2ID == "" {
 		// Присоединился как союзник (Player2)
 		game.Player2ID = userID
+		log.Printf("DEBUG: Updated Player2ID to %s", userID)
 	}
 	game.Status = models.GameStatusActive
 	now := time.Now()
 	game.StartedAt = &now
 	game.UpdatedAt = now
+	log.Printf("DEBUG: After updating game object: Player1ID=%s, Player2ID=%s", game.Player1ID, game.Player2ID)
 
 	// Проверяем, нужно ли инициализировать юниты (если теперь оба игрока присоединились)
 	var finalPlayer1ID, finalPlayer2ID string
+
+	log.Printf("DEBUG: game.Player1ID = %s, game.Player2ID = %s", game.Player1ID, game.Player2ID)
 
 	// Определяем финальные ID игроков на основе обновленного объекта game
 	if game.Player1ID != "" && game.Player2ID != "" {
 		finalPlayer1ID = game.Player1ID
 		finalPlayer2ID = game.Player2ID
+		log.Printf("DEBUG: Set finalPlayer1ID = %s, finalPlayer2ID = %s", finalPlayer1ID, finalPlayer2ID)
+	} else {
+		log.Printf("DEBUG: Not both players joined yet. Player1ID = %s, Player2ID = %s", game.Player1ID, game.Player2ID)
 	}
 
 	// Если оба игрока теперь присоединились, инициализируем юниты
 	if finalPlayer1ID != "" && finalPlayer2ID != "" {
 		log.Printf("Both players joined, initializing units for game %s: player1=%s, player2=%s", gameID, finalPlayer1ID, finalPlayer2ID)
+		log.Printf("DEBUG: About to call InitializeGameUnits")
 		err = h.unitService.InitializeGameUnits(gameID, finalPlayer1ID, finalPlayer2ID, h.shipConfigService)
+		log.Printf("DEBUG: InitializeGameUnits returned with error: %v", err)
 		if err != nil {
 			log.Printf("Error initializing game units after join: %v", err)
 			// Не прерываем присоединение к игре, просто логируем ошибку

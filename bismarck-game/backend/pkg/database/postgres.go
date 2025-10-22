@@ -17,6 +17,14 @@ type Database struct {
 	cfg  *config.DatabaseConfig
 }
 
+// NewForTesting создает Database для тестирования с mock соединением
+func NewForTesting(conn *sql.DB) *Database {
+	return &Database{
+		conn: conn,
+		cfg:  nil, // не используется в тестах
+	}
+}
+
 // New создает новое подключение к базе данных
 func New(cfg *config.DatabaseConfig) (*Database, error) {
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",

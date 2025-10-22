@@ -128,3 +128,32 @@ test-coverage:
 	@echo "Running tests with coverage..."
 	go test -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
+
+# Тестирование API handlers
+test-api:
+	@echo "Running API handler tests..."
+	go test -v ./internal/api/handlers/...
+
+# Тестирование с подробным выводом
+test-verbose:
+	@echo "Running tests with verbose output..."
+	go test -v ./...
+
+# Тестирование конкретного пакета
+test-package:
+	@echo "Running tests for specific package..."
+	go test -v ./$(PACKAGE)
+
+# Тестирование с race detection
+test-race:
+	@echo "Running tests with race detection..."
+	go test -race ./...
+
+# Тестирование производительности
+test-bench:
+	@echo "Running benchmark tests..."
+	go test -bench=. ./...
+
+# Полное тестирование
+test-all: test test-coverage test-api test-race
+	@echo "All tests completed!"

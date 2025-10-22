@@ -515,14 +515,21 @@ func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]mode
 
 // InitializeGameUnits инициализирует юниты для новой игры
 func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, player2ID string, shipConfigService *ShipConfigService) error {
+	s.logger.Info("Starting InitializeGameUnits", "game_id", gameID, "player1", player1ID, "player2", player2ID)
+
 	// Получаем все корабли из конфигурации
 	allShips, err := shipConfigService.GetAvailableShips("")
 	if err != nil {
+		s.logger.Error("Failed to get ship configurations", "error", err)
 		return fmt.Errorf("failed to get ship configurations: %w", err)
 	}
 
+	s.logger.Info("Retrieved ship configurations", "count", len(allShips))
+
 	// Создаем юниты для каждой стороны
 	for _, shipConfig := range allShips {
+		s.logger.Info("Processing ship config", "name", shipConfig.Name, "side", shipConfig.Side)
+
 		// Определяем владельца юнита
 		var ownerID string
 		if shipConfig.Side == "german" {
@@ -530,8 +537,11 @@ func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, playe
 		} else if shipConfig.Side == "allied" {
 			ownerID = player2ID
 		} else {
+			s.logger.Info("Skipping ship with unknown side", "name", shipConfig.Name, "side", shipConfig.Side)
 			continue // Пропускаем корабли без определенной стороны
 		}
+
+		s.logger.Info("Creating unit for ship", "name", shipConfig.Name, "owner", ownerID)
 
 		// Создаем морской юнит
 		unit := &models.NavalUnit{
@@ -567,6 +577,7 @@ func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, playe
 		}
 
 		// Создаем юнит в базе данных
+		s.logger.Info("Creating unit in database", "unit_name", unit.Name, "unit_id", unit.ID)
 		err = s.CreateNavalUnit(unit)
 		if err != nil {
 			s.logger.Error("Failed to create unit for game",
@@ -575,6 +586,8 @@ func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, playe
 				"error", err)
 			return fmt.Errorf("failed to create unit %s: %w", shipConfig.Name, err)
 		}
+
+		s.logger.Info("Successfully created unit in database", "unit_name", unit.Name, "unit_id", unit.ID)
 
 		s.logger.Info("Created unit for game",
 			"game_id", gameID,
