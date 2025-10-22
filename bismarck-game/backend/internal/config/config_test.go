@@ -10,22 +10,38 @@ func TestLoadConfig(t *testing.T) {
 	configContent := `{
 		"server": {
 			"address": ":8080",
-			"read_timeout": 30,
-			"write_timeout": 30
+			"read_timeout": "30s",
+			"write_timeout": "30s",
+			"idle_timeout": "60s"
 		},
 		"database": {
 			"host": "localhost",
 			"port": 5432,
 			"user": "test_user",
 			"password": "test_pass",
-			"name": "test_db"
+			"name": "test_db",
+			"ssl_mode": "disable"
 		},
 		"redis": {
-			"address": "localhost:6379"
+			"address": "localhost:6379",
+			"password": "",
+			"db": 0
 		},
 		"jwt": {
 			"secret": "test-secret",
-			"expiration": 24
+			"expiration": "24h"
+		},
+		"game": {
+			"max_players": 2,
+			"turn_duration": "30s",
+			"game_start_delay": "10s",
+			"max_games": 100,
+			"cleanup_interval": "5m"
+		},
+		"log": {
+			"level": "debug",
+			"format": "text",
+			"file_path": ""
 		}
 	}`
 

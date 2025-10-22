@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -374,10 +375,13 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 
 // JoinGame присоединяет игрока к игре
 func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
+	log.Printf("JoinGame called")
 	vars := mux.Vars(r)
 	gameID := vars["id"]
+	log.Printf("Game ID from URL: %s", gameID)
 
 	if gameID == "" {
+		log.Printf("Game ID is empty")
 		pkgutils.WriteValidationError(w, "Game ID is required", map[string]string{
 			"id": "Game ID cannot be empty",
 		})
@@ -387,17 +391,32 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
 	userID, err := getUserIDFromContext(r)
 	if err != nil {
+		log.Printf("Failed to get user ID from context: %v", err)
 		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
 	}
+	log.Printf("User ID from context: %s", userID)
+
+	// Читаем тело запроса для отладки
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Failed to read request body: %v", err)
+		pkgutils.WriteValidationError(w, "Failed to read request body", map[string]string{
+			"body": "Request body could not be read",
+		})
+		return
+	}
+	log.Printf("Request body: %s", string(body))
 
 	var req models.JoinGameRequest
-	if err = pkgutils.ParseJSON(r, &req); err != nil {
+	if err = json.Unmarshal(body, &req); err != nil {
+		log.Printf("Failed to parse JSON request: %v", err)
 		pkgutils.WriteValidationError(w, "Invalid request format", map[string]string{
 			"body": "Request body must be valid JSON",
 		})
 		return
 	}
+	log.Printf("Parsed request: %+v", req)
 
 	// Получаем игру
 	var game models.Game
@@ -454,7 +473,9 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Проверяем, можно ли присоединиться к игре
+	log.Printf("Checking if game can be joined: gameID=%s, status=%s, player1=%s, player2=%s", gameID, game.Status, game.Player1ID, game.Player2ID)
 	if !game.CanJoin() {
+		log.Printf("Game cannot be joined: status=%s, player1=%s, player2=%s", game.Status, game.Player1ID, game.Player2ID)
 		pkgutils.WriteValidationError(w, "Cannot join this game", map[string]string{
 			"game": "Game is not available for joining",
 		})
@@ -524,15 +545,19 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Если сторона не указана, занимаем первое свободное место
+		log.Printf("No side specified, checking available slots: player1=%s, player2=%s", game.Player1ID, game.Player2ID)
 		if game.Player1ID == "" {
 			// Свободна немецкая сторона (Player1)
+			log.Printf("Player1 slot is free, assigning as German")
 			updateQuery = `UPDATE games SET player1_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
 			updateArgs = []interface{}{userID, time.Now(), gameID}
 		} else if game.Player2ID == "" {
 			// Свободна союзническая сторона (Player2)
+			log.Printf("Player2 slot is free, assigning as Allied")
 			updateQuery = `UPDATE games SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
 			updateArgs = []interface{}{userID, time.Now(), gameID}
 		} else {
+			log.Printf("Game is full: player1=%s, player2=%s", game.Player1ID, game.Player2ID)
 			pkgutils.WriteValidationError(w, "Game is full", map[string]string{
 				"game": "Game already has two players",
 			})
@@ -541,25 +566,41 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Присоединяем игрока
+	log.Printf("Executing join query: %s with args: %v", updateQuery, updateArgs)
 	_, err = h.db.GetConnection().ExecContext(r.Context(), updateQuery, updateArgs...)
 
 	if err != nil {
+		log.Printf("Error executing join query: %v", err)
 		pkgutils.WriteInternalError(w, "Failed to join game")
 		return
 	}
+	log.Printf("Successfully joined player to game")
+
+	// Обновляем объект game после SQL запроса
+	if game.Player1ID == "" {
+		// Присоединился как немец (Player1)
+		game.Player1ID = userID
+	} else if game.Player2ID == "" {
+		// Присоединился как союзник (Player2)
+		game.Player2ID = userID
+	}
+	game.Status = models.GameStatusActive
+	now := time.Now()
+	game.StartedAt = &now
+	game.UpdatedAt = now
 
 	// Проверяем, нужно ли инициализировать юниты (если теперь оба игрока присоединились)
 	var finalPlayer1ID, finalPlayer2ID string
-	if game.Player1ID == "" {
-		finalPlayer1ID = userID // Присоединился как немец
-		finalPlayer2ID = game.Player2ID
-	} else if game.Player2ID == "" {
+
+	// Определяем финальные ID игроков на основе обновленного объекта game
+	if game.Player1ID != "" && game.Player2ID != "" {
 		finalPlayer1ID = game.Player1ID
-		finalPlayer2ID = userID // Присоединился как союзник
+		finalPlayer2ID = game.Player2ID
 	}
 
 	// Если оба игрока теперь присоединились, инициализируем юниты
 	if finalPlayer1ID != "" && finalPlayer2ID != "" {
+		log.Printf("Both players joined, initializing units for game %s: player1=%s, player2=%s", gameID, finalPlayer1ID, finalPlayer2ID)
 		err = h.unitService.InitializeGameUnits(gameID, finalPlayer1ID, finalPlayer2ID, h.shipConfigService)
 		if err != nil {
 			log.Printf("Error initializing game units after join: %v", err)
@@ -616,17 +657,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Обновляем игровое состояние
-	if game.Player1ID == "" {
-		game.Player1ID = userID // Присоединился как немец
-	} else if game.Player2ID == "" {
-		game.Player2ID = userID // Присоединился как союзник
-	}
-
-	game.Status = models.GameStatusActive
-	now := time.Now()
-	game.StartedAt = &now
-	game.UpdatedAt = now
+	// Обновляем игровое состояние (уже обновлено выше)
 
 	// Формируем username для ответа
 	var player2UsernameStr string

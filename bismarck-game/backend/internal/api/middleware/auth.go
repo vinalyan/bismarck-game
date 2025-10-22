@@ -21,9 +21,13 @@ type Claims struct {
 func AuthMiddleware(jwtSecret string) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logger.Info("AuthMiddleware: processing request", "path", r.URL.Path, "method", r.Method)
+
 			// Получаем токен из заголовка Authorization
 			authHeader := r.Header.Get("Authorization")
+			logger.Info("AuthMiddleware: auth header", "header", authHeader)
 			if authHeader == "" {
+				logger.Warn("AuthMiddleware: no authorization header")
 				http.Error(w, "Authorization header required", http.StatusUnauthorized)
 				return
 			}
@@ -61,6 +65,8 @@ func AuthMiddleware(jwtSecret string) mux.MiddlewareFunc {
 			// Извлекаем данные из claims
 			userID, _ := claims["user_id"].(string)
 			username, _ := claims["username"].(string)
+
+			logger.Info("AuthMiddleware: authentication successful", "user_id", userID, "username", username)
 
 			// Добавляем информацию о пользователе в контекст
 			ctx := context.WithValue(r.Context(), "user_id", userID)
