@@ -3,7 +3,7 @@
 export type GamePhase = 
   | 'setup'
   | 'visibility'
-  | 'pursuit'
+  | 'shadow'
   | 'movement'
   | 'search'
   | 'air_attack'
@@ -72,10 +72,10 @@ export const PHASE_CONFIGS: Record<GamePhase, PhaseConfig> = {
     skip_on_turn_1: true,
     required: true,
   },
-  pursuit: {
-    phase: 'pursuit',
-    name: 'Фаза преследования',
-    description: 'Попытки преследования обнаруженных кораблей.',
+  shadow: {
+    phase: 'shadow',
+    name: 'Фаза слежения',
+    description: 'Слежение за обнаруженными кораблями.',
     duration: 120,
     skip_on_turn_1: true,
     required: true,
@@ -132,10 +132,27 @@ export const PHASE_CONFIGS: Record<GamePhase, PhaseConfig> = {
 
 // Последовательность фаз для хода
 export const getPhaseSequence = (turn: number): GamePhase[] => {
-  const phases: GamePhase[] = [
-    'setup',
+  // Для setup фазы (turn 0): только setup
+  if (turn === 0) {
+    return ['setup'];
+  }
+
+  // Для первого хода: movement → search → air_attack → naval_combat → chance → admin
+  if (turn === 1) {
+    return [
+      'movement',
+      'search',
+      'air_attack',
+      'naval_combat',
+      'chance',
+      'admin',
+    ];
+  }
+
+  // Для остальных ходов (turn 2+): visibility → shadow → movement → search → air_attack → naval_combat → chance → admin
+  return [
     'visibility',
-    'pursuit',
+    'shadow',
     'movement',
     'search',
     'air_attack',
@@ -143,13 +160,6 @@ export const getPhaseSequence = (turn: number): GamePhase[] => {
     'chance',
     'admin',
   ];
-  
-  // В первом ходу пропускаем фазы видимости и преследования
-  if (turn === 1) {
-    return phases.filter(phase => phase !== 'visibility' && phase !== 'pursuit');
-  }
-  
-  return phases;
 };
 
 // Получить конфигурацию фазы

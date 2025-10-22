@@ -51,7 +51,7 @@ const Game: React.FC = () => {
     const phaseNames: { [key: string]: string } = {
       'setup': 'Подготовка',
       'visibility': 'Видимость',
-      'pursuit': 'Преследование',
+      'shadow': 'Слежение',
       'movement': 'Движение',
       'search': 'Поиск',
       'air_attack': 'Воздушная атака',
