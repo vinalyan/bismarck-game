@@ -9,8 +9,8 @@ const (
 	// PhaseSetup - Подготовка (только в первом ходу)
 	PhaseSetup GamePhase = "setup"
 
-	// PhasePursuit - Фаза преследования (пропустить на 1-м ходу)
-	PhasePursuit GamePhase = "pursuit"
+	// PhaseShadow - Фаза слежения (пропустить на 1-м ходу)
+	PhaseShadow GamePhase = "shadow"
 )
 
 // PhaseStatus представляет статус фазы
@@ -92,10 +92,10 @@ func GetPhaseConfigs() map[GamePhase]PhaseConfig {
 			SkipOnTurn1: true,
 			Required:    true,
 		},
-		PhasePursuit: {
-			Phase:       PhasePursuit,
-			Name:        "Фаза преследования",
-			Description: "Попытки преследования обнаруженных кораблей.",
+		PhaseShadow: {
+			Phase:       PhaseShadow,
+			Name:        "Фаза слежения",
+			Description: "Слежение за обнаруженными кораблями.",
 			Duration:    120,
 			SkipOnTurn1: true,
 			Required:    true,
@@ -160,9 +160,10 @@ func GetPhaseSequence(turnNumber int) []GamePhase {
 		}
 	}
 
-	// Для первого хода: movement → search → air_attack → naval_combat → chance → admin
+	// Для первого хода: setup → movement → search → air_attack → naval_combat → chance → admin
 	if turnNumber == 1 {
 		return []GamePhase{
+			PhaseSetup,
 			PhaseMovement,
 			PhaseSearch,
 			PhaseAirAttack,
@@ -172,10 +173,10 @@ func GetPhaseSequence(turnNumber int) []GamePhase {
 		}
 	}
 
-	// Для остальных ходов: visibility → pursuit → movement → search → air_attack → naval_combat → chance → admin
+	// Для остальных ходов (turn 2+): visibility → shadow → movement → search → air_attack → naval_combat → chance → admin
 	return []GamePhase{
 		PhaseVisibility,
-		PhasePursuit,
+		PhaseShadow,
 		PhaseMovement,
 		PhaseSearch,
 		PhaseAirAttack,

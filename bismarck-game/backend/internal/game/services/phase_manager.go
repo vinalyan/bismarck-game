@@ -31,7 +31,7 @@ func (pm *PhaseManager) registerPhaseHandlers() {
 	// Заглушки для всех фаз
 	pm.phaseHandlers[models.PhaseSetup] = &SetupPhaseHandler{}
 	pm.phaseHandlers[models.PhaseVisibility] = &VisibilityPhaseHandler{}
-	pm.phaseHandlers[models.PhasePursuit] = &PursuitPhaseHandler{}
+	pm.phaseHandlers[models.PhaseShadow] = &ShadowPhaseHandler{}
 	pm.phaseHandlers[models.PhaseMovement] = &MovementPhaseHandler{}
 	pm.phaseHandlers[models.PhaseSearch] = &SearchPhaseHandler{}
 	pm.phaseHandlers[models.PhaseAirAttack] = &AirAttackPhaseHandler{}
