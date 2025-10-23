@@ -95,6 +95,7 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
 			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
+			   is_emergency_fuel, emergency_removal_turn,
 			   created_at, updated_at
 		FROM naval_units
 		WHERE game_id = $1
@@ -121,6 +122,7 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 			&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
 			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
+			&unit.IsEmergencyFuel, &unit.EmergencyTurn,
 			&unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {
@@ -435,11 +437,14 @@ func (s *UnitService) RecordSearch(search *models.UnitSearch) error {
 func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]models.NavalUnit, []models.AirUnit, error) {
 	// Получаем морские юниты
 	navalQuery := `
-		SELECT id, game_id, name, type, class, owner, nationality, position,
+		SELECT id, game_id, name, type, class, owner, nationality, position, setup_hex,
 			   evasion, base_evasion, speed_rating, fuel, max_fuel,
-			   hull_boxes, current_hull, guns, torpedoes, max_torpedoes,
-			   search_factors, radar_level, status, detection_level,
-			   is_visible, last_known_pos, task_force_id, markers, damage,
+			   hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
+			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
+			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
+			   status, detection_level, last_known_pos, task_force_id, damage,
+			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
+			   is_emergency_fuel, emergency_removal_turn,
 			   created_at, updated_at
 		FROM naval_units
 		WHERE game_id = $1 AND position = $2`
@@ -457,12 +462,14 @@ func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]mode
 		var lastKnownPos, taskForceID sql.NullString
 
 		err := navalRows.Scan(
-			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position,
+			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
 			&unit.Evasion, &unit.BaseEvasion, &unit.SpeedRating, &unit.Fuel, &unit.MaxFuel,
 			&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
 			&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
 			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 			&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
+			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
+			&unit.IsEmergencyFuel, &unit.EmergencyTurn,
 			&unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {
