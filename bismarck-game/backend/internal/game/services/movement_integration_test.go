@@ -451,8 +451,8 @@ func TestMovementWithAllShipTypes(t *testing.T) {
 
 			// Симулируем движение
 			ship.Position = toHex
-			ship.MovementUsed = 1
-			ship.Fuel = ship.MaxFuel // Предполагаем, что топливо не тратится для тестов
+			ship.MovementUsed = shipType.maxDistance // Устанавливаем правильное значение
+			ship.Fuel = ship.MaxFuel                 // Предполагаем, что топливо не тратится для тестов
 
 			// Проверяем результат
 			if ship.Position != toHex {

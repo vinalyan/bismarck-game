@@ -65,9 +65,6 @@ const Game: React.FC = () => {
   const [loadingShips, setLoadingShips] = useState(false);
   const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
-  
-  // Состояние для позиций юнитов
-  const [unitPositions, setUnitPositions] = useState<Map<string, HexCoordinate>>(new Map());
 
   // Хук для управления активными гексами
   const {
@@ -97,42 +94,6 @@ const Game: React.FC = () => {
         
         if (response.success && response.data && response.data.units) {
           setGameUnits(response.data.units);
-          
-          // Создаем карту позиций юнитов
-          const positions = new Map<string, HexCoordinate>();
-          response.data.units.forEach(unit => {
-            if (unit.position && unit.position.trim() !== '') {
-              // Парсим позицию (например, "J30" -> {letter: "J", number: 30})
-              const match = unit.position.match(/^([A-Z]+)(\d+)$/);
-              if (match) {
-                const letter = match[1];
-                const number = parseInt(match[2]);
-                
-                // Преобразуем букву в row
-                let row: number;
-                if (letter.length === 1) {
-                  // A, B, C, ..., Z (0-25)
-                  row = letter.charCodeAt(0) - 65;
-                } else if (letter.length === 2 && letter.startsWith('A')) {
-                  // AA, AB, AC, ..., AH (26-33)
-                  row = 26 + (letter.charCodeAt(1) - 65);
-                } else {
-                  console.warn(`Invalid letter format: ${letter}`);
-                  return;
-                }
-                
-                // Создаем координату
-                const coordinate: HexCoordinate = {
-                  letter: letter,
-                  number: number,
-                  col: number - 1,
-                  row: row
-                };
-                positions.set(unit.id, coordinate);
-              }
-            }
-          });
-          setUnitPositions(positions);
         } else {
           console.error('Failed to load game units:', response.error);
           addNotification({
@@ -408,13 +369,6 @@ const Game: React.FC = () => {
 
         setSelectedUnitData(updatedUnitData);
 
-        // Обновляем позицию юнита в состоянии
-        setUnitPositions(prev => {
-          const newPositions = new Map(prev);
-          newPositions.set(selectedUnit!, targetCoordinate);
-          return newPositions;
-        });
-
         // Обновляем данные юнита в gameUnits
         setGameUnits(prev => prev.map(unit => 
           unit.id === selectedUnit 
@@ -555,8 +509,8 @@ const Game: React.FC = () => {
       return;
     }
 
-    // Получаем актуальную позицию юнита
-    const currentPosition = unitPositions.get(unitId) || unitData.position;
+    // Получаем актуальную позицию юнита из gameUnits
+    const currentPosition = unitData.position;
     
     // Используем обновленные данные из selectedUnitData если они есть
     const unitDataToUse = selectedUnitData && selectedUnitData.id === unitId ? selectedUnitData : unitData;
@@ -949,7 +903,6 @@ const Game: React.FC = () => {
             selectedHex={selectedHex}
             availableMovementHexes={availableMovementHexes}
             activeHexes={activeHexes}
-            unitPositions={unitPositions}
             gameUnits={gameUnits}
           />
         </div>
@@ -1073,7 +1026,6 @@ const Game: React.FC = () => {
             playerSide={playerSide}
             availableMovementHexes={availableMovementHexes}
             activeHexes={[]}
-            unitPositions={unitPositions}
             gameUnits={gameUnits}
           />
         </div>

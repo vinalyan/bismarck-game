@@ -68,12 +68,31 @@ func (s *MovementService) validateEmergencyFuelMovement(unit *models.NavalUnit, 
 
 // validateMovementLogic проверяет логику движения без обращения к базе данных
 func (s *MovementService) validateMovementLogic(unit *models.NavalUnit, distance int) error {
+	// Проверяем ограничения движения для S и VS кораблей
+	if unit.NoMovementTurnsLeft > 0 {
+		return errors.New("ship has movement restrictions and cannot move")
+	}
+
+	// Проверяем топливо для F и M кораблей
+	if unit.SpeedRating == models.SpeedTypeFast || unit.SpeedRating == models.SpeedTypeMedium {
+		if unit.Fuel <= 0 {
+			return errors.New("ship has no fuel and cannot move")
+		}
+	}
+
+	// Проверяем, что корабль не двигался в этом ходу
+	if unit.MovementUsed > 0 {
+		return errors.New("ship has already moved this turn")
+	}
+
 	// Базовая проверка скорости
 	maxDistance := unit.SpeedRating.GetMaxMovementDistance()
 	if distance > maxDistance {
 		return errors.New("movement distance exceeds unit speed rating")
 	}
 
+	// Для тестов - упрощенная проверка границ
+	// В реальной игре эти проверки выполняются в ValidateMovement
 	return nil
 }
 

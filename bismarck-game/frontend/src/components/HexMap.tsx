@@ -21,8 +21,7 @@ interface HexMapProps {
   playerSide?: 'german' | 'allied';
   availableMovementHexes?: MovementHex[];
   activeHexes?: ActiveHex[];
-  unitPositions?: Map<string, HexCoordinate>;
-  gameUnits?: any[]; // Добавляем данные юнитов из API
+  gameUnits?: any[]; // Единый источник данных юнитов
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -35,7 +34,6 @@ const HexMap: React.FC<HexMapProps> = ({
   playerSide = 'german',
   availableMovementHexes = [],
   activeHexes = [],
-  unitPositions = new Map(),
   gameUnits = []
 }) => {
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
@@ -83,46 +81,33 @@ const HexMap: React.FC<HexMapProps> = ({
         let unitType = null;
         let unitSide: 'german' | 'allied' | null = null;
 
-        // Ищем юнит в этой позиции
-        unitPositions.forEach((pos, id) => {
-          if (pos.col === col && pos.row === row) {
-            hasUnit = true;
-            unitId = id;
-            
-            // Находим данные юнита в gameUnits
-            const unitData = gameUnits.find(unit => unit.id === id);
-            if (unitData) {
-              unitType = unitData.type;
-              unitSide = unitData.nationality === 'german' ? 'german' : 'allied';
-            } else {
-              // Fallback к старой логике, если данные не найдены
-              if (id === 'Bismark' || id === 'Scharnhorst' || id === 'Graf Zeppelin' || 
-                  id === 'Prinz Eugen' || id === 'Nurnberg' || id === 'Z-23' || 
-                  id === 'Ju-88' || id === 'Fw-200') {
-                unitSide = 'german';
+        // Ищем юнит в этой позиции напрямую из gameUnits
+        gameUnits.forEach(unit => {
+          if (unit.position && unit.position.trim() !== '') {
+            // Парсим позицию юнита
+            const match = unit.position.match(/^([A-Z]+)(\d+)$/);
+            if (match) {
+              const letter = match[1];
+              const number = parseInt(match[2]);
+              
+              // Преобразуем букву в row
+              let unitRow: number;
+              if (letter.length === 1) {
+                // A, B, C, ..., Z (0-25)
+                unitRow = letter.charCodeAt(0) - 65;
+              } else if (letter.length === 2 && letter.startsWith('A')) {
+                // AA, AB, AC, ..., AH (26-33)
+                unitRow = 26 + (letter.charCodeAt(1) - 65);
               } else {
-                unitSide = 'allied';
+                return; // Неверный формат позиции
               }
-
-              // Определяем тип юнита
-              if (id === 'Bismark' || id === 'Hood') {
-                unitType = 'BB';
-              } else if (id === 'Scharnhorst' || id === 'Prince of Wales') {
-                unitType = 'BC';
-              } else if (id === 'Graf Zeppelin' || id === 'Ark Royal') {
-                unitType = 'CV';
-              } else if (id === 'Prinz Eugen' || id === 'Norfolk') {
-                unitType = 'CA';
-              } else if (id === 'Nurnberg' || id === 'Sheffield') {
-                unitType = 'CL';
-              } else if (id === 'Z-23' || id === 'Cossack') {
-                unitType = 'DD';
-              } else if (id === 'Ju-88' || id === 'Swordfish') {
-                unitType = 'B';
-              } else if (id === 'Fw-200' || id === 'Sunderland') {
-                unitType = 'R';
-              } else {
-                unitType = 'CG'; // По умолчанию
+              
+              // Проверяем, находится ли юнит в этой позиции
+              if (unitRow === row && (number - 1) === col) {
+                hasUnit = true;
+                unitId = unit.id;
+                unitType = unit.type;
+                unitSide = unit.nationality === 'german' ? 'german' : 'allied';
               }
             }
           }
@@ -144,7 +129,7 @@ const HexMap: React.FC<HexMapProps> = ({
     }
     
     return newHexes;
-  }, [width, height, unitPositions, gameUnits]);
+  }, [width, height, gameUnits]);
 
   // Обработчики событий
   const handleHexClick = (coordinate: HexCoordinate) => {
