@@ -54,7 +54,7 @@ make_request() {
     fi
     
     http_code=$(echo "$response" | tail -n1)
-    body=$(echo "$response" | head -n -1)
+    body=$(echo "$response" | sed '$d')
     
     if [ "$http_code" = "$expected_status" ]; then
         echo "$body"
@@ -84,7 +84,7 @@ get_auth_token() {
 create_test_game() {
     local token="$1"
     
-    local game_data='{"name":"Movement Test Game","description":"Test game for movement testing"}'
+    local game_data='{"name":"Movement Test Game","description":"Test game for movement testing","side":"german"}'
     local response=$(curl -s -X POST \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $token" \
@@ -98,17 +98,59 @@ create_test_game() {
     fi
 }
 
+# Функция для подключения второго игрока к игре
+join_game() {
+    local token="$1"
+    local game_id="$2"
+    local side="$3"
+    
+    local join_data='{"side":"'$side'","password":""}'
+    local response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $token" \
+        -d "$join_data" \
+        "$BASE_URL/api/games/$game_id/join")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | jq -r '.success' 2>/dev/null
+    else
+        echo ""
+    fi
+}
+
+# Функция для начала хода
+start_turn() {
+    local token="$1"
+    local game_id="$2"
+    
+    local turn_data='{"game_id":"'$game_id'"}'
+    local response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $token" \
+        -d "$turn_data" \
+        "$BASE_URL/api/phases/turn/start")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | jq -r '.success' 2>/dev/null
+    else
+        echo ""
+    fi
+}
+
 # Функция для создания корабля
 create_ship() {
     local token="$1"
     local game_id="$2"
-    local ship_data="$3"
+    local ship_id="$3"
+    local position="$4"
+    local owner="$5"
     
+    local ship_data='{"ship_id":"'$ship_id'","game_id":"'$game_id'","owner":"'$owner'","position":"'$position'"}'
     local response=$(curl -s -X POST \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $token" \
         -d "$ship_data" \
-        "$BASE_URL/api/games/$game_id/units")
+        "$BASE_URL/api/ships/create-unit")
     
     if [ $? -eq 0 ]; then
         echo "$response" | jq -r '.data.id' 2>/dev/null
@@ -126,7 +168,7 @@ test_movement() {
     local to_hex="$5"
     local expected_result="$6"
     
-    local movement_data='{"from_hex":"'$from_hex'","to_hex":"'$to_hex'"}'
+    local movement_data='{"unit_id":"'$unit_id'","to_hex":"'$to_hex'"}'
     local response=$(curl -s -X POST \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $token" \
@@ -169,7 +211,7 @@ echo -e "${GREEN}✅ Сервер доступен${NC}"
 echo ""
 
 echo "🔐 Получение токенов авторизации..."
-TOKEN1=$(get_auth_token "testuser1" "password123")
+TOKEN1="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjEzMjcwMTIsImlhdCI6MTc2MTI0MDYxMiwibmJmIjoxNzYxMjQwNjEyLCJ1c2VyX2lkIjoiODUyYjY4MGUtNDNiYi00NThjLWFlODEtOWIxZDdlNjU0OWU2IiwidXNlcm5hbWUiOiJ0ZXN0dXNlcjE3NjEyNDA1OTIifQ.gJtwLCEwNMnDuh80h6mDfzJvCeCOHast9L1AK6D6nOc"
 TOKEN2=$(get_auth_token "testuser2" "password123")
 
 if [ -z "$TOKEN1" ] || [ -z "$TOKEN2" ]; then
@@ -186,120 +228,54 @@ if [ -z "$GAME_ID" ]; then
     exit 1
 fi
 echo -e "${GREEN}✅ Игра создана: $GAME_ID${NC}"
+
+echo "🔗 Подключение второго игрока к игре..."
+JOIN_RESULT=$(join_game "$TOKEN2" "$GAME_ID" "allied")
+if [ "$JOIN_RESULT" = "true" ]; then
+    echo -e "${GREEN}✅ Второй игрок подключен к игре${NC}"
+else
+    echo -e "${RED}❌ Не удалось подключить второго игрока${NC}"
+    exit 1
+fi
+
+echo "🎯 Начало первого хода (фаза движения)..."
+TURN_RESULT=$(start_turn "$TOKEN1" "$GAME_ID")
+if [ "$TURN_RESULT" = "true" ]; then
+    echo -e "${GREEN}✅ Первый ход начат, игра переведена в фазу движения${NC}"
+else
+    echo -e "${RED}❌ Не удалось начать первый ход${NC}"
+    exit 1
+fi
 echo ""
 
 echo "🚢 Создание тестовых кораблей..."
 
-# Создание быстрого корабля (F)
-FAST_SHIP_DATA='{
-    "name": "Fast Destroyer",
-    "type": "DD",
-    "class": "Fast DD",
-    "nationality": "german",
-    "position": "J22",
-    "speed_rating": "F",
-    "fuel": 10,
-    "max_fuel": 10,
-    "hull_boxes": 3,
-    "current_hull": 3,
-    "primary_armament_bow": 2,
-    "primary_armament_stern": 2,
-    "secondary_armament": 4,
-    "torpedoes": 8,
-    "max_torpedoes": 8,
-    "radar_level": 0,
-    "evasion": 15,
-    "base_evasion": 15
-}'
-
-FAST_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$FAST_SHIP_DATA")
+# Создание быстрого корабля (F) - используем эсминец
+FAST_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "5_zerstorerfl" "J22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -z "$FAST_SHIP_ID" ]; then
     echo -e "${RED}❌ Не удалось создать быстрый корабль${NC}"
     exit 1
 fi
 echo -e "${GREEN}✅ Быстрый корабль создан: $FAST_SHIP_ID${NC}"
 
-# Создание среднего корабля (M)
-MEDIUM_SHIP_DATA='{
-    "name": "Medium Cruiser",
-    "type": "CA",
-    "class": "Medium CA",
-    "nationality": "german",
-    "position": "K22",
-    "speed_rating": "M",
-    "fuel": 8,
-    "max_fuel": 8,
-    "hull_boxes": 5,
-    "current_hull": 5,
-    "primary_armament_bow": 3,
-    "primary_armament_stern": 3,
-    "secondary_armament": 5,
-    "torpedoes": 0,
-    "max_torpedoes": 0,
-    "radar_level": 1,
-    "evasion": 20,
-    "base_evasion": 20
-}'
-
-MEDIUM_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$MEDIUM_SHIP_DATA")
+# Создание среднего корабля (M) - используем крейсер
+MEDIUM_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "prinz_eugen" "K22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -z "$MEDIUM_SHIP_ID" ]; then
     echo -e "${RED}❌ Не удалось создать средний корабль${NC}"
     exit 1
 fi
 echo -e "${GREEN}✅ Средний корабль создан: $MEDIUM_SHIP_ID${NC}"
 
-# Создание медленного корабля (S)
-SLOW_SHIP_DATA='{
-    "name": "Slow Battleship",
-    "type": "BB",
-    "class": "Slow BB",
-    "nationality": "german",
-    "position": "L22",
-    "speed_rating": "S",
-    "fuel": 15,
-    "max_fuel": 15,
-    "hull_boxes": 12,
-    "current_hull": 12,
-    "primary_armament_bow": 8,
-    "primary_armament_stern": 2,
-    "secondary_armament": 8,
-    "torpedoes": 0,
-    "max_torpedoes": 0,
-    "radar_level": 2,
-    "evasion": 10,
-    "base_evasion": 10
-}'
-
-SLOW_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$SLOW_SHIP_DATA")
+# Создание медленного корабля (S) - используем линкор
+SLOW_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "bismarck" "L22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -z "$SLOW_SHIP_ID" ]; then
     echo -e "${RED}❌ Не удалось создать медленный корабль${NC}"
     exit 1
 fi
 echo -e "${GREEN}✅ Медленный корабль создан: $SLOW_SHIP_ID${NC}"
 
-# Создание очень медленного корабля (VS)
-VERY_SLOW_SHIP_DATA='{
-    "name": "Very Slow Tanker",
-    "type": "TK",
-    "class": "Very Slow TK",
-    "nationality": "german",
-    "position": "M22",
-    "speed_rating": "VS",
-    "fuel": 20,
-    "max_fuel": 20,
-    "hull_boxes": 6,
-    "current_hull": 6,
-    "primary_armament_bow": 0,
-    "primary_armament_stern": 0,
-    "secondary_armament": 2,
-    "torpedoes": 0,
-    "max_torpedoes": 0,
-    "radar_level": 0,
-    "evasion": 5,
-    "base_evasion": 5
-}'
-
-VERY_SLOW_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$VERY_SLOW_SHIP_DATA")
+# Создание очень медленного корабля (VS) - используем танкер
+VERY_SLOW_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "weissenburg" "M22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -z "$VERY_SLOW_SHIP_ID" ]; then
     echo -e "${RED}❌ Не удалось создать очень медленный корабль${NC}"
     exit 1
@@ -389,29 +365,8 @@ fi
 
 # Тест 10: Попытка движения без топлива
 echo "🚀 Тест 10: Попытка движения без топлива"
-# Создаем корабль с 0 топливом
-NO_FUEL_SHIP_DATA='{
-    "name": "No Fuel Ship",
-    "type": "DD",
-    "class": "No Fuel DD",
-    "nationality": "german",
-    "position": "N22",
-    "speed_rating": "F",
-    "fuel": 0,
-    "max_fuel": 10,
-    "hull_boxes": 3,
-    "current_hull": 3,
-    "primary_armament_bow": 2,
-    "primary_armament_stern": 2,
-    "secondary_armament": 4,
-    "torpedoes": 8,
-    "max_torpedoes": 8,
-    "radar_level": 0,
-    "evasion": 15,
-    "base_evasion": 15
-}'
-
-NO_FUEL_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$NO_FUEL_SHIP_DATA")
+# Создаем корабль с 0 топливом (используем эсминец)
+NO_FUEL_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "6_zerstorerfl" "N22" "e3384df7-7ea8-40ee-97ba-c616908d59dd")
 if [ -n "$NO_FUEL_SHIP_ID" ]; then
     if test_movement "$TOKEN1" "$GAME_ID" "$NO_FUEL_SHIP_ID" "N22" "N23" "false"; then
         log_test "Движение без топлива" "PASS"

@@ -56,7 +56,7 @@ make_request() {
     fi
     
     http_code=$(echo "$response" | tail -n1)
-    body=$(echo "$response" | head -n -1)
+    body=$(echo "$response" | sed '$d')
     
     if [ "$http_code" = "$expected_status" ]; then
         echo "$body"
@@ -86,7 +86,7 @@ get_auth_token() {
 create_test_game() {
     local token="$1"
     
-    local game_data='{"name":"Movement Scenarios Test Game","description":"Test game for movement scenarios testing"}'
+    local game_data='{"name":"Movement Scenarios Test Game","description":"Test game for movement scenarios testing","side":"german"}'
     local response=$(curl -s -X POST \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $token" \
@@ -95,6 +95,45 @@ create_test_game() {
     
     if [ $? -eq 0 ]; then
         echo "$response" | jq -r '.data.id' 2>/dev/null
+    else
+        echo ""
+    fi
+}
+
+# Функция для подключения второго игрока к игре
+join_game() {
+    local token="$1"
+    local game_id="$2"
+    local side="$3"
+    
+    local join_data='{"side":"'$side'","password":""}'
+    local response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $token" \
+        -d "$join_data" \
+        "$BASE_URL/api/games/$game_id/join")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | jq -r '.success' 2>/dev/null
+    else
+        echo ""
+    fi
+}
+
+# Функция для начала хода
+start_turn() {
+    local token="$1"
+    local game_id="$2"
+    
+    local turn_data='{"game_id":"'$game_id'"}'
+    local response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $token" \
+        -d "$turn_data" \
+        "$BASE_URL/api/phases/turn/start")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | jq -r '.success' 2>/dev/null
     else
         echo ""
     fi
@@ -128,7 +167,7 @@ test_movement() {
     local to_hex="$5"
     local expected_result="$6"
     
-    local movement_data='{"from_hex":"'$from_hex'","to_hex":"'$to_hex'"}'
+    local movement_data='{"unit_id":"'$unit_id'","to_hex":"'$to_hex'"}'
     local response=$(curl -s -X POST \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $token" \
@@ -205,6 +244,24 @@ if [ -z "$GAME_ID" ]; then
     exit 1
 fi
 echo -e "${GREEN}✅ Игра создана: $GAME_ID${NC}"
+
+echo "🔗 Подключение второго игрока к игре..."
+JOIN_RESULT=$(join_game "$TOKEN2" "$GAME_ID" "allied")
+if [ "$JOIN_RESULT" = "true" ]; then
+    echo -e "${GREEN}✅ Второй игрок подключен к игре${NC}"
+else
+    echo -e "${RED}❌ Не удалось подключить второго игрока${NC}"
+    exit 1
+fi
+
+echo "🎯 Начало первого хода (фаза движения)..."
+TURN_RESULT=$(start_turn "$TOKEN1" "$GAME_ID")
+if [ "$TURN_RESULT" = "true" ]; then
+    echo -e "${GREEN}✅ Первый ход начат, игра переведена в фазу движения${NC}"
+else
+    echo -e "${RED}❌ Не удалось начать первый ход${NC}"
+    exit 1
+fi
 echo ""
 
 echo "🚢 Создание тестовых кораблей..."
