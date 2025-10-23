@@ -116,6 +116,10 @@ func (s *Server) setupRoutes() {
 	movementLogger, _ := logger.New(logger.INFO, "movement-service", "stdout")
 	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService)
 
+	// Создаем TaskForceService
+	taskForceLogger, _ := logger.New(logger.INFO, "taskforce-service", "stdout")
+	taskForceService := services.NewTaskForceService(s.db, taskForceLogger, unitService)
+
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
 		logger.Error("Failed to load ship config", "error", err)
@@ -127,6 +131,7 @@ func (s *Server) setupRoutes() {
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService)
 	phaseHandler := handlers.NewPhaseHandler(phaseManager)
 	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, unitService, movementLogger)
+	unitHandler := handlers.NewUnitHandler(unitService, taskForceService, unitLogger)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
@@ -134,6 +139,7 @@ func (s *Server) setupRoutes() {
 	shipConfigHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	phaseHandler.RegisterRoutes(s.router)
 	movementHandler.RegisterRoutes(s.router)
+	unitHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 
 	// WebSocket маршрут
 	s.router.HandleFunc("/ws", s.handleWebSocket)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"bismarck-game/backend/internal/api/middleware"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/logger"
@@ -565,4 +566,28 @@ func (h *UnitHandler) GetUnitSearches(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteSuccessResponse(w, response)
+}
+
+// RegisterRoutes регистрирует маршруты для юнитов
+func (h *UnitHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
+	// Создаем подроутер для юнитов с аутентификацией
+	unitRouter := router.PathPrefix("/api/games/{gameId}").Subrouter()
+	unitRouter.Use(middleware.AuthMiddleware(jwtSecret))
+
+	// Маршруты для получения юнитов
+	unitRouter.HandleFunc("/units", h.GetUnits).Methods("GET")
+	unitRouter.HandleFunc("/units/{unitId}", h.GetUnit).Methods("GET")
+	unitRouter.HandleFunc("/units/{unitId}/move", h.MoveUnit).Methods("POST")
+	unitRouter.HandleFunc("/units/{unitId}/search", h.SearchUnit).Methods("POST")
+	unitRouter.HandleFunc("/units/{unitId}/searches", h.GetUnitSearches).Methods("GET")
+
+	// Маршруты для позиций
+	unitRouter.HandleFunc("/units/position/{position}", h.GetUnitsByPosition).Methods("GET")
+
+	// Маршруты для Task Forces
+	unitRouter.HandleFunc("/task-forces", h.GetTaskForces).Methods("GET")
+	unitRouter.HandleFunc("/task-forces/{taskForceId}", h.GetTaskForce).Methods("GET")
+	unitRouter.HandleFunc("/task-forces", h.CreateTaskForce).Methods("POST")
+	unitRouter.HandleFunc("/task-forces/{taskForceId}/add-unit", h.AddUnitToTaskForce).Methods("POST")
+	unitRouter.HandleFunc("/task-forces/{taskForceId}/remove-unit", h.RemoveUnitFromTaskForce).Methods("POST")
 }
