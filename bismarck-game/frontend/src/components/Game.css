@@ -919,3 +919,30 @@
   border-radius: 8px;
   overflow: hidden;
 }
+
+/* Стили для индикатора аварийного топлива */
+.emergency-fuel-indicator {
+  background: rgba(245, 101, 101, 0.2);
+  border: 1px solid #f56565;
+  border-radius: 6px;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.emergency-fuel-warning {
+  color: #f56565;
+  font-weight: 600;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.emergency-fuel-turns {
+  color: #feb2b2;
+  font-size: 0.75rem;
+  font-style: italic;
+}

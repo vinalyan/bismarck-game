@@ -408,6 +408,10 @@ export interface NavalUnit {
   torpedoesUsed: number;
   movementUsed: number;
   
+  // Поля для аварийного топлива
+  isEmergencyFuel: boolean; // Флаг аварийного топлива - корабль может двигаться только на 1 гекс
+  emergencyTurn: number;    // Ход, когда закончится аварийное топливо (текущий ход + 10)
+  
   createdAt: string;
   updatedAt: string;
 }

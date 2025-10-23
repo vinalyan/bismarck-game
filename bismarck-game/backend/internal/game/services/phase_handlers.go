@@ -403,6 +403,7 @@ func (h *ChancePhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
 // AdminPhaseHandler обрабатывает административную фазу
 type AdminPhaseHandler struct {
 	phaseManager models.PhaseManagerInterface
+	unitService  *UnitService
 }
 
 func (h *AdminPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
@@ -410,10 +411,15 @@ func (h *AdminPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 }
 
 func (h *AdminPhaseHandler) Start(gameID string, turn int) error {
-	// Заглушка - административные действия
 	log.Printf("Сработал переход в фазу admin ход %d", turn)
 
-	// TODO: логика фазы будет реализована здесь
+	// Проверяем истечение аварийного топлива
+	if h.unitService != nil {
+		err := h.checkEmergencyFuelExpiration(gameID, turn)
+		if err != nil {
+			log.Printf("Failed to check emergency fuel expiration: %v", err)
+		}
+	}
 
 	// Автоматически переходим к следующей фазе через 1 секунду
 	go func() {
@@ -452,4 +458,59 @@ func (h *AdminPhaseHandler) GetDescription() string {
 
 func (h *AdminPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
 	h.phaseManager = pm
+}
+
+// checkEmergencyFuelExpiration проверяет истечение аварийного топлива
+func (h *AdminPhaseHandler) checkEmergencyFuelExpiration(gameID string, currentTurn int) error {
+	// Получаем все корабли с истекшим аварийным топливом
+	expiredUnits, err := h.unitService.GetUnitsWithExpiredEmergencyFuel(gameID, currentTurn)
+	if err != nil {
+		return err
+	}
+
+	// Обрабатываем каждый корабль с истекшим аварийным топливом
+	for _, unit := range expiredUnits {
+		// Проверяем, находится ли корабль в порту
+		if h.isInPort(unit.Position) {
+			log.Printf("Unit %s is in port, emergency fuel status cleared", unit.ID)
+			// Сбрасываем статус аварийного топлива для кораблей в порту
+			unit.IsEmergencyFuel = false
+			unit.EmergencyTurn = 0
+			if err := h.unitService.UpdateNavalUnit(unit); err != nil {
+				log.Printf("Failed to clear emergency fuel for unit %s: %v", unit.ID, err)
+			}
+			continue
+		}
+
+		// Корабль не в порту - удаляем из игры
+		log.Printf("Unit %s emergency fuel expired, removing from game", unit.ID)
+		unit.Status = models.UnitStatusSunk
+		unit.IsEmergencyFuel = false
+		unit.EmergencyTurn = 0
+
+		if err := h.unitService.UpdateNavalUnit(unit); err != nil {
+			log.Printf("Failed to remove unit %s: %v", unit.ID, err)
+		} else {
+			log.Printf("Unit %s removed due to expired emergency fuel", unit.ID)
+		}
+	}
+
+	return nil
+}
+
+// isInPort проверяет, находится ли корабль в порту
+func (h *AdminPhaseHandler) isInPort(position string) bool {
+	// Список гексов портов (упрощенная реализация)
+	portHexes := []string{
+		"O32", "O33", // Немецкие порты
+		"L2", "M1", // Союзные порты
+		// Добавить другие порты по необходимости
+	}
+
+	for _, portHex := range portHexes {
+		if position == portHex {
+			return true
+		}
+	}
+	return false
 }

@@ -902,6 +902,15 @@ const Game: React.FC = () => {
                           unit.speed_rating === 'VS' ? 'Очень медленный' :
                           unit.speed_rating || 'Неизвестно'
                         }</span>
+                        {/* Индикатор аварийного топлива */}
+                        {unit.is_emergency_fuel && (
+                          <div className="emergency-fuel-indicator">
+                            <span className="emergency-fuel-warning">⚠️ Аварийное топливо</span>
+                            <span className="emergency-fuel-turns">
+                              Осталось ходов: {unit.emergency_turn - (getTurnData(currentTurn)?.turn_number || 0)}
+                            </span>
+                          </div>
+                        )}
               </div>
               </div>
                   ))}

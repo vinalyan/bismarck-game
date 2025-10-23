@@ -34,11 +34,11 @@ func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 			hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
 			secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
 			base_secondary_armament, torpedoes, max_torpedoes, radar_level,
-			status, detection_level, damage
+			status, detection_level, damage, is_emergency_fuel, emergency_removal_turn
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
 			$14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-			$25, $26, $27
+			$25, $26, $27, $28, $29
 		) RETURNING id, created_at, updated_at`
 
 	damageJSON, _ := json.Marshal(unit.Damage)
@@ -49,7 +49,7 @@ func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 		unit.HullBoxes, unit.CurrentHull, unit.PrimaryArmamentBow, unit.PrimaryArmamentStern,
 		unit.SecondaryArmament, unit.BasePrimaryArmamentBow, unit.BasePrimaryArmamentStern,
 		unit.BaseSecondaryArmament, unit.Torpedoes, unit.MaxTorpedoes, unit.RadarLevel,
-		unit.Status, unit.DetectionLevel, damageJSON,
+		unit.Status, unit.DetectionLevel, damageJSON, unit.IsEmergencyFuel, unit.EmergencyTurn,
 	).Scan(&unit.ID, &unit.CreatedAt, &unit.UpdatedAt)
 
 	if err != nil {
@@ -154,7 +154,7 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
 			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   created_at, updated_at
+			   is_emergency_fuel, emergency_removal_turn, created_at, updated_at
 		FROM naval_units
 		WHERE id = $1`
 
@@ -170,7 +170,7 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 		&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 		&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
 		&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
-		&unit.CreatedAt, &unit.UpdatedAt,
+		&unit.IsEmergencyFuel, &unit.EmergencyTurn, &unit.CreatedAt, &unit.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -238,7 +238,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 			current_hull = $5, torpedoes = $6, status = $7,
 			detection_level = $8, last_known_pos = $9,
 			task_force_id = $10, damage = $11,
-			no_movement_turns_left = $12,
+			no_movement_turns_left = $12, is_emergency_fuel = $13, emergency_removal_turn = $14,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1`
 
@@ -255,6 +255,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 		unit.CurrentHull, unit.Torpedoes, unit.Status,
 		unit.DetectionLevel, unit.LastKnownPos,
 		unit.TaskForceID, damageJSON, unit.NoMovementTurnsLeft,
+		unit.IsEmergencyFuel, unit.EmergencyTurn,
 	)
 	if err != nil {
 		s.logger.Error("Failed to update naval unit", "unit_id", unit.ID, "error", err)
@@ -607,4 +608,68 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 	}
 
 	return visibleUnits, nil
+}
+
+// GetUnitsWithExpiredEmergencyFuel возвращает корабли с истекшим аварийным топливом
+func (s *UnitService) GetUnitsWithExpiredEmergencyFuel(gameID string, currentTurn int) ([]*models.NavalUnit, error) {
+	query := `
+		SELECT id, game_id, name, type, class, owner, nationality, position, setup_hex,
+			   evasion, base_evasion, speed_rating, fuel, max_fuel,
+			   hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
+			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
+			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
+			   status, detection_level, last_known_pos, task_force_id, damage,
+			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
+			   is_emergency_fuel, emergency_removal_turn, created_at, updated_at
+		FROM naval_units
+		WHERE game_id = $1 AND is_emergency_fuel = true AND emergency_removal_turn <= $2
+		ORDER BY emergency_removal_turn`
+
+	rows, err := s.db.Query(query, gameID, currentTurn)
+	if err != nil {
+		s.logger.Error("Failed to get units with expired emergency fuel", "game_id", gameID, "current_turn", currentTurn, "error", err)
+		return nil, fmt.Errorf("failed to get units with expired emergency fuel: %w", err)
+	}
+	defer rows.Close()
+
+	var units []*models.NavalUnit
+	for rows.Next() {
+		var unit models.NavalUnit
+		var damageJSON []byte
+		var lastKnownPos, taskForceID sql.NullString
+
+		err := rows.Scan(
+			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
+			&unit.Evasion, &unit.BaseEvasion, &unit.SpeedRating, &unit.Fuel, &unit.MaxFuel,
+			&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
+			&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
+			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
+			&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
+			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
+			&unit.IsEmergencyFuel, &unit.EmergencyTurn, &unit.CreatedAt, &unit.UpdatedAt,
+		)
+		if err != nil {
+			s.logger.Error("Failed to scan unit with expired emergency fuel", "error", err)
+			continue
+		}
+
+		// Парсим JSON поля
+		json.Unmarshal(damageJSON, &unit.Damage)
+
+		if lastKnownPos.Valid {
+			unit.LastKnownPos = &lastKnownPos.String
+		}
+		if taskForceID.Valid {
+			unit.TaskForceID = &taskForceID.String
+		}
+
+		units = append(units, &unit)
+	}
+
+	s.logger.Info("Found units with expired emergency fuel",
+		"game_id", gameID,
+		"current_turn", currentTurn,
+		"count", len(units))
+
+	return units, rows.Err()
 }

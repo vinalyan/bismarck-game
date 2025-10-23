@@ -200,6 +200,10 @@ type NavalUnit struct {
 	NoMovementTurnsLeft    int  `json:"no_movement_turns_left" db:"no_movement_turns_left"`       // Оставшиеся ходы без движения (для VS и S кораблей)
 	IsActivated            bool `json:"is_activated" db:"is_activated"`                           // Флаг активации юнита в текущем ходу
 
+	// Поля для аварийного топлива
+	IsEmergencyFuel bool `json:"is_emergency_fuel" db:"is_emergency_fuel"` // Флаг аварийного топлива - корабль может двигаться только на 1 гекс
+	EmergencyTurn   int  `json:"emergency_turn" db:"emergency_turn"`       // Ход, когда закончится аварийное топливо (текущий ход + 10)
+
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }

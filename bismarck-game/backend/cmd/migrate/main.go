@@ -534,6 +534,27 @@ func getMigrations() []Migration {
 				DROP TABLE IF EXISTS game_turns;
 			`,
 		},
+		{
+			Version:     "005_emergency_fuel",
+			Description: "Add emergency fuel tracking fields to naval_units",
+			SQL: `
+				-- Добавляем поля для отслеживания аварийного топлива
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS is_emergency_fuel BOOLEAN DEFAULT false;
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS emergency_turn INTEGER DEFAULT 0;
+				
+				-- Добавляем комментарии для понимания полей
+				COMMENT ON COLUMN naval_units.is_emergency_fuel IS 'Флаг аварийного топлива - корабль может двигаться только на 1 гекс';
+				COMMENT ON COLUMN naval_units.emergency_turn IS 'Ход, когда закончится аварийное топливо (текущий ход + 10)';
+				
+				-- Создаем индекс для быстрого поиска кораблей с истекшим аварийным топливом
+				CREATE INDEX IF NOT EXISTS idx_naval_units_emergency_fuel ON naval_units(is_emergency_fuel, emergency_turn);
+			`,
+			RollbackSQL: `
+				DROP INDEX IF EXISTS idx_naval_units_emergency_fuel;
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS emergency_turn;
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS is_emergency_fuel;
+			`,
+		},
 	}
 }
 

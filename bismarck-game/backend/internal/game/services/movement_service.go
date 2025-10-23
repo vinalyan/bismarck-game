@@ -239,6 +239,18 @@ func (s *MovementService) ExecuteMovement(unit *models.NavalUnit, toHex string) 
 	fuelTracking.PreviousTurnMoved = movement.HexesMoved
 	fuelTracking.UpdatedAt = time.Now()
 
+	// Проверяем активацию аварийного топлива
+	if fuelTracking.CurrentFuel <= 0 && !fuelTracking.IsEmergencyFuel {
+		currentTurn := s.getCurrentTurn(unit.GameID)
+		fuelTracking.IsEmergencyFuel = true
+		fuelTracking.EmergencyTurn = currentTurn + 10
+
+		s.logger.Warn("Emergency fuel activated",
+			"unit_id", unit.ID,
+			"current_fuel", fuelTracking.CurrentFuel,
+			"emergency_turn", fuelTracking.EmergencyTurn)
+	}
+
 	// Устанавливаем ограничения движения для медленных кораблей
 	s.logger.Info("Checking movement restrictions",
 		"unit_id", unit.ID,
@@ -469,13 +481,14 @@ func (s *MovementService) getConvoyHexes() []string {
 func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTracking, error) {
 	// Получаем данные о топливе из базы данных
 	query := `
-		SELECT fuel, max_fuel, previous_turn_moved_hexes, last_move_turn
-		FROM naval_units 
+		SELECT fuel, max_fuel, previous_turn_moved_hexes, last_move_turn, is_emergency_fuel, emergency_removal_turn
+		FROM naval_units
 		WHERE id = $1 AND game_id = $2`
 
-	var fuel, maxFuel, previousTurnMoved, lastMoveTurn int
+	var fuel, maxFuel, previousTurnMoved, lastMoveTurn, emergencyTurn int
+	var isEmergencyFuel bool
 
-	err := s.db.QueryRow(query, unitID, gameID).Scan(&fuel, &maxFuel, &previousTurnMoved, &lastMoveTurn)
+	err := s.db.QueryRow(query, unitID, gameID).Scan(&fuel, &maxFuel, &previousTurnMoved, &lastMoveTurn, &isEmergencyFuel, &emergencyTurn)
 	if err != nil {
 		s.logger.Error("Failed to get fuel tracking", "error", err, "unit_id", unitID)
 		return nil, fmt.Errorf("failed to get fuel tracking: %w", err)
@@ -488,8 +501,8 @@ func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTr
 		CurrentFuel:       fuel,
 		MaxFuel:           maxFuel,
 		PreviousTurnMoved: previousTurnMoved,
-		IsEmergencyFuel:   false, // TODO: реализовать логику аварийного топлива
-		EmergencyTurn:     0,
+		IsEmergencyFuel:   isEmergencyFuel,
+		EmergencyTurn:     emergencyTurn,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
 	}, nil
@@ -498,15 +511,19 @@ func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTr
 func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) error {
 	// Обновляем топливо в базе данных
 	query := `
-		UPDATE naval_units SET 
-			fuel = $1, 
+		UPDATE naval_units SET
+			fuel = $1,
 			previous_turn_moved_hexes = $2,
+			is_emergency_fuel = $3,
+			emergency_removal_turn = $4,
 			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3 AND game_id = $4`
+		WHERE id = $5 AND game_id = $6`
 
 	_, err := s.db.Exec(query,
 		fuelTracking.CurrentFuel,
 		fuelTracking.PreviousTurnMoved,
+		fuelTracking.IsEmergencyFuel,
+		fuelTracking.EmergencyTurn,
 		fuelTracking.UnitID,
 		fuelTracking.GameID,
 	)
@@ -516,7 +533,11 @@ func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) 
 		return fmt.Errorf("failed to update fuel tracking: %w", err)
 	}
 
-	s.logger.Info("Fuel tracking updated", "unit_id", fuelTracking.UnitID, "fuel", fuelTracking.CurrentFuel)
+	s.logger.Info("Fuel tracking updated",
+		"unit_id", fuelTracking.UnitID,
+		"fuel", fuelTracking.CurrentFuel,
+		"is_emergency_fuel", fuelTracking.IsEmergencyFuel,
+		"emergency_turn", fuelTracking.EmergencyTurn)
 	return nil
 }
 
@@ -638,4 +659,81 @@ func (s *MovementService) CubeToHex(cube Cube) string {
 	number := col + 1
 
 	return fmt.Sprintf("%s%d", letter, number)
+}
+
+// RefuelUnit заправляет корабль и снимает статус аварийного топлива
+func (s *MovementService) RefuelUnit(gameID, unitID string, fuelAmount int) error {
+	// Получаем текущее состояние топлива
+	fuelTracking, err := s.getFuelTracking(gameID, unitID)
+	if err != nil {
+		return fmt.Errorf("failed to get fuel tracking: %w", err)
+	}
+
+	// Добавляем топливо (не больше максимального)
+	newFuel := fuelTracking.CurrentFuel + fuelAmount
+	if newFuel > fuelTracking.MaxFuel {
+		newFuel = fuelTracking.MaxFuel
+	}
+
+	// Обновляем топливо
+	fuelTracking.CurrentFuel = newFuel
+	fuelTracking.UpdatedAt = time.Now()
+
+	// Если топливо > 0, снимаем статус аварийного топлива
+	if fuelTracking.CurrentFuel > 0 {
+		fuelTracking.IsEmergencyFuel = false
+		fuelTracking.EmergencyTurn = 0
+
+		s.logger.Info("Emergency fuel status cleared due to refueling",
+			"unit_id", unitID,
+			"new_fuel", fuelTracking.CurrentFuel,
+			"fuel_added", fuelAmount)
+	}
+
+	// Сохраняем изменения
+	if err := s.updateFuelTracking(fuelTracking); err != nil {
+		return fmt.Errorf("failed to update fuel tracking: %w", err)
+	}
+
+	s.logger.Info("Unit refueled successfully",
+		"unit_id", unitID,
+		"fuel_added", fuelAmount,
+		"total_fuel", fuelTracking.CurrentFuel,
+		"is_emergency_fuel", fuelTracking.IsEmergencyFuel)
+
+	return nil
+}
+
+// GetFuelTracking публичный метод для получения состояния топлива
+func (s *MovementService) GetFuelTracking(gameID, unitID string) (*models.FuelTracking, error) {
+	return s.getFuelTracking(gameID, unitID)
+}
+
+// CheckAndActivateEmergencyFuel проверяет и активирует аварийное топливо для корабля
+func (s *MovementService) CheckAndActivateEmergencyFuel(gameID, unitID string) error {
+	// Получаем текущее состояние топлива
+	fuelTracking, err := s.getFuelTracking(gameID, unitID)
+	if err != nil {
+		return fmt.Errorf("failed to get fuel tracking: %w", err)
+	}
+
+	// Проверяем, нужно ли активировать аварийное топливо
+	if fuelTracking.CurrentFuel <= 0 && !fuelTracking.IsEmergencyFuel {
+		currentTurn := s.getCurrentTurn(gameID)
+		fuelTracking.IsEmergencyFuel = true
+		fuelTracking.EmergencyTurn = currentTurn + 10
+		fuelTracking.UpdatedAt = time.Now()
+
+		// Сохраняем изменения
+		if err := s.updateFuelTracking(fuelTracking); err != nil {
+			return fmt.Errorf("failed to update fuel tracking: %w", err)
+		}
+
+		s.logger.Warn("Emergency fuel activated",
+			"unit_id", unitID,
+			"current_fuel", fuelTracking.CurrentFuel,
+			"emergency_turn", fuelTracking.EmergencyTurn)
+	}
+
+	return nil
 }

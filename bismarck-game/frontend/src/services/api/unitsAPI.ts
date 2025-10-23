@@ -46,6 +46,8 @@ export interface GameUnit {
   previous_turn_moved_hexes: number;
   last_move_turn: number;
   no_movement_turns_left: number;
+  is_emergency_fuel: boolean;
+  emergency_turn: number;
   created_at: string;
   updated_at: string;
 }
