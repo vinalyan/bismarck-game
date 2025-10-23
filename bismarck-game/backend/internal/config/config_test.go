@@ -10,8 +10,8 @@ func TestLoadConfig(t *testing.T) {
 	configContent := `{
 		"server": {
 			"address": ":8080",
-			"read_timeout": 30,
-			"write_timeout": 30
+			"read_timeout": "30s",
+			"write_timeout": "30s"
 		},
 		"database": {
 			"host": "localhost",
@@ -25,7 +25,7 @@ func TestLoadConfig(t *testing.T) {
 		},
 		"jwt": {
 			"secret": "test-secret",
-			"expiration": 24
+			"expiration": "24h"
 		}
 	}`
 

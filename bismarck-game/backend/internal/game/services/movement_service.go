@@ -38,6 +38,45 @@ func NewMovementService(db *database.Database, logger *logger.Logger, visibility
 	}
 }
 
+// validateEmergencyFuelMovement проверяет возможность движения с аварийным топливом (для тестов)
+func (s *MovementService) validateEmergencyFuelMovement(unit *models.NavalUnit, fromHex, toHex string, isEmergencyFuel bool) error {
+	if unit == nil {
+		return errors.New("unit is nil")
+	}
+
+	if fromHex == toHex {
+		return errors.New("cannot move to the same hex")
+	}
+
+	// Проверяем расстояние
+	distance := s.calculateDistance(fromHex, toHex)
+	if distance == 0 {
+		return errors.New("invalid hex coordinates")
+	}
+
+	// Если используется аварийное топливо, разрешаем только 1 гекс движения
+	if isEmergencyFuel {
+		if distance > 1 {
+			return errors.New("emergency fuel allows only 1 hex movement")
+		}
+		return nil // Аварийное топливо разрешает движение на 1 гекс
+	}
+
+	// Обычная логика движения (без обращения к базе данных для тестов)
+	return s.validateMovementLogic(unit, distance)
+}
+
+// validateMovementLogic проверяет логику движения без обращения к базе данных
+func (s *MovementService) validateMovementLogic(unit *models.NavalUnit, distance int) error {
+	// Базовая проверка скорости
+	maxDistance := unit.SpeedRating.GetMaxMovementDistance()
+	if distance > maxDistance {
+		return errors.New("movement distance exceeds unit speed rating")
+	}
+
+	return nil
+}
+
 // ValidateMovement проверяет возможность движения юнита
 func (s *MovementService) ValidateMovement(unit *models.NavalUnit, fromHex, toHex string) error {
 	if unit == nil {
