@@ -10,6 +10,7 @@ import { activeHexesUtils, ActiveHex, useActiveHexes } from '../utils/activeHexe
 import { MAP_CONSTANTS } from '../utils/hexUtils';
 import { unitsAPI, GameUnit, UpdatePositionRequest } from '../services/api/unitsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
+import { refuelAPI } from '../services/api/refuelAPI';
 import { GameTurnResponse } from '../types/phaseTypes';
 import { GamePhase as PhaseType } from '../types/phaseTypes';
 import HexMap from './HexMap';
@@ -462,6 +463,79 @@ const Game: React.FC = () => {
     }
   };
 
+  // Обработчик заправки всех кораблей
+  const handleRefuelAllShips = async () => {
+    if (!currentGame?.id) {
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Ошибка',
+        message: 'Игра не выбрана',
+        read: false
+      });
+      return;
+    }
+
+    try {
+      const response = await refuelAPI.refuelAll({
+        game_id: currentGame.id,
+        fuel_amount: 4
+      });
+
+      if (response.success) {
+        // Обновляем список кораблей
+        if (authToken) {
+          const updatedUnits = await unitsAPI.getGameUnits(currentGame.id, authToken);
+          if (updatedUnits.success && updatedUnits.data) {
+            setGameUnits(updatedUnits.data.units);
+          }
+        }
+
+        addNotification({
+          type: NotificationType.Success,
+          title: 'Заправка выполнена',
+          message: `Заправлено ${response.data.refueled_count} из ${response.data.total_units} кораблей (+${response.data.fuel_amount} топлива)`,
+          read: false
+        });
+      }
+    } catch (error) {
+      console.error('Error refueling ships:', error);
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Ошибка',
+        message: 'Не удалось заправить корабли',
+        read: false
+      });
+    }
+  };
+
+  // Обработчик завершения фазы
+  const handleCompletePhase = async () => {
+    if (!currentGame?.id) return;
+
+    try {
+      await phaseAPI.nextPhase({ game_id: currentGame.id });
+      
+      // Обновляем информацию о текущем ходе
+      const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
+      setCurrentTurn(updatedTurn);
+      
+      addNotification({
+        type: NotificationType.Success,
+        title: 'Фаза завершена',
+        message: 'Переход к следующей фазе',
+        read: false
+      });
+    } catch (error) {
+      console.error('Error completing phase:', error);
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Ошибка',
+        message: 'Не удалось завершить фазу',
+        read: false
+      });
+    }
+  };
+
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
     console.log('handleUnitClick called:', unitId, unitData);
@@ -706,86 +780,7 @@ const Game: React.FC = () => {
     }
   };
 
-  // Обработчик заправки всех кораблей
-  const handleRefuelAllShips = async () => {
-    if (!currentGame?.id || !authToken || gameUnits.length === 0) {
-      return;
-    }
 
-    try {
-      // Обновляем топливо для всех кораблей
-      const updatedUnits = gameUnits.map(unit => {
-        const newFuel = Math.min(unit.fuel + 4, unit.max_fuel || 18); // Не превышаем максимальное топливо
-        return { ...unit, fuel: newFuel };
-      });
-
-      // Обновляем состояние
-      setGameUnits(updatedUnits);
-
-      // Обновляем выбранный юнит, если он есть
-      if (selectedUnitData) {
-        const updatedSelectedUnit = updatedUnits.find(unit => unit.id === selectedUnit);
-        if (updatedSelectedUnit) {
-          setSelectedUnitData({
-            ...selectedUnitData,
-            currentFuel: updatedSelectedUnit.fuel
-          });
-        }
-      }
-
-      // Показываем уведомление
-      addNotification({
-        type: NotificationType.Success,
-        title: 'Заправка завершена',
-        message: `Все корабли получили +4 топлива`,
-        read: false
-      });
-    } catch (error) {
-      console.error('Error refueling ships:', error);
-      addNotification({
-        type: NotificationType.Error,
-        title: 'Ошибка заправки',
-        message: 'Произошла ошибка при заправке кораблей',
-        read: false
-      });
-    }
-  };
-
-  // Завершение текущей фазы
-  const handleCompletePhase = async () => {
-    if (!currentGame?.id || !authToken || !currentTurn) {
-      return;
-    }
-
-    try {
-      // Очищаем активные гексы при завершении фазы
-      clearActiveHexes();
-      setAvailableMovementHexes([]);
-      
-      // Переходим к следующей фазе
-      await phaseAPI.nextPhase({ game_id: currentGame.id });
-      
-      // Обновляем информацию о текущем ходе
-      const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
-      setCurrentTurn(updatedTurn);
-
-      // Показываем уведомление
-      addNotification({
-        type: NotificationType.Success,
-        title: 'Фаза завершена',
-        message: `Переход к следующей фазе`,
-        read: false
-      });
-    } catch (error) {
-      console.error('Error completing phase:', error);
-      addNotification({
-        type: NotificationType.Error,
-        title: 'Ошибка завершения фазы',
-        message: 'Произошла ошибка при завершении фазы',
-        read: false
-      });
-    }
-  };
 
   // Возврат в лобби
   const handleBackToLobby = () => {

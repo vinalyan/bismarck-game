@@ -11,12 +11,14 @@ import (
 
 type PhaseManager struct {
 	db            *sql.DB
+	unitService   *UnitService
 	phaseHandlers map[models.GamePhase]models.PhaseHandler
 }
 
-func NewPhaseManager(db *sql.DB) *PhaseManager {
+func NewPhaseManager(db *sql.DB, unitService *UnitService) *PhaseManager {
 	pm := &PhaseManager{
 		db:            db,
+		unitService:   unitService,
 		phaseHandlers: make(map[models.GamePhase]models.PhaseHandler),
 	}
 
@@ -37,7 +39,7 @@ func (pm *PhaseManager) registerPhaseHandlers() {
 	pm.phaseHandlers[models.PhaseAirAttack] = &AirAttackPhaseHandler{}
 	pm.phaseHandlers[models.PhaseNavalCombat] = &NavalCombatPhaseHandler{}
 	pm.phaseHandlers[models.PhaseChance] = &ChancePhaseHandler{}
-	pm.phaseHandlers[models.PhaseAdmin] = &AdminPhaseHandler{}
+	pm.phaseHandlers[models.PhaseAdmin] = NewAdminPhaseHandler(pm.unitService)
 
 	// Устанавливаем ссылку на PhaseManager в каждый обработчик
 	for _, handler := range pm.phaseHandlers {

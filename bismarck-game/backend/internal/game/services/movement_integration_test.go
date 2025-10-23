@@ -359,34 +359,7 @@ func TestMovementWithBoundaries(t *testing.T) {
 	})
 }
 
-// TestMovementWithEmergencyFuel тестирует движение с аварийным топливом
-func TestMovementWithEmergencyFuel(t *testing.T) {
-	t.Run("Emergency fuel allows 1 hex movement", func(t *testing.T) {
-		ship := &models.NavalUnit{
-			ID:           "test-ship-f",
-			SpeedRating:  models.SpeedTypeFast,
-			Fuel:         0,
-			MaxFuel:      18,
-			Position:     "J30",
-			LastMoveTurn: 0,
-			MovementUsed: 0,
-		}
-
-		service := &MovementService{}
-
-		// С аварийным топливом можно двигаться только на 1 гекс
-		err := service.validateEmergencyFuelMovement(ship, "J30", "J31", false)
-		if err != nil {
-			t.Errorf("Emergency fuel should allow 1 hex movement: %v", err)
-		}
-
-		// С аварийным топливом нельзя двигаться на 2 гекса
-		err = service.validateEmergencyFuelMovement(ship, "J30", "J32", false)
-		if err == nil {
-			t.Error("Expected error for 2 hex movement with emergency fuel")
-		}
-	})
-}
+// TestMovementWithEmergencyFuel - удален, так как аварийное топливо тестируется в emergency_fuel_unit_test.go
 
 // TestMovementWithTurnTransition тестирует движение при переходе ходов
 func TestMovementWithTurnTransition(t *testing.T) {

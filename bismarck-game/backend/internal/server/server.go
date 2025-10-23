@@ -108,7 +108,7 @@ func (s *Server) setupRoutes() {
 	shipConfigService := services.NewShipConfigService()
 	unitLogger, _ := logger.New(logger.INFO, "unit-service", "stdout")
 	unitService := services.NewUnitService(s.db, unitLogger)
-	phaseManager := services.NewPhaseManager(s.db.GetConnection())
+	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService)
 
 	// Создаем сервисы для движения
 	visibilityLogger, _ := logger.New(logger.INFO, "visibility-service", "stdout")
@@ -128,6 +128,7 @@ func (s *Server) setupRoutes() {
 	phaseHandler := handlers.NewPhaseHandler(phaseManager)
 	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, unitService, movementLogger)
 	emergencyFuelHandler := handlers.NewEmergencyFuelHandler(s.db, movementLogger, movementService, unitService)
+	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
@@ -139,6 +140,9 @@ func (s *Server) setupRoutes() {
 	// Маршруты для аварийного топлива
 	s.router.HandleFunc("/api/emergency-fuel/check", emergencyFuelHandler.CheckEmergencyFuel).Methods("POST")
 	s.router.HandleFunc("/api/emergency-fuel/status", emergencyFuelHandler.GetEmergencyFuelStatus).Methods("GET")
+
+	// Маршруты для заправки
+	s.router.HandleFunc("/api/refuel/all", refuelHandler.RefuelAll).Methods("POST")
 
 	// WebSocket маршрут
 	s.router.HandleFunc("/ws", s.handleWebSocket)

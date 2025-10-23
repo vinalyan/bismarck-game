@@ -406,6 +406,13 @@ type AdminPhaseHandler struct {
 	unitService  *UnitService
 }
 
+// NewAdminPhaseHandler создает новый обработчик админской фазы
+func NewAdminPhaseHandler(unitService *UnitService) *AdminPhaseHandler {
+	return &AdminPhaseHandler{
+		unitService: unitService,
+	}
+}
+
 func (h *AdminPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
 }
