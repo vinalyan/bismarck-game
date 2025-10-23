@@ -106,6 +106,18 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Получаем userID из контекста
+	userIDInterface := r.Context().Value("user_id")
+	if userIDInterface == nil {
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	userID, ok := userIDInterface.(string)
+	if !ok {
+		http.Error(w, "Invalid user ID", http.StatusUnauthorized)
+		return
+	}
+
 	// Парсим запрос
 	var movementReq models.MovementRequest
 	if err := json.NewDecoder(r.Body).Decode(&movementReq); err != nil {
@@ -140,8 +152,8 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		"speed_rating", unit.SpeedRating,
 		"position", unit.Position)
 
-	// Выполняем движение
-	movement, err := h.movementService.ExecuteMovement(unit, movementReq.ToHex)
+	// Выполняем движение с проверкой владельца
+	movement, err := h.movementService.ExecuteMovementWithOwner(unit, movementReq.ToHex, userID)
 	if err != nil {
 		h.logger.Error("Failed to execute movement", "error", err, "unit_id", unitID, "to_hex", movementReq.ToHex)
 
@@ -337,7 +349,7 @@ func (h *MovementHandler) getUnit(gameID, unitID string) (*models.NavalUnit, err
 	return unit, nil
 }
 
-func (h *MovementHandler) getMovementHistory(gameID, unitID string, limit int) ([]*models.MovementHistory, error) {
+func (h *MovementHandler) getMovementHistory(gameID, unitID string, _ int) ([]*models.MovementHistory, error) {
 	// Упрощенная реализация - в реальной игре нужно получать из базы данных
 	return []*models.MovementHistory{
 		{

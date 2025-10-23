@@ -63,7 +63,12 @@ func (s *MovementService) validateEmergencyFuelMovement(unit *models.NavalUnit, 
 	}
 
 	// Обычная логика движения (без обращения к базе данных для тестов)
-	return s.validateMovementLogic(unit, distance)
+	if err := s.validateMovementLogic(unit, distance); err != nil {
+		return err
+	}
+
+	// Проверяем ограничения движения
+	return s.validateMovementRestrictions(unit, fromHex, toHex)
 }
 
 // validateMovementLogic проверяет логику движения без обращения к базе данных
@@ -96,6 +101,16 @@ func (s *MovementService) validateMovementLogic(unit *models.NavalUnit, distance
 	return nil
 }
 
+// ValidateMovementWithOwner проверяет возможность движения юнита с проверкой владельца
+func (s *MovementService) ValidateMovementWithOwner(unit *models.NavalUnit, fromHex, toHex string, userID string) error {
+	// Проверяем владельца юнита
+	if unit.Owner != userID {
+		return errors.New("you can only move your own units")
+	}
+
+	return s.ValidateMovement(unit, fromHex, toHex)
+}
+
 // ValidateMovement проверяет возможность движения юнита
 func (s *MovementService) ValidateMovement(unit *models.NavalUnit, fromHex, toHex string) error {
 	if unit == nil {
@@ -121,15 +136,22 @@ func (s *MovementService) ValidateMovement(unit *models.NavalUnit, fromHex, toHe
 	}
 
 	// Проверяем, что юнит еще не двигался в этом ходу (один юнит = одно движение за ход)
-	// TODO: Нужно получить текущий ход игры для проверки
-	// if unit.LastMoveTurn == currentTurn {
-	//     return errors.New("unit already moved this turn")
-	// }
+	currentTurn := s.getCurrentTurn(unit.GameID)
+	if unit.LastMoveTurn == currentTurn {
+		return errors.New("unit already moved this turn")
+	}
+
+	// Проверяем максимальную дальность движения
+	distance := s.calculateDistance(fromHex, toHex)
+	maxRange := unit.SpeedRating.GetMaxMovementDistance()
+	if distance > maxRange {
+		return fmt.Errorf("movement distance %d exceeds maximum %d", distance, maxRange)
+	}
 
 	// Проверяем аварийное топливо
 	if fuelTracking.IsEmergencyFuel {
 		// При аварийном топливе можно двигаться только на 1 гекс
-		if s.calculateDistance(fromHex, toHex) > 1 {
+		if distance > 1 {
 			return errors.New("unit can only move 1 hex with emergency fuel")
 		}
 	}
@@ -200,6 +222,21 @@ func (s *MovementService) GetAvailableMoves(unit *models.NavalUnit) ([]string, e
 	return validHexes, nil
 }
 
+// ExecuteMovementWithOwner выполняет движение юнита с проверкой владельца
+func (s *MovementService) ExecuteMovementWithOwner(unit *models.NavalUnit, toHex string, userID string) (*models.Movement, error) {
+	if unit == nil {
+		return nil, errors.New("unit is nil")
+	}
+
+	// Валидация движения с проверкой владельца
+	if err := s.ValidateMovementWithOwner(unit, unit.Position, toHex, userID); err != nil {
+		return nil, fmt.Errorf("movement validation failed: %w", err)
+	}
+
+	// Выполняем движение
+	return s.executeMovementInternal(unit, toHex)
+}
+
 // ExecuteMovement выполняет движение юнита
 func (s *MovementService) ExecuteMovement(unit *models.NavalUnit, toHex string) (*models.Movement, error) {
 	if unit == nil {
@@ -211,6 +248,12 @@ func (s *MovementService) ExecuteMovement(unit *models.NavalUnit, toHex string) 
 		return nil, fmt.Errorf("movement validation failed: %w", err)
 	}
 
+	// Выполняем движение
+	return s.executeMovementInternal(unit, toHex)
+}
+
+// executeMovementInternal выполняет внутреннюю логику движения
+func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex string) (*models.Movement, error) {
 	// Расчет стоимости топлива
 	fuelCost, err := s.CalculateFuelCost(unit, unit.Position, toHex)
 	if err != nil {
@@ -335,8 +378,8 @@ func (s *MovementService) validateMovementRestrictions(unit *models.NavalUnit, f
 		}
 	}
 
-	// Проверяем ограничения для танкеров
-	if unit.Type == models.UnitTypeTanker {
+	// Проверяем ограничения для немецких танкеров
+	if unit.Owner == "german" && unit.Type == models.UnitTypeTanker {
 		if err := s.validateTankerMovement(toHex); err != nil {
 			return err
 		}
@@ -348,7 +391,7 @@ func (s *MovementService) validateMovementRestrictions(unit *models.NavalUnit, f
 }
 
 // validateGermanDDMovement проверяет ограничения движения немецких эсминцев
-func (s *MovementService) validateGermanDDMovement(fromHex, toHex string) error {
+func (s *MovementService) validateGermanDDMovement(_ string, toHex string) error {
 	// Немецкие эсминцы не могут пересекать линию ограничения
 	// Это упрощенная проверка - в реальной игре нужно проверить конкретные гексы
 	restrictedHexes := []string{"Q29", "R28", "S27", "T26"}
@@ -364,13 +407,13 @@ func (s *MovementService) validateGermanDDMovement(fromHex, toHex string) error 
 
 // validateTankerMovement проверяет ограничения движения танкеров
 func (s *MovementService) validateTankerMovement(toHex string) error {
-	// Танкеры не могут входить в гексы конвоев
-	// Это упрощенная проверка - в реальной игре нужно проверить конкретные гексы конвоев
+	// Немецкие танкеры не могут входить в гексы конвоев
+	// Союзные танкеры не имеют таких ограничений
 	convoyHexes := s.getConvoyHexes()
 
 	for _, convoyHex := range convoyHexes {
 		if toHex == convoyHex {
-			return errors.New("tankers cannot enter convoy hexes")
+			return errors.New("german tankers cannot enter convoy hexes")
 		}
 	}
 
@@ -493,8 +536,13 @@ func abs(x int) int {
 }
 
 func (s *MovementService) getConvoyHexes() []string {
-	// Упрощенный список гексов конвоев
-	return []string{"H15", "I16", "J17"}
+	// Гексы конвоев согласно правилам игры
+	// Эти гексы представляют маршруты союзных конвоев
+	return []string{
+		"H15", "I16", "J17", // Основной маршрут конвоя
+		"K18", "L19", "M20", // Продолжение маршрута
+		"N21", "O22", "P23", // Дополнительные гексы конвоя
+	}
 }
 
 func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTracking, error) {

@@ -10,6 +10,7 @@ interface MovementPanelProps {
   selectedUnit: NavalUnit | null;
   gameId: string;
   playerId: string;
+  authToken: string;
   onMove: (unitId: string, toHex: string) => void;
   onCancel: () => void;
   onHexSelect?: (hex: HexCoordinate) => void;
@@ -19,6 +20,7 @@ const MovementPanel: React.FC<MovementPanelProps> = ({
   selectedUnit,
   gameId,
   playerId,
+  authToken,
   onMove,
   onCancel,
   onHexSelect
@@ -30,7 +32,7 @@ const MovementPanel: React.FC<MovementPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const { getAvailableMoves, moveUnit, loading: movementLoading, error: movementError } = useMovement(gameId, playerId);
+  const { getAvailableMoves, moveUnit, loading: movementLoading, error: movementError } = useMovement(gameId, playerId, authToken);
 
   // Загружаем доступные ходы при выборе юнита
   useEffect(() => {
@@ -87,9 +89,8 @@ const MovementPanel: React.FC<MovementPanelProps> = ({
       setError(null);
 
       const result = await movementAPI.moveUnit(gameId, selectedUnit.id, {
-        unit_id: selectedUnit.id,
-        to_hex: selectedHex
-      });
+        toHex: selectedHex
+      }, authToken);
 
       if (result.success) {
         onMove(selectedUnit.id, selectedHex);

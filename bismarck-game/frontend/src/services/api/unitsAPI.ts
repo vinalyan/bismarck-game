@@ -101,33 +101,6 @@ export const unitsAPI = {
     }
   },
 
-  // Обновить позицию юнита
-  updateUnitPosition: async (
-    gameId: string, 
-    unitId: string, 
-    request: UpdatePositionRequest, 
-    token: string
-  ): Promise<UpdatePositionResponse> => {
-    try {
-      const response = await axios.put(
-        `${API_BASE_URL}/api/games/${gameId}/units/${unitId}/position`,
-        request,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      return response.data;
-    } catch (error: any) {
-      console.error('Error updating unit position:', error);
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Failed to update unit position'
-      };
-    }
-  }
 };
 
 export default unitsAPI;

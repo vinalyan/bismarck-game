@@ -8,7 +8,8 @@ import { shipUtils, LOCAL_SHIPS_DATA, localShipsUtils, ShipData } from '../data/
 import { movementUtils, MovementHex } from '../utils/movementUtils';
 import { activeHexesUtils, ActiveHex, useActiveHexes } from '../utils/activeHexesUtils';
 import { MAP_CONSTANTS } from '../utils/hexUtils';
-import { unitsAPI, GameUnit, UpdatePositionRequest } from '../services/api/unitsAPI';
+import { unitsAPI, GameUnit } from '../services/api/unitsAPI';
+import { movementAPI } from '../services/api/movementAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
 import { GameTurnResponse } from '../types/phaseTypes';
@@ -265,153 +266,66 @@ const Game: React.FC = () => {
       return;
     }
 
-    // Создаем объект с данными корабля из API для расчета движения
-    const shipDataFromAPI: ShipData = {
-      id: selectedUnitData.id,
-      name: selectedUnitData.name,
-      type: selectedUnitData.type,
-      side: selectedUnitData.side,
-      maxFuel: selectedUnitData.max_fuel,
-      baseEvasion: selectedUnitData.base_evasion,
-      radarLevel: selectedUnitData.radar_level || 0,
-      hullBoxes: selectedUnitData.hull_boxes || 0,
-      basePrimaryArmamentBow: selectedUnitData.base_primary_armament_bow || 0,
-      basePrimaryArmamentStern: selectedUnitData.base_primary_armament_stern || 0,
-      baseSecondaryArmament: selectedUnitData.base_secondary_armament || 0,
-      maxTorpedos: selectedUnitData.max_torpedoes || 0,
-      speedType: selectedUnitData.speed_rating,
-      setupHex: selectedUnitData.setup_hex
-    };
-
-    // Создаем информацию о предыдущем ходе (пока заглушка, нужно получать с сервера)
-    const previousTurnInfo = {
-      movedHexes: selectedUnitData.previous_turn_moved_hexes || 0,
-      turnNumber: selectedUnitData.last_move_turn || 0
-    };
-
-
-    // Рассчитываем стоимость движения согласно правилам игры
-    const movementCost = movementUtils.canReachHex(
-      shipDataFromAPI,
-      selectedUnitData.position,
-      targetCoordinate,
-      selectedUnitData.currentFuel,
-      previousTurnInfo
-    );
-
-    if (!movementCost.canReach) {
-      addNotification({
-        type: NotificationType.Error,
-        title: 'Движение невозможно',
-        message: movementCost.reason || 'Неизвестная причина',
-        read: false
-      });
-      return;
-    }
-
-    const newFuel = selectedUnitData.currentFuel - movementCost.fuelCost;
     const positionString = `${targetCoordinate.letter}${targetCoordinate.number}`;
 
     try {
-      // Сохраняем позицию на сервере
-      const updateRequest: UpdatePositionRequest = {
-        position: positionString,
-        fuel: newFuel,
-        hexesMoved: movementCost.distance // Отправляем количество гексов, на которое переместился юнит
-      };
-
-      console.log('Sending movement request:', {
-        gameId: currentGame.id,
-        unitId: selectedUnit!,
-        updateRequest,
-        authToken: authToken ? 'present' : 'missing'
-      });
-      
-      const response = await unitsAPI.updateUnitPosition(
+      // Отправляем запрос на движение через movementAPI
+      const response = await movementAPI.moveUnit(
         currentGame.id,
         selectedUnit!,
-        updateRequest,
+        { toHex: positionString },
         authToken
       );
       
       console.log('Movement response:', response);
 
       if (response.success) {
-        // Обновляем позицию юнита локально
-        const movementRestriction = (selectedUnitData.speed_rating === 'S') ? 2 : 
-                                   (selectedUnitData.speed_rating === 'VS') ? 4 : 0;
-        
+        // Обновляем данные юнита с сервера
         const updatedUnitData = {
           ...selectedUnitData,
           position: targetCoordinate,
-          currentFuel: newFuel,
-          movement_used: movementCost.distance, // Устанавливаем использованное движение
-          last_move_turn: getTurnData(currentTurn)?.turn_number || 0, // Устанавливаем ход движения
-          // Для S и VS типов устанавливаем ограничения движения
-          no_movement_turns_left: movementRestriction
+          currentFuel: response.data?.fuel || selectedUnitData.currentFuel,
+          movement_used: response.data?.hexesMoved || 0,
+          last_move_turn: getTurnData(currentTurn)?.turn_number || 0
         };
-
-        console.log('Movement completed, setting restrictions:', {
-          unitName: selectedUnitData.name,
-          speedRating: selectedUnitData.speed_rating,
-          movementRestriction: movementRestriction
-        });
-
-        // Добавляем уведомление о блокировке движения
-        if (movementRestriction > 0) {
-          addNotification({
-            type: NotificationType.Info,
-            title: 'Движение заблокировано',
-            message: `${selectedUnitData.name} заблокирован на ${movementRestriction} ход${movementRestriction > 1 ? 'а' : ''} из-за ограничений скорости`,
-            read: false
-          });
-        }
 
         setSelectedUnitData(updatedUnitData);
 
-        // Обновляем данные юнита в gameUnits
-        setGameUnits(prev => prev.map(unit => 
-          unit.id === selectedUnit 
-            ? { 
-                ...unit, 
-                position: positionString, 
-                fuel: newFuel,
-                movement_used: movementCost.distance, // Устанавливаем использованное движение
-                last_move_turn: getTurnData(currentTurn)?.turn_number || 0, // Устанавливаем ход движения
-                // Для S и VS типов устанавливаем ограничения движения
-                no_movement_turns_left: movementRestriction
-              }
-            : unit
-        ));
+        // Обновляем юнит в списке gameUnits
+        setGameUnits(prevUnits => 
+          prevUnits.map(unit => 
+            unit.id === selectedUnit 
+              ? { ...unit, position: positionString, fuel: response.data?.fuel || unit.fuel }
+              : unit
+          )
+        );
 
         // Очищаем активные гексы
         clearActiveHexes();
         setAvailableMovementHexes([]);
 
-        // Убираем отображение активных гексов после движения
-        // Активные гексы больше не отображаются автоматически
-
         addNotification({
           type: NotificationType.Success,
           title: 'Движение выполнено',
-          message: `Юнит перемещен в ${positionString}`,
+          message: `${selectedUnitData.name} перемещен в ${positionString}`,
           read: false
         });
+
+        console.log('Movement completed successfully');
       } else {
-        console.error('Failed to update unit position:', response.error);
         addNotification({
           type: NotificationType.Error,
           title: 'Ошибка движения',
-          message: response.error || 'Не удалось сохранить позицию юнита',
+          message: response.message || 'Неизвестная ошибка',
           read: false
         });
       }
-    } catch (error) {
-      console.error('Error updating unit position:', error);
+    } catch (error: any) {
+      console.error('Movement error:', error);
       addNotification({
         type: NotificationType.Error,
         title: 'Ошибка движения',
-        message: 'Произошла ошибка при сохранении позиции юнита',
+        message: error.message || 'Произошла ошибка при выполнении движения',
         read: false
       });
     }
@@ -586,9 +500,8 @@ const Game: React.FC = () => {
         // Используем speed_rating из API (приоритет) или fallback на локальные данные
         const rawSpeedType = gameUnit?.speed_rating || shipData?.speedType || 'M';
         const speedType: 'F' | 'M' | 'S' | 'VS' = (['F', 'M', 'S', 'VS'].includes(rawSpeedType) ? rawSpeedType : 'M') as 'F' | 'M' | 'S' | 'VS';
-        const maxMovementRange = movementUtils.getMaxMovementDistance({ 
-          speedType: speedType 
-        } as any);
+        // Получаем максимальную дальность движения с сервера
+        const maxMovementRange = 2; // Временное значение, должно приходить с сервера
         const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 1;
         const remainingMovement = (updatedUnitData.last_move_turn === currentTurnNumber) 
           ? Math.max(0, maxMovementRange - (updatedUnitData.movement_used || 0))
@@ -624,14 +537,8 @@ const Game: React.FC = () => {
           canMove: !((speedType === 'S' || speedType === 'VS') && noMovementTurnsLeft > 0)
         });
 
-        const availableHexes = movementUtils.getAvailableMovementHexes(
-          movementShipData,
-          currentPosition,
-          updatedUnitData.currentFuel,
-          previousTurnInfo,
-          remainingMovement,
-          noMovementTurnsLeft
-        );
+        // Получаем доступные гексы с сервера
+        const availableHexes: MovementHex[] = []; // Временное значение, должно получаться с сервера
         console.log('Available movement hexes calculated:', availableHexes);
         setAvailableMovementHexes(availableHexes);
       }

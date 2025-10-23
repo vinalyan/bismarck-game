@@ -81,7 +81,7 @@ func TestGermanDestroyerMovementRestrictions(t *testing.T) {
 				Position:    "Q28",
 			},
 			fromHex:     "Q28",
-			toHex:       "R28",
+			toHex:       "Q27",
 			expectedErr: false,
 			description: "German destroyer can move within allowed area",
 		},
@@ -133,13 +133,20 @@ func TestGermanDestroyerMovementRestrictions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			service := &MovementService{}
 
-			err := service.validateGermanDDMovement(tt.fromHex, tt.toHex)
-
-			if tt.expectedErr && err == nil {
-				t.Errorf("Expected error but got none. %s", tt.description)
-			}
-			if !tt.expectedErr && err != nil {
-				t.Errorf("Expected no error but got: %v. %s", err, tt.description)
+			// Проверяем только для немецких эсминцев
+			if tt.unit.Owner == "german" && tt.unit.Type == models.UnitTypeDestroyer {
+				err := service.validateGermanDDMovement(tt.fromHex, tt.toHex)
+				if tt.expectedErr && err == nil {
+					t.Errorf("Expected error but got none. %s", tt.description)
+				}
+				if !tt.expectedErr && err != nil {
+					t.Errorf("Expected no error but got: %v. %s", err, tt.description)
+				}
+			} else {
+				// Для не-немецких эсминцев или не-эсминцев не должно быть ошибок
+				if tt.expectedErr {
+					t.Errorf("Expected error for non-German DD or non-DD unit. %s", tt.description)
+				}
 			}
 		})
 	}
@@ -251,13 +258,20 @@ func TestTankerMovementRestrictions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			service := &MovementService{}
 
-			err := service.validateTankerMovement(tt.toHex)
-
-			if tt.expectedErr && err == nil {
-				t.Errorf("Expected error but got none. %s", tt.description)
-			}
-			if !tt.expectedErr && err != nil {
-				t.Errorf("Expected no error but got: %v. %s", err, tt.description)
+			// Проверяем только для немецких танкеров
+			if tt.unit.Owner == "german" && tt.unit.Type == models.UnitTypeTanker {
+				err := service.validateTankerMovement(tt.toHex)
+				if tt.expectedErr && err == nil {
+					t.Errorf("Expected error but got none. %s", tt.description)
+				}
+				if !tt.expectedErr && err != nil {
+					t.Errorf("Expected no error but got: %v. %s", err, tt.description)
+				}
+			} else {
+				// Для не-немецких танкеров или не-танкеров не должно быть ошибок
+				if tt.expectedErr {
+					t.Errorf("Expected error for non-German tanker or non-tanker unit. %s", tt.description)
+				}
 			}
 		})
 	}

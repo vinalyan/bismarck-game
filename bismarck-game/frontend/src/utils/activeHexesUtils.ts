@@ -113,32 +113,34 @@ export const ACTIVE_HEX_CONFIGS: Record<ActiveHexType, ActiveHexConfig> = {
 
 // Утилиты для работы с активными гексами
 export const activeHexesUtils = {
-  // Получить активные гексы для движения
+  // Получить активные гексы для движения (теперь получаем с сервера)
   getMovementActiveHexes: (
-    ship: ShipData,
-    currentPosition: HexCoordinate,
-    currentFuel: number,
-    previousTurn?: PreviousTurnInfo,
-    remainingMovement?: number
+    availableHexes: string[], // Гексы, полученные с сервера
+    fuelCosts: Record<string, number> // Стоимость топлива для каждого гекса
   ): ActiveHex[] => {
-    const movementHexes = movementUtils.getAvailableMovementHexes(
-      ship,
-      currentPosition,
-      currentFuel,
-      previousTurn || { movedHexes: 0, turnNumber: 0 },
-      remainingMovement
-    );
-
-    return movementHexes.map(hex => ({
-      coordinate: hex.coordinate,
-      type: 'movement' as ActiveHexType,
-      priority: ACTIVE_HEX_CONFIGS.movement.priority,
-      metadata: {
-        distance: hex.distance,
-        fuelCost: hex.fuelCost,
-        isReachable: hex.isReachable
-      }
-    }));
+    return availableHexes.map(hex => {
+      // Парсим гекс (например, "J30")
+      const letter = hex.charAt(0);
+      const number = parseInt(hex.slice(1));
+      const row = letter.charCodeAt(0) - 65;
+      const col = number - 1;
+      
+      return {
+        coordinate: {
+          col,
+          row,
+          letter,
+          number
+        },
+        type: 'movement' as ActiveHexType,
+        priority: ACTIVE_HEX_CONFIGS.movement.priority,
+        metadata: {
+          distance: 1, // Упрощенное значение, реальное расстояние рассчитывается на сервере
+          fuelCost: fuelCosts[hex] || 0,
+          isReachable: true
+        }
+      };
+    });
   },
 
   // Получить активные гексы для заправки
@@ -306,28 +308,36 @@ export const useActiveHexes = () => {
 
 // Функция для получения активных гексов движения
 export const getMovementActiveHexes = (
-  ship: ShipData,
-  currentPosition: HexCoordinate,
-  currentFuel: number,
-  previousTurn: PreviousTurnInfo,
-  remainingMovement?: number
+  availableHexes: string[], // Гексы, полученные с сервера
+  fuelCosts: Record<string, number> // Стоимость топлива для каждого гекса
 ): ActiveHex[] => {
-  const availableHexes = movementUtils.getAvailableMovementHexes(
-    ship,
-    currentPosition,
-    currentFuel,
-    previousTurn,
-    remainingMovement
-  );
-
-  return availableHexes.map(hex => ({
-    coordinate: hex.coordinate,
-    type: 'movement' as ActiveHexType,
-    priority: 1,
-    metadata: {
-      distance: hex.distance,
-      fuelCost: hex.fuelCost,
-      isReachable: hex.isReachable
+  return availableHexes.map(hex => {
+    // Простой парсинг строки гекса (например, "A1" -> {letter: "A", number: 1})
+    const match = hex.match(/^([A-Z])(\d+)$/);
+    if (!match) {
+      return null;
     }
-  }));
+    
+    const letter = match[1];
+    const number = parseInt(match[2], 10);
+    
+    // Простое преобразование в координаты (упрощено)
+    const coordinate: HexCoordinate = {
+      letter,
+      number,
+      col: letter.charCodeAt(0) - 65, // A=0, B=1, etc.
+      row: number - 1
+    };
+
+    return {
+      coordinate,
+      type: 'movement' as ActiveHexType,
+      priority: 1,
+      metadata: {
+        distance: 1, // Упрощено, реальное расстояние с сервера
+        fuelCost: fuelCosts[hex] || 0,
+        isReachable: true
+      }
+    };
+  }).filter(Boolean) as ActiveHex[];
 };

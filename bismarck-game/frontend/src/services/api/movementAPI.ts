@@ -8,9 +8,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 // Типы для движения
 export interface MovementRequest {
-  unit_id: string;
-  to_hex: string;
-  path?: string[];
+  toHex: string; // Упрощенный интерфейс - только целевая позиция
 }
 
 export interface MovementResponse {
@@ -33,6 +31,10 @@ export interface MovementResponse {
   };
   fuel_cost?: number;
   new_position?: string;
+  data?: {
+    fuel: number;
+    hexesMoved: number;
+  };
 }
 
 export interface AvailableMovesResponse {
@@ -93,8 +95,13 @@ export const movementAPI = {
   },
 
   // Выполнить движение юнита
-  moveUnit: async (gameId: string, unitId: string, movementRequest: MovementRequest): Promise<MovementResponse> => {
-    const response = await axios.post(`${API_BASE_URL}/api/games/${gameId}/units/${unitId}/move`, movementRequest);
+  moveUnit: async (gameId: string, unitId: string, movementRequest: MovementRequest, authToken: string): Promise<MovementResponse> => {
+    const response = await axios.post(`${API_BASE_URL}/api/games/${gameId}/units/${unitId}/move`, movementRequest, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
     return response.data;
   },
 
@@ -241,7 +248,7 @@ export const movementUtils = {
 };
 
 // Хуки для React компонентов
-export const useMovement = (gameId: string, playerId: string) => {
+export const useMovement = (gameId: string, playerId: string, authToken: string) => {
   const [availableMoves, setAvailableMoves] = useState<AvailableMovesResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -264,9 +271,8 @@ export const useMovement = (gameId: string, playerId: string) => {
       setLoading(true);
       setError(null);
       const result = await movementAPI.moveUnit(gameId, unitId, {
-        unit_id: unitId,
-        to_hex: toHex
-      });
+        toHex: toHex
+      }, authToken);
       return result;
     } catch (err: any) {
       setError(err.message || 'Failed to move unit');
