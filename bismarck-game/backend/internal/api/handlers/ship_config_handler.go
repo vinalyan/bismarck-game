@@ -123,6 +123,9 @@ func (sch *ShipConfigHandler) CreateUnitFromConfig(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// TODO: Сохранить юнит в базе данных через UnitService
+	// Пока что возвращаем юнит без сохранения в БД
+
 	utils.WriteSuccessResponse(w, unit)
 }
 

@@ -135,7 +135,7 @@ func (s *Server) setupRoutes() {
 	gameHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	shipConfigHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	phaseHandler.RegisterRoutes(s.router)
-	movementHandler.RegisterRoutes(s.router)
+	movementHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 
 	// Маршруты для аварийного топлива
 	s.router.HandleFunc("/api/emergency-fuel/check", emergencyFuelHandler.CheckEmergencyFuel).Methods("POST")

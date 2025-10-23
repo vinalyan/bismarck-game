@@ -143,13 +143,16 @@ start_turn() {
 create_ship() {
     local token="$1"
     local game_id="$2"
-    local ship_data="$3"
+    local ship_id="$3"
+    local position="$4"
+    local owner="$5"
     
+    local ship_data='{"ship_id":"'$ship_id'","game_id":"'$game_id'","owner":"'$owner'","position":"'$position'"}'
     local response=$(curl -s -X POST \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $token" \
         -d "$ship_data" \
-        "$BASE_URL/api/games/$game_id/units")
+        "$BASE_URL/api/ships/create-unit")
     
     if [ $? -eq 0 ]; then
         echo "$response" | jq -r '.data.id' 2>/dev/null
@@ -291,7 +294,7 @@ FAST_DD_DATA='{
     "base_evasion": 15
 }'
 
-FAST_DD_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$FAST_DD_DATA")
+FAST_DD_ID=$(create_ship "$TOKEN1" "$GAME_ID" "5_zerstorerfl" "J22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -n "$FAST_DD_ID" ]; then
     echo -e "${GREEN}✅ Быстрый эсминец создан: $FAST_DD_ID${NC}"
 else
@@ -321,7 +324,7 @@ MEDIUM_CA_DATA='{
     "base_evasion": 20
 }'
 
-MEDIUM_CA_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$MEDIUM_CA_DATA")
+MEDIUM_CA_ID=$(create_ship "$TOKEN1" "$GAME_ID" "prinz_eugen" "K22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -n "$MEDIUM_CA_ID" ]; then
     echo -e "${GREEN}✅ Средний крейсер создан: $MEDIUM_CA_ID${NC}"
 else
@@ -351,7 +354,7 @@ SLOW_BB_DATA='{
     "base_evasion": 10
 }'
 
-SLOW_BB_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$SLOW_BB_DATA")
+SLOW_BB_ID=$(create_ship "$TOKEN1" "$GAME_ID" "bismarck" "L22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -n "$SLOW_BB_ID" ]; then
     echo -e "${GREEN}✅ Медленный линкор создан: $SLOW_BB_ID${NC}"
 else
@@ -381,7 +384,7 @@ VERY_SLOW_TK_DATA='{
     "base_evasion": 5
 }'
 
-VERY_SLOW_TK_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$VERY_SLOW_TK_DATA")
+VERY_SLOW_TK_ID=$(create_ship "$TOKEN1" "$GAME_ID" "weissenburg" "M22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -n "$VERY_SLOW_TK_ID" ]; then
     echo -e "${GREEN}✅ Очень медленный танкер создан: $VERY_SLOW_TK_ID${NC}"
 else
@@ -559,7 +562,7 @@ NO_FUEL_SHIP_DATA='{
     "base_evasion": 15
 }'
 
-NO_FUEL_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$NO_FUEL_SHIP_DATA")
+NO_FUEL_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "6_zerstorerfl" "N22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -n "$NO_FUEL_SHIP_ID" ]; then
     echo -e "${GREEN}✅ Корабль без топлива создан: $NO_FUEL_SHIP_ID${NC}"
     
@@ -601,7 +604,7 @@ DIRECTION_TEST_SHIP_DATA='{
     "base_evasion": 15
 }'
 
-DIRECTION_TEST_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$DIRECTION_TEST_SHIP_DATA")
+DIRECTION_TEST_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "5_zerstorerfl" "O22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -n "$DIRECTION_TEST_SHIP_ID" ]; then
     echo -e "${GREEN}✅ Корабль для тестирования направлений создан: $DIRECTION_TEST_SHIP_ID${NC}"
     
@@ -721,7 +724,7 @@ BOUNDARY_SHIP_DATA='{
     "base_evasion": 15
 }'
 
-BOUNDARY_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "$BOUNDARY_SHIP_DATA")
+BOUNDARY_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "5_zerstorerfl" "A1" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
 if [ -n "$BOUNDARY_SHIP_ID" ]; then
     echo -e "${GREEN}✅ Корабль на границе создан: $BOUNDARY_SHIP_ID${NC}"
     

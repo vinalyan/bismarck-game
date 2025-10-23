@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"bismarck-game/backend/internal/api/middleware"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/logger"
@@ -100,6 +101,11 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	gameID := vars["gameId"]
 	unitID := vars["unitId"]
 	h.logger.Info("MoveUnit parameters", "game_id", gameID, "unit_id", unitID)
+
+	// Логирование для отладки аутентификации
+	h.logger.Info("MoveUnit authentication check",
+		"user_id_from_context", r.Context().Value("user_id"),
+		"has_auth_header", r.Header.Get("Authorization") != "")
 
 	if gameID == "" || unitID == "" {
 		http.Error(w, "Game ID and Unit ID are required", http.StatusBadRequest)
@@ -364,13 +370,17 @@ func (h *MovementHandler) getMovementHistory(gameID, unitID string, _ int) ([]*m
 }
 
 // RegisterRoutes регистрирует маршруты для движения
-func (h *MovementHandler) RegisterRoutes(router *mux.Router) {
+func (h *MovementHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
+	// Создаем защищенный subrouter для movement endpoints
+	movementRouter := router.PathPrefix("/api/games").Subrouter()
+	movementRouter.Use(middleware.AuthMiddleware(jwtSecret))
+
 	// Маршруты для движения юнитов
-	router.HandleFunc("/api/games/{gameId}/units/{unitId}/available-moves", h.GetAvailableMoves).Methods("GET")
-	router.HandleFunc("/api/games/{gameId}/units/{unitId}/move", h.MoveUnit).Methods("POST")
-	router.HandleFunc("/api/games/{gameId}/units/{unitId}/movement-history", h.GetMovementHistory).Methods("GET")
+	movementRouter.HandleFunc("/{gameId}/units/{unitId}/available-moves", h.GetAvailableMoves).Methods("GET")
+	movementRouter.HandleFunc("/{gameId}/units/{unitId}/move", h.MoveUnit).Methods("POST")
+	movementRouter.HandleFunc("/{gameId}/units/{unitId}/movement-history", h.GetMovementHistory).Methods("GET")
 
 	// Маршруты для видимости
-	router.HandleFunc("/api/games/{gameId}/visibility/units", h.GetVisibleUnits).Methods("GET")
-	router.HandleFunc("/api/games/{gameId}/visibility/update", h.UpdateVisibility).Methods("POST")
+	movementRouter.HandleFunc("/{gameId}/visibility/units", h.GetVisibleUnits).Methods("GET")
+	movementRouter.HandleFunc("/{gameId}/visibility/update", h.UpdateVisibility).Methods("POST")
 }

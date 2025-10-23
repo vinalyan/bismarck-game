@@ -5,6 +5,8 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/logger"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // ShipConfigService предоставляет методы для работы с конфигурацией кораблей
@@ -86,6 +88,10 @@ func (scs *ShipConfigService) CreateNavalUnitFromConfig(shipID, gameID, owner st
 		CreatedAt:                time.Now(),
 		UpdatedAt:                time.Now(),
 	}
+
+	// Сохраняем юнит в базе данных
+	// TODO: Добавить UnitService для сохранения в БД
+	// Пока что возвращаем юнит без сохранения в БД
 
 	scs.logger.Info("Создан морской юнит из конфигурации",
 		"unitID", navalUnit.ID,
@@ -200,7 +206,8 @@ func (scs *ShipConfigService) ValidateShipConfig(shipConfig *config.ShipConfig) 
 
 // generateUnitID генерирует уникальный ID для юнита
 func generateUnitID() string {
-	return "unit_" + time.Now().Format("20060102150405") + "_" + randomString(6)
+	// Генерируем UUID для совместимости с базой данных
+	return uuid.New().String()
 }
 
 // GetSpecialRulesService возвращает сервис специальных правил
