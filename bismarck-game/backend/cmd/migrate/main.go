@@ -413,6 +413,23 @@ func getMigrations() []Migration {
 					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 				);
 
+				-- Movements table (новая таблица для Movement модели)
+				CREATE TABLE IF NOT EXISTS movements (
+					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+					unit_id UUID NOT NULL,
+					from_hex VARCHAR(10) NOT NULL,
+					to_hex VARCHAR(10) NOT NULL,
+					path JSONB DEFAULT '[]',
+					fuel_cost INTEGER DEFAULT 0,
+					hexes_moved INTEGER DEFAULT 0,
+					movement_type VARCHAR(20) DEFAULT 'normal',
+					turn INTEGER NOT NULL,
+					phase VARCHAR(20) NOT NULL,
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+				);
+
 				-- Unit searches table
 				CREATE TABLE IF NOT EXISTS unit_searches (
 					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -448,12 +465,17 @@ func getMigrations() []Migration {
 				CREATE INDEX IF NOT EXISTS idx_unit_movements_unit_id ON unit_movements(unit_id);
 				CREATE INDEX IF NOT EXISTS idx_unit_movements_turn_phase ON unit_movements(turn, phase);
 				
+				CREATE INDEX IF NOT EXISTS idx_movements_game_id ON movements(game_id);
+				CREATE INDEX IF NOT EXISTS idx_movements_unit_id ON movements(unit_id);
+				CREATE INDEX IF NOT EXISTS idx_movements_turn_phase ON movements(turn, phase);
+				
 				CREATE INDEX IF NOT EXISTS idx_unit_searches_game_id ON unit_searches(game_id);
 				CREATE INDEX IF NOT EXISTS idx_unit_searches_unit_id ON unit_searches(unit_id);
 				CREATE INDEX IF NOT EXISTS idx_unit_searches_turn_phase ON unit_searches(turn, phase);
 			`,
 			RollbackSQL: `
 				DROP TABLE IF EXISTS unit_searches;
+				DROP TABLE IF EXISTS movements;
 				DROP TABLE IF EXISTS unit_movements;
 				DROP TABLE IF EXISTS task_forces;
 				DROP TABLE IF EXISTS air_units;

@@ -247,21 +247,6 @@ type TaskForce struct {
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// UnitMovement представляет движение юнита
-type UnitMovement struct {
-	ID         string    `json:"id" db:"id"`
-	GameID     string    `json:"game_id" db:"game_id"`
-	UnitID     string    `json:"unit_id" db:"unit_id"`
-	From       string    `json:"from" db:"from"` // Hex coordinate
-	To         string    `json:"to" db:"to"`     // Hex coordinate
-	Path       []string  `json:"path" db:"path"` // Path coordinates
-	Speed      int       `json:"speed" db:"speed"`
-	FuelCost   int       `json:"fuel_cost" db:"fuel_cost"`
-	IsShadowed bool      `json:"is_shadowed" db:"is_shadowed"`
-	Turn       int       `json:"turn" db:"turn"`
-	Phase      GamePhase `json:"phase" db:"phase"`
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
-}
 
 // UnitSearch представляет поиск юнита
 type UnitSearch struct {

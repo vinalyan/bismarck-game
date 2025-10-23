@@ -11,17 +11,19 @@ import (
 
 // TaskForceService предоставляет методы для работы с оперативными соединениями
 type TaskForceService struct {
-	db          *database.Database
-	logger      *logger.Logger
-	unitService *UnitService
+	db              *database.Database
+	logger          *logger.Logger
+	unitService     *UnitService
+	movementService *MovementService
 }
 
 // NewTaskForceService создает новый сервис Task Forces
-func NewTaskForceService(db *database.Database, logger *logger.Logger, unitService *UnitService) *TaskForceService {
+func NewTaskForceService(db *database.Database, logger *logger.Logger, unitService *UnitService, movementService *MovementService) *TaskForceService {
 	return &TaskForceService{
-		db:          db,
-		logger:      logger,
-		unitService: unitService,
+		db:              db,
+		logger:          logger,
+		unitService:     unitService,
+		movementService: movementService,
 	}
 }
 
@@ -261,14 +263,8 @@ func (s *TaskForceService) MoveTaskForce(taskForceID string, to string, speed in
 					return fmt.Errorf("unit %s cannot move", unitID)
 				}
 
-				// Вычисляем расход топлива (упрощенно)
-				fuelCost := speed // 1 топливо за 1 скорость
-				if unit.Fuel < fuelCost {
-					return fmt.Errorf("unit %s has insufficient fuel", unitID)
-				}
-
-				// Перемещаем юнит
-				err = s.unitService.MoveUnit(unitID, to, speed, fuelCost, []string{unit.Position, to}, 1, models.PhaseMovement)
+				// Используем MovementService для движения
+				_, err = s.movementService.ExecuteMovement(&unit, to)
 				if err != nil {
 					return fmt.Errorf("failed to move unit %s: %w", unitID, err)
 				}

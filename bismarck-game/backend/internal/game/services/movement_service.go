@@ -563,18 +563,19 @@ func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) 
 func (s *MovementService) saveMovement(movement *models.Movement) error {
 	// Сохраняем движение в базе данных
 	query := `
-		INSERT INTO unit_movements (
-			id, game_id, unit_id, from_pos, to_pos, path, fuel_cost, 
-			speed, turn, phase, created_at
+		INSERT INTO movements (
+			id, game_id, unit_id, from_hex, to_hex, path, fuel_cost, 
+			hexes_moved, movement_type, turn, phase, created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
 		)`
 
 	pathJSON, _ := json.Marshal(movement.Path)
 
 	_, err := s.db.Exec(query,
 		movement.ID, movement.GameID, movement.UnitID, movement.FromHex, movement.ToHex,
-		pathJSON, movement.FuelCost, movement.HexesMoved, movement.Turn, movement.Phase, movement.CreatedAt,
+		pathJSON, movement.FuelCost, movement.HexesMoved, movement.MovementType,
+		movement.Turn, movement.Phase, movement.CreatedAt, movement.UpdatedAt,
 	)
 
 	if err != nil {

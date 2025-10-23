@@ -15,14 +15,16 @@ import (
 // UnitHandler обрабатывает запросы для работы с юнитами
 type UnitHandler struct {
 	unitService      *services.UnitService
+	movementService  *services.MovementService
 	taskForceService *services.TaskForceService
 	logger           *logger.Logger
 }
 
 // NewUnitHandler создает новый обработчик юнитов
-func NewUnitHandler(unitService *services.UnitService, taskForceService *services.TaskForceService, logger *logger.Logger) *UnitHandler {
+func NewUnitHandler(unitService *services.UnitService, movementService *services.MovementService, taskForceService *services.TaskForceService, logger *logger.Logger) *UnitHandler {
 	return &UnitHandler{
 		unitService:      unitService,
+		movementService:  movementService,
 		taskForceService: taskForceService,
 		logger:           logger,
 	}
@@ -144,11 +146,8 @@ func (h *UnitHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Вычисляем расход топлива (упрощенно)
-	fuelCost := req.Speed // 1 топливо за 1 скорость
-
-	// Перемещаем юнит
-	err = h.unitService.MoveUnit(req.UnitID, req.To, req.Speed, fuelCost, req.Path, 1, models.PhaseMovement)
+	// Используем MovementService для движения
+	movement, err := h.movementService.ExecuteMovement(unit, req.To)
 	if err != nil {
 		h.logger.Error("Failed to move unit", "unit_id", req.UnitID, "error", err)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
@@ -164,7 +163,8 @@ func (h *UnitHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"unit":      updatedUnit,
-		"fuel_cost": fuelCost,
+		"movement":  movement,
+		"fuel_cost": movement.FuelCost,
 		"message":   "Unit moved successfully",
 	}
 
