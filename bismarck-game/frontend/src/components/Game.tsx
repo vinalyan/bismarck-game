@@ -36,7 +36,7 @@ const Game: React.FC = () => {
   // Отслеживание изменений availableMovementHexes
   useEffect(() => {
     if (availableMovementHexes.length > 0) {
-      console.log('✅ Available moves updated:', availableMovementHexes.length, 'hexes');
+      // console.log('✅ Available moves updated:', availableMovementHexes.length, 'hexes');
     }
   }, [availableMovementHexes]);
   const [currentTurn, setCurrentTurn] = useState<GameTurn | GameTurnResponse | null>(null);
@@ -156,13 +156,18 @@ const Game: React.FC = () => {
     loadCurrentTurn();
   }, [currentGame?.id]);
 
-  // Автоматическое обновление информации о текущей фазе каждые 2 секунды
+  // Автоматическое обновление информации о текущей фазе каждые 10 секунд
   useEffect(() => {
     if (!currentGame?.id) {
       return;
     }
 
     const interval = setInterval(async () => {
+      // Проверяем, что страница активна
+      if (document.hidden) {
+        return;
+      }
+      
       try {
         const turn = await phaseAPI.getCurrentPhase(currentGame.id);
         const previousTurn = currentTurn;
@@ -204,7 +209,7 @@ const Game: React.FC = () => {
       } catch (error) {
         console.error('Error updating current turn:', error);
       }
-    }, 2000); // Обновляем каждые 2 секунды
+    }, 10000); // Обновляем каждые 10 секунд
 
     return () => clearInterval(interval);
   }, [currentGame?.id, currentTurn, addNotification]);
@@ -289,7 +294,7 @@ const Game: React.FC = () => {
       const response = await movementAPI.moveUnit(
         currentGame.id,
         selectedUnit!,
-        { toHex: positionString },
+        { unit_id: selectedUnit!, to_hex: positionString },
         authToken
       );
       
@@ -397,18 +402,65 @@ const Game: React.FC = () => {
     if (!currentGame?.id) return;
 
     try {
+      console.log('🔄 Completing current phase...');
+      
       await phaseAPI.nextPhase({ game_id: currentGame.id });
+      
+      console.log('✅ Phase completed successfully');
       
       // Обновляем информацию о текущем ходе
       const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
-      setCurrentTurn(updatedTurn);
       
-      addNotification({
-        type: NotificationType.Success,
-        title: 'Фаза завершена',
-        message: 'Переход к следующей фазе',
-        read: false
-      });
+      // Если ход завершен (updatedTurn === null), начинаем новый ход
+      if (!updatedTurn) {
+        console.log('🔄 Turn completed, starting new turn...');
+        try {
+          const newTurn = await phaseAPI.startTurn({ game_id: currentGame.id });
+          setCurrentTurn(newTurn);
+          
+          console.log('✅ New turn started after completion:', {
+            turn_number: newTurn.turn_number,
+            current_phase: newTurn.current_phase,
+            status: newTurn.status
+          });
+          
+          // Уведомляем об обновлении хода
+          window.dispatchEvent(new CustomEvent('turnUpdated', { detail: newTurn }));
+          
+          addNotification({
+            type: NotificationType.Success,
+            title: 'Новый ход начат',
+            message: `Ход ${newTurn.turn_number} успешно начат`,
+            read: false
+          });
+        } catch (newTurnError) {
+          console.error('Error starting new turn:', newTurnError);
+          addNotification({
+            type: NotificationType.Error,
+            title: 'Ошибка',
+            message: 'Не удалось начать новый ход',
+            read: false
+          });
+        }
+      } else {
+        setCurrentTurn(updatedTurn);
+        
+        console.log('📊 Turn data updated after phase completion:', {
+          turn_number: updatedTurn.turn_number,
+          current_phase: updatedTurn.current_phase,
+          status: updatedTurn.status
+        });
+      }
+      
+      // Уведомление о завершении фазы (только если не начался новый ход)
+      if (updatedTurn) {
+        addNotification({
+          type: NotificationType.Success,
+          title: 'Фаза завершена',
+          message: 'Переход к следующей фазе',
+          read: false
+        });
+      }
     } catch (error) {
       console.error('Error completing phase:', error);
       addNotification({
@@ -422,7 +474,7 @@ const Game: React.FC = () => {
 
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
-    console.log('🎯 Unit clicked:', unitId, unitData.type);
+    // console.log('🎯 Unit clicked:', unitId, unitData.type);
     
     setSelectedUnit(unitId);
     setSelectedUnitData(unitData);
@@ -433,7 +485,7 @@ const Game: React.FC = () => {
     // Проверяем, что мы находимся в фазе движения
     const currentPhase = getTurnData(currentTurn)?.current_phase;
     if (currentPhase !== 'movement') {
-      console.log('❌ Not in movement phase');
+      // console.log('❌ Not in movement phase');
       setAvailableMovementHexes([]);
       return;
     }
@@ -447,7 +499,7 @@ const Game: React.FC = () => {
     // Проверяем, не двигался ли юнит уже в этом ходу (один юнит = одно движение за ход)
     const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 0;
     if (unitDataToUse?.last_move_turn === currentTurnNumber) {
-      console.log('❌ Unit already moved this turn');
+      // console.log('❌ Unit already moved this turn');
       setAvailableMovementHexes([]);
       return;
     }
@@ -459,13 +511,13 @@ const Game: React.FC = () => {
         const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
         if (unitsResponse.success && unitsResponse.data) {
           gameUnit = unitsResponse.data.units.find((unit: GameUnit) => unit.id === unitId);
-          console.log('Fresh unit data from server:', gameUnit);
-          console.log('VS Tanker server data:', {
-            id: gameUnit?.id,
+          // Логируем состояние движения для отладки
+          console.log('📊 Movement state for unit:', {
             name: gameUnit?.name,
-            speed_rating: gameUnit?.speed_rating,
-            no_movement_turns_left: gameUnit?.no_movement_turns_left,
-            position: gameUnit?.position
+            movement_used: gameUnit?.movement_used || 0,
+            previous_turn_moved_hexes: gameUnit?.previous_turn_moved_hexes || 0,
+            position: gameUnit?.position,
+            speed_rating: gameUnit?.speed_rating
           });
         }
       }
@@ -498,10 +550,10 @@ const Game: React.FC = () => {
       // Получаем доступные гексы для движения с сервера
       if (currentPosition && currentGame?.id && authToken) {
         try {
-          console.log('🚀 Loading available moves...');
+          // console.log('🚀 Loading available moves...');
           const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unitId, authToken);
-          console.log('🎯 Server response - available_hexes:', availableMovesResponse.available_hexes);
-          console.log('🎯 Server response - max_distance:', availableMovesResponse.max_distance);
+          // console.log('🎯 Server response - available_hexes:', availableMovesResponse.available_hexes);
+          // console.log('🎯 Server response - max_distance:', availableMovesResponse.max_distance);
           
           if (availableMovesResponse && availableMovesResponse.available_hexes) {
             // Преобразуем ответ сервера в формат MovementHex[]
@@ -533,11 +585,11 @@ const Game: React.FC = () => {
               };
             }).filter(hex => hex !== null) as MovementHex[];
             
-            console.log('✅ Found', availableHexes.length, 'available moves');
-            console.log('🎯 Available hexes:', availableHexes.map(h => `${h.coordinate.letter}${h.coordinate.number}`));
+            // console.log('✅ Found', availableHexes.length, 'available moves');
+            // console.log('🎯 Available hexes:', availableHexes.map(h => `${h.coordinate.letter}${h.coordinate.number}`));
             setAvailableMovementHexes(availableHexes);
           } else {
-            console.log('❌ No available moves from server');
+            // console.log('❌ No available moves from server');
             setAvailableMovementHexes([]);
           }
         } catch (error) {
@@ -596,13 +648,13 @@ const Game: React.FC = () => {
 
   // Обработчик клика по гексу
   const handleHexClick = async (coordinate: HexCoordinate) => {
-    console.log('🎯🎯🎯 Hex clicked:', coordinate);
-    console.log('🎯🎯🎯 This should appear when clicking on any hex!');
+    // console.log('🎯🎯🎯 Hex clicked:', coordinate);
+    // console.log('🎯🎯🎯 This should appear when clicking on any hex!');
     
     // Вызываем отладочную функцию для любого клика по гексу
-    console.log('🎯🎯🎯 About to call debugHexRange');
+    // console.log('🎯🎯🎯 About to call debugHexRange');
     await debugHexRange(coordinate);
-    console.log('🎯🎯🎯 debugHexRange completed');
+    // console.log('🎯🎯🎯 debugHexRange completed');
     
     // Проверяем, есть ли выбранный юнит
     if (!selectedUnit || !selectedUnitData) {
@@ -904,12 +956,22 @@ const Game: React.FC = () => {
                         if (!currentGame?.id) return;
                         
                         try {
+                          console.log('🔄 Starting first turn...');
+                          
                           // Начинаем первый ход
                           await phaseAPI.startTurn({ game_id: currentGame.id });
+                          
+                          console.log('✅ First turn started successfully');
                           
                           // Обновляем информацию о текущем ходе
                           const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
                           setCurrentTurn(updatedTurn);
+                          
+                          console.log('📊 Turn data updated:', {
+                            turn_number: updatedTurn?.turn_number,
+                            current_phase: updatedTurn?.current_phase,
+                            status: updatedTurn?.status
+                          });
                           
                           // Уведомляем об обновлении хода
                           window.dispatchEvent(new CustomEvent('turnUpdated', { detail: updatedTurn }));

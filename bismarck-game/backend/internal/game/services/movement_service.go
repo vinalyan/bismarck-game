@@ -194,6 +194,11 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 	oldPosition := unit.Position
 	unit.Position = toHex
 
+	// Обновляем данные о движении
+	currentTurn := s.getCurrentTurn(unit.GameID)
+	unit.MovementUsed += movement.HexesMoved
+	unit.LastMoveTurn = currentTurn
+
 	// Обновляем топливо
 	fuelTracking.CurrentFuel -= fuelCost
 	fuelTracking.PreviousTurnMoved = movement.HexesMoved
@@ -201,7 +206,6 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 
 	// Проверяем активацию аварийного топлива
 	if fuelTracking.CurrentFuel <= 0 && !fuelTracking.IsEmergencyFuel {
-		currentTurn := s.getCurrentTurn(unit.GameID)
 		fuelTracking.IsEmergencyFuel = true
 		fuelTracking.EmergencyTurn = currentTurn + 10
 

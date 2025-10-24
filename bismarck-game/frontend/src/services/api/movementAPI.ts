@@ -8,7 +8,8 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 // Типы для движения
 export interface MovementRequest {
-  toHex: string; // Упрощенный интерфейс - только целевая позиция
+  unit_id: string; // ID юнита
+  to_hex: string; // Целевая позиция
 }
 
 export interface MovementResponse {
@@ -293,7 +294,8 @@ export const useMovement = (gameId: string, playerId: string, authToken: string)
       setLoading(true);
       setError(null);
       const result = await movementAPI.moveUnit(gameId, unitId, {
-        toHex: toHex
+        unit_id: unitId,
+        to_hex: toHex
       }, authToken);
       return result;
     } catch (err: any) {

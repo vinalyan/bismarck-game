@@ -106,8 +106,16 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
       setLoading(true);
       setError(null);
       
+      console.log('🔄 Starting new turn...');
+      
       // Начинаем первый ход
       const newTurn = await phaseAPI.startTurn({ game_id: gameId });
+      
+      console.log('✅ New turn started:', {
+        turn_number: newTurn.turn_number,
+        current_phase: newTurn.current_phase,
+        status: newTurn.status
+      });
       
       if (onPhaseChange) {
         onPhaseChange('setup' as GamePhase);

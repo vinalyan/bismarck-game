@@ -89,7 +89,8 @@ const MovementPanel: React.FC<MovementPanelProps> = ({
       setError(null);
 
       const result = await movementAPI.moveUnit(gameId, selectedUnit.id, {
-        toHex: selectedHex
+        unit_id: selectedUnit.id,
+        to_hex: selectedHex
       }, authToken);
 
       if (result.success) {

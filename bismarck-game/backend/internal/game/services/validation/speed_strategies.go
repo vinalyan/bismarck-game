@@ -34,7 +34,7 @@ func (s *FastShipStrategy) CalculateFuelCost(distance, previousTurnMoved int) in
 		return 0 // Бесплатное движение на 1 гекс
 	} else if distance == 2 {
 		if previousTurnMoved == 0 {
-			return 0 // Бесплатно, если не двигался в предыдущем ходу
+			return 1 // 1 FP за 2 гекса после 0 гексов в предыдущем ходу
 		} else if previousTurnMoved == 1 {
 			return 1 // 1 FP за 2 гекса после 1 гекса в предыдущем ходу
 		} else if previousTurnMoved == 2 {
