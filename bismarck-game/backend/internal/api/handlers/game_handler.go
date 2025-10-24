@@ -904,9 +904,20 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetVictoryPoints получает текущие очки победы для игры
+// @Summary Получение очков победы для игры
+// @Tags Games
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "ID игры"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{id}/victory-points [get]
 func (h *GameHandler) GetVictoryPoints(w http.ResponseWriter, r *http.Request) {
 	gameID := mux.Vars(r)["id"]
-	
+
 	var vp map[string]int
 	query := `SELECT COALESCE(victory_points, '{}'::jsonb) FROM games WHERE id = $1`
 	err := h.db.QueryRow(query, gameID).Scan(&vp)
@@ -915,7 +926,7 @@ func (h *GameHandler) GetVictoryPoints(w http.ResponseWriter, r *http.Request) {
 		pkgutils.WriteInternalError(w, "Failed to get victory points")
 		return
 	}
-	
+
 	pkgutils.WriteSuccess(w, map[string]interface{}{
 		"victory_points": vp,
 	})
