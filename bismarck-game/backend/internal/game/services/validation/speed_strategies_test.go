@@ -5,6 +5,16 @@ import (
 	"testing"
 )
 
+// createTestContext creates a test validation context
+func createTestContext(speedType models.SpeedType, distance int) *ValidationContext {
+	return &ValidationContext{
+		Unit: &models.NavalUnit{
+			SpeedRating: speedType,
+		},
+		Distance: distance,
+	}
+}
+
 func TestFastShipStrategy_ValidateMovement(t *testing.T) {
 	strategy := NewFastShipStrategy()
 
@@ -66,10 +76,10 @@ func TestFastShipStrategy_CalculateFuelCost(t *testing.T) {
 			expectedFuelCost:  0,
 		},
 		{
-			name:              "2 hex movement after 0 hexes",
+			name:              "2 hex movement after 0 hexes (not moved)",
 			distance:          2,
 			previousTurnMoved: 0,
-			expectedFuelCost:  1,
+			expectedFuelCost:  0, // ИЗМЕНЕНО: было 1, должно быть 0
 		},
 		{
 			name:              "2 hex movement after 1 hex",

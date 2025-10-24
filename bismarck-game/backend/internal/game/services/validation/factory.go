@@ -26,6 +26,7 @@ func (f *ValidatorFactory) CreateValidationChain() MovementValidator {
 	speedRestrictionValidator := NewSpeedRestrictionValidator()
 	distanceValidator := NewDistanceValidator()
 	emergencyFuelValidator := NewEmergencyFuelValidator()
+	damagedShipValidator := NewDamagedShipValidator()
 	fuelValidator := NewFuelValidator()
 	movementRestrictionsValidator := NewMovementRestrictionsValidator()
 
@@ -35,7 +36,8 @@ func (f *ValidatorFactory) CreateValidationChain() MovementValidator {
 	turnValidator.SetNext(speedRestrictionValidator)
 	speedRestrictionValidator.SetNext(distanceValidator)
 	distanceValidator.SetNext(emergencyFuelValidator)
-	emergencyFuelValidator.SetNext(fuelValidator)
+	emergencyFuelValidator.SetNext(damagedShipValidator)
+	damagedShipValidator.SetNext(fuelValidator)
 	fuelValidator.SetNext(movementRestrictionsValidator)
 
 	return nilUnitValidator

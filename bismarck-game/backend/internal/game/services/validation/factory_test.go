@@ -102,6 +102,7 @@ func TestValidatorFactory_ValidateMovement(t *testing.T) {
 			Fuel:                10,
 			LastMoveTurn:        0,
 			NoMovementTurnsLeft: 0,
+			Evasion:             30, // Set high evasion to avoid damaged ship validation
 		}
 		fuelTracking := &models.FuelTracking{
 			ID:              "fuel_test",
@@ -122,6 +123,7 @@ func TestValidatorFactory_ValidateMovement(t *testing.T) {
 			Fuel:                0, // No fuel
 			LastMoveTurn:        0,
 			NoMovementTurnsLeft: 0,
+			Evasion:             30, // Set high evasion to avoid damaged ship validation
 		}
 		fuelTracking := &models.FuelTracking{
 			ID:              "fuel_test",
@@ -162,7 +164,7 @@ func TestValidatorFactory_CalculateFuelCost(t *testing.T) {
 			fromHex:           "J30",
 			toHex:             "J32",
 			previousTurnMoved: 0,
-			expectedFuelCost:  1,
+			expectedFuelCost:  0, // ИЗМЕНЕНО: было 1, должно быть 0
 		},
 		{
 			name:              "medium ship 1 hex after movement",

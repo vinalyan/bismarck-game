@@ -212,3 +212,28 @@ func (v *MovementRestrictionsValidator) validateTankerMovement(toHex string) err
 
 	return nil
 }
+
+// DamagedShipValidator проверяет ограничения для поврежденных кораблей
+type DamagedShipValidator struct {
+	BaseValidator
+}
+
+// NewDamagedShipValidator создает новый DamagedShipValidator
+func NewDamagedShipValidator() *DamagedShipValidator {
+	return &DamagedShipValidator{}
+}
+
+func (v *DamagedShipValidator) Validate(ctx *ValidationContext) error {
+	// Поврежденными считаются F корабли с Evasion <= 25
+	if ctx.Unit.SpeedRating == "F" && ctx.Unit.Evasion <= 25 {
+		// Поврежденные корабли могут двигаться только на 1 гекс
+		if ctx.Distance > 1 {
+			return errors.New("damaged ships (Evasion <= 25) can only move 1 hex")
+		}
+	}
+
+	if v.next != nil {
+		return v.next.Validate(ctx)
+	}
+	return nil
+}
