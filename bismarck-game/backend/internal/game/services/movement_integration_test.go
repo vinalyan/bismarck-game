@@ -42,6 +42,7 @@ func TestCompleteMovementCycle(t *testing.T) {
 			Position:     "J30",
 			LastMoveTurn: 0,
 			MovementUsed: 0,
+			Evasion:      30, // Set high evasion to avoid damaged ship validation
 		}
 
 		service := createTestMovementService()
@@ -397,6 +398,7 @@ func TestMovementWithTurnTransition(t *testing.T) {
 			Position:     "J30",
 			LastMoveTurn: 5, // Previous turn
 			MovementUsed: 0,
+			Evasion:      30, // Set high evasion to avoid damaged ship validation
 		}
 
 		service := createTestMovementService()
@@ -417,6 +419,7 @@ func TestMovementWithTurnTransition(t *testing.T) {
 			Position:     "J30",
 			LastMoveTurn: 6, // Current turn
 			MovementUsed: 2, // Already moved
+			Evasion:      30, // Set high evasion to avoid damaged ship validation
 		}
 
 		service := createTestMovementService()
@@ -453,6 +456,7 @@ func TestMovementWithAllShipTypes(t *testing.T) {
 				Position:     "J30",
 				LastMoveTurn: 0,
 				MovementUsed: 0,
+				Evasion:      30, // Set high evasion to avoid damaged ship validation
 			}
 
 			service := createTestMovementService()
