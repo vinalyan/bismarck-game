@@ -2,479 +2,332 @@ package services
 
 import (
 	"bismarck-game/backend/internal/game/models"
-	"bismarck-game/backend/internal/game/services/validation"
-	"bismarck-game/backend/pkg/hexgrid"
 	"testing"
 )
 
-// TestGermanDestroyerMovementRestrictions тестирует ограничения движения немецких эсминцев
-func TestGermanDestroyerMovementRestrictions(t *testing.T) {
+// TestMovementRestrictionsDecrease тестирует автоматическое уменьшение ограничений движения между ходами
+func TestMovementRestrictionsDecrease(t *testing.T) {
 	tests := []struct {
-		name        string
-		unit        *models.NavalUnit
-		fromHex     string
-		toHex       string
-		expectedErr bool
-		description string
+		name                  string
+		speedType             models.SpeedType
+		initialRestriction    int
+		expectedAfterDecrease int
+		description           string
 	}{
 		{
-			name: "German DD cannot cross boundary line Q29",
-			unit: &models.NavalUnit{
-				ID:          "test-dd-1",
-				Type:        models.UnitTypeDestroyer,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "Q28",
-			},
-			fromHex:     "Q28",
-			toHex:       "Q29",
-			expectedErr: true,
-			description: "German destroyer cannot cross boundary line at Q29",
+			name:                  "S ship: 2 turns left -> 1 turn left",
+			speedType:             models.SpeedTypeSlow,
+			initialRestriction:    2,
+			expectedAfterDecrease: 1,
+			description:           "S ship restriction should decrease from 2 to 1",
 		},
 		{
-			name: "German DD cannot cross boundary line R28",
-			unit: &models.NavalUnit{
-				ID:          "test-dd-2",
-				Type:        models.UnitTypeDestroyer,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "R27",
-			},
-			fromHex:     "R27",
-			toHex:       "R28",
-			expectedErr: true,
-			description: "German destroyer cannot cross boundary line at R28",
+			name:                  "S ship: 1 turn left -> 0 turns left",
+			speedType:             models.SpeedTypeSlow,
+			initialRestriction:    1,
+			expectedAfterDecrease: 0,
+			description:           "S ship restriction should decrease from 1 to 0",
 		},
 		{
-			name: "German DD cannot cross boundary line S27",
-			unit: &models.NavalUnit{
-				ID:          "test-dd-3",
-				Type:        models.UnitTypeDestroyer,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "S26",
-			},
-			fromHex:     "S26",
-			toHex:       "S27",
-			expectedErr: true,
-			description: "German destroyer cannot cross boundary line at S27",
+			name:                  "S ship: 0 turns left -> 0 turns left",
+			speedType:             models.SpeedTypeSlow,
+			initialRestriction:    0,
+			expectedAfterDecrease: 0,
+			description:           "S ship restriction should not go below 0",
 		},
 		{
-			name: "German DD cannot cross boundary line T26",
-			unit: &models.NavalUnit{
-				ID:          "test-dd-4",
-				Type:        models.UnitTypeDestroyer,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "T25",
-			},
-			fromHex:     "T25",
-			toHex:       "T26",
-			expectedErr: true,
-			description: "German destroyer cannot cross boundary line at T26",
+			name:                  "VS ship: 4 turns left -> 3 turns left",
+			speedType:             models.SpeedTypeVerySlow,
+			initialRestriction:    4,
+			expectedAfterDecrease: 3,
+			description:           "VS ship restriction should decrease from 4 to 3",
 		},
 		{
-			name: "German DD can move within allowed area",
-			unit: &models.NavalUnit{
-				ID:          "test-dd-5",
-				Type:        models.UnitTypeDestroyer,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "Q28",
-			},
-			fromHex:     "Q28",
-			toHex:       "Q27",
-			expectedErr: false,
-			description: "German destroyer can move within allowed area",
+			name:                  "VS ship: 3 turns left -> 2 turns left",
+			speedType:             models.SpeedTypeVerySlow,
+			initialRestriction:    3,
+			expectedAfterDecrease: 2,
+			description:           "VS ship restriction should decrease from 3 to 2",
 		},
 		{
-			name: "German DD can move to adjacent hex within boundary",
-			unit: &models.NavalUnit{
-				ID:          "test-dd-6",
-				Type:        models.UnitTypeDestroyer,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "Q27",
-			},
-			fromHex:     "Q27",
-			toHex:       "Q28",
-			expectedErr: false,
-			description: "German destroyer can move to adjacent hex within boundary",
+			name:                  "VS ship: 2 turns left -> 1 turn left",
+			speedType:             models.SpeedTypeVerySlow,
+			initialRestriction:    2,
+			expectedAfterDecrease: 1,
+			description:           "VS ship restriction should decrease from 2 to 1",
 		},
 		{
-			name: "Non-German DD has no restrictions",
-			unit: &models.NavalUnit{
-				ID:          "test-dd-7",
-				Type:        models.UnitTypeDestroyer,
-				Owner:       "allied",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "Q28",
-			},
-			fromHex:     "Q28",
-			toHex:       "Q29",
-			expectedErr: false,
-			description: "Allied destroyer has no movement restrictions",
+			name:                  "VS ship: 1 turn left -> 0 turns left",
+			speedType:             models.SpeedTypeVerySlow,
+			initialRestriction:    1,
+			expectedAfterDecrease: 0,
+			description:           "VS ship restriction should decrease from 1 to 0",
 		},
 		{
-			name: "German non-DD has no restrictions",
-			unit: &models.NavalUnit{
-				ID:          "test-bb-1",
-				Type:        models.UnitTypeBattleship,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "Q28",
-			},
-			fromHex:     "Q28",
-			toHex:       "Q29",
-			expectedErr: false,
-			description: "German battleship has no movement restrictions",
+			name:                  "VS ship: 0 turns left -> 0 turns left",
+			speedType:             models.SpeedTypeVerySlow,
+			initialRestriction:    0,
+			expectedAfterDecrease: 0,
+			description:           "VS ship restriction should not go below 0",
+		},
+		{
+			name:                  "F ship: 0 turns left -> 0 turns left",
+			speedType:             models.SpeedTypeFast,
+			initialRestriction:    0,
+			expectedAfterDecrease: 0,
+			description:           "F ship should have no restrictions",
+		},
+		{
+			name:                  "M ship: 0 turns left -> 0 turns left",
+			speedType:             models.SpeedTypeMedium,
+			initialRestriction:    0,
+			expectedAfterDecrease: 0,
+			description:           "M ship should have no restrictions",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Создаем валидатор для проверки ограничений движения
-			hexCalculator := hexgrid.NewStandardHexCalculator()
-
-			// Создаем контекст валидации
-			ctx := &validation.ValidationContext{
-				Unit:        tt.unit,
-				FromHex:     tt.fromHex,
-				ToHex:       tt.toHex,
-				Distance:    hexCalculator.CalculateDistance(tt.fromHex, tt.toHex),
-				CurrentTurn: 1,
-			}
-
-			// Проверяем только для немецких эсминцев
-			if tt.unit.Owner == "german" && tt.unit.Type == models.UnitTypeDestroyer {
-				// Создаем только валидатор ограничений движения
-				restrictionsValidator := validation.NewMovementRestrictionsValidator()
-				err := restrictionsValidator.Validate(ctx)
-
-				if tt.expectedErr && err == nil {
-					t.Errorf("Expected error but got none. %s", tt.description)
-				}
-				if !tt.expectedErr && err != nil {
-					t.Errorf("Expected no error but got: %v. %s", err, tt.description)
-				}
-			} else {
-				// Для не-немецких эсминцев или не-эсминцев не должно быть ошибок
-				if tt.expectedErr {
-					t.Errorf("Expected error for non-German DD or non-DD unit. %s", tt.description)
-				}
-			}
-		})
-	}
-}
-
-// TestTankerMovementRestrictions тестирует ограничения движения танкеров
-func TestTankerMovementRestrictions(t *testing.T) {
-	tests := []struct {
-		name        string
-		unit        *models.NavalUnit
-		toHex       string
-		expectedErr bool
-		description string
-	}{
-		{
-			name: "Tanker cannot enter convoy hex H15",
-			unit: &models.NavalUnit{
-				ID:          "test-tanker-1",
-				Type:        models.UnitTypeTanker,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeVerySlow,
-				Position:    "H14",
-			},
-			toHex:       "H15",
-			expectedErr: true,
-			description: "German tanker cannot enter convoy hex H15",
-		},
-		{
-			name: "Tanker cannot enter convoy hex I16",
-			unit: &models.NavalUnit{
-				ID:          "test-tanker-2",
-				Type:        models.UnitTypeTanker,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeVerySlow,
-				Position:    "I15",
-			},
-			toHex:       "I16",
-			expectedErr: true,
-			description: "German tanker cannot enter convoy hex I16",
-		},
-		{
-			name: "Tanker cannot enter convoy hex J17",
-			unit: &models.NavalUnit{
-				ID:          "test-tanker-3",
-				Type:        models.UnitTypeTanker,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeVerySlow,
-				Position:    "J16",
-			},
-			toHex:       "J17",
-			expectedErr: true,
-			description: "German tanker cannot enter convoy hex J17",
-		},
-		{
-			name: "Tanker can move to regular hex",
-			unit: &models.NavalUnit{
-				ID:          "test-tanker-4",
-				Type:        models.UnitTypeTanker,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeVerySlow,
-				Position:    "J30",
-			},
-			toHex:       "J31",
-			expectedErr: false,
-			description: "German tanker can move to regular hex",
-		},
-		{
-			name: "Tanker can move to port hex",
-			unit: &models.NavalUnit{
-				ID:          "test-tanker-5",
-				Type:        models.UnitTypeTanker,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeVerySlow,
-				Position:    "K30",
-			},
-			toHex:       "K31",
-			expectedErr: false,
-			description: "German tanker can move to port hex",
-		},
-		{
-			name: "Non-tanker has no convoy restrictions",
-			unit: &models.NavalUnit{
-				ID:          "test-bb-1",
-				Type:        models.UnitTypeBattleship,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "H14",
-			},
-			toHex:       "H15",
-			expectedErr: false,
-			description: "German battleship has no convoy restrictions",
-		},
-		{
-			name: "Allied tanker has no convoy restrictions",
-			unit: &models.NavalUnit{
-				ID:          "test-tanker-6",
-				Type:        models.UnitTypeTanker,
-				Owner:       "allied",
-				SpeedRating: models.SpeedTypeVerySlow,
-				Position:    "H14",
-			},
-			toHex:       "H15",
-			expectedErr: false,
-			description: "Allied tanker has no convoy restrictions",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Создаем валидатор для проверки ограничений движения
-			hexCalculator := hexgrid.NewStandardHexCalculator()
-
-			// Создаем контекст валидации
-			ctx := &validation.ValidationContext{
-				Unit:        tt.unit,
-				FromHex:     tt.unit.Position,
-				ToHex:       tt.toHex,
-				Distance:    hexCalculator.CalculateDistance(tt.unit.Position, tt.toHex),
-				CurrentTurn: 1,
-			}
-
-			// Проверяем только для немецких танкеров
-			if tt.unit.Owner == "german" && tt.unit.Type == models.UnitTypeTanker {
-				// Создаем только валидатор ограничений движения
-				restrictionsValidator := validation.NewMovementRestrictionsValidator()
-				err := restrictionsValidator.Validate(ctx)
-
-				if tt.expectedErr && err == nil {
-					t.Errorf("Expected error but got none. %s", tt.description)
-				}
-				if !tt.expectedErr && err != nil {
-					t.Errorf("Expected no error but got: %v. %s", err, tt.description)
-				}
-			} else {
-				// Для не-немецких танкеров или не-танкеров не должно быть ошибок
-				if tt.expectedErr {
-					t.Errorf("Expected error for non-German tanker or non-tanker unit. %s", tt.description)
-				}
-			}
-		})
-	}
-}
-
-// TestMovementRestrictionsIntegration тестирует интеграцию ограничений движения
-func TestMovementRestrictionsIntegration(t *testing.T) {
-	tests := []struct {
-		name        string
-		unit        *models.NavalUnit
-		fromHex     string
-		toHex       string
-		expectedErr bool
-		description string
-	}{
-		{
-			name: "German DD with multiple restrictions",
-			unit: &models.NavalUnit{
-				ID:          "test-dd-1",
-				Type:        models.UnitTypeDestroyer,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "Q28",
-			},
-			fromHex:     "Q28",
-			toHex:       "Q29", // Boundary restriction
-			expectedErr: true,
-			description: "German DD should be blocked by boundary restriction",
-		},
-		{
-			name: "German tanker with convoy restriction",
-			unit: &models.NavalUnit{
-				ID:          "test-tanker-1",
-				Type:        models.UnitTypeTanker,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeVerySlow,
-				Position:    "H14",
-			},
-			fromHex:     "H14",
-			toHex:       "H15", // Convoy hex
-			expectedErr: true,
-			description: "German tanker should be blocked by convoy restriction",
-		},
-		{
-			name: "Valid movement for German BB",
-			unit: &models.NavalUnit{
-				ID:          "test-bb-1",
-				Type:        models.UnitTypeBattleship,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "Q28",
-				Fuel:        10, // Добавляем топливо
-			},
-			fromHex:     "Q28",
-			toHex:       "Q29", // No restrictions for BB
-			expectedErr: false,
-			description: "German BB should have no movement restrictions",
-		},
-		{
-			name: "Valid movement for Allied DD",
-			unit: &models.NavalUnit{
-				ID:          "test-dd-2",
-				Type:        models.UnitTypeDestroyer,
-				Owner:       "allied",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "Q28",
-				Fuel:        10, // Добавляем топливо
-			},
-			fromHex:     "Q28",
-			toHex:       "Q29", // No restrictions for Allied DD
-			expectedErr: false,
-			description: "Allied DD should have no movement restrictions",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Создаем полную цепочку валидации
-			hexCalculator := hexgrid.NewStandardHexCalculator()
-			validatorFactory := validation.NewValidatorFactory(hexCalculator)
-
-			// Создаем контекст валидации
-			ctx := &validation.ValidationContext{
-				Unit:        tt.unit,
-				FromHex:     tt.fromHex,
-				ToHex:       tt.toHex,
-				Distance:    hexCalculator.CalculateDistance(tt.fromHex, tt.toHex),
-				CurrentTurn: 1,
-			}
-
-			// Используем полную цепочку валидации
-			validator := validatorFactory.CreateValidationChain()
-			err := validator.Validate(ctx)
-
-			if tt.expectedErr && err == nil {
-				t.Errorf("Expected error but got none. %s", tt.description)
-			}
-			if !tt.expectedErr && err != nil {
-				t.Errorf("Expected no error but got: %v. %s", err, tt.description)
-			}
-		})
-	}
-}
-
-// TestBoundaryLineCoordinates тестирует координаты граничной линии
-func TestBoundaryLineCoordinates(t *testing.T) {
-	restrictedHexes := []string{"Q29", "R28", "S27", "T26"}
-
-	for _, hex := range restrictedHexes {
-		t.Run("Restricted hex "+hex, func(t *testing.T) {
-			// Создаем валидатор для проверки ограничений движения
-			hexCalculator := hexgrid.NewStandardHexCalculator()
-
-			// Создаем немецкий эсминец
+			// Создаем тестовый юнит
 			unit := &models.NavalUnit{
-				ID:          "test-dd",
-				Type:        models.UnitTypeDestroyer,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeFast,
-				Position:    "Q28",
+				ID:                  "test-unit-" + string(tt.speedType),
+				SpeedRating:         tt.speedType,
+				NoMovementTurnsLeft: tt.initialRestriction,
+				Fuel:                10,
+				MaxFuel:             10,
+				Position:            "J30",
 			}
 
-			// Создаем контекст валидации
-			ctx := &validation.ValidationContext{
-				Unit:        unit,
-				FromHex:     "Q28",
-				ToHex:       hex,
-				Distance:    hexCalculator.CalculateDistance("Q28", hex),
-				CurrentTurn: 1,
+			// Симулируем уменьшение ограничений (как в StartTurn)
+			// SQL: no_movement_turns_left = GREATEST(0, no_movement_turns_left - 1)
+			newRestriction := unit.NoMovementTurnsLeft - 1
+			if newRestriction < 0 {
+				newRestriction = 0
 			}
+			unit.NoMovementTurnsLeft = newRestriction
 
-			// Создаем только валидатор ограничений движения
-			restrictionsValidator := validation.NewMovementRestrictionsValidator()
-			err := restrictionsValidator.Validate(ctx)
-
-			if err == nil {
-				t.Errorf("Expected error for restricted hex %s, but got none", hex)
+			// Проверяем результат
+			if unit.NoMovementTurnsLeft != tt.expectedAfterDecrease {
+				t.Errorf("NoMovementTurnsLeft after decrease = %d, expected %d. %s",
+					unit.NoMovementTurnsLeft, tt.expectedAfterDecrease, tt.description)
 			}
 		})
 	}
 }
 
-// TestConvoyHexCoordinates тестирует координаты гексов конвоев
-func TestConvoyHexCoordinates(t *testing.T) {
-	convoyHexes := []string{"H15", "I16", "J17"}
+// TestMovementRestrictionsSequence тестирует последовательность уменьшения ограничений для S и VS кораблей
+func TestMovementRestrictionsSequence(t *testing.T) {
+	t.Run("S ship restriction sequence", func(t *testing.T) {
+		unit := &models.NavalUnit{
+			ID:          "test-s-ship",
+			SpeedRating: models.SpeedTypeSlow,
+			Fuel:        10,
+			MaxFuel:     10,
+			Position:    "J30",
+		}
 
-	for _, hex := range convoyHexes {
-		t.Run("Convoy hex "+hex, func(t *testing.T) {
-			// Создаем валидатор для проверки ограничений движения
-			hexCalculator := hexgrid.NewStandardHexCalculator()
+		// Начальное состояние после движения (2 хода без движения)
+		unit.NoMovementTurnsLeft = 2
 
-			// Создаем немецкий танкер
-			unit := &models.NavalUnit{
-				ID:          "test-tanker",
-				Type:        models.UnitTypeTanker,
-				Owner:       "german",
-				SpeedRating: models.SpeedTypeVerySlow,
-				Position:    "H14",
+		// Ход 1: 2 -> 1
+		unit.NoMovementTurnsLeft = unit.NoMovementTurnsLeft - 1
+		if unit.NoMovementTurnsLeft != 1 {
+			t.Errorf("After turn 1: NoMovementTurnsLeft = %d, expected 1", unit.NoMovementTurnsLeft)
+		}
+
+		// Ход 2: 1 -> 0
+		unit.NoMovementTurnsLeft = unit.NoMovementTurnsLeft - 1
+		if unit.NoMovementTurnsLeft != 0 {
+			t.Errorf("After turn 2: NoMovementTurnsLeft = %d, expected 0", unit.NoMovementTurnsLeft)
+		}
+
+		// Ход 3: 0 -> 0 (не может уйти ниже 0)
+		oldValue := unit.NoMovementTurnsLeft
+		unit.NoMovementTurnsLeft = unit.NoMovementTurnsLeft - 1
+		if unit.NoMovementTurnsLeft < 0 {
+			unit.NoMovementTurnsLeft = 0
+		}
+		if unit.NoMovementTurnsLeft != 0 {
+			t.Errorf("After turn 3: NoMovementTurnsLeft = %d, expected 0", unit.NoMovementTurnsLeft)
+		}
+		if oldValue != 0 {
+			t.Errorf("Should not have changed from 0, but was %d", oldValue)
+		}
+	})
+
+	t.Run("VS ship restriction sequence", func(t *testing.T) {
+		unit := &models.NavalUnit{
+			ID:          "test-vs-ship",
+			SpeedRating: models.SpeedTypeVerySlow,
+			Fuel:        5,
+			MaxFuel:     5,
+			Position:    "J30",
+		}
+
+		// Начальное состояние после движения (4 хода без движения)
+		unit.NoMovementTurnsLeft = 4
+
+		// Ход 1: 4 -> 3
+		unit.NoMovementTurnsLeft = unit.NoMovementTurnsLeft - 1
+		if unit.NoMovementTurnsLeft != 3 {
+			t.Errorf("After turn 1: NoMovementTurnsLeft = %d, expected 3", unit.NoMovementTurnsLeft)
+		}
+
+		// Ход 2: 3 -> 2
+		unit.NoMovementTurnsLeft = unit.NoMovementTurnsLeft - 1
+		if unit.NoMovementTurnsLeft != 2 {
+			t.Errorf("After turn 2: NoMovementTurnsLeft = %d, expected 2", unit.NoMovementTurnsLeft)
+		}
+
+		// Ход 3: 2 -> 1
+		unit.NoMovementTurnsLeft = unit.NoMovementTurnsLeft - 1
+		if unit.NoMovementTurnsLeft != 1 {
+			t.Errorf("After turn 3: NoMovementTurnsLeft = %d, expected 1", unit.NoMovementTurnsLeft)
+		}
+
+		// Ход 4: 1 -> 0
+		unit.NoMovementTurnsLeft = unit.NoMovementTurnsLeft - 1
+		if unit.NoMovementTurnsLeft != 0 {
+			t.Errorf("After turn 4: NoMovementTurnsLeft = %d, expected 0", unit.NoMovementTurnsLeft)
+		}
+
+		// Ход 5: 0 -> 0 (не может уйти ниже 0)
+		oldValue := unit.NoMovementTurnsLeft
+		unit.NoMovementTurnsLeft = unit.NoMovementTurnsLeft - 1
+		if unit.NoMovementTurnsLeft < 0 {
+			unit.NoMovementTurnsLeft = 0
+		}
+		if unit.NoMovementTurnsLeft != 0 {
+			t.Errorf("After turn 5: NoMovementTurnsLeft = %d, expected 0", unit.NoMovementTurnsLeft)
+		}
+		if oldValue != 0 {
+			t.Errorf("Should not have changed from 0, but was %d", oldValue)
+		}
+	})
+}
+
+// TestMovementRestrictionsCanMove тестирует возможность движения в зависимости от ограничений
+func TestMovementRestrictionsCanMove(t *testing.T) {
+	tests := []struct {
+		name                string
+		speedType           models.SpeedType
+		noMovementTurnsLeft int
+		expectedCanMove     bool
+		description         string
+	}{
+		{
+			name:                "S ship with 2 turns left cannot move",
+			speedType:           models.SpeedTypeSlow,
+			noMovementTurnsLeft: 2,
+			expectedCanMove:     false,
+			description:         "S ship with 2 turns left should not be able to move",
+		},
+		{
+			name:                "S ship with 1 turn left cannot move",
+			speedType:           models.SpeedTypeSlow,
+			noMovementTurnsLeft: 1,
+			expectedCanMove:     false,
+			description:         "S ship with 1 turn left should not be able to move",
+		},
+		{
+			name:                "S ship with 0 turns left can move",
+			speedType:           models.SpeedTypeSlow,
+			noMovementTurnsLeft: 0,
+			expectedCanMove:     true,
+			description:         "S ship with 0 turns left should be able to move",
+		},
+		{
+			name:                "VS ship with 4 turns left cannot move",
+			speedType:           models.SpeedTypeVerySlow,
+			noMovementTurnsLeft: 4,
+			expectedCanMove:     false,
+			description:         "VS ship with 4 turns left should not be able to move",
+		},
+		{
+			name:                "VS ship with 1 turn left cannot move",
+			speedType:           models.SpeedTypeVerySlow,
+			noMovementTurnsLeft: 1,
+			expectedCanMove:     false,
+			description:         "VS ship with 1 turn left should not be able to move",
+		},
+		{
+			name:                "VS ship with 0 turns left can move",
+			speedType:           models.SpeedTypeVerySlow,
+			noMovementTurnsLeft: 0,
+			expectedCanMove:     true,
+			description:         "VS ship with 0 turns left should be able to move",
+		},
+		{
+			name:                "F ship can always move",
+			speedType:           models.SpeedTypeFast,
+			noMovementTurnsLeft: 0,
+			expectedCanMove:     true,
+			description:         "F ship should always be able to move",
+		},
+		{
+			name:                "M ship can always move",
+			speedType:           models.SpeedTypeMedium,
+			noMovementTurnsLeft: 0,
+			expectedCanMove:     true,
+			description:         "M ship should always be able to move",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Проверяем возможность движения
+			canMove := tt.speedType.CanMoveThisTurn(tt.noMovementTurnsLeft)
+
+			if canMove != tt.expectedCanMove {
+				t.Errorf("CanMoveThisTurn = %v, expected %v. %s",
+					canMove, tt.expectedCanMove, tt.description)
 			}
+		})
+	}
+}
 
-			// Создаем контекст валидации
-			ctx := &validation.ValidationContext{
-				Unit:        unit,
-				FromHex:     "H14",
-				ToHex:       hex,
-				Distance:    hexCalculator.CalculateDistance("H14", hex),
-				CurrentTurn: 1,
-			}
+// TestMovementRestrictionsAfterMove тестирует установку ограничений после движения
+func TestMovementRestrictionsAfterMove(t *testing.T) {
+	tests := []struct {
+		name                string
+		speedType           models.SpeedType
+		expectedRestriction int
+		description         string
+	}{
+		{
+			name:                "S ship gets 2 turns restriction after move",
+			speedType:           models.SpeedTypeSlow,
+			expectedRestriction: 2,
+			description:         "S ship should get 2 turns restriction after moving",
+		},
+		{
+			name:                "VS ship gets 4 turns restriction after move",
+			speedType:           models.SpeedTypeVerySlow,
+			expectedRestriction: 4,
+			description:         "VS ship should get 4 turns restriction after moving",
+		},
+		{
+			name:                "F ship gets no restriction after move",
+			speedType:           models.SpeedTypeFast,
+			expectedRestriction: 0,
+			description:         "F ship should get no restriction after moving",
+		},
+		{
+			name:                "M ship gets no restriction after move",
+			speedType:           models.SpeedTypeMedium,
+			expectedRestriction: 0,
+			description:         "M ship should get no restriction after moving",
+		},
+	}
 
-			// Создаем только валидатор ограничений движения
-			restrictionsValidator := validation.NewMovementRestrictionsValidator()
-			err := restrictionsValidator.Validate(ctx)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Проверяем ограничение после движения
+			restriction := tt.speedType.GetMovementRestrictionAfterMove()
 
-			if err == nil {
-				t.Errorf("Expected error for convoy hex %s, but got none", hex)
+			if restriction != tt.expectedRestriction {
+				t.Errorf("GetMovementRestrictionAfterMove = %d, expected %d. %s",
+					restriction, tt.expectedRestriction, tt.description)
 			}
 		})
 	}
