@@ -2,6 +2,8 @@ package services
 
 import (
 	"bismarck-game/backend/internal/game/models"
+	"bismarck-game/backend/internal/game/services/validation"
+	"bismarck-game/backend/pkg/hexgrid"
 	"testing"
 )
 
@@ -131,11 +133,24 @@ func TestGermanDestroyerMovementRestrictions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := &MovementService{}
+			// Создаем валидатор для проверки ограничений движения
+			hexCalculator := hexgrid.NewStandardHexCalculator()
+
+			// Создаем контекст валидации
+			ctx := &validation.ValidationContext{
+				Unit:        tt.unit,
+				FromHex:     tt.fromHex,
+				ToHex:       tt.toHex,
+				Distance:    hexCalculator.CalculateDistance(tt.fromHex, tt.toHex),
+				CurrentTurn: 1,
+			}
 
 			// Проверяем только для немецких эсминцев
 			if tt.unit.Owner == "german" && tt.unit.Type == models.UnitTypeDestroyer {
-				err := service.validateGermanDDMovement(tt.fromHex, tt.toHex)
+				// Создаем только валидатор ограничений движения
+				restrictionsValidator := validation.NewMovementRestrictionsValidator()
+				err := restrictionsValidator.Validate(ctx)
+
 				if tt.expectedErr && err == nil {
 					t.Errorf("Expected error but got none. %s", tt.description)
 				}
@@ -256,11 +271,24 @@ func TestTankerMovementRestrictions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := &MovementService{}
+			// Создаем валидатор для проверки ограничений движения
+			hexCalculator := hexgrid.NewStandardHexCalculator()
+
+			// Создаем контекст валидации
+			ctx := &validation.ValidationContext{
+				Unit:        tt.unit,
+				FromHex:     tt.unit.Position,
+				ToHex:       tt.toHex,
+				Distance:    hexCalculator.CalculateDistance(tt.unit.Position, tt.toHex),
+				CurrentTurn: 1,
+			}
 
 			// Проверяем только для немецких танкеров
 			if tt.unit.Owner == "german" && tt.unit.Type == models.UnitTypeTanker {
-				err := service.validateTankerMovement(tt.toHex)
+				// Создаем только валидатор ограничений движения
+				restrictionsValidator := validation.NewMovementRestrictionsValidator()
+				err := restrictionsValidator.Validate(ctx)
+
 				if tt.expectedErr && err == nil {
 					t.Errorf("Expected error but got none. %s", tt.description)
 				}
@@ -323,6 +351,7 @@ func TestMovementRestrictionsIntegration(t *testing.T) {
 				Owner:       "german",
 				SpeedRating: models.SpeedTypeFast,
 				Position:    "Q28",
+				Fuel:        10, // Добавляем топливо
 			},
 			fromHex:     "Q28",
 			toHex:       "Q29", // No restrictions for BB
@@ -337,6 +366,7 @@ func TestMovementRestrictionsIntegration(t *testing.T) {
 				Owner:       "allied",
 				SpeedRating: models.SpeedTypeFast,
 				Position:    "Q28",
+				Fuel:        10, // Добавляем топливо
 			},
 			fromHex:     "Q28",
 			toHex:       "Q29", // No restrictions for Allied DD
@@ -347,9 +377,22 @@ func TestMovementRestrictionsIntegration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := &MovementService{}
+			// Создаем полную цепочку валидации
+			hexCalculator := hexgrid.NewStandardHexCalculator()
+			validatorFactory := validation.NewValidatorFactory(hexCalculator)
 
-			err := service.validateMovementRestrictions(tt.unit, tt.fromHex, tt.toHex)
+			// Создаем контекст валидации
+			ctx := &validation.ValidationContext{
+				Unit:        tt.unit,
+				FromHex:     tt.fromHex,
+				ToHex:       tt.toHex,
+				Distance:    hexCalculator.CalculateDistance(tt.fromHex, tt.toHex),
+				CurrentTurn: 1,
+			}
+
+			// Используем полную цепочку валидации
+			validator := validatorFactory.CreateValidationChain()
+			err := validator.Validate(ctx)
 
 			if tt.expectedErr && err == nil {
 				t.Errorf("Expected error but got none. %s", tt.description)
@@ -367,7 +410,8 @@ func TestBoundaryLineCoordinates(t *testing.T) {
 
 	for _, hex := range restrictedHexes {
 		t.Run("Restricted hex "+hex, func(t *testing.T) {
-			service := &MovementService{}
+			// Создаем валидатор для проверки ограничений движения
+			hexCalculator := hexgrid.NewStandardHexCalculator()
 
 			// Создаем немецкий эсминец
 			unit := &models.NavalUnit{
@@ -378,8 +422,18 @@ func TestBoundaryLineCoordinates(t *testing.T) {
 				Position:    "Q28",
 			}
 
-			// Пытаемся переместиться в ограниченный гекс
-			err := service.validateMovementRestrictions(unit, "Q28", hex)
+			// Создаем контекст валидации
+			ctx := &validation.ValidationContext{
+				Unit:        unit,
+				FromHex:     "Q28",
+				ToHex:       hex,
+				Distance:    hexCalculator.CalculateDistance("Q28", hex),
+				CurrentTurn: 1,
+			}
+
+			// Создаем только валидатор ограничений движения
+			restrictionsValidator := validation.NewMovementRestrictionsValidator()
+			err := restrictionsValidator.Validate(ctx)
 
 			if err == nil {
 				t.Errorf("Expected error for restricted hex %s, but got none", hex)
@@ -394,7 +448,8 @@ func TestConvoyHexCoordinates(t *testing.T) {
 
 	for _, hex := range convoyHexes {
 		t.Run("Convoy hex "+hex, func(t *testing.T) {
-			service := &MovementService{}
+			// Создаем валидатор для проверки ограничений движения
+			hexCalculator := hexgrid.NewStandardHexCalculator()
 
 			// Создаем немецкий танкер
 			unit := &models.NavalUnit{
@@ -405,8 +460,18 @@ func TestConvoyHexCoordinates(t *testing.T) {
 				Position:    "H14",
 			}
 
-			// Пытаемся переместиться в гекс конвоя
-			err := service.validateMovementRestrictions(unit, "H14", hex)
+			// Создаем контекст валидации
+			ctx := &validation.ValidationContext{
+				Unit:        unit,
+				FromHex:     "H14",
+				ToHex:       hex,
+				Distance:    hexCalculator.CalculateDistance("H14", hex),
+				CurrentTurn: 1,
+			}
+
+			// Создаем только валидатор ограничений движения
+			restrictionsValidator := validation.NewMovementRestrictionsValidator()
+			err := restrictionsValidator.Validate(ctx)
 
 			if err == nil {
 				t.Errorf("Expected error for convoy hex %s, but got none", hex)

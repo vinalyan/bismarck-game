@@ -2,6 +2,7 @@ package services
 
 import (
 	"bismarck-game/backend/internal/game/models"
+	"bismarck-game/backend/pkg/hexgrid"
 	"testing"
 	"time"
 )
@@ -24,7 +25,11 @@ func TestHexToCubeConversion(t *testing.T) {
 
 // Тест для проверки функции areAdjacentHexes
 func TestAreAdjacentHexes(t *testing.T) {
-	service := &MovementService{}
+	// Создаем сервис с инициализированным hexCalculator
+	hexCalculator := hexgrid.NewStandardHexCalculator()
+	service := &MovementService{
+		hexCalculator: hexCalculator,
+	}
 
 	t.Run("Adjacent hexes return true", func(t *testing.T) {
 		// Проверяем несколько соседних гексов
@@ -342,8 +347,11 @@ func TestFTypeMovement(t *testing.T) {
 				PreviousTurnMovedHexes: tc.previousMoved,
 			}
 
-			// Создаем сервис для тестирования
-			service := &MovementService{}
+			// Создаем сервис для тестирования с инициализированным hexCalculator
+			hexCalculator := hexgrid.NewStandardHexCalculator()
+			service := &MovementService{
+				hexCalculator: hexCalculator,
+			}
 
 			// Проверяем расстояние
 			distance := service.CalculateDistance(tc.fromHex, tc.toHex)
@@ -425,8 +433,11 @@ func TestMTypeMovement(t *testing.T) {
 				PreviousTurnMovedHexes: tc.previousMoved,
 			}
 
-			// Создаем сервис для тестирования
-			service := &MovementService{}
+			// Создаем сервис для тестирования с инициализированным hexCalculator
+			hexCalculator := hexgrid.NewStandardHexCalculator()
+			service := &MovementService{
+				hexCalculator: hexCalculator,
+			}
 
 			// Проверяем расстояние
 			distance := service.CalculateDistance(tc.fromHex, tc.toHex)
@@ -585,8 +596,11 @@ func TestVSTypeMovement(t *testing.T) {
 
 // TestExecuteMovementIntegration тестирует полный цикл ExecuteMovement
 func TestExecuteMovementIntegration(t *testing.T) {
-	// Создаем сервис для тестирования (без БД для unit-тестов)
-	service := &MovementService{}
+	// Создаем сервис для тестирования с инициализированным hexCalculator
+	hexCalculator := hexgrid.NewStandardHexCalculator()
+	service := &MovementService{
+		hexCalculator: hexCalculator,
+	}
 
 	// Тестируем геометрию гексов (не требует БД)
 	t.Run("HexGeometry", func(t *testing.T) {
@@ -713,7 +727,11 @@ func TestMovementServiceNewTableIntegration(t *testing.T) {
 
 // TestMovementServicePerformance тестирует производительность MovementService
 func TestMovementServicePerformance(t *testing.T) {
-	service := &MovementService{}
+	// Создаем сервис с инициализированным hexCalculator
+	hexCalculator := hexgrid.NewStandardHexCalculator()
+	service := &MovementService{
+		hexCalculator: hexCalculator,
+	}
 
 	// Тест производительности расчета расстояний
 	t.Run("DistanceCalculationPerformance", func(t *testing.T) {
