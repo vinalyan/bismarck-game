@@ -71,6 +71,11 @@ func (f *ValidatorFactory) ValidateMovement(unit *models.NavalUnit, fromHex, toH
 
 // CalculateFuelCost рассчитывает стоимость топлива для движения
 func (f *ValidatorFactory) CalculateFuelCost(unit *models.NavalUnit, fromHex, toHex string, fuelTracking *models.FuelTracking) (int, error) {
+	// Аварийное движение бесплатно
+	if fuelTracking.IsEmergencyFuel {
+		return 0, nil
+	}
+	
 	distance := f.hexCalculator.CalculateDistance(fromHex, toHex)
 	strategy := f.GetStrategyForSpeed(unit.SpeedRating)
 	return strategy.CalculateFuelCost(distance, fuelTracking.PreviousTurnMoved), nil

@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS games (
     current_phase VARCHAR(20) DEFAULT 'waiting',
     status VARCHAR(20) DEFAULT 'waiting',
     settings JSONB DEFAULT '{}',
+    victory_points JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP WITH TIME ZONE

@@ -205,10 +205,12 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 		fuelTracking.IsEmergencyFuel = true
 		fuelTracking.EmergencyTurn = currentTurn + 10
 
-		s.logger.Warn("Emergency fuel activated",
+		s.logger.Warn("Emergency fuel activated - ship must reach port or refuel within 10 turns",
 			"unit_id", unit.ID,
-			"current_fuel", fuelTracking.CurrentFuel,
-			"emergency_turn", fuelTracking.EmergencyTurn)
+			"unit_name", unit.Name,
+			"current_turn", currentTurn,
+			"emergency_turn", fuelTracking.EmergencyTurn,
+			"turns_remaining", 10)
 	}
 
 	// Устанавливаем ограничения движения для медленных кораблей

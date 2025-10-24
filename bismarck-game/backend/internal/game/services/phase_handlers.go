@@ -495,6 +495,11 @@ func (h *AdminPhaseHandler) checkEmergencyFuelExpiration(gameID string, currentT
 		unit.IsEmergencyFuel = false
 		unit.EmergencyTurn = 0
 
+		// Начисляем VP противнику
+		if err := h.unitService.AwardVPForSunkShip(gameID, unit); err != nil {
+			log.Printf("Failed to award VP for unit %s: %v", unit.ID, err)
+		}
+
 		if err := h.unitService.UpdateNavalUnit(unit); err != nil {
 			log.Printf("Failed to remove unit %s: %v", unit.ID, err)
 		} else {

@@ -663,3 +663,41 @@ func (s *UnitService) DeleteNavalUnit(unitID string) error {
 	s.logger.Info("Naval unit deleted", "unit_id", unitID)
 	return nil
 }
+
+// AwardVPForSunkShip начисляет VP за потопленный корабль
+func (s *UnitService) AwardVPForSunkShip(gameID string, unit *models.NavalUnit) error {
+	// Определяем VP за класс корабля
+	vp := models.ShipClassVP[unit.Class]
+	if vp == 0 {
+		vp = 1 // Дефолтное значение
+	}
+	
+	// Определяем противника
+	var opponentSide string
+	if unit.Owner == "german" {
+		opponentSide = "allied"
+	} else {
+		opponentSide = "german"
+	}
+	
+	// Начисляем VP противнику
+	query := `
+		UPDATE games 
+		SET victory_points = COALESCE(victory_points, '{}'::jsonb) || 
+			jsonb_build_object($1, COALESCE((victory_points->>$1)::int, 0) + $2)
+		WHERE id = $3
+	`
+	_, err := s.db.Exec(query, opponentSide, vp, gameID)
+	if err != nil {
+		s.logger.Error("Failed to award VP for sunk ship", "error", err, "unit_id", unit.ID)
+		return fmt.Errorf("failed to award VP: %w", err)
+	}
+	
+	s.logger.Info("VP awarded for sunk ship",
+		"unit_id", unit.ID,
+		"class", unit.Class,
+		"vp", vp,
+		"awarded_to", opponentSide)
+	
+	return nil
+}

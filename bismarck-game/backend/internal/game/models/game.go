@@ -85,6 +85,18 @@ type VictoryConfig struct {
 	ConvoyVP          map[string]interface{} `json:"convoy_vp"`
 }
 
+// VP за потопленные корабли (упрощенная система)
+var ShipClassVP = map[string]int{
+	"BB": 7,  // Линкор
+	"BC": 6,  // Линейный крейсер
+	"CV": 7,  // Авианосец
+	"CA": 3,  // Тяжелый крейсер
+	"CL": 2,  // Легкий крейсер
+	"DD": 1,  // Эсминец
+	"CG": 1,  // Береговая охрана
+	"TK": 1,  // Танкер
+}
+
 // ShipVPConfig представляет конфигурацию очков за корабли
 type ShipVPConfig struct {
 	Sunk    interface{} `json:"sunk"`    // может быть числом или "hull_boxes"

@@ -903,6 +903,24 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetVictoryPoints получает текущие очки победы для игры
+func (h *GameHandler) GetVictoryPoints(w http.ResponseWriter, r *http.Request) {
+	gameID := mux.Vars(r)["id"]
+	
+	var vp map[string]int
+	query := `SELECT COALESCE(victory_points, '{}'::jsonb) FROM games WHERE id = $1`
+	err := h.db.QueryRow(query, gameID).Scan(&vp)
+	if err != nil {
+		log.Printf("Error getting victory points: %v", err)
+		pkgutils.WriteInternalError(w, "Failed to get victory points")
+		return
+	}
+	
+	pkgutils.WriteSuccess(w, map[string]interface{}{
+		"victory_points": vp,
+	})
+}
+
 // RegisterRoutes регистрирует маршруты игр
 func (h *GameHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	gameRouter := router.PathPrefix("/api/games").Subrouter()
@@ -919,6 +937,7 @@ func (h *GameHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	gameRouter.HandleFunc("", h.GetGames).Methods("GET")
 	gameRouter.HandleFunc("/{id}", h.GetGame).Methods("GET")
 	gameRouter.HandleFunc("/{id}/units", h.GetGameUnits).Methods("GET")
+	gameRouter.HandleFunc("/{id}/victory-points", h.GetVictoryPoints).Methods("GET")
 	gameRouter.HandleFunc("/{id}/join", h.JoinGame).Methods("POST")
 	gameRouter.HandleFunc("/{id}/surrender", h.SurrenderGame).Methods("POST")
 	gameRouter.HandleFunc("/{id}", h.DeleteGame).Methods("DELETE")
