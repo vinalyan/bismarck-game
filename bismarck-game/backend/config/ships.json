@@ -39,7 +39,8 @@
       "basePrimaryArmamentStern": 3,
       "baseSecondaryArmament": 5,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "J29"
     },
 
     {
@@ -55,7 +56,8 @@
       "basePrimaryArmamentStern": 3,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "J28"
     },
     {
       "id": "6_zerstorerfl",
@@ -70,7 +72,8 @@
       "basePrimaryArmamentStern": 3,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "J27"
     },
     {
       "id": "prince_of_wales",
@@ -110,6 +113,7 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
       "speedType": "S",
+      "setupHex": "A14",
       "notes": "Имеет ненадежное главное вооружение",
       "specialRules": [
         {
@@ -133,6 +137,7 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 9,
       "speedType": "S",
+      "setupHex": "A13",
       "notes": "Главный калибр в корме может стрелять только в начальной фазе боя",
       "specialRules": [
         {
@@ -156,6 +161,7 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 9,
       "speedType": "S",
+      "setupHex": "A12",
       "notes": "Главный калибр в корме может стрелять только в начальной фазе боя",
       "specialRules": [
         {
@@ -178,7 +184,8 @@
       "basePrimaryArmamentStern": 7,
       "baseSecondaryArmament": 2,
       "maxTorpedos": 0,
-      "speedType": "VS"
+      "speedType": "VS",
+      "setupHex": "A11"
     },
     {
       "id": "revenge",
@@ -193,7 +200,8 @@
       "basePrimaryArmamentStern": 7,
       "baseSecondaryArmament": 2,
       "maxTorpedos": 0,
-      "speedType": "VS"
+      "speedType": "VS",
+      "setupHex": "A10"
     },
     {
       "id": "ark_royal",
@@ -208,7 +216,8 @@
       "basePrimaryArmamentStern": 0,
       "baseSecondaryArmament": 5,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "A9"
     },
     {
       "id": "victorious",
@@ -223,7 +232,8 @@
       "basePrimaryArmamentStern": 0,
       "baseSecondaryArmament": 6,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "A8"
     },
     {
       "id": "repulse",
@@ -238,7 +248,8 @@
       "basePrimaryArmamentStern": 3,
       "baseSecondaryArmament": 1,
       "maxTorpedos": 4,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "A7"
     },
     {
       "id": "hood",
@@ -253,7 +264,8 @@
       "basePrimaryArmamentStern": 7,
       "baseSecondaryArmament": 1,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "A6"
     },
     {
       "id": "renown",
@@ -268,7 +280,8 @@
       "basePrimaryArmamentStern": 3,
       "baseSecondaryArmament": 2,
       "maxTorpedos": 4,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "A5"
     },
     {
       "id": "suffolk",
@@ -283,7 +296,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "A4"
     },
     {
       "id": "london",
@@ -298,7 +312,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "A3"
     },
     {
       "id": "norfolk",
@@ -313,7 +328,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "A2"
     },
     {
       "id": "dorsetshire",
@@ -328,7 +344,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "A1"
     },
     {
       "id": "exeter",
@@ -343,7 +360,8 @@
       "basePrimaryArmamentStern": 1,
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B1"
     },
     {
       "id": "arethusa",
@@ -358,7 +376,8 @@
       "basePrimaryArmamentStern": 1,
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B2"
     },
     {
       "id": "galatea",
@@ -373,7 +392,8 @@
       "basePrimaryArmamentStern": 1,
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B3"
     },
     {
       "id": "aurora",
@@ -388,7 +408,8 @@
       "basePrimaryArmamentStern": 1,
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B4"
     },
     {
       "id": "cairo",
@@ -403,7 +424,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B5"
     },
     {
       "id": "hermione",
@@ -418,7 +440,8 @@
       "basePrimaryArmamentStern": 1,
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B6"
     },
     {
       "id": "kenya",
@@ -433,7 +456,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B7"
     },
     {
       "id": "edinburgh",
@@ -448,7 +472,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B8"
     },
     {
       "id": "manchester",
@@ -463,7 +488,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B9"
     },
     {
       "id": "birmingham",
@@ -478,7 +504,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B10"
     },
     {
       "id": "sheffield",
@@ -493,7 +520,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B11"
     },
     {
       "id": "pow_hood_fl",
@@ -508,7 +536,8 @@
       "basePrimaryArmamentStern": 6,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B12"
     },
     {
       "id": "kgv_flotilla",
@@ -523,7 +552,8 @@
       "basePrimaryArmamentStern": 5,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B13"
     },
     {
       "id": "troop_co_fl_1",
@@ -538,7 +568,8 @@
       "basePrimaryArmamentStern": 3,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B14"
     },
     {
       "id": "troop_co_fl_2",
@@ -553,7 +584,8 @@
       "basePrimaryArmamentStern": 6,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B16"
     },
     {
       "id": "ark_royal_fl",
@@ -568,7 +600,8 @@
       "basePrimaryArmamentStern": 5,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B17"
     },
     {
       "id": "channel_fl",
@@ -583,7 +616,8 @@
       "basePrimaryArmamentStern": 1,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B18"
     },
     {
       "id": "new_york",
@@ -599,6 +633,7 @@
       "baseSecondaryArmament": 2,
       "maxTorpedos": 0,
       "speedType": "VS",
+      "setupHex": "B19",
       "notes": "Не может стрелять из главного калибра на экстремальной дистанции",
       "specialRules": [
         {
@@ -621,7 +656,8 @@
       "basePrimaryArmamentStern": 2,
       "baseSecondaryArmament": 1,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B20"
     },
     {
       "id": "modoc",
@@ -636,7 +672,8 @@
       "basePrimaryArmamentStern": 0,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "VS"
+      "speedType": "VS",
+      "setupHex": "B21"
     },
     {
       "id": "destroyers_1",
@@ -651,7 +688,8 @@
       "basePrimaryArmamentStern": 4,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B22"
     },
     {
       "id": "destroyers_2",
@@ -666,7 +704,8 @@
       "basePrimaryArmamentStern": 4,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "F"
+      "speedType": "F",
+      "setupHex": "B23"
     },
     {
       "id": "weissenburg",
@@ -681,7 +720,8 @@
       "basePrimaryArmamentStern": 0,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "VS"
+      "speedType": "VS",
+      "setupHex": "J26"
     },
     {
       "id": "belchen",
@@ -696,7 +736,8 @@
       "basePrimaryArmamentStern": 0,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "VS"
+      "speedType": "VS",
+      "setupHex": "J25"
     },
     {
       "id": "lotheringen",
@@ -711,7 +752,8 @@
       "basePrimaryArmamentStern": 0,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "VS"
+      "speedType": "VS",
+      "setupHex": "J24"
     },
     {
       "id": "gonzenheim",
@@ -726,7 +768,8 @@
       "basePrimaryArmamentStern": 0,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "VS"
+      "speedType": "VS",
+      "setupHex": "J23"
     },
     {
       "id": "kota_pinang",
@@ -741,7 +784,8 @@
       "basePrimaryArmamentStern": 0,
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
-      "speedType": "VS"
+      "speedType": "VS",
+      "setupHex": "J22"
     },
     {
       "id": "test_cruiser_m",

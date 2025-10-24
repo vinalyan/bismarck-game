@@ -50,6 +50,16 @@ func getUserIDFromContext(r *http.Request) (string, error) {
 }
 
 // CreateGame создает новую игру
+// @Summary Создание новой игры
+// @Tags Games
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body models.CreateGameRequest true "Данные для создания игры"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /games [post]
 func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
 	userID, err := getUserIDFromContext(r)
@@ -193,6 +203,18 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetGames возвращает список игр
+// @Summary Получение списка игр
+// @Tags Games
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param page query int false "Номер страницы"
+// @Param per_page query int false "Количество элементов на странице"
+// @Param status query string false "Статус игры"
+// @Param search query string false "Поиск по названию"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /games [get]
 func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 	// Получаем параметры запроса
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
@@ -315,6 +337,17 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetGame возвращает информацию об игре
+// @Summary Получение информации об игре
+// @Tags Games
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "ID игры"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{id} [get]
 func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["id"]
@@ -373,6 +406,18 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 }
 
 // JoinGame присоединяет игрока к игре
+// @Summary Присоединение к игре
+// @Tags Games
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "ID игры"
+// @Param body body models.JoinGameRequest true "Данные для присоединения"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{id}/join [post]
 func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["id"]
@@ -640,6 +685,18 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 }
 
 // SurrenderGame сдача в игре
+// @Summary Сдача в игре
+// @Tags Games
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "ID игры"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 403 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{id}/surrender [post]
 func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["id"]
@@ -722,6 +779,18 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteGame удаляет игру
+// @Summary Удаление игры
+// @Tags Games
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "ID игры"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 403 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{id} [delete]
 func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["id"]
@@ -792,6 +861,17 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetGameUnits возвращает юниты игры, видимые для текущего игрока
+// @Summary Получение юнитов игры
+// @Tags Games
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "ID игры"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{id}/units [get]
 func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["id"]

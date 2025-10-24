@@ -1,9 +1,10 @@
 // Утилиты для работы с координатами движения
-// ВАЖНО: Вся валидация движения теперь выполняется на backend
-// Frontend только отображает данные, полученные с сервера
+// ВАЖНО: Вся валидация движения выполняется на backend.
+// Frontend только отображает данные, полученные с сервера через API.
+// Этот файл содержит только вспомогательные функции для UI.
 
 import { HexCoordinate } from '../types/mapTypes';
-import { offsetToCube, cubeToOffset, cubeDistance, getCubeNeighbors } from './hexUtils';
+import { offsetToCube, cubeToOffset, getCubeNeighbors } from './hexUtils';
 
 // Интерфейс для гекса с информацией о движении (данные с сервера)
 export interface MovementHex {
@@ -13,11 +14,6 @@ export interface MovementHex {
   isReachable: boolean;
 }
 
-// Интерфейс для информации о предыдущем ходе
-export interface PreviousTurnInfo {
-  movedHexes: number; // Количество гексов, пройденных в предыдущий ход
-  turnNumber: number; // Номер хода
-}
 
 // Утилиты для работы с координатами движения
 export const movementUtils = {

@@ -78,23 +78,11 @@ export const shipStateUtils = {
     return `Уровень ${effectiveLevel}`;
   },
 
-  // Проверить, может ли корабль двигаться в этот ход
-  canMoveThisTurn: (ship: ShipData, gameState: ShipGameState, currentTurn: number): boolean => {
-    // Проверяем интервал движения
-    const movementInterval = ship.speedType === 'F' || ship.speedType === 'M' ? 1 : 2;
-    
-    if (gameState.lastMovementTurn === undefined) {
-      return true; // Первое движение
-    }
-
-    const turnsSinceLastMovement = currentTurn - gameState.lastMovementTurn;
-    return turnsSinceLastMovement >= movementInterval;
-  },
 
   // Обновить состояние после движения
-  updateAfterMovement: (ship: ShipData, gameState: ShipGameState, currentTurn: number, fuelCost: number): ShipGameState => {
+  updateAfterMovement: (ship: ShipData, gameState: ShipGameState, currentTurn: number, newFuel: number): ShipGameState => {
     const newState = { ...gameState };
-    newState.currentFuel = Math.max(0, newState.currentFuel - fuelCost);
+    newState.currentFuel = newFuel; // Получаем новое значение топлива с сервера
     newState.lastMovementTurn = currentTurn;
     return newState;
   }
@@ -110,8 +98,8 @@ export const useShipState = (ship: ShipData, initialState?: ShipGameState) => {
     setShipState(prevState => shipStateUtils.updateAfterCombatRound(ship, prevState));
   };
 
-  const updateAfterMovement = (currentTurn: number, fuelCost: number) => {
-    setShipState(prevState => shipStateUtils.updateAfterMovement(ship, prevState, currentTurn, fuelCost));
+  const updateAfterMovement = (currentTurn: number, newFuel: number) => {
+    setShipState(prevState => shipStateUtils.updateAfterMovement(ship, prevState, currentTurn, newFuel));
   };
 
   const getEffectiveRadarLevel = () => {
@@ -122,16 +110,11 @@ export const useShipState = (ship: ShipData, initialState?: ShipGameState) => {
     return shipStateUtils.getRadarDescription(ship, shipState);
   };
 
-  const canMoveThisTurn = (currentTurn: number) => {
-    return shipStateUtils.canMoveThisTurn(ship, shipState, currentTurn);
-  };
-
   return {
     shipState,
     updateAfterCombat,
     updateAfterMovement,
     getEffectiveRadarLevel,
-    getRadarDescription,
-    canMoveThisTurn
+    getRadarDescription
   };
 };

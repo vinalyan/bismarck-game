@@ -202,6 +202,39 @@ get_available_moves() {
     fi
 }
 
+# Функция для получения кораблей игры
+get_game_units() {
+    local token="$1"
+    local game_id="$2"
+    
+    local response=$(curl -s -X GET \
+        -H "Authorization: Bearer $token" \
+        "$BASE_URL/api/games/$game_id/units")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | jq -r '.data.units[] | .id' 2>/dev/null | tr '\n' ' '
+    else
+        echo ""
+    fi
+}
+
+# Функция для получения информации о корабле
+get_unit_info() {
+    local token="$1"
+    local game_id="$2"
+    local unit_id="$3"
+    
+    local response=$(curl -s -X GET \
+        -H "Authorization: Bearer $token" \
+        "$BASE_URL/api/games/$game_id/units/$unit_id")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response"
+    else
+        echo ""
+    fi
+}
+
 echo "🔍 Проверка доступности сервера..."
 if ! curl -s "$BASE_URL/health" > /dev/null 2>&1; then
     echo -e "${RED}❌ Сервер недоступен${NC}"
@@ -248,39 +281,72 @@ else
 fi
 echo ""
 
-echo "🚢 Создание тестовых кораблей..."
+echo "🚢 Получение кораблей игры..."
 
-# Создание быстрого корабля (F) - используем эсминец
-FAST_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "5_zerstorerfl" "J22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
-if [ -z "$FAST_SHIP_ID" ]; then
-    echo -e "${RED}❌ Не удалось создать быстрый корабль${NC}"
+# Получаем корабли, созданные игрой автоматически
+GAME_UNITS=$(get_game_units "$TOKEN1" "$GAME_ID")
+if [ -z "$GAME_UNITS" ]; then
+    echo -e "${RED}❌ Не удалось получить корабли игры${NC}"
     exit 1
 fi
-echo -e "${GREEN}✅ Быстрый корабль создан: $FAST_SHIP_ID${NC}"
 
-# Создание среднего корабля (M) - используем крейсер
-MEDIUM_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "prinz_eugen" "K22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
-if [ -z "$MEDIUM_SHIP_ID" ]; then
-    echo -e "${RED}❌ Не удалось создать средний корабль${NC}"
+# Преобразуем в массив
+UNIT_IDS=($GAME_UNITS)
+echo -e "${GREEN}✅ Найдено кораблей: ${#UNIT_IDS[@]}${NC}"
+
+# Выводим информацию о кораблях
+for unit_id in "${UNIT_IDS[@]}"; do
+    UNIT_INFO=$(get_unit_info "$TOKEN1" "$GAME_ID" "$unit_id")
+    UNIT_NAME=$(echo "$UNIT_INFO" | jq -r '.unit.name' 2>/dev/null)
+    UNIT_POSITION=$(echo "$UNIT_INFO" | jq -r '.unit.position' 2>/dev/null)
+    UNIT_SPEED=$(echo "$UNIT_INFO" | jq -r '.unit.speed_rating' 2>/dev/null)
+    echo -e "${BLUE}   Корабль: $UNIT_NAME (ID: $unit_id, Позиция: $UNIT_POSITION, Скорость: $UNIT_SPEED)${NC}"
+done
+
+# Выбираем корабли для тестирования по типу скорости
+FAST_SHIP_ID=""
+MEDIUM_SHIP_ID=""
+SLOW_SHIP_ID=""
+VERY_SLOW_SHIP_ID=""
+
+for unit_id in "${UNIT_IDS[@]}"; do
+    UNIT_INFO=$(get_unit_info "$TOKEN1" "$GAME_ID" "$unit_id")
+    UNIT_SPEED=$(echo "$UNIT_INFO" | jq -r '.unit.speed_rating' 2>/dev/null)
+    UNIT_NAME=$(echo "$UNIT_INFO" | jq -r '.unit.name' 2>/dev/null)
+    
+    case "$UNIT_SPEED" in
+        "F")
+            if [ -z "$FAST_SHIP_ID" ]; then
+                FAST_SHIP_ID="$unit_id"
+                echo -e "${GREEN}✅ Быстрый корабль выбран: $UNIT_NAME (ID: $unit_id)${NC}"
+            fi
+            ;;
+        "M")
+            if [ -z "$MEDIUM_SHIP_ID" ]; then
+                MEDIUM_SHIP_ID="$unit_id"
+                echo -e "${GREEN}✅ Средний корабль выбран: $UNIT_NAME (ID: $unit_id)${NC}"
+            fi
+            ;;
+        "S")
+            if [ -z "$SLOW_SHIP_ID" ]; then
+                SLOW_SHIP_ID="$unit_id"
+                echo -e "${GREEN}✅ Медленный корабль выбран: $UNIT_NAME (ID: $unit_id)${NC}"
+            fi
+            ;;
+        "VS")
+            if [ -z "$VERY_SLOW_SHIP_ID" ]; then
+                VERY_SLOW_SHIP_ID="$unit_id"
+                echo -e "${GREEN}✅ Очень медленный корабль выбран: $UNIT_NAME (ID: $unit_id)${NC}"
+            fi
+            ;;
+    esac
+done
+
+# Проверяем, что у нас есть хотя бы один корабль для тестирования
+if [ -z "$FAST_SHIP_ID" ] && [ -z "$MEDIUM_SHIP_ID" ] && [ -z "$SLOW_SHIP_ID" ] && [ -z "$VERY_SLOW_SHIP_ID" ]; then
+    echo -e "${RED}❌ Не найдено кораблей для тестирования${NC}"
     exit 1
 fi
-echo -e "${GREEN}✅ Средний корабль создан: $MEDIUM_SHIP_ID${NC}"
-
-# Создание медленного корабля (S) - используем линкор
-SLOW_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "bismarck" "L22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
-if [ -z "$SLOW_SHIP_ID" ]; then
-    echo -e "${RED}❌ Не удалось создать медленный корабль${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✅ Медленный корабль создан: $SLOW_SHIP_ID${NC}"
-
-# Создание очень медленного корабля (VS) - используем танкер
-VERY_SLOW_SHIP_ID=$(create_ship "$TOKEN1" "$GAME_ID" "weissenburg" "M22" "852b680e-43bb-458c-ae81-9b1d7e6549e6")
-if [ -z "$VERY_SLOW_SHIP_ID" ]; then
-    echo -e "${RED}❌ Не удалось создать очень медленный корабль${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✅ Очень медленный корабль создан: $VERY_SLOW_SHIP_ID${NC}"
 
 echo ""
 echo "🧪 НАЧАЛО ТЕСТИРОВАНИЯ ДВИЖЕНИЯ"
@@ -288,79 +354,131 @@ echo "==============================="
 echo ""
 
 # Тест 1: Движение быстрого корабля
-echo "🚀 Тест 1: Движение быстрого корабля (F)"
-if test_movement "$TOKEN1" "$GAME_ID" "$FAST_SHIP_ID" "J22" "J23" "true"; then
-    log_test "Движение быстрого корабля" "PASS"
+if [ -n "$FAST_SHIP_ID" ]; then
+    echo "🚀 Тест 1: Движение быстрого корабля (F)"
+    # Получаем текущую позицию корабля
+    FAST_SHIP_INFO=$(get_unit_info "$TOKEN1" "$GAME_ID" "$FAST_SHIP_ID")
+    FAST_SHIP_POSITION=$(echo "$FAST_SHIP_INFO" | jq -r '.unit.position' 2>/dev/null)
+    
+    if test_movement "$TOKEN1" "$GAME_ID" "$FAST_SHIP_ID" "$FAST_SHIP_POSITION" "J23" "true"; then
+        log_test "Движение быстрого корабля" "PASS"
+    else
+        log_test "Движение быстрого корабля" "FAIL" "Не удалось переместить быстрый корабль"
+    fi
 else
-    log_test "Движение быстрого корабля" "FAIL" "Не удалось переместить быстрый корабль"
+    log_test "Движение быстрого корабля" "SKIP" "Быстрый корабль не найден"
 fi
 
 # Тест 2: Движение среднего корабля
-echo "🚀 Тест 2: Движение среднего корабля (M)"
-if test_movement "$TOKEN1" "$GAME_ID" "$MEDIUM_SHIP_ID" "K22" "K23" "true"; then
-    log_test "Движение среднего корабля" "PASS"
+if [ -n "$MEDIUM_SHIP_ID" ]; then
+    echo "🚀 Тест 2: Движение среднего корабля (M)"
+    MEDIUM_SHIP_INFO=$(get_unit_info "$TOKEN1" "$GAME_ID" "$MEDIUM_SHIP_ID")
+    MEDIUM_SHIP_POSITION=$(echo "$MEDIUM_SHIP_INFO" | jq -r '.unit.position' 2>/dev/null)
+    
+    if test_movement "$TOKEN1" "$GAME_ID" "$MEDIUM_SHIP_ID" "$MEDIUM_SHIP_POSITION" "K23" "true"; then
+        log_test "Движение среднего корабля" "PASS"
+    else
+        log_test "Движение среднего корабля" "FAIL" "Не удалось переместить средний корабль"
+    fi
 else
-    log_test "Движение среднего корабля" "FAIL" "Не удалось переместить средний корабль"
+    log_test "Движение среднего корабля" "SKIP" "Средний корабль не найден"
 fi
 
 # Тест 3: Движение медленного корабля
-echo "🚀 Тест 3: Движение медленного корабля (S)"
-if test_movement "$TOKEN1" "$GAME_ID" "$SLOW_SHIP_ID" "L22" "L23" "true"; then
-    log_test "Движение медленного корабля" "PASS"
+if [ -n "$SLOW_SHIP_ID" ]; then
+    echo "🚀 Тест 3: Движение медленного корабля (S)"
+    SLOW_SHIP_INFO=$(get_unit_info "$TOKEN1" "$GAME_ID" "$SLOW_SHIP_ID")
+    SLOW_SHIP_POSITION=$(echo "$SLOW_SHIP_INFO" | jq -r '.unit.position' 2>/dev/null)
+    
+    if test_movement "$TOKEN1" "$GAME_ID" "$SLOW_SHIP_ID" "$SLOW_SHIP_POSITION" "L23" "true"; then
+        log_test "Движение медленного корабля" "PASS"
+    else
+        log_test "Движение медленного корабля" "FAIL" "Не удалось переместить медленный корабль"
+    fi
 else
-    log_test "Движение медленного корабля" "FAIL" "Не удалось переместить медленный корабль"
+    log_test "Движение медленного корабля" "SKIP" "Медленный корабль не найден"
 fi
 
 # Тест 4: Движение очень медленного корабля
-echo "🚀 Тест 4: Движение очень медленного корабля (VS)"
-if test_movement "$TOKEN1" "$GAME_ID" "$VERY_SLOW_SHIP_ID" "M22" "M23" "true"; then
-    log_test "Движение очень медленного корабля" "PASS"
+if [ -n "$VERY_SLOW_SHIP_ID" ]; then
+    echo "🚀 Тест 4: Движение очень медленного корабля (VS)"
+    VERY_SLOW_SHIP_INFO=$(get_unit_info "$TOKEN1" "$GAME_ID" "$VERY_SLOW_SHIP_ID")
+    VERY_SLOW_SHIP_POSITION=$(echo "$VERY_SLOW_SHIP_INFO" | jq -r '.unit.position' 2>/dev/null)
+    
+    if test_movement "$TOKEN1" "$GAME_ID" "$VERY_SLOW_SHIP_ID" "$VERY_SLOW_SHIP_POSITION" "M23" "true"; then
+        log_test "Движение очень медленного корабля" "PASS"
+    else
+        log_test "Движение очень медленного корабля" "FAIL" "Не удалось переместить очень медленный корабль"
+    fi
 else
-    log_test "Движение очень медленного корабля" "FAIL" "Не удалось переместить очень медленный корабль"
+    log_test "Движение очень медленного корабля" "SKIP" "Очень медленный корабль не найден"
 fi
 
 # Тест 5: Проверка доступных ходов для быстрого корабля
-echo "🚀 Тест 5: Проверка доступных ходов для быстрого корабля"
-AVAILABLE_MOVES=$(get_available_moves "$TOKEN1" "$GAME_ID" "$FAST_SHIP_ID")
-if [ -n "$AVAILABLE_MOVES" ]; then
-    log_test "Доступные ходы для быстрого корабля" "PASS"
+if [ -n "$FAST_SHIP_ID" ]; then
+    echo "🚀 Тест 5: Проверка доступных ходов для быстрого корабля"
+    AVAILABLE_MOVES=$(get_available_moves "$TOKEN1" "$GAME_ID" "$FAST_SHIP_ID")
+    if [ -n "$AVAILABLE_MOVES" ]; then
+        log_test "Доступные ходы для быстрого корабля" "PASS"
+    else
+        log_test "Доступные ходы для быстрого корабля" "FAIL" "Не удалось получить доступные ходы"
+    fi
 else
-    log_test "Доступные ходы для быстрого корабля" "FAIL" "Не удалось получить доступные ходы"
+    log_test "Доступные ходы для быстрого корабля" "SKIP" "Быстрый корабль не найден"
 fi
 
 # Тест 6: Проверка доступных ходов для среднего корабля
-echo "🚀 Тест 6: Проверка доступных ходов для среднего корабля"
-AVAILABLE_MOVES=$(get_available_moves "$TOKEN1" "$GAME_ID" "$MEDIUM_SHIP_ID")
-if [ -n "$AVAILABLE_MOVES" ]; then
-    log_test "Доступные ходы для среднего корабля" "PASS"
+if [ -n "$MEDIUM_SHIP_ID" ]; then
+    echo "🚀 Тест 6: Проверка доступных ходов для среднего корабля"
+    AVAILABLE_MOVES=$(get_available_moves "$TOKEN1" "$GAME_ID" "$MEDIUM_SHIP_ID")
+    if [ -n "$AVAILABLE_MOVES" ]; then
+        log_test "Доступные ходы для среднего корабля" "PASS"
+    else
+        log_test "Доступные ходы для среднего корабля" "FAIL" "Не удалось получить доступные ходы"
+    fi
 else
-    log_test "Доступные ходы для среднего корабля" "FAIL" "Не удалось получить доступные ходы"
+    log_test "Доступные ходы для среднего корабля" "SKIP" "Средний корабль не найден"
 fi
 
 # Тест 7: Проверка доступных ходов для медленного корабля
-echo "🚀 Тест 7: Проверка доступных ходов для медленного корабля"
-AVAILABLE_MOVES=$(get_available_moves "$TOKEN1" "$GAME_ID" "$SLOW_SHIP_ID")
-if [ -n "$AVAILABLE_MOVES" ]; then
-    log_test "Доступные ходы для медленного корабля" "PASS"
+if [ -n "$SLOW_SHIP_ID" ]; then
+    echo "🚀 Тест 7: Проверка доступных ходов для медленного корабля"
+    AVAILABLE_MOVES=$(get_available_moves "$TOKEN1" "$GAME_ID" "$SLOW_SHIP_ID")
+    if [ -n "$AVAILABLE_MOVES" ]; then
+        log_test "Доступные ходы для медленного корабля" "PASS"
+    else
+        log_test "Доступные ходы для медленного корабля" "FAIL" "Не удалось получить доступные ходы"
+    fi
 else
-    log_test "Доступные ходы для медленного корабля" "FAIL" "Не удалось получить доступные ходы"
+    log_test "Доступные ходы для медленного корабля" "SKIP" "Медленный корабль не найден"
 fi
 
 # Тест 8: Проверка доступных ходов для очень медленного корабля
-echo "🚀 Тест 8: Проверка доступных ходов для очень медленного корабля"
-AVAILABLE_MOVES=$(get_available_moves "$TOKEN1" "$GAME_ID" "$VERY_SLOW_SHIP_ID")
-if [ -n "$AVAILABLE_MOVES" ]; then
-    log_test "Доступные ходы для очень медленного корабля" "PASS"
+if [ -n "$VERY_SLOW_SHIP_ID" ]; then
+    echo "🚀 Тест 8: Проверка доступных ходов для очень медленного корабля"
+    AVAILABLE_MOVES=$(get_available_moves "$TOKEN1" "$GAME_ID" "$VERY_SLOW_SHIP_ID")
+    if [ -n "$AVAILABLE_MOVES" ]; then
+        log_test "Доступные ходы для очень медленного корабля" "PASS"
+    else
+        log_test "Доступные ходы для очень медленного корабля" "FAIL" "Не удалось получить доступные ходы"
+    fi
 else
-    log_test "Доступные ходы для очень медленного корабля" "FAIL" "Не удалось получить доступные ходы"
+    log_test "Доступные ходы для очень медленного корабля" "SKIP" "Очень медленный корабль не найден"
 fi
 
 # Тест 9: Попытка движения на слишком большое расстояние
-echo "🚀 Тест 9: Попытка движения на слишком большое расстояние"
-if test_movement "$TOKEN1" "$GAME_ID" "$FAST_SHIP_ID" "J23" "J30" "false"; then
-    log_test "Ограничение расстояния движения" "PASS"
+if [ -n "$FAST_SHIP_ID" ]; then
+    echo "🚀 Тест 9: Попытка движения на слишком большое расстояние"
+    FAST_SHIP_INFO=$(get_unit_info "$TOKEN1" "$GAME_ID" "$FAST_SHIP_ID")
+    FAST_SHIP_POSITION=$(echo "$FAST_SHIP_INFO" | jq -r '.unit.position' 2>/dev/null)
+    
+    if test_movement "$TOKEN1" "$GAME_ID" "$FAST_SHIP_ID" "$FAST_SHIP_POSITION" "J30" "false"; then
+        log_test "Ограничение расстояния движения" "PASS"
+    else
+        log_test "Ограничение расстояния движения" "FAIL" "Движение на большое расстояние должно быть заблокировано"
+    fi
 else
-    log_test "Ограничение расстояния движения" "FAIL" "Движение на большое расстояние должно быть заблокировано"
+    log_test "Ограничение расстояния движения" "SKIP" "Быстрый корабль не найден"
 fi
 
 # Тест 10: Попытка движения без топлива

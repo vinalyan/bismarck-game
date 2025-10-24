@@ -32,6 +32,15 @@ type RefuelAllRequest struct {
 }
 
 // RefuelAll заправляет все корабли в игре
+// @Summary Заправка всех кораблей в игре
+// @Tags Refuel
+// @Accept json
+// @Produce json
+// @Param body body RefuelAllRequest true "Данные для заправки"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /refuel/all [post]
 func (h *RefuelHandler) RefuelAll(w http.ResponseWriter, r *http.Request) {
 	var req RefuelAllRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

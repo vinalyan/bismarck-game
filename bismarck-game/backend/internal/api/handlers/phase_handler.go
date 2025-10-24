@@ -50,6 +50,15 @@ func (h *PhaseHandler) GetCurrentPhase(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetPhaseRecords возвращает записи о фазах для хода
+// @Summary Получение записей фаз
+// @Tags Phases
+// @Accept json
+// @Produce json
+// @Param game_id query string true "ID игры"
+// @Param turn query int true "Номер хода"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /phases/records [get]
 func (h *PhaseHandler) GetPhaseRecords(w http.ResponseWriter, r *http.Request) {
 	gameID := r.URL.Query().Get("game_id")
 	if gameID == "" {
@@ -93,6 +102,14 @@ func (h *PhaseHandler) GetPhaseRecords(w http.ResponseWriter, r *http.Request) {
 }
 
 // StartPhase начинает фазу
+// @Summary Запуск новой фазы
+// @Tags Phases
+// @Accept json
+// @Produce json
+// @Param body body map[string]interface{} true "Данные для запуска фазы"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /phases/start [post]
 func (h *PhaseHandler) StartPhase(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		GameID string `json:"game_id"`
@@ -135,6 +152,14 @@ func (h *PhaseHandler) StartPhase(w http.ResponseWriter, r *http.Request) {
 }
 
 // CompletePhase завершает фазу
+// @Summary Завершение текущей фазы
+// @Tags Phases
+// @Accept json
+// @Produce json
+// @Param body body map[string]interface{} true "Данные для завершения фазы"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /phases/complete [post]
 func (h *PhaseHandler) CompletePhase(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		GameID string `json:"game_id"`
@@ -177,6 +202,14 @@ func (h *PhaseHandler) CompletePhase(w http.ResponseWriter, r *http.Request) {
 }
 
 // NextPhase переходит к следующей фазе
+// @Summary Переход к следующей фазе
+// @Tags Phases
+// @Accept json
+// @Produce json
+// @Param body body map[string]interface{} true "Данные для перехода к следующей фазе"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /phases/next [post]
 func (h *PhaseHandler) NextPhase(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		GameID string `json:"game_id"`
@@ -209,6 +242,14 @@ func (h *PhaseHandler) NextPhase(w http.ResponseWriter, r *http.Request) {
 }
 
 // StartTurn начинает новый ход
+// @Summary Запуск нового хода
+// @Tags Phases
+// @Accept json
+// @Produce json
+// @Param body body map[string]interface{} true "Данные для запуска хода"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /phases/turn/start [post]
 func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		GameID string `json:"game_id"`
@@ -247,6 +288,15 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetPhaseInfo возвращает информацию о фазе
+// @Summary Получение информации о фазе
+// @Tags Phases
+// @Accept json
+// @Produce json
+// @Param phase query string true "Название фазы"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /phases/info [get]
 func (h *PhaseHandler) GetPhaseInfo(w http.ResponseWriter, r *http.Request) {
 	phaseStr := r.URL.Query().Get("phase")
 	if phaseStr == "" {
@@ -270,6 +320,12 @@ func (h *PhaseHandler) GetPhaseInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAllPhases возвращает информацию о всех фазах
+// @Summary Получение информации о всех фазах
+// @Tags Phases
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Router /phases/all [get]
 func (h *PhaseHandler) GetAllPhases(w http.ResponseWriter, r *http.Request) {
 	configs := models.GetPhaseConfigs()
 

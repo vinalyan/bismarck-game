@@ -1,0 +1,1597 @@
+basePath: /api
+definitions:
+  bismarck-game_backend_internal_game_models.AvailableMovesResponse:
+    properties:
+      available_hexes:
+        items:
+          type: string
+        type: array
+      current_hex:
+        type: string
+      fuel_costs:
+        additionalProperties:
+          type: integer
+        description: Гекс -> стоимость топлива
+        type: object
+      max_distance:
+        type: integer
+      unit_id:
+        type: string
+    type: object
+  bismarck-game_backend_internal_game_models.ChangePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        minLength: 6
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
+  bismarck-game_backend_internal_game_models.CreateGameRequest:
+    properties:
+      name:
+        maxLength: 100
+        minLength: 3
+        type: string
+      password:
+        type: string
+      settings:
+        $ref: '#/definitions/bismarck-game_backend_internal_game_models.GameSettings'
+      side:
+        allOf:
+        - $ref: '#/definitions/bismarck-game_backend_internal_game_models.PlayerSide'
+        enum:
+        - german
+        - allied
+    required:
+    - name
+    - side
+    type: object
+  bismarck-game_backend_internal_game_models.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  bismarck-game_backend_internal_game_models.GameSettings:
+    properties:
+      allow_spectators:
+        type: boolean
+      auto_save:
+        type: boolean
+      difficulty:
+        type: string
+      enable_crew_exhaustion:
+        type: boolean
+      max_turn_time:
+        description: в минутах
+        type: integer
+      password:
+        type: string
+      private_lobby:
+        type: boolean
+      time_limit_minutes:
+        type: integer
+      use_optional_units:
+        type: boolean
+      victory_conditions:
+        $ref: '#/definitions/bismarck-game_backend_internal_game_models.VictoryConfig'
+    type: object
+  bismarck-game_backend_internal_game_models.JoinGameRequest:
+    properties:
+      password:
+        type: string
+      side:
+        allOf:
+        - $ref: '#/definitions/bismarck-game_backend_internal_game_models.PlayerSide'
+        description: Желаемая сторона (german или allied)
+    type: object
+  bismarck-game_backend_internal_game_models.LastKnownPosition:
+    properties:
+      last_seen_at:
+        type: string
+      owner:
+        type: string
+      position:
+        type: string
+      unit_id:
+        type: string
+      unit_type:
+        $ref: '#/definitions/bismarck-game_backend_internal_game_models.UnitType'
+    type: object
+  bismarck-game_backend_internal_game_models.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  bismarck-game_backend_internal_game_models.Movement:
+    properties:
+      created_at:
+        type: string
+      from_hex:
+        type: string
+      fuel_cost:
+        type: integer
+      game_id:
+        type: string
+      hexes_moved:
+        type: integer
+      id:
+        type: string
+      movement_type:
+        $ref: '#/definitions/bismarck-game_backend_internal_game_models.MovementType'
+      path:
+        description: Путь движения (массив гексов)
+        items:
+          type: string
+        type: array
+      phase:
+        type: string
+      to_hex:
+        type: string
+      turn:
+        type: integer
+      unit_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  bismarck-game_backend_internal_game_models.MovementHistory:
+    properties:
+      created_at:
+        type: string
+      game_id:
+        type: string
+      hexes_moved:
+        type: integer
+      id:
+        type: string
+      phase:
+        type: string
+      turn:
+        type: integer
+      unit_id:
+        type: string
+    type: object
+  bismarck-game_backend_internal_game_models.MovementRequest:
+    properties:
+      path:
+        description: Опциональный путь, если не указан - будет рассчитан
+        items:
+          type: string
+        type: array
+      to_hex:
+        type: string
+      unit_id:
+        type: string
+    required:
+    - to_hex
+    - unit_id
+    type: object
+  bismarck-game_backend_internal_game_models.MovementResponse:
+    properties:
+      fuel_cost:
+        type: integer
+      message:
+        type: string
+      movement:
+        $ref: '#/definitions/bismarck-game_backend_internal_game_models.Movement'
+      new_position:
+        type: string
+      success:
+        type: boolean
+    type: object
+  bismarck-game_backend_internal_game_models.MovementType:
+    enum:
+    - normal
+    - pursued
+    - emergency
+    type: string
+    x-enum-comments:
+      MovementTypeEmergency: Аварийное движение (при нехватке топлива)
+      MovementTypeNormal: Обычное движение
+      MovementTypePursued: Движение преследуемого юнита
+    x-enum-descriptions:
+    - Обычное движение
+    - Движение преследуемого юнита
+    - Аварийное движение (при нехватке топлива)
+    x-enum-varnames:
+    - MovementTypeNormal
+    - MovementTypePursued
+    - MovementTypeEmergency
+  bismarck-game_backend_internal_game_models.PlayerSide:
+    enum:
+    - german
+    - allied
+    type: string
+    x-enum-varnames:
+    - PlayerSideGerman
+    - PlayerSideAllied
+  bismarck-game_backend_internal_game_models.UnitType:
+    enum:
+    - BB
+    - BC
+    - CV
+    - CA
+    - CL
+    - DD
+    - CG
+    - TK
+    - B
+    - R
+    type: string
+    x-enum-varnames:
+    - UnitTypeBattleship
+    - UnitTypeBattlecruiser
+    - UnitTypeAircraftCarrier
+    - UnitTypeHeavyCruiser
+    - UnitTypeLightCruiser
+    - UnitTypeDestroyer
+    - UnitTypeCoastGuard
+    - UnitTypeTanker
+    - UnitTypeCombatAircraft
+    - UnitTypeReconAircraft
+  bismarck-game_backend_internal_game_models.UnitVisibility:
+    enum:
+    - unknown
+    - sighted
+    - shadowed
+    type: string
+    x-enum-comments:
+      VisibilityShadowed: Юнит преследуется (маркер "Преследуется")
+      VisibilitySighted: Юнит обнаружен (маркер "Обнаружено")
+      VisibilityUnknown: Юнит не обнаружен
+    x-enum-descriptions:
+    - Юнит не обнаружен
+    - Юнит обнаружен (маркер "Обнаружено")
+    - Юнит преследуется (маркер "Преследуется")
+    x-enum-varnames:
+    - VisibilityUnknown
+    - VisibilitySighted
+    - VisibilityShadowed
+  bismarck-game_backend_internal_game_models.UpdateUserRequest:
+    properties:
+      email:
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    type: object
+  bismarck-game_backend_internal_game_models.VictoryConfig:
+    properties:
+      bismarck_end_game_vp:
+        type: integer
+      bismarck_france_vp:
+        type: integer
+      bismarck_no_fuel_vp:
+        type: integer
+      bismarck_norway_vp:
+        type: integer
+      bismarck_sunk_vp:
+        type: integer
+      convoy_vp:
+        additionalProperties: true
+        type: object
+      ship_vp_values:
+        additionalProperties: true
+        type: object
+    type: object
+  bismarck-game_backend_internal_game_models.VisibilityResponse:
+    properties:
+      last_known_positions:
+        items:
+          $ref: '#/definitions/bismarck-game_backend_internal_game_models.LastKnownPosition'
+        type: array
+      phase:
+        type: string
+      turn:
+        type: integer
+      visible_units:
+        items:
+          $ref: '#/definitions/bismarck-game_backend_internal_game_models.VisibleUnit'
+        type: array
+    type: object
+  bismarck-game_backend_internal_game_models.VisibilityUpdate:
+    properties:
+      hex:
+        description: Позиция, где был обнаружен юнит
+        type: string
+      unit_id:
+        type: string
+      visibility:
+        $ref: '#/definitions/bismarck-game_backend_internal_game_models.UnitVisibility'
+    required:
+    - unit_id
+    - visibility
+    type: object
+  bismarck-game_backend_internal_game_models.VisibleUnit:
+    properties:
+      last_seen_at:
+        type: string
+      owner:
+        type: string
+      position:
+        type: string
+      unit_id:
+        type: string
+      unit_type:
+        $ref: '#/definitions/bismarck-game_backend_internal_game_models.UnitType'
+      visibility:
+        $ref: '#/definitions/bismarck-game_backend_internal_game_models.UnitVisibility'
+    type: object
+  internal_api_handlers.CheckEmergencyFuelRequest:
+    properties:
+      game_id:
+        type: string
+      unit_id:
+        type: string
+    type: object
+  internal_api_handlers.CheckEmergencyFuelResponse:
+    properties:
+      current_fuel:
+        type: integer
+      emergency_turn:
+        type: integer
+      is_emergency_fuel:
+        type: boolean
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  internal_api_handlers.RefuelAllRequest:
+    properties:
+      fuel_amount:
+        type: integer
+      game_id:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: Bismarck Game Team
+  description: API для игры Bismarck Chase - пошаговой стратегической игры о морских
+    сражениях
+  title: Bismarck Game API
+  version: "1.0"
+paths:
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для смены пароля
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/bismarck-game_backend_internal_game_models.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Смена пароля
+      tags:
+      - Authentication
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для входа
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/bismarck-game_backend_internal_game_models.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Вход в систему
+      tags:
+      - Authentication
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Выход из системы
+      tags:
+      - Authentication
+  /auth/profile:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Получение профиля пользователя
+      tags:
+      - Authentication
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для обновления профиля
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/bismarck-game_backend_internal_game_models.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Обновление профиля пользователя
+      tags:
+      - Authentication
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для регистрации
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/bismarck-game_backend_internal_game_models.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Регистрация пользователя
+      tags:
+      - Authentication
+  /auth/validate:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Валидация токена
+      tags:
+      - Authentication
+  /emergency-fuel/check:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для проверки аварийного топлива
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api_handlers.CheckEmergencyFuelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_api_handlers.CheckEmergencyFuelResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Проверка и активация аварийного топлива
+      tags:
+      - Emergency Fuel
+  /emergency-fuel/status:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: query
+        name: game_id
+        required: true
+        type: string
+      - description: ID юнита
+        in: query
+        name: unit_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_api_handlers.CheckEmergencyFuelResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение статуса аварийного топлива
+      tags:
+      - Emergency Fuel
+  /games:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Номер страницы
+        in: query
+        name: page
+        type: integer
+      - description: Количество элементов на странице
+        in: query
+        name: per_page
+        type: integer
+      - description: Статус игры
+        in: query
+        name: status
+        type: string
+      - description: Поиск по названию
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Получение списка игр
+      tags:
+      - Games
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для создания игры
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/bismarck-game_backend_internal_game_models.CreateGameRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Создание новой игры
+      tags:
+      - Games
+  /games/{gameId}/units/{unitId}/available-moves:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: gameId
+        required: true
+        type: string
+      - description: ID юнита
+        in: path
+        name: unitId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bismarck-game_backend_internal_game_models.AvailableMovesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Получение доступных ходов для юнита
+      tags:
+      - Movement
+  /games/{gameId}/units/{unitId}/move:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: gameId
+        required: true
+        type: string
+      - description: ID юнита
+        in: path
+        name: unitId
+        required: true
+        type: string
+      - description: Данные для движения
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/bismarck-game_backend_internal_game_models.MovementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bismarck-game_backend_internal_game_models.MovementResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Выполнение движения юнита
+      tags:
+      - Movement
+  /games/{gameId}/units/{unitId}/movement-history:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: gameId
+        required: true
+        type: string
+      - description: ID юнита
+        in: path
+        name: unitId
+        required: true
+        type: string
+      - description: Лимит записей
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/bismarck-game_backend_internal_game_models.MovementHistory'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Получение истории движения юнита
+      tags:
+      - Movement
+  /games/{gameId}/visibility/units:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: gameId
+        required: true
+        type: string
+      - description: ID игрока
+        in: query
+        name: player_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/bismarck-game_backend_internal_game_models.VisibilityResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Получение видимых юнитов для игрока
+      tags:
+      - Visibility
+  /games/{gameId}/visibility/update:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: gameId
+        required: true
+        type: string
+      - description: Данные для обновления видимости
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/bismarck-game_backend_internal_game_models.VisibilityUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Обновление видимости юнита
+      tags:
+      - Visibility
+  /games/{id}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Удаление игры
+      tags:
+      - Games
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Получение информации об игре
+      tags:
+      - Games
+  /games/{id}/join:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Данные для присоединения
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/bismarck-game_backend_internal_game_models.JoinGameRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Присоединение к игре
+      tags:
+      - Games
+  /games/{id}/surrender:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Сдача в игре
+      tags:
+      - Games
+  /games/{id}/units:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Получение юнитов игры
+      tags:
+      - Games
+  /phases/all:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение информации о всех фазах
+      tags:
+      - Phases
+  /phases/complete:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для завершения фазы
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Завершение текущей фазы
+      tags:
+      - Phases
+  /phases/info:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Название фазы
+        in: query
+        name: phase
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение информации о фазе
+      tags:
+      - Phases
+  /phases/next:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для перехода к следующей фазе
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Переход к следующей фазе
+      tags:
+      - Phases
+  /phases/records:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: query
+        name: game_id
+        required: true
+        type: string
+      - description: Номер хода
+        in: query
+        name: turn
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение записей фаз
+      tags:
+      - Phases
+  /phases/start:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для запуска фазы
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Запуск новой фазы
+      tags:
+      - Phases
+  /phases/turn/start:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для запуска хода
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Запуск нового хода
+      tags:
+      - Phases
+  /refuel/all:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для заправки
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_api_handlers.RefuelAllRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Заправка всех кораблей в игре
+      tags:
+      - Refuel
+  /ships/all:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение всех кораблей
+      tags:
+      - Ships
+  /ships/config/{id}:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID корабля
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "501":
+          description: Not Implemented
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение конфигурации корабля
+      tags:
+      - Ships
+  /ships/create-unit:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Данные для создания юнита
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Создание юнита из конфигурации
+      tags:
+      - Ships
+  /ships/search:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Сторона
+        in: query
+        name: side
+        type: string
+      - description: Тип корабля
+        in: query
+        name: type
+        type: string
+      - description: Минимальное топливо
+        in: query
+        name: min_fuel
+        type: integer
+      - description: Максимальное топливо
+        in: query
+        name: max_fuel
+        type: integer
+      - description: Минимальное уклонение
+        in: query
+        name: min_evasion
+        type: integer
+      - description: Максимальное уклонение
+        in: query
+        name: max_evasion
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Поиск кораблей по критериям
+      tags:
+      - Ships
+  /ships/side/{side}:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Сторона (german/allied)
+        in: path
+        name: side
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение доступных кораблей для стороны
+      tags:
+      - Ships
+  /ships/stats:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение статистики конфигурации
+      tags:
+      - Ships
+  /ships/type/{type}:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Тип корабля
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение кораблей по типу
+      tags:
+      - Ships
+  /ships/types:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение типов кораблей
+      tags:
+      - Ships
+securityDefinitions:
+  Bearer:
+    description: 'JWT токен в формате: Bearer {token}'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

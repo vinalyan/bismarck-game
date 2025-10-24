@@ -33,7 +33,18 @@ func NewMovementHandler(movementService *services.MovementService, visibilitySer
 }
 
 // GetAvailableMoves возвращает доступные ходы для юнита
-// GET /api/games/{gameId}/units/{unitId}/available-moves
+// @Summary Получение доступных ходов для юнита
+// @Tags Movement
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param gameId path string true "ID игры"
+// @Param unitId path string true "ID юнита"
+// @Success 200 {object} models.AvailableMovesResponse
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{gameId}/units/{unitId}/available-moves [get]
 func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["gameId"]
@@ -94,7 +105,19 @@ func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Reque
 }
 
 // MoveUnit выполняет движение юнита
-// POST /api/games/{gameId}/units/{unitId}/move
+// @Summary Выполнение движения юнита
+// @Tags Movement
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param gameId path string true "ID игры"
+// @Param unitId path string true "ID юнита"
+// @Param body body models.MovementRequest true "Данные для движения"
+// @Success 200 {object} models.MovementResponse
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{gameId}/units/{unitId}/move [post]
 func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info("MoveUnit called", "method", r.Method, "url", r.URL.Path)
 	vars := mux.Vars(r)
@@ -188,7 +211,19 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetMovementHistory возвращает историю движения юнита
-// GET /api/games/{gameId}/units/{unitId}/movement-history
+// @Summary Получение истории движения юнита
+// @Tags Movement
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param gameId path string true "ID игры"
+// @Param unitId path string true "ID юнита"
+// @Param limit query int false "Лимит записей"
+// @Success 200 {object} []models.MovementHistory
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{gameId}/units/{unitId}/movement-history [get]
 func (h *MovementHandler) GetMovementHistory(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["gameId"]
@@ -222,7 +257,17 @@ func (h *MovementHandler) GetMovementHistory(w http.ResponseWriter, r *http.Requ
 }
 
 // GetVisibleUnits возвращает видимые юниты для игрока
-// GET /api/games/{gameId}/visibility/units
+// @Summary Получение видимых юнитов для игрока
+// @Tags Visibility
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param gameId path string true "ID игры"
+// @Param player_id query string true "ID игрока"
+// @Success 200 {object} models.VisibilityResponse
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /games/{gameId}/visibility/units [get]
 func (h *MovementHandler) GetVisibleUnits(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["gameId"]
@@ -282,7 +327,17 @@ func (h *MovementHandler) GetVisibleUnits(w http.ResponseWriter, r *http.Request
 }
 
 // UpdateVisibility обновляет видимость юнита
-// POST /api/games/{gameId}/visibility/update
+// @Summary Обновление видимости юнита
+// @Tags Visibility
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param gameId path string true "ID игры"
+// @Param body body models.VisibilityUpdate true "Данные для обновления видимости"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /games/{gameId}/visibility/update [post]
 func (h *MovementHandler) UpdateVisibility(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["gameId"]

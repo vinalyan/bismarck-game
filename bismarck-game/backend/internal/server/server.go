@@ -19,9 +19,11 @@ import (
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/redis"
 
-	gorillaws "github.com/gorilla/websocket"
-
 	"github.com/gorilla/mux"
+	gorillaws "github.com/gorilla/websocket"
+	httpSwagger "github.com/swaggo/http-swagger"
+
+	_ "bismarck-game/backend/docs" // Импорт сгенерированной документации
 )
 
 type Server struct {
@@ -124,7 +126,8 @@ func (s *Server) setupRoutes() {
 	// Создаем обработчики
 	authHandler := handlers.NewAuthHandler(s.authService)
 	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService, phaseManager)
-	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService)
+	shipConfigLogger, _ := logger.New(logger.INFO, "ship-config-service", "stdout")
+	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService, unitService, shipConfigLogger)
 	phaseHandler := handlers.NewPhaseHandler(phaseManager)
 	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, unitService, movementLogger)
 	emergencyFuelHandler := handlers.NewEmergencyFuelHandler(s.db, movementLogger, movementService, unitService)
@@ -148,6 +151,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/ws", s.handleWebSocket)
 
 	// Swagger документация
+	s.router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 	s.router.PathPrefix("/docs/").Handler(http.StripPrefix("/docs/", http.FileServer(http.Dir("./docs/"))))
 	s.router.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/docs/swagger.html", http.StatusMovedPermanently)
@@ -213,117 +217,8 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	html := `
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bismarck Game Server</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .info {
-            background: #ecf0f1;
-            padding: 20px;
-            border-radius: 5px;
-            margin: 20px 0;
-        }
-        .links {
-            text-align: center;
-            margin: 30px 0;
-        }
-        .btn {
-            display: inline-block;
-            padding: 12px 24px;
-            margin: 10px;
-            background: #3498db;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background 0.3s;
-        }
-        .btn:hover {
-            background: #2980b9;
-        }
-        .btn-docs {
-            background: #27ae60;
-        }
-        .btn-docs:hover {
-            background: #229954;
-        }
-        .status {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .status-ok {
-            background: #d4edda;
-            color: #155724;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🎮 Bismarck Game Server</h1>
-        
-        <div class="info">
-            <h3>Информация о сервере</h3>
-            <p><strong>Версия:</strong> 0.1.0</p>
-            <p><strong>Статус:</strong> <span class="status status-ok">Работает</span></p>
-            <p><strong>Время работы:</strong> ` + time.Since(s.startTime).String() + `</p>
-            <p><strong>Адрес:</strong> ` + s.config.Server.Address + `</p>
-        </div>
-
-        <div class="links">
-            <a href="/docs" class="btn btn-docs">📚 API Документация</a>
-            <a href="/health" class="btn">💚 Статус сервера</a>
-        </div>
-
-        <div class="info">
-            <h3>Доступные эндпоинты</h3>
-            <ul>
-                <li><code>GET /health</code> - Проверка состояния сервера</li>
-                <li><code>POST /api/auth/register</code> - Регистрация пользователя</li>
-                <li><code>POST /api/auth/login</code> - Вход в систему</li>
-                <li><code>GET /api/games</code> - Список игр</li>
-                <li><code>POST /api/games</code> - Создание игры</li>
-                <li><code>GET /api/games/{id}</code> - Информация об игре</li>
-                <li><code>POST /api/games/{id}/join</code> - Присоединение к игре</li>
-                <li><code>GET /ws</code> - WebSocket соединение</li>
-            </ul>
-        </div>
-
-        <div class="info">
-            <h3>WebSocket статистика</h3>
-            <p><strong>Подключенных клиентов:</strong> ` + string(rune(s.wsHub.GetStats().TotalClients)) + `</p>
-            <p><strong>Активных комнат:</strong> ` + string(rune(s.wsHub.GetStats().TotalRooms)) + `</p>
-        </div>
-    </div>
-</body>
-</html>`
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(html))
+	// Перенаправляем на Swagger документацию
+	http.Redirect(w, r, "/swagger/", http.StatusMovedPermanently)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bismarck-game/backend/internal/game/services"
+	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/utils"
 	"encoding/json"
 	"net/http"
@@ -13,16 +14,28 @@ import (
 // ShipConfigHandler обрабатывает запросы для конфигурации кораблей
 type ShipConfigHandler struct {
 	shipConfigService *services.ShipConfigService
+	unitService       *services.UnitService
+	logger            *logger.Logger
 }
 
 // NewShipConfigHandler создает новый хендлер конфигурации кораблей
-func NewShipConfigHandler(shipConfigService *services.ShipConfigService) *ShipConfigHandler {
+func NewShipConfigHandler(shipConfigService *services.ShipConfigService, unitService *services.UnitService, logger *logger.Logger) *ShipConfigHandler {
 	return &ShipConfigHandler{
 		shipConfigService: shipConfigService,
+		unitService:       unitService,
+		logger:            logger,
 	}
 }
 
 // GetAvailableShips возвращает доступные корабли для стороны
+// @Summary Получение доступных кораблей для стороны
+// @Tags Ships
+// @Accept json
+// @Produce json
+// @Param side path string true "Сторона (german/allied)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /ships/side/{side} [get]
 func (sch *ShipConfigHandler) GetAvailableShips(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	side := vars["side"]
@@ -42,6 +55,13 @@ func (sch *ShipConfigHandler) GetAvailableShips(w http.ResponseWriter, r *http.R
 }
 
 // GetAllShips возвращает все корабли
+// @Summary Получение всех кораблей
+// @Tags Ships
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /ships/all [get]
 func (sch *ShipConfigHandler) GetAllShips(w http.ResponseWriter, r *http.Request) {
 	ships, err := sch.shipConfigService.GetAvailableShips("")
 	if err != nil {
@@ -53,6 +73,13 @@ func (sch *ShipConfigHandler) GetAllShips(w http.ResponseWriter, r *http.Request
 }
 
 // GetShipTypes возвращает все типы кораблей
+// @Summary Получение типов кораблей
+// @Tags Ships
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /ships/types [get]
 func (sch *ShipConfigHandler) GetShipTypes(w http.ResponseWriter, r *http.Request) {
 	types, err := sch.shipConfigService.GetShipTypes()
 	if err != nil {
@@ -64,6 +91,15 @@ func (sch *ShipConfigHandler) GetShipTypes(w http.ResponseWriter, r *http.Reques
 }
 
 // GetShipsByType возвращает корабли определенного типа
+// @Summary Получение кораблей по типу
+// @Tags Ships
+// @Accept json
+// @Produce json
+// @Param type path string true "Тип корабля"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /ships/type/{type} [get]
 func (sch *ShipConfigHandler) GetShipsByType(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	shipType := vars["type"]
@@ -83,6 +119,13 @@ func (sch *ShipConfigHandler) GetShipsByType(w http.ResponseWriter, r *http.Requ
 }
 
 // GetConfigStats возвращает статистику конфигурации
+// @Summary Получение статистики конфигурации
+// @Tags Ships
+// @Accept json
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /ships/stats [get]
 func (sch *ShipConfigHandler) GetConfigStats(w http.ResponseWriter, r *http.Request) {
 	stats, err := sch.shipConfigService.GetConfigStats()
 	if err != nil {
@@ -94,6 +137,15 @@ func (sch *ShipConfigHandler) GetConfigStats(w http.ResponseWriter, r *http.Requ
 }
 
 // CreateUnitFromConfig создает юнит из конфигурации
+// @Summary Создание юнита из конфигурации
+// @Tags Ships
+// @Accept json
+// @Produce json
+// @Param body body map[string]interface{} true "Данные для создания юнита"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /ships/create-unit [post]
 func (sch *ShipConfigHandler) CreateUnitFromConfig(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		ShipID   string `json:"ship_id"`
@@ -123,13 +175,29 @@ func (sch *ShipConfigHandler) CreateUnitFromConfig(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// TODO: Сохранить юнит в базе данных через UnitService
-	// Пока что возвращаем юнит без сохранения в БД
+	// Сохраняем юнит в базе данных через UnitService
+	err = sch.unitService.CreateNavalUnit(unit)
+	if err != nil {
+		sch.logger.Error("Failed to save unit to database", "error", err, "unit_id", unit.ID)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "ошибка сохранения юнита в базе данных")
+		return
+	}
+
+	sch.logger.Info("Создан морской юнит из конфигурации", "unitID", unit.ID, "name", unit.Name, "type", unit.Type)
 
 	utils.WriteSuccessResponse(w, unit)
 }
 
 // GetShipConfig возвращает конфигурацию конкретного корабля
+// @Summary Получение конфигурации корабля
+// @Tags Ships
+// @Accept json
+// @Produce json
+// @Param id path string true "ID корабля"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 501 {object} map[string]interface{}
+// @Router /ships/config/{id} [get]
 func (sch *ShipConfigHandler) GetShipConfig(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	shipID := vars["id"]
@@ -145,6 +213,20 @@ func (sch *ShipConfigHandler) GetShipConfig(w http.ResponseWriter, r *http.Reque
 }
 
 // SearchShips выполняет поиск кораблей по критериям
+// @Summary Поиск кораблей по критериям
+// @Tags Ships
+// @Accept json
+// @Produce json
+// @Param side query string false "Сторона"
+// @Param type query string false "Тип корабля"
+// @Param min_fuel query int false "Минимальное топливо"
+// @Param max_fuel query int false "Максимальное топливо"
+// @Param min_evasion query int false "Минимальное уклонение"
+// @Param max_evasion query int false "Максимальное уклонение"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /ships/search [get]
 func (sch *ShipConfigHandler) SearchShips(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 

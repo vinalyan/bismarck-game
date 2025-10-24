@@ -33,14 +33,23 @@ type CheckEmergencyFuelRequest struct {
 
 // CheckEmergencyFuelResponse ответ на проверку аварийного топлива
 type CheckEmergencyFuelResponse struct {
-	Success         bool `json:"success"`
-	IsEmergencyFuel bool `json:"is_emergency_fuel"`
-	EmergencyTurn   int  `json:"emergency_turn"`
-	CurrentFuel     int  `json:"current_fuel"`
+	Success         bool   `json:"success"`
+	IsEmergencyFuel bool   `json:"is_emergency_fuel"`
+	EmergencyTurn   int    `json:"emergency_turn"`
+	CurrentFuel     int    `json:"current_fuel"`
 	Message         string `json:"message"`
 }
 
 // CheckEmergencyFuel проверяет и активирует аварийное топливо для корабля
+// @Summary Проверка и активация аварийного топлива
+// @Tags Emergency Fuel
+// @Accept json
+// @Produce json
+// @Param body body CheckEmergencyFuelRequest true "Данные для проверки аварийного топлива"
+// @Success 200 {object} CheckEmergencyFuelResponse
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /emergency-fuel/check [post]
 func (h *EmergencyFuelHandler) CheckEmergencyFuel(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")
@@ -82,6 +91,16 @@ func (h *EmergencyFuelHandler) CheckEmergencyFuel(w http.ResponseWriter, r *http
 }
 
 // GetEmergencyFuelStatus получает статус аварийного топлива для корабля
+// @Summary Получение статуса аварийного топлива
+// @Tags Emergency Fuel
+// @Accept json
+// @Produce json
+// @Param game_id query string true "ID игры"
+// @Param unit_id query string true "ID юнита"
+// @Success 200 {object} CheckEmergencyFuelResponse
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /emergency-fuel/status [get]
 func (h *EmergencyFuelHandler) GetEmergencyFuelStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteErrorResponse(w, http.StatusMethodNotAllowed, "Method not allowed")

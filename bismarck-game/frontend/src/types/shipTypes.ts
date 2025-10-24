@@ -1,4 +1,6 @@
 // Типы для данных кораблей
+// ВАЖНО: Все расчеты движения (максимальное расстояние, интервалы, стоимость топлива)
+// выполняются на бэкенде. Эти константы используются только для отображения в UI.
 
 export interface ShipData {
   id: string;
@@ -49,21 +51,6 @@ export const SPEED_TYPE_NAMES: Record<SpeedType, string> = {
   'VS': 'Очень медленный'
 };
 
-// Маппинг классов скорости на максимальное расстояние движения
-export const SPEED_TYPE_MAX_DISTANCE: Record<SpeedType, number> = {
-  'F': 2,  // Быстрый - до 2 гексов
-  'M': 1,  // Средний - 1 гекс
-  'S': 1,  // Медленный - 1 гекс
-  'VS': 1  // Очень медленный - 1 гекс
-};
-
-// Маппинг классов скорости на интервалы движения
-export const SPEED_TYPE_MOVEMENT_INTERVAL: Record<SpeedType, number> = {
-  'F': 1,  // Быстрый - может двигаться каждый ход
-  'M': 1,  // Средний - может двигаться каждый ход
-  'S': 2,  // Медленный - может двигаться через ход
-  'VS': 2  // Очень медленный - может двигаться через ход
-};
 
 // Утилиты для работы с кораблями
 export const shipUtils = {
@@ -77,21 +64,6 @@ export const shipUtils = {
     return SPEED_TYPE_NAMES[speedType] || speedType;
   },
 
-  // Получить максимальное расстояние движения
-  getMaxMovementDistance: (speedType: SpeedType): number => {
-    return SPEED_TYPE_MAX_DISTANCE[speedType] || 1;
-  },
-
-  // Получить интервал движения
-  getMovementInterval: (speedType: SpeedType): number => {
-    return SPEED_TYPE_MOVEMENT_INTERVAL[speedType] || 1;
-  },
-
-  // Проверить, может ли корабль двигаться в этот ход
-  canMoveThisTurn: (speedType: SpeedType, previousTurnMoved: number): boolean => {
-    const interval = SPEED_TYPE_MOVEMENT_INTERVAL[speedType];
-    return previousTurnMoved === 0 || interval === 1;
-  },
 
   // Получить полное название корабля
   getFullShipName: (ship: ShipData): string => {

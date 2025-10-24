@@ -99,6 +99,11 @@ generate-secret:
 check-config:
 	@go run cmd/check-config/main.go
 
+# Генерация Swagger документации
+swagger:
+	@echo "Generating Swagger documentation..."
+	swag init -g cmd/server/main.go -o docs --parseDependency --parseInternal
+
 # Полная настройка для разработки
 setup-dev: docker-up deps migrate
 	@echo "Development environment ready!"

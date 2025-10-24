@@ -1,3 +1,13 @@
+// @title Bismarck Game API
+// @version 1.0
+// @description API для игры Bismarck Chase - пошаговой стратегической игры о морских сражениях
+// @contact.name Bismarck Game Team
+// @host localhost:8080
+// @BasePath /api
+// @securityDefinitions.apikey Bearer
+// @in header
+// @name Authorization
+// @description JWT токен в формате: Bearer {token}
 package main
 
 import (

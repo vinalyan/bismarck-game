@@ -24,6 +24,15 @@ func NewAuthHandler(authService *auth.AuthService) *AuthHandler {
 }
 
 // Register регистрирует нового пользователя
+// @Summary Регистрация пользователя
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param body body models.CreateUserRequest true "Данные для регистрации"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateUserRequest
 	if err := utils.ParseJSON(r, &req); err != nil {
@@ -87,6 +96,16 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 // Login выполняет вход пользователя
+// @Summary Вход в систему
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param body body models.LoginRequest true "Данные для входа"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
 	if err := utils.ParseJSON(r, &req); err != nil {
@@ -132,6 +151,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // Logout выполняет выход пользователя
+// @Summary Выход из системы
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /auth/logout [post]
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	// Получаем токен из заголовка Authorization
 	authHeader := r.Header.Get("Authorization")
@@ -158,6 +185,14 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetProfile возвращает профиль текущего пользователя
+// @Summary Получение профиля пользователя
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /auth/profile [get]
 func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста (устанавливается middleware)
 	userID := r.Context().Value("user_id").(string)
@@ -173,6 +208,16 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateProfile обновляет профиль пользователя
+// @Summary Обновление профиля пользователя
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body models.UpdateUserRequest true "Данные для обновления профиля"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /auth/profile [put]
 func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
 	userID := r.Context().Value("user_id").(string)
@@ -196,6 +241,16 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // ChangePassword меняет пароль пользователя
+// @Summary Смена пароля
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body models.ChangePasswordRequest true "Данные для смены пароля"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /auth/change-password [post]
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
 	userID := r.Context().Value("user_id").(string)
@@ -247,6 +302,14 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 }
 
 // ValidateToken валидирует токен
+// @Summary Валидация токена
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Router /auth/validate [get]
 func (h *AuthHandler) ValidateToken(w http.ResponseWriter, r *http.Request) {
 	// Получаем токен из заголовка Authorization
 	authHeader := r.Header.Get("Authorization")

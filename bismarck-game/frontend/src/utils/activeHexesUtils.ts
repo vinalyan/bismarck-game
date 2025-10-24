@@ -2,8 +2,6 @@
 
 import React from 'react';
 import { HexCoordinate } from '../types/mapTypes';
-import { ShipData } from '../data/localShips';
-import { movementUtils, PreviousTurnInfo } from './movementUtils';
 
 // Типы активных гексов
 export type ActiveHexType = 
@@ -135,7 +133,7 @@ export const activeHexesUtils = {
         type: 'movement' as ActiveHexType,
         priority: ACTIVE_HEX_CONFIGS.movement.priority,
         metadata: {
-          distance: 1, // Упрощенное значение, реальное расстояние рассчитывается на сервере
+          // distance не нужен для отображения, используем только fuelCost с сервера
           fuelCost: fuelCosts[hex] || 0,
           isReachable: true
         }
