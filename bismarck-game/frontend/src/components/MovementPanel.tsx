@@ -53,7 +53,7 @@ const MovementPanel: React.FC<MovementPanelProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await movementAPI.getAvailableMoves(gameId, selectedUnit.id);
+      const response = await movementAPI.getAvailableMoves(gameId, selectedUnit.id, authToken);
       setAvailableMoves(response.available_hexes);
       setFuelCosts(response.fuel_costs);
     } catch (err: any) {

@@ -133,15 +133,23 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Обработчики событий
   const handleHexClick = (coordinate: HexCoordinate) => {
+    console.log('🎯🎯🎯 HexMap: Hex clicked:', coordinate);
+    
     // Проверяем, является ли гекс доступным для движения
     const isAvailableForMovement = availableMovementHexes.some(hex => 
       hex.coordinate.col === coordinate.col && 
       hex.coordinate.row === coordinate.row
     );
     
-    // Кликабелен только если гекс доступен для движения
-    if (isAvailableForMovement && onHexClick) {
+    console.log('🎯🎯🎯 HexMap: Is available for movement:', isAvailableForMovement);
+    console.log('🎯🎯🎯 HexMap: Available movement hexes count:', availableMovementHexes.length);
+    
+    // ВСЕГДА вызываем onHexClick для отладки
+    if (onHexClick) {
+      console.log('🎯🎯🎯 HexMap: Calling onHexClick');
       onHexClick(coordinate);
+    } else {
+      console.log('🎯🎯🎯 HexMap: onHexClick is not defined');
     }
   };
 
@@ -227,6 +235,8 @@ const HexMap: React.FC<HexMapProps> = ({
           movementHex.coordinate.col === coordinate.col && 
           movementHex.coordinate.row === coordinate.row
       );
+      
+      // Убрали избыточные логи - они мешают отладке
 
       // Проверяем, является ли этот гекс активным
       const activeHex = activeHexes.find(

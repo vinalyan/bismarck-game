@@ -104,6 +104,65 @@ func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(response)
 }
 
+// GetMovementCost возвращает стоимость движения для конкретного гекса
+// @Summary Получение стоимости движения для гекса
+// @Tags Movement
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param gameId path string true "ID игры"
+// @Param unitId path string true "ID юнита"
+// @Param to_hex query string true "Целевой гекс"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{gameId}/units/{unitId}/movement-cost [get]
+func (h *MovementHandler) GetMovementCost(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["gameId"]
+	unitID := vars["unitId"]
+
+	if gameID == "" || unitID == "" {
+		http.Error(w, "Game ID and Unit ID are required", http.StatusBadRequest)
+		return
+	}
+
+	// Получаем целевой гекс из параметров запроса
+	toHex := r.URL.Query().Get("to_hex")
+	if toHex == "" {
+		http.Error(w, "to_hex parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	// Получаем юнит
+	unit, err := h.getUnit(gameID, unitID)
+	if err != nil {
+		h.logger.Error("Failed to get unit", "error", err, "game_id", gameID, "unit_id", unitID)
+		http.Error(w, "Unit not found", http.StatusNotFound)
+		return
+	}
+
+	// Рассчитываем стоимость топлива
+	fuelCost, err := h.movementService.CalculateFuelCost(unit, unit.Position, toHex)
+	if err != nil {
+		h.logger.Error("Failed to calculate fuel cost", "error", err, "unit_id", unitID, "to_hex", toHex)
+		http.Error(w, "Failed to calculate fuel cost", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"unit_id":   unitID,
+		"from_hex":  unit.Position,
+		"to_hex":    toHex,
+		"fuel_cost": fuelCost,
+		"success":   true,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 // MoveUnit выполняет движение юнита
 // @Summary Выполнение движения юнита
 // @Tags Movement
@@ -432,6 +491,7 @@ func (h *MovementHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 
 	// Маршруты для движения юнитов
 	movementRouter.HandleFunc("/{gameId}/units/{unitId}/available-moves", h.GetAvailableMoves).Methods("GET")
+	movementRouter.HandleFunc("/{gameId}/units/{unitId}/movement-cost", h.GetMovementCost).Methods("GET")
 	movementRouter.HandleFunc("/{gameId}/units/{unitId}/move", h.MoveUnit).Methods("POST")
 	movementRouter.HandleFunc("/{gameId}/units/{unitId}/movement-history", h.GetMovementHistory).Methods("GET")
 

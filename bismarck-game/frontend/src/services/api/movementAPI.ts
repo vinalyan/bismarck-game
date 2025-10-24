@@ -89,9 +89,31 @@ export interface VisibilityUpdate {
 // API для движения
 export const movementAPI = {
   // Получить доступные ходы для юнита
-  getAvailableMoves: async (gameId: string, unitId: string): Promise<AvailableMovesResponse> => {
-    const response = await axios.get(`${API_BASE_URL}/api/games/${gameId}/units/${unitId}/available-moves`);
+  getAvailableMoves: async (gameId: string, unitId: string, authToken: string): Promise<AvailableMovesResponse> => {
+    const response = await axios.get(`${API_BASE_URL}/api/games/${gameId}/units/${unitId}/available-moves`, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
     return response.data;
+  },
+
+  // Получить стоимость движения для конкретного гекса
+  getMovementCost: async (gameId: string, unitId: string, toHex: string, authToken: string): Promise<number> => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/games/${gameId}/units/${unitId}/movement-cost`, {
+        params: { to_hex: toHex },
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data.fuel_cost || 0;
+    } catch (error: any) {
+      console.error('Error fetching movement cost:', error);
+      return 0;
+    }
   },
 
   // Выполнить движение юнита
@@ -257,7 +279,7 @@ export const useMovement = (gameId: string, playerId: string, authToken: string)
     try {
       setLoading(true);
       setError(null);
-      const moves = await movementAPI.getAvailableMoves(gameId, unitId);
+      const moves = await movementAPI.getAvailableMoves(gameId, unitId, authToken);
       setAvailableMoves(moves);
     } catch (err: any) {
       setError(err.message || 'Failed to get available moves');

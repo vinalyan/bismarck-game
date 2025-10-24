@@ -3,17 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { ViewType, GamePhase, PlayerSide, NotificationType } from '../types/gameTypes';
-import { HexCoordinate, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
-import { shipUtils, LOCAL_SHIPS_DATA, localShipsUtils, ShipData } from '../data/localShips';
-import { movementUtils, MovementHex } from '../utils/movementUtils';
-import { activeHexesUtils, ActiveHex, useActiveHexes } from '../utils/activeHexesUtils';
+import { HexCoordinate } from '../types/mapTypes';
+import { MovementHex } from '../utils/movementUtils';
+import { useActiveHexes } from '../utils/activeHexesUtils';
 import { MAP_CONSTANTS } from '../utils/hexUtils';
 import { unitsAPI, GameUnit } from '../services/api/unitsAPI';
 import { movementAPI } from '../services/api/movementAPI';
+import { shipsAPI } from '../services/api/shipsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
 import { GameTurnResponse } from '../types/phaseTypes';
-import { GamePhase as PhaseType } from '../types/phaseTypes';
 import HexMap from './HexMap';
 import './Game.css';
 
@@ -25,14 +24,21 @@ const Game: React.FC = () => {
     logout,
     setCurrentView,
     addNotification,
-    setLoading,
+    setShipsConfig,
+    getShipsByType,
   } = useGameStore();
 
-  const [selectedHex, setSelectedHex] = useState<HexCoordinate | null>(null);
+  const [selectedHex] = useState<HexCoordinate | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [selectedUnitData, setSelectedUnitData] = useState<any>(null);
   const [availableMovementHexes, setAvailableMovementHexes] = useState<MovementHex[]>([]);
-  const [shipsData, setShipsData] = useState<ShipData[]>([]);
+  
+  // Отслеживание изменений availableMovementHexes
+  useEffect(() => {
+    if (availableMovementHexes.length > 0) {
+      console.log('✅ Available moves updated:', availableMovementHexes.length, 'hexes');
+    }
+  }, [availableMovementHexes]);
   const [currentTurn, setCurrentTurn] = useState<GameTurn | GameTurnResponse | null>(null);
   const [phaseTimer, setPhaseTimer] = useState<number | null>(null);
 
@@ -63,25 +69,34 @@ const Game: React.FC = () => {
     };
     return phaseNames[phase] || phase;
   };
-  const [loadingShips, setLoadingShips] = useState(false);
+  const [loadingShips] = useState(false);
   const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
 
   // Хук для управления активными гексами
   const {
     activeHexes,
-    enabledTypes,
-    addActiveHexes,
-    removeActiveHexesByType,
-    clearActiveHexes,
-    toggleType
+    clearActiveHexes
   } = useActiveHexes();
 
   // Загружаем данные кораблей и юнитов при монтировании компонента
   useEffect(() => {
-    // Используем локальные данные для конфигурации кораблей
-    setShipsData(LOCAL_SHIPS_DATA);
-    setLoadingShips(false);
+    // Загружаем конфигурацию кораблей с бэкенда
+    const loadShipsConfig = async () => {
+        try {
+          const ships = await shipsAPI.getAllShips();
+          setShipsConfig(ships);
+          console.log('Ships config loaded from backend:', ships.length, 'ships');
+        } catch (error) {
+          console.error('Error loading ships config:', error);
+          addNotification({
+            type: NotificationType.Error,
+            title: 'Ошибка загрузки конфигурации кораблей',
+            message: 'Не удалось загрузить конфигурацию кораблей с сервера',
+            read: false
+          });
+        }
+    };
 
     // Загружаем юниты игры из API
     const loadGameUnits = async () => {
@@ -117,8 +132,9 @@ const Game: React.FC = () => {
       }
     };
 
+    loadShipsConfig();
     loadGameUnits();
-  }, [currentGame?.id, authToken, addNotification]);
+  }, [currentGame?.id, authToken, addNotification, setShipsConfig]);
 
   // Загружаем информацию о текущем ходе при монтировании компонента
   useEffect(() => {
@@ -406,8 +422,8 @@ const Game: React.FC = () => {
 
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
-    console.log('handleUnitClick called:', unitId, unitData);
-    console.log('Current selectedUnitData before update:', selectedUnitData);
+    console.log('🎯 Unit clicked:', unitId, unitData.type);
+    
     setSelectedUnit(unitId);
     setSelectedUnitData(unitData);
 
@@ -416,9 +432,8 @@ const Game: React.FC = () => {
 
     // Проверяем, что мы находимся в фазе движения
     const currentPhase = getTurnData(currentTurn)?.current_phase;
-    console.log('Current phase in handleUnitClick:', currentPhase);
     if (currentPhase !== 'movement') {
-      console.log('Not in movement phase, not showing movement hexes');
+      console.log('❌ Not in movement phase');
       setAvailableMovementHexes([]);
       return;
     }
@@ -432,7 +447,7 @@ const Game: React.FC = () => {
     // Проверяем, не двигался ли юнит уже в этом ходу (один юнит = одно движение за ход)
     const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 0;
     if (unitDataToUse?.last_move_turn === currentTurnNumber) {
-      console.log('Unit already moved this turn, not showing movement hexes');
+      console.log('❌ Unit already moved this turn');
       setAvailableMovementHexes([]);
       return;
     }
@@ -464,93 +479,130 @@ const Game: React.FC = () => {
       console.log('Using cached unit data:', gameUnit);
     }
     
-    // Пытаемся найти данные корабля в локальных данных
-    let shipData = shipsData.find(ship => 
-      ship.type === (gameUnit?.type || unitData.type) && 
-      ship.side === (gameUnit?.nationality || unitData.side)
-    );
-
-    // Если не нашли, используем локальные утилиты
-    if (!shipData && (gameUnit?.type || unitData.type) && (gameUnit?.nationality || unitData.side)) {
-      const ships = localShipsUtils.getShipsByType(gameUnit?.type || unitData.type);
-      shipData = ships.find(ship => ship.side === (gameUnit?.nationality || unitData.side));
-    }
+    // Получаем конфигурацию корабля из store по типу
+    const shipsByType = getShipsByType(gameUnit?.type || unitData.type);
+    const shipConfig = shipsByType.length > 0 ? shipsByType[0] : null;
 
     // Обновляем данные юнита с информацией о корабле
-    if (shipData) {
+    if (shipConfig) {
       const updatedUnitData = {
         ...unitData,
         ...gameUnit, // Добавляем данные из API
         position: currentPosition, // Используем актуальную позицию
-        shipData: shipData,
-        maxFuel: shipData.maxFuel,
-        currentFuel: gameUnit?.fuel || unitData.fuel || Math.floor(shipData.maxFuel * 0.85) // Используем реальное топливо из API
+        shipConfig: shipConfig,
+        maxFuel: shipConfig.maxFuel,
+        currentFuel: gameUnit?.fuel || unitData.fuel || Math.floor(shipConfig.maxFuel * 0.85) // Используем реальное топливо из API
       };
       setSelectedUnitData(updatedUnitData);
 
-      // Рассчитываем доступные гексы для движения
-      if (currentPosition) {
-        // Создаем информацию о предыдущем ходе
-        const previousTurnInfo = {
-          movedHexes: updatedUnitData.previous_turn_moved_hexes || 0,
-          turnNumber: updatedUnitData.last_move_turn || 0
-        };
-
-        // Рассчитываем оставшуюся дальность движения
-        // Используем speed_rating из API (приоритет) или fallback на локальные данные
-        const rawSpeedType = gameUnit?.speed_rating || shipData?.speedType || 'M';
-        const speedType: 'F' | 'M' | 'S' | 'VS' = (['F', 'M', 'S', 'VS'].includes(rawSpeedType) ? rawSpeedType : 'M') as 'F' | 'M' | 'S' | 'VS';
-        // Получаем максимальную дальность движения с сервера
-        const maxMovementRange = 2; // Временное значение, должно приходить с сервера
-        const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 1;
-        const remainingMovement = (updatedUnitData.last_move_turn === currentTurnNumber) 
-          ? Math.max(0, maxMovementRange - (updatedUnitData.movement_used || 0))
-          : maxMovementRange;
-
-        console.log('Movement calculation debug:', {
-          unitName: updatedUnitData.name,
-          speedType: speedType,
-          gameUnitSpeedRating: gameUnit?.speed_rating,
-          shipDataSpeedType: shipData?.speedType,
-          maxMovementRange,
-          currentTurnNumber,
-          lastMoveTurn: updatedUnitData.last_move_turn,
-          movementUsed: updatedUnitData.movement_used,
-          remainingMovement,
-          currentFuel: updatedUnitData.currentFuel
-        });
-
-        // Создаем объект с правильным speedType для расчета движения
-        const movementShipData = {
-          ...shipData,
-          speedType: speedType
-        };
-
-        // Используем данные из unitDataToUse если они есть, иначе из gameUnit
-        const noMovementTurnsLeft = unitDataToUse?.no_movement_turns_left ?? gameUnit?.no_movement_turns_left ?? 0;
-        console.log('Movement restriction check:', {
-          unitName: updatedUnitData.name,
-          speedType: speedType,
-          noMovementTurnsLeft: noMovementTurnsLeft,
-          unitDataToUseNoMovement: unitDataToUse?.no_movement_turns_left,
-          gameUnitNoMovement: gameUnit?.no_movement_turns_left,
-          canMove: !((speedType === 'S' || speedType === 'VS') && noMovementTurnsLeft > 0)
-        });
-
-        // Получаем доступные гексы с сервера
-        const availableHexes: MovementHex[] = []; // Временное значение, должно получаться с сервера
-        console.log('Available movement hexes calculated:', availableHexes);
-        setAvailableMovementHexes(availableHexes);
+      // Получаем доступные гексы для движения с сервера
+      if (currentPosition && currentGame?.id && authToken) {
+        try {
+          console.log('🚀 Loading available moves...');
+          const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unitId, authToken);
+          console.log('🎯 Server response - available_hexes:', availableMovesResponse.available_hexes);
+          console.log('🎯 Server response - max_distance:', availableMovesResponse.max_distance);
+          
+          if (availableMovesResponse && availableMovesResponse.available_hexes) {
+            // Преобразуем ответ сервера в формат MovementHex[]
+            const availableHexes: MovementHex[] = availableMovesResponse.available_hexes.map(hex => {
+              // Парсим строку гекса (например, "K15") в HexCoordinate
+              const match = hex.match(/^([A-Z]+)(\d+)$/);
+              if (!match) {
+                console.error('Invalid hex format:', hex);
+                return null;
+              }
+              
+              const letter = match[1];
+              const number = parseInt(match[2]);
+              
+              // Преобразуем в координаты сетки
+              const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
+              const col = number - 1;
+              
+              return {
+                coordinate: {
+                  letter,
+                  number,
+                  col,
+                  row
+                },
+                fuelCost: availableMovesResponse.fuel_costs?.[hex] || 0,
+                distance: 1, // Будет рассчитано позже
+                isReachable: true
+              };
+            }).filter(hex => hex !== null) as MovementHex[];
+            
+            console.log('✅ Found', availableHexes.length, 'available moves');
+            console.log('🎯 Available hexes:', availableHexes.map(h => `${h.coordinate.letter}${h.coordinate.number}`));
+            setAvailableMovementHexes(availableHexes);
+          } else {
+            console.log('❌ No available moves from server');
+            setAvailableMovementHexes([]);
+          }
+        } catch (error) {
+          console.error('Error fetching available moves from server:', error);
+          addNotification({
+            type: NotificationType.Error,
+            title: 'Ошибка получения доступных ходов',
+            message: 'Не удалось получить доступные ходы с сервера',
+            read: false
+          });
+          setAvailableMovementHexes([]);
+        }
       }
     } else {
-      console.log('No ship data found for unit');
+      console.log('No ship config found for unit');
       setAvailableMovementHexes([]);
     }
   };
 
+  // Отладочная функция для проверки гексов в радиусе
+  const debugHexRange = async (coordinate: HexCoordinate) => {
+    console.log('🔍🔍🔍 DEBUG: debugHexRange called!');
+    const hexString = `${coordinate.letter}${coordinate.number}`;
+    console.log('🔍 DEBUG: Selected hex:', hexString);
+    
+    try {
+      // Используем бэкенд для всех расчетов
+      console.log('🔍 DEBUG: Using backend for hex calculations...');
+      
+      // Создаем временный юнит для тестирования
+      const testUnit = {
+        id: 'debug-unit',
+        type: 'CA',
+        position: hexString,
+        speed_rating: 'S',
+        no_movement_turns_left: 0
+      };
+      
+      if (currentGame?.id && authToken) {
+        try {
+          // Получаем доступные ходы с бэкенда
+          const response = await movementAPI.getAvailableMoves(currentGame.id, testUnit.id, authToken);
+          console.log('🔍 DEBUG: Backend available moves:', response.available_hexes);
+          console.log('🔍 DEBUG: Backend max distance:', response.max_distance);
+          console.log('🔍 DEBUG: Backend fuel costs:', response.fuel_costs);
+        } catch (error) {
+          console.log('🔍 DEBUG: Backend error:', error);
+        }
+      }
+    } catch (error) {
+      console.error('🔍 DEBUG: Error in debug function:', error);
+    }
+  };
+  
+  // Локальная функция расчета удалена - используем только бэкенд
+
   // Обработчик клика по гексу
-  const handleHexClick = (coordinate: HexCoordinate) => {
-    console.log('handleHexClick called:', coordinate);
+  const handleHexClick = async (coordinate: HexCoordinate) => {
+    console.log('🎯🎯🎯 Hex clicked:', coordinate);
+    console.log('🎯🎯🎯 This should appear when clicking on any hex!');
+    
+    // Вызываем отладочную функцию для любого клика по гексу
+    console.log('🎯🎯🎯 About to call debugHexRange');
+    await debugHexRange(coordinate);
+    console.log('🎯🎯🎯 debugHexRange completed');
     
     // Проверяем, есть ли выбранный юнит
     if (!selectedUnit || !selectedUnitData) {
