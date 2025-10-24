@@ -151,7 +151,10 @@ func NewFuelValidator() *FuelValidator {
 func (v *FuelValidator) Validate(ctx *ValidationContext) error {
 	// Проверяем топливо для F и M кораблей
 	if ctx.Unit.SpeedRating == "F" || ctx.Unit.SpeedRating == "M" {
-		if ctx.Unit.Fuel <= 0 {
+		// При аварийном топливе разрешаем движение
+		if ctx.FuelTracking != nil && ctx.FuelTracking.IsEmergencyFuel {
+			// Аварийное топливо позволяет движение
+		} else if ctx.Unit.Fuel <= 0 {
 			return errors.New("ship has no fuel and cannot move")
 		}
 	}
