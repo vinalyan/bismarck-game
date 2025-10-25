@@ -194,14 +194,18 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 	oldPosition := unit.Position
 	unit.Position = toHex
 
+	// Обновляем данные о движении
+	currentTurn := s.getCurrentTurn(unit.GameID)
+	unit.MovementUsed += movement.HexesMoved
+	unit.LastMoveTurn = currentTurn
+
 	// Обновляем топливо
 	fuelTracking.CurrentFuel -= fuelCost
-	fuelTracking.PreviousTurnMoved = movement.HexesMoved
+	// НЕ обновляем PreviousTurnMoved здесь - это должно происходить только при завершении фазы движения
 	fuelTracking.UpdatedAt = time.Now()
 
 	// Проверяем активацию аварийного топлива
 	if fuelTracking.CurrentFuel <= 0 && !fuelTracking.IsEmergencyFuel {
-		currentTurn := s.getCurrentTurn(unit.GameID)
 		fuelTracking.IsEmergencyFuel = true
 		fuelTracking.EmergencyTurn = currentTurn + 10
 
@@ -242,7 +246,7 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 		return nil, fmt.Errorf("failed to update unit position: %w", err)
 	}
 
-	// Обновляем топливо отдельно (для отслеживания движения)
+	// Сохраняем изменения в FuelTracking
 	if err := s.updateFuelTracking(fuelTracking); err != nil {
 		return nil, fmt.Errorf("failed to update fuel tracking: %w", err)
 	}
@@ -301,15 +305,13 @@ func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) 
 	query := `
 		UPDATE naval_units SET
 			fuel = $1,
-			previous_turn_moved_hexes = $2,
-			is_emergency_fuel = $3,
-			emergency_removal_turn = $4,
+			is_emergency_fuel = $2,
+			emergency_removal_turn = $3,
 			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $5 AND game_id = $6`
+		WHERE id = $4 AND game_id = $5`
 
 	_, err := s.db.Exec(query,
 		fuelTracking.CurrentFuel,
-		fuelTracking.PreviousTurnMoved,
 		fuelTracking.IsEmergencyFuel,
 		fuelTracking.EmergencyTurn,
 		fuelTracking.UnitID,

@@ -3,17 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { ViewType, GamePhase, PlayerSide, NotificationType } from '../types/gameTypes';
-import { HexCoordinate, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
-import { shipUtils, LOCAL_SHIPS_DATA, localShipsUtils, ShipData } from '../data/localShips';
-import { movementUtils, MovementHex } from '../utils/movementUtils';
-import { activeHexesUtils, ActiveHex, useActiveHexes } from '../utils/activeHexesUtils';
+import { HexCoordinate } from '../types/mapTypes';
+import { MovementHex } from '../utils/movementUtils';
+import { useActiveHexes } from '../utils/activeHexesUtils';
 import { MAP_CONSTANTS } from '../utils/hexUtils';
 import { unitsAPI, GameUnit } from '../services/api/unitsAPI';
 import { movementAPI } from '../services/api/movementAPI';
+import { shipsAPI } from '../services/api/shipsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
-import { GameTurnResponse } from '../types/phaseTypes';
-import { GamePhase as PhaseType } from '../types/phaseTypes';
+import { GameTurnResponse, PHASE_NAMES } from '../types/phaseTypes';
 import HexMap from './HexMap';
 import './Game.css';
 
@@ -25,14 +24,21 @@ const Game: React.FC = () => {
     logout,
     setCurrentView,
     addNotification,
-    setLoading,
+    setShipsConfig,
+    getShipsByType,
   } = useGameStore();
 
-  const [selectedHex, setSelectedHex] = useState<HexCoordinate | null>(null);
+  const [selectedHex] = useState<HexCoordinate | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [selectedUnitData, setSelectedUnitData] = useState<any>(null);
   const [availableMovementHexes, setAvailableMovementHexes] = useState<MovementHex[]>([]);
-  const [shipsData, setShipsData] = useState<ShipData[]>([]);
+  
+  // Отслеживание изменений availableMovementHexes
+  useEffect(() => {
+    if (availableMovementHexes.length > 0) {
+      // console.log('✅ Available moves updated:', availableMovementHexes.length, 'hexes');
+    }
+  }, [availableMovementHexes]);
   const [currentTurn, setCurrentTurn] = useState<GameTurn | GameTurnResponse | null>(null);
   const [phaseTimer, setPhaseTimer] = useState<number | null>(null);
 
@@ -48,40 +54,34 @@ const Game: React.FC = () => {
     return null;
   };
 
-  // Helper функция для отображения названий фаз
-  const getPhaseDisplayName = (phase: string): string => {
-    const phaseNames: { [key: string]: string } = {
-      'setup': 'Подготовка',
-      'visibility': 'Видимость',
-      'pursuit': 'Преследование',
-      'movement': 'Движение',
-      'search': 'Поиск',
-      'air_attack': 'Воздушная атака',
-      'naval_combat': 'Морской бой',
-      'chance': 'Случайное событие',
-      'admin': 'Администрирование'
-    };
-    return phaseNames[phase] || phase;
-  };
-  const [loadingShips, setLoadingShips] = useState(false);
+  const [loadingShips] = useState(false);
   const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
 
   // Хук для управления активными гексами
   const {
     activeHexes,
-    enabledTypes,
-    addActiveHexes,
-    removeActiveHexesByType,
-    clearActiveHexes,
-    toggleType
+    clearActiveHexes
   } = useActiveHexes();
 
   // Загружаем данные кораблей и юнитов при монтировании компонента
   useEffect(() => {
-    // Используем локальные данные для конфигурации кораблей
-    setShipsData(LOCAL_SHIPS_DATA);
-    setLoadingShips(false);
+    // Загружаем конфигурацию кораблей с бэкенда
+    const loadShipsConfig = async () => {
+        try {
+          const ships = await shipsAPI.getAllShips();
+          setShipsConfig(ships);
+          console.log('Ships config loaded from backend:', ships.length, 'ships');
+        } catch (error) {
+          console.error('Error loading ships config:', error);
+          addNotification({
+            type: NotificationType.Error,
+            title: 'Ошибка загрузки конфигурации кораблей',
+            message: 'Не удалось загрузить конфигурацию кораблей с сервера',
+            read: false
+          });
+        }
+    };
 
     // Загружаем юниты игры из API
     const loadGameUnits = async () => {
@@ -117,8 +117,29 @@ const Game: React.FC = () => {
       }
     };
 
+    loadShipsConfig();
     loadGameUnits();
-  }, [currentGame?.id, authToken, addNotification]);
+  }, [currentGame?.id, authToken, addNotification, setShipsConfig]);
+
+  // Автоматическое обновление юнитов каждые 5 секунд
+  useEffect(() => {
+    if (!currentGame?.id || !authToken) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await unitsAPI.getGameUnits(currentGame.id, authToken);
+        if (response.success && response.data && response.data.units) {
+          setGameUnits(response.data.units);
+        }
+      } catch (error) {
+        console.error('Error updating game units:', error);
+      }
+    }, 5000); // Обновляем каждые 5 секунд
+
+    return () => clearInterval(interval);
+  }, [currentGame?.id, authToken]);
 
   // Загружаем информацию о текущем ходе при монтировании компонента
   useEffect(() => {
@@ -140,13 +161,18 @@ const Game: React.FC = () => {
     loadCurrentTurn();
   }, [currentGame?.id]);
 
-  // Автоматическое обновление информации о текущей фазе каждые 2 секунды
+  // Автоматическое обновление информации о текущей фазе каждые 10 секунд
   useEffect(() => {
     if (!currentGame?.id) {
       return;
     }
 
     const interval = setInterval(async () => {
+      // Проверяем, что страница активна
+      if (document.hidden) {
+        return;
+      }
+      
       try {
         const turn = await phaseAPI.getCurrentPhase(currentGame.id);
         const previousTurn = currentTurn;
@@ -168,7 +194,7 @@ const Game: React.FC = () => {
                 addNotification({
                   type: NotificationType.Info,
                   title: 'Смена фазы',
-                  message: `Переход к фазе: ${getPhaseDisplayName(currentTurnData.current_phase)}`,
+                  message: `Переход к фазе: ${PHASE_NAMES[currentTurnData.current_phase]}`,
                   read: false
                 });
               }
@@ -188,7 +214,7 @@ const Game: React.FC = () => {
       } catch (error) {
         console.error('Error updating current turn:', error);
       }
-    }, 2000); // Обновляем каждые 2 секунды
+    }, 10000); // Обновляем каждые 10 секунд
 
     return () => clearInterval(interval);
   }, [currentGame?.id, currentTurn, addNotification]);
@@ -273,7 +299,7 @@ const Game: React.FC = () => {
       const response = await movementAPI.moveUnit(
         currentGame.id,
         selectedUnit!,
-        { toHex: positionString },
+        { unit_id: selectedUnit!, to_hex: positionString },
         authToken
       );
       
@@ -291,14 +317,23 @@ const Game: React.FC = () => {
 
         setSelectedUnitData(updatedUnitData);
 
-        // Обновляем юнит в списке gameUnits
-        setGameUnits(prevUnits => 
-          prevUnits.map(unit => 
-            unit.id === selectedUnit 
-              ? { ...unit, position: positionString, fuel: response.data?.fuel || unit.fuel }
-              : unit
-          )
-        );
+        // Обновляем данные юнитов с сервера после движения
+        try {
+          const updatedUnits = await unitsAPI.getGameUnits(currentGame.id, authToken);
+          if (updatedUnits.success && updatedUnits.data && updatedUnits.data.units) {
+            setGameUnits(updatedUnits.data.units);
+          }
+        } catch (error) {
+          console.error('Error updating units after movement:', error);
+          // Fallback: локальное обновление если сервер недоступен
+          setGameUnits(prevUnits => 
+            prevUnits.map(unit => 
+              unit.id === selectedUnit 
+                ? { ...unit, position: positionString, fuel: response.data?.fuel || unit.fuel }
+                : unit
+            )
+          );
+        }
 
         // Очищаем активные гексы
         clearActiveHexes();
@@ -381,18 +416,52 @@ const Game: React.FC = () => {
     if (!currentGame?.id) return;
 
     try {
+      
       await phaseAPI.nextPhase({ game_id: currentGame.id });
+      
       
       // Обновляем информацию о текущем ходе
       const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
-      setCurrentTurn(updatedTurn);
       
-      addNotification({
-        type: NotificationType.Success,
-        title: 'Фаза завершена',
-        message: 'Переход к следующей фазе',
-        read: false
-      });
+      // Если ход завершен (updatedTurn === null), начинаем новый ход
+      if (!updatedTurn) {
+        try {
+          const newTurn = await phaseAPI.startTurn({ game_id: currentGame.id });
+          setCurrentTurn(newTurn);
+          
+          
+          // Уведомляем об обновлении хода
+          window.dispatchEvent(new CustomEvent('turnUpdated', { detail: newTurn }));
+          
+          addNotification({
+            type: NotificationType.Success,
+            title: 'Новый ход начат',
+            message: `Ход ${newTurn.turn_number} успешно начат`,
+            read: false
+          });
+        } catch (newTurnError) {
+          console.error('Error starting new turn:', newTurnError);
+          addNotification({
+            type: NotificationType.Error,
+            title: 'Ошибка',
+            message: 'Не удалось начать новый ход',
+            read: false
+          });
+        }
+      } else {
+        setCurrentTurn(updatedTurn);
+        
+      }
+      
+      // Уведомление о завершении фазы (только если не начался новый ход)
+      if (updatedTurn) {
+        addNotification({
+          type: NotificationType.Success,
+          title: 'Фаза завершена',
+          message: 'Переход к следующей фазе',
+          read: false
+        });
+      }
     } catch (error) {
       console.error('Error completing phase:', error);
       addNotification({
@@ -406,8 +475,8 @@ const Game: React.FC = () => {
 
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
-    console.log('handleUnitClick called:', unitId, unitData);
-    console.log('Current selectedUnitData before update:', selectedUnitData);
+    // console.log('🎯 Unit clicked:', unitId, unitData.type);
+    
     setSelectedUnit(unitId);
     setSelectedUnitData(unitData);
 
@@ -416,9 +485,8 @@ const Game: React.FC = () => {
 
     // Проверяем, что мы находимся в фазе движения
     const currentPhase = getTurnData(currentTurn)?.current_phase;
-    console.log('Current phase in handleUnitClick:', currentPhase);
     if (currentPhase !== 'movement') {
-      console.log('Not in movement phase, not showing movement hexes');
+      // console.log('❌ Not in movement phase');
       setAvailableMovementHexes([]);
       return;
     }
@@ -432,7 +500,7 @@ const Game: React.FC = () => {
     // Проверяем, не двигался ли юнит уже в этом ходу (один юнит = одно движение за ход)
     const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 0;
     if (unitDataToUse?.last_move_turn === currentTurnNumber) {
-      console.log('Unit already moved this turn, not showing movement hexes');
+      // console.log('❌ Unit already moved this turn');
       setAvailableMovementHexes([]);
       return;
     }
@@ -444,14 +512,6 @@ const Game: React.FC = () => {
         const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
         if (unitsResponse.success && unitsResponse.data) {
           gameUnit = unitsResponse.data.units.find((unit: GameUnit) => unit.id === unitId);
-          console.log('Fresh unit data from server:', gameUnit);
-          console.log('VS Tanker server data:', {
-            id: gameUnit?.id,
-            name: gameUnit?.name,
-            speed_rating: gameUnit?.speed_rating,
-            no_movement_turns_left: gameUnit?.no_movement_turns_left,
-            position: gameUnit?.position
-          });
         }
       }
     } catch (error) {
@@ -461,97 +521,90 @@ const Game: React.FC = () => {
     // Если не удалось получить свежие данные, используем локальные
     if (!gameUnit) {
       gameUnit = gameUnits.find(unit => unit.id === unitId);
-      console.log('Using cached unit data:', gameUnit);
     }
     
-    // Пытаемся найти данные корабля в локальных данных
-    let shipData = shipsData.find(ship => 
-      ship.type === (gameUnit?.type || unitData.type) && 
-      ship.side === (gameUnit?.nationality || unitData.side)
-    );
-
-    // Если не нашли, используем локальные утилиты
-    if (!shipData && (gameUnit?.type || unitData.type) && (gameUnit?.nationality || unitData.side)) {
-      const ships = localShipsUtils.getShipsByType(gameUnit?.type || unitData.type);
-      shipData = ships.find(ship => ship.side === (gameUnit?.nationality || unitData.side));
-    }
+    // Получаем конфигурацию корабля из store по типу
+    const shipsByType = getShipsByType(gameUnit?.type || unitData.type);
+    const shipConfig = shipsByType.length > 0 ? shipsByType[0] : null;
 
     // Обновляем данные юнита с информацией о корабле
-    if (shipData) {
+    if (shipConfig) {
       const updatedUnitData = {
         ...unitData,
         ...gameUnit, // Добавляем данные из API
         position: currentPosition, // Используем актуальную позицию
-        shipData: shipData,
-        maxFuel: shipData.maxFuel,
-        currentFuel: gameUnit?.fuel || unitData.fuel || Math.floor(shipData.maxFuel * 0.85) // Используем реальное топливо из API
+        shipConfig: shipConfig,
+        maxFuel: shipConfig.maxFuel,
+        currentFuel: gameUnit?.fuel || unitData.fuel || Math.floor(shipConfig.maxFuel * 0.85) // Используем реальное топливо из API
       };
       setSelectedUnitData(updatedUnitData);
 
-      // Рассчитываем доступные гексы для движения
-      if (currentPosition) {
-        // Создаем информацию о предыдущем ходе
-        const previousTurnInfo = {
-          movedHexes: updatedUnitData.previous_turn_moved_hexes || 0,
-          turnNumber: updatedUnitData.last_move_turn || 0
-        };
-
-        // Рассчитываем оставшуюся дальность движения
-        // Используем speed_rating из API (приоритет) или fallback на локальные данные
-        const rawSpeedType = gameUnit?.speed_rating || shipData?.speedType || 'M';
-        const speedType: 'F' | 'M' | 'S' | 'VS' = (['F', 'M', 'S', 'VS'].includes(rawSpeedType) ? rawSpeedType : 'M') as 'F' | 'M' | 'S' | 'VS';
-        // Получаем максимальную дальность движения с сервера
-        const maxMovementRange = 2; // Временное значение, должно приходить с сервера
-        const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 1;
-        const remainingMovement = (updatedUnitData.last_move_turn === currentTurnNumber) 
-          ? Math.max(0, maxMovementRange - (updatedUnitData.movement_used || 0))
-          : maxMovementRange;
-
-        console.log('Movement calculation debug:', {
-          unitName: updatedUnitData.name,
-          speedType: speedType,
-          gameUnitSpeedRating: gameUnit?.speed_rating,
-          shipDataSpeedType: shipData?.speedType,
-          maxMovementRange,
-          currentTurnNumber,
-          lastMoveTurn: updatedUnitData.last_move_turn,
-          movementUsed: updatedUnitData.movement_used,
-          remainingMovement,
-          currentFuel: updatedUnitData.currentFuel
-        });
-
-        // Создаем объект с правильным speedType для расчета движения
-        const movementShipData = {
-          ...shipData,
-          speedType: speedType
-        };
-
-        // Используем данные из unitDataToUse если они есть, иначе из gameUnit
-        const noMovementTurnsLeft = unitDataToUse?.no_movement_turns_left ?? gameUnit?.no_movement_turns_left ?? 0;
-        console.log('Movement restriction check:', {
-          unitName: updatedUnitData.name,
-          speedType: speedType,
-          noMovementTurnsLeft: noMovementTurnsLeft,
-          unitDataToUseNoMovement: unitDataToUse?.no_movement_turns_left,
-          gameUnitNoMovement: gameUnit?.no_movement_turns_left,
-          canMove: !((speedType === 'S' || speedType === 'VS') && noMovementTurnsLeft > 0)
-        });
-
-        // Получаем доступные гексы с сервера
-        const availableHexes: MovementHex[] = []; // Временное значение, должно получаться с сервера
-        console.log('Available movement hexes calculated:', availableHexes);
-        setAvailableMovementHexes(availableHexes);
+      // Получаем доступные гексы для движения с сервера
+      if (currentPosition && currentGame?.id && authToken) {
+        try {
+          // console.log('🚀 Loading available moves...');
+          const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unitId, authToken);
+          // console.log('🎯 Server response - available_hexes:', availableMovesResponse.available_hexes);
+          // console.log('🎯 Server response - max_distance:', availableMovesResponse.max_distance);
+          
+          if (availableMovesResponse && availableMovesResponse.available_hexes) {
+            // Преобразуем ответ сервера в формат MovementHex[]
+            const availableHexes: MovementHex[] = availableMovesResponse.available_hexes.map(hex => {
+              // Парсим строку гекса (например, "K15") в HexCoordinate
+              const match = hex.match(/^([A-Z]+)(\d+)$/);
+              if (!match) {
+                console.error('Invalid hex format:', hex);
+                return null;
+              }
+              
+              const letter = match[1];
+              const number = parseInt(match[2]);
+              
+              // Преобразуем в координаты сетки
+              const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
+              const col = number - 1;
+              
+              return {
+                coordinate: {
+                  letter,
+                  number,
+                  col,
+                  row
+                },
+                fuelCost: availableMovesResponse.fuel_costs?.[hex] || 0,
+                distance: 1, // Будет рассчитано позже
+                isReachable: true
+              };
+            }).filter(hex => hex !== null) as MovementHex[];
+            
+            // console.log('✅ Found', availableHexes.length, 'available moves');
+            // console.log('🎯 Available hexes:', availableHexes.map(h => `${h.coordinate.letter}${h.coordinate.number}`));
+            setAvailableMovementHexes(availableHexes);
+          } else {
+            // console.log('❌ No available moves from server');
+            setAvailableMovementHexes([]);
+          }
+        } catch (error) {
+          console.error('Error fetching available moves from server:', error);
+          addNotification({
+            type: NotificationType.Error,
+            title: 'Ошибка получения доступных ходов',
+            message: 'Не удалось получить доступные ходы с сервера',
+            read: false
+          });
+          setAvailableMovementHexes([]);
+        }
       }
     } else {
-      console.log('No ship data found for unit');
+      console.log('No ship config found for unit');
       setAvailableMovementHexes([]);
     }
   };
 
+  // Локальная функция расчета удалена - используем только бэкенд
+
   // Обработчик клика по гексу
-  const handleHexClick = (coordinate: HexCoordinate) => {
-    console.log('handleHexClick called:', coordinate);
-    
+  const handleHexClick = async (coordinate: HexCoordinate) => {
     // Проверяем, есть ли выбранный юнит
     if (!selectedUnit || !selectedUnitData) {
       console.log('No selected unit or unit data');
@@ -621,25 +674,6 @@ const Game: React.FC = () => {
     ? PlayerSide.Allied 
     : PlayerSide.German;
 
-  // Получаем информацию о текущей фазе
-  const getCurrentPhaseText = (phase: GamePhase): string => {
-    switch (phase) {
-      case GamePhase.Waiting:
-        return 'Ожидание начала';
-      case GamePhase.Setup:
-        return 'Подготовка';
-      case GamePhase.Movement:
-        return 'Фаза движения';
-      case GamePhase.Search:
-        return 'Фаза поиска';
-      case GamePhase.Combat:
-        return 'Боевая фаза';
-      case GamePhase.End:
-        return 'Конец игры';
-      default:
-        return 'Неизвестная фаза';
-    }
-  };
 
 
 
@@ -681,9 +715,9 @@ const Game: React.FC = () => {
                 {(() => {
                   const turnData = getTurnData(currentTurn);
                   if (turnData && turnData.current_phase) {
-                    return getPhaseDisplayName(turnData.current_phase);
+                    return PHASE_NAMES[turnData.current_phase];
                   }
-                  return getPhaseDisplayName(currentGame.current_phase);
+                  return PHASE_NAMES[currentGame.current_phase as GamePhase] || currentGame.current_phase;
                 })()}
               </span>
               <span className="phase-status">
@@ -742,15 +776,58 @@ const Game: React.FC = () => {
             <div className="unit-list">
                 {gameUnits
                   .filter(unit => unit.position && unit.position.trim() !== '')
-                  .map((unit) => (
-                    <div key={unit.id} className="unit-item">
+                  .map((unit) => {
+                    // Проверяем, может ли юнит двигаться
+                    const currentPhase = getTurnData(currentTurn)?.current_phase;
+                    const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 0;
+                    const canMove = currentPhase === 'movement' && 
+                                   unit.last_move_turn !== currentTurnNumber &&
+                                   unit.fuel && unit.fuel > 0;
+                    
+                    return (
+                    <div 
+                      key={unit.id} 
+                      className={`unit-item ${!canMove ? 'unit-disabled' : ''}`}
+                      onClick={() => {
+                        // Парсим позицию юнита
+                        const positionMatch = unit.position.match(/^([A-Z]+)(\d+)$/);
+                        if (positionMatch) {
+                          const letter = positionMatch[1];
+                          const number = parseInt(positionMatch[2]);
+                          const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
+                          const col = number - 1;
+                          
+                          const coordinate: HexCoordinate = {
+                            letter,
+                            number,
+                            col,
+                            row
+                          };
+                          
+                          // Вызываем handleUnitClick с данными юнита
+                          handleUnitClick(unit.id, {
+                            id: unit.id,
+                            type: unit.type,
+                            side: unit.owner || 'german',
+                            position: coordinate,
+                            name: unit.name,
+                            maxFuel: unit.max_fuel || 10,
+                            currentFuel: unit.fuel || 8
+                          });
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div className="unit-header">
                         <span className="unit-name">{unit.name}</span>
                         <span className="unit-type">{unit.type}</span>
                       </div>
                       <div className="unit-status">
                         <span>Позиция: {unit.position}</span>
-                        <span>Топливо: {unit.fuel || 0}/{unit.max_fuel || 0}</span>
+                        {/* Показываем топливо только для быстрых и средних юнитов */}
+                        {(unit.speed_rating === 'F' || unit.speed_rating === 'M') && (
+                          <span>Топливо: {unit.fuel || 0}/{unit.max_fuel || 0}</span>
+                        )}
                         <span>Скорость: {
                           unit.speed_rating === 'F' ? 'Быстрый' :
                           unit.speed_rating === 'M' ? 'Средний' :
@@ -758,6 +835,12 @@ const Game: React.FC = () => {
                           unit.speed_rating === 'VS' ? 'Очень медленный' :
                           unit.speed_rating || 'Неизвестно'
                         }</span>
+                        {/* Информация о ограничениях движения для медленных юнитов */}
+                        {(unit.speed_rating === 'S' || unit.speed_rating === 'VS') && unit.no_movement_turns_left > 0 && (
+                          <span style={{ color: '#fbbf24' }}>
+                            ⏸️ Ожидание: {unit.no_movement_turns_left} ход(ов)
+                          </span>
+                        )}
                         {/* Индикатор аварийного топлива */}
                         {unit.is_emergency_fuel && (
                           <div className="emergency-fuel-indicator">
@@ -765,11 +848,18 @@ const Game: React.FC = () => {
                             <span className="emergency-fuel-turns">
                               Осталось ходов: {unit.emergency_turn - (getTurnData(currentTurn)?.turn_number || 0)}
                             </span>
+                            {/* Информация об emergency_turn для быстрых юнитов */}
+                            {(unit.speed_rating === 'F' || unit.speed_rating === 'M') && unit.emergency_turn && (
+                              <span className="emergency-fuel-turn-info">
+                                Ход удаления: {unit.emergency_turn}
+                              </span>
+                            )}
                           </div>
                         )}
               </div>
               </div>
-                  ))}
+                    );
+                  })}
               </div>
             ) : (
               <div className="no-units">Нет юнитов на карте</div>
@@ -852,12 +942,22 @@ const Game: React.FC = () => {
                         if (!currentGame?.id) return;
                         
                         try {
+                          console.log('🔄 Starting first turn...');
+                          
                           // Начинаем первый ход
                           await phaseAPI.startTurn({ game_id: currentGame.id });
+                          
+                          console.log('✅ First turn started successfully');
                           
                           // Обновляем информацию о текущем ходе
                           const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
                           setCurrentTurn(updatedTurn);
+                          
+                          console.log('📊 Turn data updated:', {
+                            turn_number: updatedTurn?.turn_number,
+                            current_phase: updatedTurn?.current_phase,
+                            status: updatedTurn?.status
+                          });
                           
                           // Уведомляем об обновлении хода
                           window.dispatchEvent(new CustomEvent('turnUpdated', { detail: updatedTurn }));

@@ -164,7 +164,7 @@ func TestValidatorFactory_CalculateFuelCost(t *testing.T) {
 			fromHex:           "J30",
 			toHex:             "J32",
 			previousTurnMoved: 0,
-			expectedFuelCost:  0, // ИЗМЕНЕНО: было 1, должно быть 0
+			expectedFuelCost:  1, // 1 FP за 2 гекса после 0 гексов в предыдущем ходу
 		},
 		{
 			name:              "medium ship 1 hex after movement",

@@ -33,7 +33,7 @@ func (pm *PhaseManager) registerPhaseHandlers() {
 	// Заглушки для всех фаз
 	pm.phaseHandlers[models.PhaseSetup] = &SetupPhaseHandler{}
 	pm.phaseHandlers[models.PhaseVisibility] = &VisibilityPhaseHandler{}
-	pm.phaseHandlers[models.PhasePursuit] = &PursuitPhaseHandler{}
+	pm.phaseHandlers[models.PhaseShadow] = &ShadowPhaseHandler{}
 	pm.phaseHandlers[models.PhaseMovement] = &MovementPhaseHandler{}
 	pm.phaseHandlers[models.PhaseSearch] = &SearchPhaseHandler{}
 	pm.phaseHandlers[models.PhaseAirAttack] = &AirAttackPhaseHandler{}
@@ -97,14 +97,30 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		return nil, fmt.Errorf("failed to update game: %v", err)
 	}
 
-	// Сбрасываем данные о движении для всех юнитов в игре
-	// ВАЖНО: сначала сохраняем движение предыдущего хода в previous_turn_moved_hexes,
-	// затем обнуляем счетчики текущего хода и уменьшаем ограничения движения
+	// Сбрасываем только ограничения движения, НЕ сбрасываем previous_turn_moved_hexes
+	// previous_turn_moved_hexes должен сохраняться до завершения фазы движения
+	
+	// Сначала получаем текущие значения для отладки
+	rows, err := pm.db.Query(`
+		SELECT id, name, no_movement_turns_left 
+		FROM naval_units 
+		WHERE game_id = $1 AND (speed_rating = 'S' OR speed_rating = 'VS')
+	`, gameID)
+	if err == nil {
+		log.Printf("🔄 BEFORE RESET - no_movement_turns_left for slow units in game %s turn %d:", gameID, turnNumber)
+		for rows.Next() {
+			var id, name string
+			var noMovementTurnsLeft int
+			if err := rows.Scan(&id, &name, &noMovementTurnsLeft); err == nil {
+				log.Printf("  Unit %s (%s): no_movement_turns_left=%d", id, name, noMovementTurnsLeft)
+			}
+		}
+		rows.Close()
+	}
+	
 	resetMovementQuery := `
 		UPDATE naval_units 
 		SET 
-			previous_turn_moved_hexes = movement_used,
-			movement_used = 0, 
 			last_move_turn = 0, 
 			is_activated = false,
 			no_movement_turns_left = GREATEST(0, no_movement_turns_left - 1),
@@ -113,9 +129,27 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 	`
 	_, err = pm.db.Exec(resetMovementQuery, time.Now(), gameID)
 	if err != nil {
-		log.Printf("Warning: failed to reset movement data: %v", err)
+		log.Printf("Warning: failed to reset movement restrictions: %v", err)
 	} else {
-		log.Printf("Movement data reset for all units in game %s turn %d", gameID, turnNumber)
+		log.Printf("Movement restrictions reset for all units in game %s turn %d", gameID, turnNumber)
+		
+		// Проверяем результат
+		rows, err := pm.db.Query(`
+			SELECT id, name, no_movement_turns_left 
+			FROM naval_units 
+			WHERE game_id = $1 AND (speed_rating = 'S' OR speed_rating = 'VS')
+		`, gameID)
+		if err == nil {
+			log.Printf("🔄 AFTER RESET - no_movement_turns_left for slow units in game %s turn %d:", gameID, turnNumber)
+			for rows.Next() {
+				var id, name string
+				var noMovementTurnsLeft int
+				if err := rows.Scan(&id, &name, &noMovementTurnsLeft); err == nil {
+					log.Printf("  Unit %s (%s): no_movement_turns_left=%d", id, name, noMovementTurnsLeft)
+				}
+			}
+			rows.Close()
+		}
 	}
 
 	// Если это первый ход, завершаем setup фазу
@@ -160,9 +194,8 @@ func (pm *PhaseManager) initializePhasesForTurn(gameID string, turnNumber int) e
 			Status: models.PhaseStatusPending,
 		}
 
-		// Пропускаем фазы в первом ходу
-		config := models.GetPhaseConfig(phase)
-		if config != nil && config.SkipOnTurn1 && turnNumber == 1 {
+		// Пропускаем фазы visibility и shadow в первом ходу
+		if turnNumber == 1 && (phase == models.PhaseVisibility || phase == models.PhaseShadow) {
 			record.Status = models.PhaseStatusSkipped
 		}
 
@@ -237,6 +270,11 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 		return fmt.Errorf("failed to start phase handler: %v", err)
 	}
 
+	// Логирование начала фазы движения (без сброса)
+	if phase == models.PhaseMovement {
+		log.Printf("🔄 Starting movement phase for game %s turn %d", gameID, turnNumber)
+	}
+
 	log.Printf("Started phase %s for game %s turn %d", phase, gameID, turnNumber)
 
 	// Фазы setup и movement требуют ручного завершения
@@ -280,6 +318,73 @@ func (pm *PhaseManager) CompletePhase(gameID string, turnNumber int, phase model
 	_, err = pm.db.Exec(query, models.PhaseStatusCompleted, now, now, gameID, turnNumber, phase)
 	if err != nil {
 		return fmt.Errorf("failed to complete phase: %v", err)
+	}
+
+	// Если завершается фаза движения, сбрасываем previous_turn_moved_hexes
+	if phase == models.PhaseMovement {
+		log.Printf("🔄 RESET: Completing movement phase for game %s turn %d", gameID, turnNumber)
+
+		// Сначала получаем текущие данные о движении
+		rows, err := pm.db.Query(`
+			SELECT id, name, movement_used, previous_turn_moved_hexes 
+			FROM naval_units 
+			WHERE game_id = $1
+		`, gameID)
+		if err != nil {
+			log.Printf("Warning: failed to get movement data before reset: %v", err)
+		} else {
+			log.Printf("🔄 RESET: Before reset - units movement data:")
+			for rows.Next() {
+				var id, name string
+				var movementUsed, previousTurnMoved int
+				if err := rows.Scan(&id, &name, &movementUsed, &previousTurnMoved); err == nil {
+					log.Printf("  Unit %s (%s): movement_used=%d, previous_turn_moved_hexes=%d", id, name, movementUsed, previousTurnMoved)
+				}
+			}
+			rows.Close()
+		}
+
+		// Сначала сохраняем movement_used в previous_turn_moved_hexes, затем сбрасываем movement_used
+		// Используем подзапрос для правильного обновления
+		resetMovementQuery := `
+			UPDATE naval_units 
+			SET 
+				previous_turn_moved_hexes = (
+					SELECT movement_used 
+					FROM naval_units nu2 
+					WHERE nu2.id = naval_units.id
+				),
+				movement_used = 0,
+				updated_at = $1
+			WHERE game_id = $2
+		`
+		result, err := pm.db.Exec(resetMovementQuery, now, gameID)
+		if err != nil {
+			log.Printf("❌ RESET: Failed to reset movement data after movement phase: %v", err)
+		} else {
+			rowsAffected, _ := result.RowsAffected()
+			log.Printf("✅ RESET: Movement data reset after movement phase for game %s turn %d (rows affected: %d)", gameID, turnNumber, rowsAffected)
+
+			// Проверяем результат сброса
+			rows, err := pm.db.Query(`
+				SELECT id, name, movement_used, previous_turn_moved_hexes 
+				FROM naval_units 
+				WHERE game_id = $1
+			`, gameID)
+			if err != nil {
+				log.Printf("Warning: failed to get movement data after reset: %v", err)
+			} else {
+				log.Printf("🔄 RESET: After reset - units movement data:")
+				for rows.Next() {
+					var id, name string
+					var movementUsed, previousTurnMoved int
+					if err := rows.Scan(&id, &name, &movementUsed, &previousTurnMoved); err == nil {
+						log.Printf("  Unit %s (%s): movement_used=%d, previous_turn_moved_hexes=%d", id, name, movementUsed, previousTurnMoved)
+					}
+				}
+				rows.Close()
+			}
+		}
 	}
 
 	log.Printf("Completed phase %s for game %s turn %d", phase, gameID, turnNumber)
@@ -377,6 +482,8 @@ func (pm *PhaseManager) NextPhase(gameID string) error {
 		return fmt.Errorf("no active turn found")
 	}
 
+	log.Printf("🔄 NextPhase: Current phase is %s for game %s turn %d", turn.CurrentPhase, gameID, turn.TurnNumber)
+
 	// Завершаем текущую фазу
 	err = pm.CompletePhase(gameID, turn.TurnNumber, turn.CurrentPhase)
 	if err != nil {
@@ -431,9 +538,4 @@ func (pm *PhaseManager) CompleteTurn(gameID string, turnNumber int) error {
 	// Начинаем следующий ход
 	_, err = pm.StartTurn(gameID)
 	return err
-}
-
-// GetPhaseInfo возвращает информацию о фазе
-func (pm *PhaseManager) GetPhaseInfo(phase models.GamePhase) *models.PhaseConfig {
-	return models.GetPhaseConfig(phase)
 }

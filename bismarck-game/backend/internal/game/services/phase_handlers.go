@@ -94,18 +94,18 @@ func (h *VisibilityPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface
 	h.phaseManager = pm
 }
 
-// PursuitPhaseHandler обрабатывает фазу преследования
-type PursuitPhaseHandler struct {
+// ShadowPhaseHandler обрабатывает фазу слежения
+type ShadowPhaseHandler struct {
 	phaseManager models.PhaseManagerInterface
 }
 
-func (h *PursuitPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
+func (h *ShadowPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
 }
 
-func (h *PursuitPhaseHandler) Start(gameID string, turn int) error {
-	// Заглушка - преследование кораблей
-	log.Printf("Сработал переход в фазу pursuit ход %d", turn)
+func (h *ShadowPhaseHandler) Start(gameID string, turn int) error {
+	// Заглушка - слежение за кораблями
+	log.Printf("Сработал переход в фазу shadow ход %d", turn)
 
 	// TODO: логика фазы будет реализована здесь
 
@@ -115,36 +115,36 @@ func (h *PursuitPhaseHandler) Start(gameID string, turn int) error {
 		if h.phaseManager != nil {
 			err := h.phaseManager.NextPhase(gameID)
 			if err != nil {
-				log.Printf("Failed to advance to next phase after pursuit: %v", err)
+				log.Printf("Failed to advance to next phase after shadow: %v", err)
 			} else {
-				log.Printf("Pursuit phase completed, advanced to next phase")
+				log.Printf("Shadow phase completed, advanced to next phase")
 			}
 		} else {
-			log.Printf("Pursuit phase completed, but no phase manager available")
+			log.Printf("Shadow phase completed, but no phase manager available")
 		}
 	}()
 
 	return nil
 }
 
-func (h *PursuitPhaseHandler) CanComplete(gameID string, turn int) (bool, error) {
+func (h *ShadowPhaseHandler) CanComplete(gameID string, turn int) (bool, error) {
 	return true, nil
 }
 
-func (h *PursuitPhaseHandler) Complete(gameID string, turn int) error {
-	// Заглушка - завершение преследования
+func (h *ShadowPhaseHandler) Complete(gameID string, turn int) error {
+	// Заглушка - завершение слежения
 	return nil
 }
 
-func (h *PursuitPhaseHandler) GetName() string {
-	return "Фаза преследования"
+func (h *ShadowPhaseHandler) GetName() string {
+	return "Фаза слежения"
 }
 
-func (h *PursuitPhaseHandler) GetDescription() string {
-	return "Преследование кораблей"
+func (h *ShadowPhaseHandler) GetDescription() string {
+	return "Попытки слежения за обнаруженными кораблями"
 }
 
-func (h *PursuitPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+func (h *ShadowPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
 	h.phaseManager = pm
 }
 

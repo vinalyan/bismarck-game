@@ -3,7 +3,7 @@
 import React from 'react';
 import { HexCoordinate, HexData } from '../types/mapTypes';
 import { Point } from '../utils/hexUtils';
-import { shipUtils } from '../data/localShips';
+import { useGameStore } from '../stores/gameStore';
 import { ActiveHex, ACTIVE_HEX_CONFIGS } from '../utils/activeHexesUtils';
 import './Hex.css';
 
@@ -59,7 +59,7 @@ const Hex: React.FC<HexProps> = ({
     };
 
     const sideName = unitSide === 'german' ? 'Немецкий' : 'Британский';
-    const typeName = typeNames[unitType] || shipUtils.getShipTypeName(unitType);
+    const typeName = typeNames[unitType] || unitType; // Упрощенная версия без shipUtils
     
     return `${sideName} ${typeName}`;
   };
@@ -175,7 +175,7 @@ const Hex: React.FC<HexProps> = ({
   return (
     <>
       <g
-        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''}`}
+        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isAvailableForMovement ? 'available-for-movement' : ''}`}
         onClick={onClick}
         onMouseEnter={onHover}
         style={{ cursor: activeHex ? 'pointer' : 'default' }}

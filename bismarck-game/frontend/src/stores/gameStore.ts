@@ -14,6 +14,7 @@ import {
   WSMessage,
   WSMessageType
 } from '../types/gameTypes';
+import { ShipConfig } from '../services/api/shipsAPI';
 
 // Интерфейс состояния приложения
 interface AppState {
@@ -34,6 +35,9 @@ interface AppState {
   wsConnection: WebSocket | null;
   isConnected: boolean;
   chatMessages: ChatMessage[];
+
+  // Конфигурация кораблей
+  shipsConfig: ShipConfig[];
 
   // Действия для пользователя
   setUser: (user: User | null) => void;
@@ -62,6 +66,12 @@ interface AppState {
   setConnected: (connected: boolean) => void;
   addChatMessage: (message: ChatMessage) => void;
   clearChatMessages: () => void;
+
+  // Действия для конфигурации кораблей
+  setShipsConfig: (ships: ShipConfig[]) => void;
+  getShipConfig: (shipId: string) => ShipConfig | null;
+  getShipsBySide: (side: 'german' | 'allied') => ShipConfig[];
+  getShipsByType: (type: string) => ShipConfig[];
 
   // Действия для аутентификации
   login: (user: User, token: string) => void;
@@ -95,6 +105,8 @@ export const useGameStore = create<AppState>()(
       wsConnection: null,
       isConnected: false,
       chatMessages: [],
+
+      shipsConfig: [],
 
       // Действия для пользователя
       setUser: (user) => set({ user }),
@@ -177,6 +189,21 @@ export const useGameStore = create<AppState>()(
           chatMessages: [...state.chatMessages, message],
         })),
       clearChatMessages: () => set({ chatMessages: [] }),
+
+      // Действия для конфигурации кораблей
+      setShipsConfig: (ships) => set({ shipsConfig: ships }),
+      getShipConfig: (shipId) => {
+        const state = get();
+        return state.shipsConfig.find(ship => ship.id === shipId) || null;
+      },
+      getShipsBySide: (side) => {
+        const state = get();
+        return state.shipsConfig.filter(ship => ship.side === side);
+      },
+      getShipsByType: (type) => {
+        const state = get();
+        return state.shipsConfig.filter(ship => ship.type === type);
+      },
 
       // Действия для аутентификации
       login: (user, token) => {
@@ -274,3 +301,4 @@ export const useNotifications = () => useGameStore((state) => state.ui.notificat
 export const useChatMessages = () => useGameStore((state) => state.chatMessages);
 export const useWSConnection = () => useGameStore((state) => state.wsConnection);
 export const useIsConnected = () => useGameStore((state) => state.isConnected);
+export const useShipsConfig = () => useGameStore((state) => state.shipsConfig);

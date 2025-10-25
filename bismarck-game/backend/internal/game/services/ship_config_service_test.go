@@ -195,8 +195,8 @@ func TestCreateNavalUnitFromConfig(t *testing.T) {
 		t.Errorf("Неверное базовое уклонение: ожидалось 30, получено %d", unit.BaseEvasion)
 	}
 
-	if unit.RadarLevel != 0 {
-		t.Errorf("Неверный уровень радара: ожидалось 0, получено %d", unit.RadarLevel)
+	if unit.RadarLevel != 2 {
+		t.Errorf("Неверный уровень радара: ожидалось 2, получено %d", unit.RadarLevel)
 	}
 
 	// Проверяем вооружение

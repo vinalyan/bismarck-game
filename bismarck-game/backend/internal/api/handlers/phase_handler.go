@@ -139,11 +139,16 @@ func (h *PhaseHandler) StartPhase(w http.ResponseWriter, r *http.Request) {
 	}
 
 	phase := models.GamePhase(req.Phase)
+	log.Printf("🔄 API: Starting phase %s for game %s turn %d", phase, req.GameID, req.Turn)
+
 	err := h.phaseManager.StartPhase(req.GameID, req.Turn, phase)
 	if err != nil {
+		log.Printf("❌ API: Failed to start phase %s: %v", phase, err)
 		utils.WriteInternalError(w, "Failed to start phase: "+err.Error())
 		return
 	}
+
+	log.Printf("✅ API: Phase %s started successfully for game %s turn %d", phase, req.GameID, req.Turn)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
@@ -189,11 +194,16 @@ func (h *PhaseHandler) CompletePhase(w http.ResponseWriter, r *http.Request) {
 	}
 
 	phase := models.GamePhase(req.Phase)
+	log.Printf("🔄 API: Completing phase %s for game %s turn %d", phase, req.GameID, req.Turn)
+
 	err := h.phaseManager.CompletePhase(req.GameID, req.Turn, phase)
 	if err != nil {
+		log.Printf("❌ API: Failed to complete phase %s: %v", phase, err)
 		utils.WriteInternalError(w, "Failed to complete phase: "+err.Error())
 		return
 	}
+
+	log.Printf("✅ API: Phase %s completed successfully for game %s turn %d", phase, req.GameID, req.Turn)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
@@ -229,11 +239,16 @@ func (h *PhaseHandler) NextPhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("🔄 API: NextPhase called for game %s", req.GameID)
+
 	err := h.phaseManager.NextPhase(req.GameID)
 	if err != nil {
+		log.Printf("❌ API: Failed to advance to next phase: %v", err)
 		utils.WriteInternalError(w, "Failed to advance to next phase: "+err.Error())
 		return
 	}
+
+	log.Printf("✅ API: NextPhase completed successfully for game %s", req.GameID)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
@@ -287,54 +302,6 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetPhaseInfo возвращает информацию о фазе
-// @Summary Получение информации о фазе
-// @Tags Phases
-// @Accept json
-// @Produce json
-// @Param phase query string true "Название фазы"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 404 {object} map[string]interface{}
-// @Router /phases/info [get]
-func (h *PhaseHandler) GetPhaseInfo(w http.ResponseWriter, r *http.Request) {
-	phaseStr := r.URL.Query().Get("phase")
-	if phaseStr == "" {
-		utils.WriteValidationError(w, "Phase is required", map[string]string{
-			"phase": "Phase parameter is required",
-		})
-		return
-	}
-
-	phase := models.GamePhase(phaseStr)
-	config := h.phaseManager.GetPhaseInfo(phase)
-	if config == nil {
-		utils.WriteError(w, http.StatusNotFound, "Phase not found")
-		return
-	}
-
-	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"success": true,
-		"data":    config,
-	})
-}
-
-// GetAllPhases возвращает информацию о всех фазах
-// @Summary Получение информации о всех фазах
-// @Tags Phases
-// @Accept json
-// @Produce json
-// @Success 200 {object} map[string]interface{}
-// @Router /phases/all [get]
-func (h *PhaseHandler) GetAllPhases(w http.ResponseWriter, r *http.Request) {
-	configs := models.GetPhaseConfigs()
-
-	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"success": true,
-		"data":    configs,
-	})
-}
-
 // RegisterRoutes регистрирует маршруты для управления фазами
 func (h *PhaseHandler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/api/phases/current", h.GetCurrentPhase).Methods("GET")
@@ -343,6 +310,4 @@ func (h *PhaseHandler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/api/phases/complete", h.CompletePhase).Methods("POST")
 	router.HandleFunc("/api/phases/next", h.NextPhase).Methods("POST")
 	router.HandleFunc("/api/phases/turn/start", h.StartTurn).Methods("POST")
-	router.HandleFunc("/api/phases/info", h.GetPhaseInfo).Methods("GET")
-	router.HandleFunc("/api/phases/all", h.GetAllPhases).Methods("GET")
 }

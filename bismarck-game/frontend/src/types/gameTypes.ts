@@ -46,7 +46,7 @@ export interface Game {
   player1_id: string;
   player2_id?: string;
   current_turn: number;
-  current_phase: GamePhase;
+  current_phase: string;
   status: GameStatus;
   settings: GameSettings;
   created_at: string;
@@ -54,15 +54,8 @@ export interface Game {
   completed_at?: string;
 }
 
-// Фазы игры
-export enum GamePhase {
-  Waiting = 'waiting',
-  Setup = 'setup',
-  Movement = 'movement',
-  Search = 'search',
-  Combat = 'combat',
-  End = 'end'
-}
+// Импортируем GamePhase из phaseTypes
+export type { GamePhase } from './phaseTypes';
 
 // Статус игры
 export enum GameStatus {
@@ -133,7 +126,7 @@ export interface GameResponse {
   player1?: User;
   player2?: User;
   current_turn: number;
-  current_phase: GamePhase;
+  current_phase: string;
   status: GameStatus;
   settings: GameSettings;
   created_at: string;
@@ -458,7 +451,7 @@ export interface UnitMovement {
   fuelCost: number;
   isShadowed: boolean;
   turn: number;
-  phase: GamePhase;
+  phase: string;
   createdAt: string;
 }
 
@@ -473,7 +466,7 @@ export interface UnitSearch {
   result: 'no_contact' | 'contact' | 'detection';
   unitsFound: string[]; // IDs найденных юнитов
   turn: number;
-  phase: GamePhase;
+  phase: string;
   createdAt: string;
 }
 

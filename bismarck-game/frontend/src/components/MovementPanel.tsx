@@ -53,7 +53,7 @@ const MovementPanel: React.FC<MovementPanelProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await movementAPI.getAvailableMoves(gameId, selectedUnit.id);
+      const response = await movementAPI.getAvailableMoves(gameId, selectedUnit.id, authToken);
       setAvailableMoves(response.available_hexes);
       setFuelCosts(response.fuel_costs);
     } catch (err: any) {
@@ -89,7 +89,8 @@ const MovementPanel: React.FC<MovementPanelProps> = ({
       setError(null);
 
       const result = await movementAPI.moveUnit(gameId, selectedUnit.id, {
-        toHex: selectedHex
+        unit_id: selectedUnit.id,
+        to_hex: selectedHex
       }, authToken);
 
       if (result.success) {

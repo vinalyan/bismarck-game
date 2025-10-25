@@ -63,24 +63,29 @@ func (c *StandardHexCalculator) HexToCube(hex string) Cube {
 	row := int(letter[0] - 'A')
 	col := number - 1
 
-	// Преобразуем offset координаты в кубические
-	// Используем формулу из фронтенда: q = col - floor((row + 1) / 2)
-	q := col - (row+1)/2
-	r := row
-	sCoord := -q - r
+	// Преобразуем offset координаты в кубические используя ТОЧНУЮ логику из frontend
+	// hex_num = offset.row * HEX_GRID_WIDTH + offset.col
+	hexNum := row*35 + col
+	// r = Math.floor(hex_num / HEX_GRID_WIDTH)
+	r := hexNum / 35
+	// q = hex_num % HEX_GRID_WIDTH - Math.floor((r + 1) / 2)
+	q := hexNum%35 - (r+1)/2
+	// s = -q - r
+	s := -q - r
 
-	return Cube{Q: q, R: r, S: sCoord}
+	return Cube{Q: q, R: r, S: s}
 }
 
 // CubeToHex преобразует кубические координаты обратно в гекс
 func (c *StandardHexCalculator) CubeToHex(cube Cube) string {
-	// Преобразуем кубические координаты в offset с учетом смещения строк
-	// Используем формулу: col = q + floor((r + 1) / 2), row = r
+	// Преобразуем кубические координаты в offset используя ТОЧНУЮ логику из frontend
+	// col = hex.q + Math.floor((hex.r + 1) / 2)
 	col := cube.Q + (cube.R+1)/2
+	// row = hex.r
 	row := cube.R
 
 	// Проверяем границы
-	if row < 0 || row > 25 || col < 0 || col > 35 {
+	if row < 0 || row > 33 || col < 0 || col > 34 {
 		return "INVALID"
 	}
 
@@ -95,81 +100,37 @@ func (c *StandardHexCalculator) CubeToHex(cube Cube) string {
 func (c *StandardHexCalculator) GetHexesInRange(centerHex string, maxDistance int) []string {
 	hexes := []string{}
 
-	// Парсим центральный гекс (например, "J30")
+	// Проверяем валидность гекса
 	if len(centerHex) < 2 {
 		return hexes
 	}
 
-	// Извлекаем букву и число
-	var letter string
-	var number int
-	if len(centerHex) == 3 { // например "J30"
-		letter = centerHex[:1]
-		number = int(centerHex[1]-'0')*10 + int(centerHex[2]-'0')
-	} else if len(centerHex) == 2 { // например "J3"
-		letter = centerHex[:1]
-		number = int(centerHex[1] - '0')
-	} else {
-		return hexes
-	}
+	// Используем кубические координаты для правильного расчета
+	centerCube := c.HexToCube(centerHex)
 
-	// Генерируем соседние гексы для расстояния 1
-	if maxDistance >= 1 {
-		// Соседние гексы для расстояния 1 (6 направлений)
-		neighbors := []struct {
-			letterOffset int
-			numberOffset int
-		}{
-			{0, 1},  // Вправо
-			{0, -1}, // Влево
-			{1, 0},  // Вниз-вправо
-			{-1, 0}, // Вверх-влево
-			{1, -1}, // Вниз-влево
-			{-1, 1}, // Вверх-вправо
-		}
+	// Генерируем все гексы в радиусе, используя кубические координаты
+	for q := centerCube.Q - maxDistance; q <= centerCube.Q+maxDistance; q++ {
+		for r := centerCube.R - maxDistance; r <= centerCube.R+maxDistance; r++ {
+			s := -q - r
 
-		for _, neighbor := range neighbors {
-			newLetter := string(rune(letter[0]) + rune(neighbor.letterOffset))
-			newNumber := number + neighbor.numberOffset
-
-			// Проверяем границы (A-Z, 1-35)
-			if newLetter >= "A" && newLetter <= "Z" && newNumber >= 1 && newNumber <= 35 {
-				hexes = append(hexes, fmt.Sprintf("%s%d", newLetter, newNumber))
+			// Проверяем, что это валидные кубические координаты
+			if q+r+s != 0 {
+				continue
 			}
-		}
-	}
 
-	// Для расстояния 2 добавляем дополнительные гексы
-	if maxDistance >= 2 {
-		// Добавляем гексы на расстоянии 2
-		for letterOffset := -2; letterOffset <= 2; letterOffset++ {
-			for numberOffset := -2; numberOffset <= 2; numberOffset++ {
-				// Пропускаем гексы на расстоянии 0 и 1 (уже добавлены)
-				if (letterOffset == 0 && numberOffset == 0) ||
-					(abs(letterOffset)+abs(numberOffset) == 1) {
-					continue
-				}
-
-				newLetter := string(rune(letter[0]) + rune(letterOffset))
-				newNumber := number + numberOffset
-
-				if newLetter >= "A" && newLetter <= "Z" && newNumber >= 1 && newNumber <= 35 {
-					hex := fmt.Sprintf("%s%d", newLetter, newNumber)
-					// Проверяем, что гекс еще не добавлен
-					found := false
-					for _, existingHex := range hexes {
-						if existingHex == hex {
-							found = true
-							break
-						}
-					}
-					if !found {
-						hexes = append(hexes, hex)
-					}
+			// Проверяем расстояние
+			cube := Cube{Q: q, R: r, S: s}
+			hex := c.CubeToHex(cube)
+			if hex != "INVALID" && hex != centerHex {
+				distance := c.CalculateDistance(centerHex, hex)
+				if distance <= maxDistance {
+					hexes = append(hexes, hex)
 				}
 			}
 		}
 	}
+
+	// Старый код удален - теперь используется кубическая система координат
 
 	return hexes
 }

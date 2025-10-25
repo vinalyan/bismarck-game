@@ -122,6 +122,20 @@
   pointer-events: none;
 }
 
+/* Стили для подсветки доступных гексов для движения */
+.hex.available-for-movement .hex-shape {
+  stroke: #22C55E !important;
+  stroke-width: 3 !important;
+  fill-opacity: 0.2 !important;
+  fill: #22C55E !important;
+}
+
+.hex.available-for-movement:hover .hex-shape {
+  stroke: #16A34A !important;
+  stroke-width: 4 !important;
+  fill-opacity: 0.3 !important;
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
   .map-controls {

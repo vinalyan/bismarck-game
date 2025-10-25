@@ -79,7 +79,7 @@ func TestFastShipStrategy_CalculateFuelCost(t *testing.T) {
 			name:              "2 hex movement after 0 hexes (not moved)",
 			distance:          2,
 			previousTurnMoved: 0,
-			expectedFuelCost:  0, // ИЗМЕНЕНО: было 1, должно быть 0
+			expectedFuelCost:  1, // 1 FP за 2 гекса после 0 гексов в предыдущем ходу
 		},
 		{
 			name:              "2 hex movement after 1 hex",

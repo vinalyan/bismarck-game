@@ -260,6 +260,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 			detection_level = $8, last_known_pos = $9,
 			task_force_id = $10, damage = $11,
 			no_movement_turns_left = $12, is_emergency_fuel = $13, emergency_removal_turn = $14,
+			movement_used = $15, last_move_turn = $16,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1`
 
@@ -277,6 +278,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 		unit.DetectionLevel, unit.LastKnownPos,
 		unit.TaskForceID, damageJSON, unit.NoMovementTurnsLeft,
 		unit.IsEmergencyFuel, unit.EmergencyTurn,
+		unit.MovementUsed, unit.LastMoveTurn,
 	)
 	if err != nil {
 		s.logger.Error("Failed to update naval unit", "unit_id", unit.ID, "error", err)
@@ -305,7 +307,6 @@ func (s *UnitService) UpdateAirUnit(unit *models.AirUnit) error {
 	s.logger.Info("Updated air unit", "unit_id", unit.ID)
 	return nil
 }
-
 
 // SearchUnit выполняет поиск юнитом
 func (s *UnitService) SearchUnit(unitID string, targetHex string, searchType string, turn int, phase models.GamePhase) (*models.UnitSearch, error) {
@@ -671,7 +672,7 @@ func (s *UnitService) AwardVPForSunkShip(gameID string, unit *models.NavalUnit) 
 	if vp == 0 {
 		vp = 1 // Дефолтное значение
 	}
-	
+
 	// Определяем противника
 	var opponentSide string
 	if unit.Owner == "german" {
@@ -679,7 +680,7 @@ func (s *UnitService) AwardVPForSunkShip(gameID string, unit *models.NavalUnit) 
 	} else {
 		opponentSide = "german"
 	}
-	
+
 	// Начисляем VP противнику
 	query := `
 		UPDATE games 
@@ -692,12 +693,12 @@ func (s *UnitService) AwardVPForSunkShip(gameID string, unit *models.NavalUnit) 
 		s.logger.Error("Failed to award VP for sunk ship", "error", err, "unit_id", unit.ID)
 		return fmt.Errorf("failed to award VP: %w", err)
 	}
-	
+
 	s.logger.Info("VP awarded for sunk ship",
 		"unit_id", unit.ID,
 		"class", unit.Class,
 		"vp", vp,
 		"awarded_to", opponentSide)
-	
+
 	return nil
 }
