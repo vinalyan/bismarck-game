@@ -79,7 +79,7 @@ const HexMapEditor: React.FC<HexMapEditorProps> = ({
     hexes.forEach((hexData, hexId) => {
       const offset: OffsetCoord = { col: hexData.coordinate.col, row: hexData.coordinate.row };
       const center = offsetToPixel(offset, hexRadius);
-      const corners = offsetPolygonCorners(center, hexRadius);
+      const corners = offsetPolygonCorners(offset, hexRadius);
       
       const isSelected = selectedHexIds.includes(hexId);
       
