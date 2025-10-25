@@ -824,7 +824,10 @@ const Game: React.FC = () => {
                       </div>
                       <div className="unit-status">
                         <span>Позиция: {unit.position}</span>
-                        <span>Топливо: {unit.fuel || 0}/{unit.max_fuel || 0}</span>
+                        {/* Показываем топливо только для быстрых и средних юнитов */}
+                        {(unit.speed_rating === 'F' || unit.speed_rating === 'M') && (
+                          <span>Топливо: {unit.fuel || 0}/{unit.max_fuel || 0}</span>
+                        )}
                         <span>Скорость: {
                           unit.speed_rating === 'F' ? 'Быстрый' :
                           unit.speed_rating === 'M' ? 'Средний' :
