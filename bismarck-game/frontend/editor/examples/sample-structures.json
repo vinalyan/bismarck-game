@@ -1,0 +1,53 @@
+{
+  "ports": [
+    {
+      "type": "port",
+      "hexIds": ["O32", "O33"],
+      "portType": "norway",
+      "name": "Киль",
+      "canRefuel": true,
+      "canReloadTorpedoes": true
+    },
+    {
+      "type": "port",
+      "hexIds": ["S26"],
+      "portType": "france",
+      "name": "Брест",
+      "canRefuel": true,
+      "canReloadTorpedoes": true
+    }
+  ],
+  "canals": [
+    {
+      "type": "canal",
+      "fromHex": "O32",
+      "toHex": "O33",
+      "allowedSide": "german",
+      "name": "Kaiser Wilhelm Canal"
+    }
+  ],
+  "convoyRoutes": [
+    {
+      "type": "convoy_route",
+      "hexIds": ["A10", "B10", "C10", "D10", "E10"],
+      "direction": "ew",
+      "name": "Main Convoy Route"
+    }
+  ],
+  "airSectors": [
+    {
+      "type": "air_sector",
+      "hexIds": ["K10", "K11", "L10", "L11"],
+      "name": "Northern Sector"
+    }
+  ],
+  "englishChannel": {
+    "type": "english_channel",
+    "hexIds": ["Q29", "Q30", "T26", "U26"]
+  },
+  "restrictedDD": {
+    "type": "restricted_dd",
+    "hexIds": ["P30", "P31", "Q30", "Q31"]
+  }
+}
+
