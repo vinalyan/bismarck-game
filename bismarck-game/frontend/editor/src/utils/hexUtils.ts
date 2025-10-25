@@ -469,8 +469,12 @@ export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
     x -= horizontalStep * 0.5;
   }
   
+  // Для выравнивания левого края гексов с левым краем карты добавляем меньше отступ слева
+  // А также добавляем половину шага для четных строк, чтобы их левый край совпадал с краем карты
+  const adjustedMarginLeft = MAP_CONSTANTS.MARGIN_LEFT - horizontalStep * 0.5;
+  
   // Добавляем отступы от краев
-  x += MAP_CONSTANTS.MARGIN_LEFT;
+  x += adjustedMarginLeft;
   y += MAP_CONSTANTS.MARGIN_TOP;
   
   return { x, y };
