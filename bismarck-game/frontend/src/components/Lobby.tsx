@@ -305,6 +305,31 @@ const Lobby: React.FC = () => {
     }
   };
 
+  // Фильтрация игр - показываем только те, к которым пользователь может подключиться
+  const getVisibleGames = (): GameResponse[] => {
+    return games.filter(game => {
+      // Проверяем, является ли пользователь участником игры
+      const isParticipant = game.player1_id === user?.id || game.player2_id === user?.id;
+      
+      // Для игр в статусе "Ожидание": показываем если пользователь участник ИЛИ есть свободное место
+      if (game.status === GameStatus.Waiting) {
+        // Показываем если пользователь участник ИЛИ есть хотя бы одно свободное место
+        const hasEmptySlot = !game.player1_id || !game.player2_id;
+        return isParticipant || hasEmptySlot;
+      }
+      
+      // Для игр в процессе: показываем только если пользователь участник
+      if (game.status === GameStatus.InProgress) {
+        return isParticipant;
+      }
+      
+      // Для других статусов (Completed, Cancelled): не показываем
+      return false;
+    });
+  };
+
+  const visibleGames = getVisibleGames();
+
   return (
     <div className="lobby-container">
       <div className="lobby-header">
@@ -395,13 +420,13 @@ const Lobby: React.FC = () => {
           )}
 
           <div className="games-list">
-            {games.length === 0 ? (
+            {visibleGames.length === 0 ? (
               <div className="no-games">
                 <p>Нет доступных игр</p>
                 <p>Создайте новую игру или подождите, пока кто-то создаст</p>
               </div>
             ) : (
-              games.map((game) => (
+              visibleGames.map((game) => (
                 <div key={game.id} className="game-card">
                   <div className="game-info">
                     <h3>{game.name}</h3>
@@ -410,15 +435,9 @@ const Lobby: React.FC = () => {
                       <br />
                       🇬🇧 Союзники: {game.player2_username || (game.player2_id ? 'Ожидается' : 'Свободно')}
                     </p>
-                    <p className="game-settings">
-                      Сложность: {game.settings?.difficulty || 'Стандартная'}, 
-                      Лимит времени: {game.settings?.time_limit_minutes || 180} мин
+                    <p className="game-turn">
+                      📊 Ход: {game.current_turn} | Фаза: {game.current_phase}
                     </p>
-                    {game.status === GameStatus.InProgress && (
-                      <p className="game-turn">
-                        📊 Ход: {game.current_turn} | Фаза: {game.current_phase}
-                      </p>
-                    )}
                   </div>
                   
                   <div className="game-status">
