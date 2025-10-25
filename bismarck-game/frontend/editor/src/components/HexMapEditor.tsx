@@ -128,13 +128,15 @@ const HexMapEditor: React.FC<HexMapEditorProps> = ({
           position: 'absolute',
           top: 0,
           left: 0,
-          width: '100%',
-          height: '100%',
+          width: '200%',
+          height: '200%',
           backgroundImage: 'url(/allied-map.jpg)',
-          backgroundSize: 'cover',
+          backgroundSize: 'contain',
           backgroundPosition: 'center',
           opacity: 0.7,
-          zIndex: 0
+          zIndex: 0,
+          transform: 'scale(0.5)',
+          transformOrigin: 'top left'
         }}
       />
       
