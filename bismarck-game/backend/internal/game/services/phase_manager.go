@@ -99,6 +99,25 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 
 	// Сбрасываем только ограничения движения, НЕ сбрасываем previous_turn_moved_hexes
 	// previous_turn_moved_hexes должен сохраняться до завершения фазы движения
+	
+	// Сначала получаем текущие значения для отладки
+	rows, err := pm.db.Query(`
+		SELECT id, name, no_movement_turns_left 
+		FROM naval_units 
+		WHERE game_id = $1 AND (speed_rating = 'S' OR speed_rating = 'VS')
+	`, gameID)
+	if err == nil {
+		log.Printf("🔄 BEFORE RESET - no_movement_turns_left for slow units in game %s turn %d:", gameID, turnNumber)
+		for rows.Next() {
+			var id, name string
+			var noMovementTurnsLeft int
+			if err := rows.Scan(&id, &name, &noMovementTurnsLeft); err == nil {
+				log.Printf("  Unit %s (%s): no_movement_turns_left=%d", id, name, noMovementTurnsLeft)
+			}
+		}
+		rows.Close()
+	}
+	
 	resetMovementQuery := `
 		UPDATE naval_units 
 		SET 
@@ -113,6 +132,24 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		log.Printf("Warning: failed to reset movement restrictions: %v", err)
 	} else {
 		log.Printf("Movement restrictions reset for all units in game %s turn %d", gameID, turnNumber)
+		
+		// Проверяем результат
+		rows, err := pm.db.Query(`
+			SELECT id, name, no_movement_turns_left 
+			FROM naval_units 
+			WHERE game_id = $1 AND (speed_rating = 'S' OR speed_rating = 'VS')
+		`, gameID)
+		if err == nil {
+			log.Printf("🔄 AFTER RESET - no_movement_turns_left for slow units in game %s turn %d:", gameID, turnNumber)
+			for rows.Next() {
+				var id, name string
+				var noMovementTurnsLeft int
+				if err := rows.Scan(&id, &name, &noMovementTurnsLeft); err == nil {
+					log.Printf("  Unit %s (%s): no_movement_turns_left=%d", id, name, noMovementTurnsLeft)
+				}
+			}
+			rows.Close()
+		}
 	}
 
 	// Если это первый ход, завершаем setup фазу

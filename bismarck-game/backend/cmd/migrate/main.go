@@ -362,6 +362,12 @@ func getMigrations() []Migration {
 					target_acquired VARCHAR(50),
 					torpedoes_used INTEGER DEFAULT 0,
 					movement_used INTEGER DEFAULT 0,
+					previous_turn_moved_hexes INTEGER DEFAULT 0,
+					last_move_turn INTEGER DEFAULT 0,
+					no_movement_turns_left INTEGER DEFAULT 0,
+					is_activated BOOLEAN DEFAULT false,
+					is_emergency_fuel BOOLEAN DEFAULT false,
+					emergency_removal_turn INTEGER DEFAULT 0,
 					
 					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -575,6 +581,22 @@ func getMigrations() []Migration {
 				DROP INDEX IF EXISTS idx_naval_units_emergency_fuel;
 				ALTER TABLE naval_units DROP COLUMN IF EXISTS emergency_turn;
 				ALTER TABLE naval_units DROP COLUMN IF EXISTS is_emergency_fuel;
+			`,
+		},
+		{
+			Version:     "010_add_movement_fields",
+			Description: "Add movement tracking fields to naval_units table",
+			SQL: `
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS previous_turn_moved_hexes INTEGER DEFAULT 0;
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS last_move_turn INTEGER DEFAULT 0;
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS no_movement_turns_left INTEGER DEFAULT 0;
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS is_activated BOOLEAN DEFAULT false;
+			`,
+			RollbackSQL: `
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS previous_turn_moved_hexes;
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS last_move_turn;
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS no_movement_turns_left;
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS is_activated;
 			`,
 		},
 	}
