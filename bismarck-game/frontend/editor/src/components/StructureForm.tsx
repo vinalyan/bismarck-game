@@ -27,6 +27,8 @@ const StructureForm: React.FC<StructureFormProps> = ({ type, hexIds, onSubmit, o
       air_sector: 'Air Sector',
       english_channel: 'English Channel',
       restricted_dd: 'Restricted DD',
+      non_game_hex: 'Non-Game Hex',
+      land: 'Land Area',
     };
     setName(defaultNames[type]);
   }, [type]);
@@ -81,6 +83,20 @@ const StructureForm: React.FC<StructureFormProps> = ({ type, hexIds, onSubmit, o
         structure = {
           type: 'restricted_dd',
           hexIds,
+        };
+        break;
+      case 'non_game_hex':
+        structure = {
+          type: 'non_game_hex',
+          hexIds,
+          name,
+        };
+        break;
+      case 'land':
+        structure = {
+          type: 'land',
+          hexIds,
+          name,
         };
         break;
     }

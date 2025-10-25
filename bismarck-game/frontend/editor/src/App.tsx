@@ -14,15 +14,34 @@ import {
 } from './utils/structureUtils';
 import './App.css';
 
+interface MapSettings {
+  startX: number;
+  startY: number;
+  mapWidth: number;
+  mapHeight: number;
+  backgroundWidth: number;
+  backgroundHeight: number;
+}
+
 const App: React.FC = () => {
   const [selectedStructureType, setSelectedStructureType] = useState<StructureType | null>(null);
   const [selectedHexes, setSelectedHexes] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [mapSettings, setMapSettings] = useState<MapSettings>({
+    startX: 21,
+    startY: 0,
+    mapWidth: 1673,
+    mapHeight: 1500,
+    backgroundWidth: 1681,
+    backgroundHeight: 1430,
+  });
   const [structures, setStructures] = useState<MapStructures>({
     ports: [],
     canals: [],
     convoyRoutes: [],
     airSectors: [],
+    nonGameHexes: [],
+    landAreas: [],
   });
 
   // Обработка клика по гексу
@@ -78,6 +97,10 @@ const App: React.FC = () => {
           return { ...prev, englishChannel: structure };
         case 'restricted_dd':
           return { ...prev, restrictedDD: structure };
+        case 'non_game_hex':
+          return { ...prev, nonGameHexes: [...prev.nonGameHexes, structure] };
+        case 'land':
+          return { ...prev, landAreas: [...prev.landAreas, structure] };
       }
     });
     
@@ -139,11 +162,23 @@ const App: React.FC = () => {
       result.push({ hexIds: structures.restrictedDD.hexIds, color: STRUCTURE_COLORS.restricted_dd });
     }
     
+    structures.nonGameHexes.forEach(hex => {
+      result.push({ hexIds: hex.hexIds, color: STRUCTURE_COLORS.non_game_hex });
+    });
+    
+    structures.landAreas.forEach(land => {
+      result.push({ hexIds: land.hexIds, color: STRUCTURE_COLORS.land });
+    });
+    
     return result;
   }, [structures]);
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ 
+      display: 'flex', 
+      height: '100vh', 
+      overflow: 'hidden'
+    }}>
       {/* Панель управления */}
       <StructurePanel
         selectedType={selectedStructureType}
@@ -154,22 +189,36 @@ const App: React.FC = () => {
         onExport={handleExport}
         onImport={handleImport}
         structures={structures}
+        mapSettings={mapSettings}
+        onMapSettingsChange={setMapSettings}
       />
 
       {/* Карта */}
-      <div style={{ flex: 1, position: 'relative' }}>
-        <HexMapEditor
-          onHexClick={handleHexClick}
-          selectedHexIds={selectedHexes}
-          selectionColor={selectedStructureType ? STRUCTURE_COLORS[selectedStructureType] : undefined}
-          savedStructures={savedStructures}
-        />
+      <div style={{ 
+        flex: 1, 
+        position: 'relative',
+        overflow: 'auto'
+      }}>
+        <div style={{ 
+          width: `${mapSettings.mapWidth}px`,
+          height: `${mapSettings.mapHeight}px`,
+          position: 'relative',
+          backgroundColor: '#fff'
+        }}>
+          <HexMapEditor
+            onHexClick={handleHexClick}
+            selectedHexIds={selectedHexes}
+            selectionColor={selectedStructureType ? STRUCTURE_COLORS[selectedStructureType] : undefined}
+            savedStructures={savedStructures}
+            mapSettings={mapSettings}
+          />
+        </div>
       </div>
 
       {/* Форма создания структуры */}
       {showForm && selectedStructureType && (
         <div style={{
-          position: 'absolute',
+          position: 'fixed',
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',

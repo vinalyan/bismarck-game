@@ -3,6 +3,15 @@
 import React from 'react';
 import { StructureType, MapStructures, STRUCTURE_LABELS } from '../types/editorTypes';
 
+interface MapSettings {
+  startX: number;
+  startY: number;
+  mapWidth: number;
+  mapHeight: number;
+  backgroundWidth: number;
+  backgroundHeight: number;
+}
+
 interface StructurePanelProps {
   selectedType: StructureType | null;
   onSelectType: (type: StructureType | null) => void;
@@ -12,6 +21,8 @@ interface StructurePanelProps {
   onExport: () => void;
   onImport: (file: File) => void;
   structures: MapStructures;
+  mapSettings: MapSettings;
+  onMapSettingsChange: (settings: MapSettings) => void;
 }
 
 const StructurePanel: React.FC<StructurePanelProps> = ({
@@ -23,6 +34,8 @@ const StructurePanel: React.FC<StructurePanelProps> = ({
   onExport,
   onImport,
   structures,
+  mapSettings,
+  onMapSettingsChange,
 }) => {
   const handleImportClick = () => {
     const input = document.createElement('input');
@@ -48,10 +61,87 @@ const StructurePanel: React.FC<StructurePanelProps> = ({
     }}>
       <h2 style={{ marginTop: 0 }}>Редактор структур</h2>
 
+      {/* Настройки карты */}
+      <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#fff', borderRadius: '5px' }}>
+        <h3 style={{ marginTop: 0 }}>Настройки карты</h3>
+        
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
+            Начало X:
+          </label>
+          <input
+            type="number"
+            value={mapSettings.startX}
+            onChange={(e) => onMapSettingsChange({ ...mapSettings, startX: Number(e.target.value) })}
+            style={{ width: '100%', padding: '5px', fontSize: '12px' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
+            Начало Y:
+          </label>
+          <input
+            type="number"
+            value={mapSettings.startY}
+            onChange={(e) => onMapSettingsChange({ ...mapSettings, startY: Number(e.target.value) })}
+            style={{ width: '100%', padding: '5px', fontSize: '12px' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
+            Ширина карты:
+          </label>
+          <input
+            type="number"
+            value={mapSettings.mapWidth}
+            onChange={(e) => onMapSettingsChange({ ...mapSettings, mapWidth: Number(e.target.value) })}
+            style={{ width: '100%', padding: '5px', fontSize: '12px' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
+            Высота карты:
+          </label>
+          <input
+            type="number"
+            value={mapSettings.mapHeight}
+            onChange={(e) => onMapSettingsChange({ ...mapSettings, mapHeight: Number(e.target.value) })}
+            style={{ width: '100%', padding: '5px', fontSize: '12px' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
+            Ширина подложки:
+          </label>
+          <input
+            type="number"
+            value={mapSettings.backgroundWidth}
+            onChange={(e) => onMapSettingsChange({ ...mapSettings, backgroundWidth: Number(e.target.value) })}
+            style={{ width: '100%', padding: '5px', fontSize: '12px' }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>
+            Высота подложки:
+          </label>
+          <input
+            type="number"
+            value={mapSettings.backgroundHeight}
+            onChange={(e) => onMapSettingsChange({ ...mapSettings, backgroundHeight: Number(e.target.value) })}
+            style={{ width: '100%', padding: '5px', fontSize: '12px' }}
+          />
+        </div>
+      </div>
+
       {/* Кнопки выбора типа */}
       <div style={{ marginBottom: '20px' }}>
         <h3>Выберите структуру:</h3>
-        {(['port', 'canal', 'convoy_route', 'air_sector', 'english_channel', 'restricted_dd'] as StructureType[]).map(type => (
+        {(['port', 'canal', 'convoy_route', 'air_sector', 'english_channel', 'restricted_dd', 'non_game_hex', 'land'] as StructureType[]).map(type => (
           <button
             key={type}
             onClick={() => onSelectType(type)}
@@ -153,6 +243,8 @@ const StructurePanel: React.FC<StructurePanelProps> = ({
         <p>Каналов: {structures.canals.length}</p>
         <p>Маршрутов: {structures.convoyRoutes.length}</p>
         <p>Секторов: {structures.airSectors.length}</p>
+        <p>Не игровых гексов: {structures.nonGameHexes.length}</p>
+        <p>Суши: {structures.landAreas.length}</p>
         {structures.englishChannel && <p>Ла-Манш: создан</p>}
         {structures.restrictedDD && <p>Ограничение: создано</p>}
       </div>

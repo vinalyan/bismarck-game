@@ -8,6 +8,15 @@ import {
 } from '../utils/hexUtils';
 import './HexMap.css';
 
+interface MapSettings {
+  startX: number;
+  startY: number;
+  mapWidth: number;
+  mapHeight: number;
+  backgroundWidth: number;
+  backgroundHeight: number;
+}
+
 interface HexMapEditorProps {
   width?: number;
   height?: number;
@@ -15,6 +24,7 @@ interface HexMapEditorProps {
   selectedHexIds?: string[];
   selectionColor?: string;
   savedStructures?: Array<{ hexIds: string[]; color: string }>;
+  mapSettings?: MapSettings;
 }
 
 const HexMapEditor: React.FC<HexMapEditorProps> = ({
@@ -23,7 +33,8 @@ const HexMapEditor: React.FC<HexMapEditorProps> = ({
   onHexClick,
   selectedHexIds = [],
   selectionColor,
-  savedStructures = []
+  savedStructures = [],
+  mapSettings
 }) => {
   const [mapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS);
@@ -69,8 +80,11 @@ const HexMapEditor: React.FC<HexMapEditorProps> = ({
 
   // Получаем размер карты
   const mapSize = useMemo(() => {
+    if (mapSettings) {
+      return { width: mapSettings.mapWidth, height: mapSettings.mapHeight };
+    }
     return calculateMapSize(width, height, hexRadius);
-  }, [width, height, hexRadius]);
+  }, [width, height, hexRadius, mapSettings]);
 
   // Рендерим гексы
   const renderHexes = () => {
@@ -126,17 +140,16 @@ const HexMapEditor: React.FC<HexMapEditorProps> = ({
       <div 
         style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '200%',
-          height: '200%',
+          top: mapSettings ? `-${mapSettings.startY}px` : 0,
+          left: mapSettings ? `-${mapSettings.startX}px` : 0,
+          width: mapSettings ? `${mapSettings.backgroundWidth}px` : '100%',
+          height: mapSettings ? `${mapSettings.backgroundHeight}px` : '100%',
           backgroundImage: 'url(/allied-map.jpg)',
-          backgroundSize: 'contain',
-          backgroundPosition: 'center',
+          backgroundSize: mapSettings ? `${mapSettings.backgroundWidth}px ${mapSettings.backgroundHeight}px` : 'auto',
+          backgroundPosition: '0 0',
+          backgroundRepeat: 'no-repeat',
           opacity: 0.7,
-          zIndex: 0,
-          transform: 'scale(0.5)',
-          transformOrigin: 'top left'
+          zIndex: 0
         }}
       />
       

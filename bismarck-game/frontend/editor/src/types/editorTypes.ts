@@ -6,7 +6,9 @@ export type StructureType =
   | 'convoy_route'
   | 'air_sector'
   | 'english_channel'
-  | 'restricted_dd';
+  | 'restricted_dd'
+  | 'non_game_hex'
+  | 'land';
 
 export interface PortStructure {
   type: 'port';
@@ -48,13 +50,27 @@ export interface RestrictedDDStructure {
   hexIds: string[];
 }
 
+export interface NonGameHexStructure {
+  type: 'non_game_hex';
+  hexIds: string[];
+  name: string;
+}
+
+export interface LandStructure {
+  type: 'land';
+  hexIds: string[];
+  name: string;
+}
+
 export type Structure = 
   | PortStructure
   | CanalStructure
   | ConvoyRouteStructure
   | AirSectorStructure
   | EnglishChannelStructure
-  | RestrictedDDStructure;
+  | RestrictedDDStructure
+  | NonGameHexStructure
+  | LandStructure;
 
 export interface MapStructures {
   ports: PortStructure[];
@@ -63,6 +79,8 @@ export interface MapStructures {
   airSectors: AirSectorStructure[];
   englishChannel?: EnglishChannelStructure;
   restrictedDD?: RestrictedDDStructure;
+  nonGameHexes: NonGameHexStructure[];
+  landAreas: LandStructure[];
 }
 
 // Цветовая схема для типов структур
@@ -73,6 +91,8 @@ export const STRUCTURE_COLORS: Record<StructureType, string> = {
   air_sector: '#00bcd4',
   english_channel: '#9c27b0',
   restricted_dd: '#f44336',
+  non_game_hex: '#9e9e9e',
+  land: '#8bc34a',
 };
 
 // Читаемые названия типов
@@ -83,5 +103,7 @@ export const STRUCTURE_LABELS: Record<StructureType, string> = {
   air_sector: 'Воздушный сектор',
   english_channel: 'Ла-Манш',
   restricted_dd: 'Ограничение эсминцев',
+  non_game_hex: 'Не игровые гексы',
+  land: 'Суша',
 };
 

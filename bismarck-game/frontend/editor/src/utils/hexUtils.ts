@@ -430,7 +430,7 @@ export const MAP_CONSTANTS = {
   
   // Размеры гексагональной сетки
   HEX_GRID_WIDTH: 35,     // 35 гексов по горизонтали
-  HEX_GRID_HEIGHT: 34,    // 33 гекса по вертикали (A-Z, AA-AG)
+  HEX_GRID_HEIGHT: 34,    // 34 гекса по вертикали (A-Z, AA-AH)
   
   // Стандартный радиус гекса
   DEFAULT_HEX_RADIUS: 24,   // 120 / 5 = 24
