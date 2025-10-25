@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { GameTurn, PhaseRecord, PhaseConfig } from '../../types/phaseTypes';
+import { GameTurn, PhaseRecord } from '../../types/phaseTypes';
 
 // Экспортируем GameTurn для использования в других файлах
 export type { GameTurn } from '../../types/phaseTypes';
@@ -69,7 +69,14 @@ export const phaseAPI = {
 
   // Перейти к следующей фазе
   nextPhase: async (request: NextPhaseRequest): Promise<void> => {
-    await apiClient.post('/api/phases/next', request);
+    console.log('🔄 API: Calling nextPhase with request:', request);
+    try {
+      await apiClient.post('/api/phases/next', request);
+      console.log('✅ API: nextPhase completed successfully');
+    } catch (error) {
+      console.error('❌ API: nextPhase failed:', error);
+      throw error;
+    }
   },
 
   // Начать новый ход
@@ -78,17 +85,6 @@ export const phaseAPI = {
     return response.data.data;
   },
 
-  // Получить информацию о фазе
-  getPhaseInfo: async (phase: string): Promise<PhaseConfig> => {
-    const response = await apiClient.get(`/api/phases/info?phase=${phase}`);
-    return response.data.data;
-  },
-
-  // Получить информацию о всех фазах
-  getAllPhases: async (): Promise<PhaseConfig[]> => {
-    const response = await apiClient.get('/api/phases/all');
-    return response.data.data;
-  },
 };
 
 // Добавляем интерцептор для автоматического добавления токена авторизации

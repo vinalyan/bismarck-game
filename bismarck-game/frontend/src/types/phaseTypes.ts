@@ -3,7 +3,7 @@
 export type GamePhase = 
   | 'setup'
   | 'visibility'
-  | 'pursuit'
+  | 'shadow'  // было: 'pursuit'
   | 'movement'
   | 'search'
   | 'air_attack'
@@ -45,116 +45,54 @@ export interface GameTurnResponse {
   success?: boolean;
 }
 
-export interface PhaseConfig {
-  phase: GamePhase;
-  name: string;
-  description: string;
-  duration: number; // в секундах, 0 = без ограничений
-  skip_on_turn_1: boolean; // пропускать в первом ходу
-  required: boolean; // обязательная фаза
-}
+// Последовательность фаз (фиксированная)
+export const PHASE_SEQUENCE_TURN_1: GamePhase[] = [
+  'movement',
+  'search',
+  'air_attack',
+  'naval_combat',
+  'chance',
+  'admin',
+];
 
-// Конфигурации всех фаз
-export const PHASE_CONFIGS: Record<GamePhase, PhaseConfig> = {
-  setup: {
-    phase: 'setup',
-    name: 'Подготовка',
-    description: 'Расстановка юнитов на карте. Немецкий игрок расставляет танкеры.',
-    duration: 0,
-    skip_on_turn_1: false,
-    required: true,
-  },
-  visibility: {
-    phase: 'visibility',
-    name: 'Фаза видимости',
-    description: 'Определение погоды и уровня видимости.',
-    duration: 60,
-    skip_on_turn_1: true,
-    required: true,
-  },
-  pursuit: {
-    phase: 'pursuit',
-    name: 'Фаза преследования',
-    description: 'Попытки преследования обнаруженных кораблей.',
-    duration: 120,
-    skip_on_turn_1: true,
-    required: true,
-  },
-  movement: {
-    phase: 'movement',
-    name: 'Фаза движения',
-    description: 'Движение морских и воздушных юнитов.',
-    duration: 300,
-    skip_on_turn_1: false,
-    required: true,
-  },
-  search: {
-    phase: 'search',
-    name: 'Фаза поиска',
-    description: 'Поиск и обнаружение юнитов противника.',
-    duration: 180,
-    skip_on_turn_1: false,
-    required: true,
-  },
-  air_attack: {
-    phase: 'air_attack',
-    name: 'Фаза воздушного боя',
-    description: 'Воздушные атаки и бои.',
-    duration: 120,
-    skip_on_turn_1: false,
-    required: true,
-  },
-  naval_combat: {
-    phase: 'naval_combat',
-    name: 'Фаза морского боя',
-    description: 'Морские сражения между кораблями.',
-    duration: 600,
-    skip_on_turn_1: false,
-    required: true,
-  },
-  chance: {
-    phase: 'chance',
-    name: 'Фаза случайных событий',
-    description: 'Случайные события: контакт с подлодкой, охота на конвои.',
-    duration: 60,
-    skip_on_turn_1: false,
-    required: true,
-  },
-  admin: {
-    phase: 'admin',
-    name: 'Админская фаза',
-    description: 'Административные действия: подсчет очков, проверка условий победы.',
-    duration: 30,
-    skip_on_turn_1: false,
-    required: true,
-  },
-};
+export const PHASE_SEQUENCE_DEFAULT: GamePhase[] = [
+  'visibility',
+  'shadow',
+  'movement',
+  'search',
+  'air_attack',
+  'naval_combat',
+  'chance',
+  'admin',
+];
 
-// Последовательность фаз для хода
 export const getPhaseSequence = (turn: number): GamePhase[] => {
-  const phases: GamePhase[] = [
-    'setup',
-    'visibility',
-    'pursuit',
-    'movement',
-    'search',
-    'air_attack',
-    'naval_combat',
-    'chance',
-    'admin',
-  ];
-  
-  // В первом ходу пропускаем фазы видимости и преследования
-  if (turn === 1) {
-    return phases.filter(phase => phase !== 'visibility' && phase !== 'pursuit');
-  }
-  
-  return phases;
+  return turn === 1 ? PHASE_SEQUENCE_TURN_1 : PHASE_SEQUENCE_DEFAULT;
 };
 
-// Получить конфигурацию фазы
-export const getPhaseConfig = (phase: GamePhase): PhaseConfig => {
-  return PHASE_CONFIGS[phase];
+// Названия фаз (UI-константы)
+export const PHASE_NAMES: Record<GamePhase, string> = {
+  setup: 'Подготовка',
+  visibility: 'Фаза видимости',
+  shadow: 'Фаза слежения',
+  movement: 'Фаза движения',
+  search: 'Фаза поиска',
+  air_attack: 'Фаза воздушного боя',
+  naval_combat: 'Фаза морского боя',
+  chance: 'Фаза случайных событий',
+  admin: 'Админская фаза',
+};
+
+export const PHASE_DESCRIPTIONS: Record<GamePhase, string> = {
+  setup: 'Расстановка юнитов на карте. Немецкий игрок расставляет танкеры.',
+  visibility: 'Определение погоды и уровня видимости.',
+  shadow: 'Попытки слежения за обнаруженными кораблями.',
+  movement: 'Движение морских и воздушных юнитов.',
+  search: 'Поиск и обнаружение юнитов противника.',
+  air_attack: 'Воздушные атаки и бои.',
+  naval_combat: 'Морские сражения между кораблями.',
+  chance: 'Случайные события: контакт с подлодкой, охота на конвои.',
+  admin: 'Административные действия: подсчет очков, проверка условий победы.',
 };
 
 // Получить статус фазы в виде строки

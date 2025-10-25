@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"bismarck-game/backend/internal/api/handlers"
+	"bismarck-game/backend/internal/config"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/database"
@@ -25,8 +25,8 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 	defer db.Close()
 
 	// Создаем менеджер фаз и обработчик
-	phaseManager := services.NewPhaseManager(db)
-	phaseHandler := handlers.NewPhaseHandler(phaseManager)
+	phaseManager := services.NewPhaseManager(db, createTestUnitService(db))
+	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
 	gameID := "test-api-game"
@@ -218,8 +218,8 @@ func TestPhaseSequenceAPI(t *testing.T) {
 	defer db.Close()
 
 	// Создаем менеджер фаз и обработчик
-	phaseManager := services.NewPhaseManager(db)
-	phaseHandler := handlers.NewPhaseHandler(phaseManager)
+	phaseManager := services.NewPhaseManager(db, createTestUnitService(db))
+	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
 	gameID := "test-sequence-game"
@@ -344,8 +344,8 @@ func TestPhaseValidationAPI(t *testing.T) {
 	defer db.Close()
 
 	// Создаем менеджер фаз и обработчик
-	phaseManager := services.NewPhaseManager(db)
-	phaseHandler := handlers.NewPhaseHandler(phaseManager)
+	phaseManager := services.NewPhaseManager(db, createTestUnitService(db))
+	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Тест 1: Отсутствующий game_id
 	t.Run("MissingGameID", func(t *testing.T) {
@@ -407,7 +407,25 @@ func setupTestDB() (*sql.DB, error) {
 	// Здесь должна быть настройка тестовой базы данных
 	// Для простоты используем основную базу данных
 	// В реальном проекте нужно использовать тестовую БД
-	return database.GetDB()
+	cfg := &config.DatabaseConfig{
+		Host:     "localhost",
+		Port:     5432,
+		User:     "postgres",
+		Password: "password",
+		Name:     "bismarck_game",
+		SSLMode:  "disable",
+	}
+	db, err := database.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return db.GetConnection(), nil
+}
+
+func createTestUnitService(db *sql.DB) *services.UnitService {
+	// Создаем простой UnitService для тестов
+	// В реальном проекте нужно использовать правильную инициализацию
+	return &services.UnitService{}
 }
 
 func createTestGame(db *sql.DB, gameID string) error {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameTurn, PhaseRecord, GamePhase, PhaseStatus, getPhaseConfig, getPhaseStatusText, getPhaseStatusColor, getPhaseSequence } from '../types/phaseTypes';
+import { GameTurn, PhaseRecord, GamePhase, PhaseStatus, getPhaseStatusText, getPhaseStatusColor, getPhaseSequence, PHASE_NAMES, PHASE_DESCRIPTIONS } from '../types/phaseTypes';
 import { Game } from '../types/gameTypes';
 import { phaseAPI } from '../services/api/phaseAPI';
 import './PhasePanel.css';
@@ -220,7 +220,7 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
         <div className="turn-info">
           <span className="turn-number">Ход {currentTurn.turn_number}</span>
           <span className="current-phase">
-            {getPhaseConfig(currentTurn.current_phase)?.name || currentTurn.current_phase}
+            {PHASE_NAMES[currentTurn.current_phase] || currentTurn.current_phase}
           </span>
           {currentTurn.start_time && (
             <span className="turn-start-time">
@@ -241,7 +241,6 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
 
       <div className="phases-list">
         {phases.map((phase) => {
-          const config = getPhaseConfig(phase);
           const record = getPhaseRecord(phase);
           const status = record?.status || 'pending';
           const isCurrent = isCurrentPhase(phase);
@@ -255,8 +254,8 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
             >
               <div className="phase-header">
                 <div className="phase-info">
-                  <h4 className="phase-name">{config.name}</h4>
-                  <p className="phase-description">{config.description}</p>
+                  <h4 className="phase-name">{PHASE_NAMES[phase]}</h4>
+                  <p className="phase-description">{PHASE_DESCRIPTIONS[phase]}</p>
                 </div>
                 <div className="phase-status">
                   <span

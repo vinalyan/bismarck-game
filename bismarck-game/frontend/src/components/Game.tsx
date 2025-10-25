@@ -12,7 +12,7 @@ import { movementAPI } from '../services/api/movementAPI';
 import { shipsAPI } from '../services/api/shipsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
-import { GameTurnResponse } from '../types/phaseTypes';
+import { GameTurnResponse, PHASE_NAMES } from '../types/phaseTypes';
 import HexMap from './HexMap';
 import './Game.css';
 
@@ -54,21 +54,6 @@ const Game: React.FC = () => {
     return null;
   };
 
-  // Helper функция для отображения названий фаз
-  const getPhaseDisplayName = (phase: string): string => {
-    const phaseNames: { [key: string]: string } = {
-      'setup': 'Подготовка',
-      'visibility': 'Видимость',
-      'pursuit': 'Преследование',
-      'movement': 'Движение',
-      'search': 'Поиск',
-      'air_attack': 'Воздушная атака',
-      'naval_combat': 'Морской бой',
-      'chance': 'Случайное событие',
-      'admin': 'Администрирование'
-    };
-    return phaseNames[phase] || phase;
-  };
   const [loadingShips] = useState(false);
   const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
@@ -189,7 +174,7 @@ const Game: React.FC = () => {
                 addNotification({
                   type: NotificationType.Info,
                   title: 'Смена фазы',
-                  message: `Переход к фазе: ${getPhaseDisplayName(currentTurnData.current_phase)}`,
+                  message: `Переход к фазе: ${PHASE_NAMES[currentTurnData.current_phase]}`,
                   read: false
                 });
               }
@@ -403,6 +388,7 @@ const Game: React.FC = () => {
 
     try {
       console.log('🔄 Completing current phase...');
+      console.log('🔄 Game ID:', currentGame.id);
       
       await phaseAPI.nextPhase({ game_id: currentGame.id });
       
@@ -611,13 +597,10 @@ const Game: React.FC = () => {
 
   // Отладочная функция для проверки гексов в радиусе
   const debugHexRange = async (coordinate: HexCoordinate) => {
-    console.log('🔍🔍🔍 DEBUG: debugHexRange called!');
     const hexString = `${coordinate.letter}${coordinate.number}`;
-    console.log('🔍 DEBUG: Selected hex:', hexString);
     
     try {
       // Используем бэкенд для всех расчетов
-      console.log('🔍 DEBUG: Using backend for hex calculations...');
       
       // Создаем временный юнит для тестирования
       const testUnit = {
@@ -632,15 +615,10 @@ const Game: React.FC = () => {
         try {
           // Получаем доступные ходы с бэкенда
           const response = await movementAPI.getAvailableMoves(currentGame.id, testUnit.id, authToken);
-          console.log('🔍 DEBUG: Backend available moves:', response.available_hexes);
-          console.log('🔍 DEBUG: Backend max distance:', response.max_distance);
-          console.log('🔍 DEBUG: Backend fuel costs:', response.fuel_costs);
         } catch (error) {
-          console.log('🔍 DEBUG: Backend error:', error);
         }
       }
     } catch (error) {
-      console.error('🔍 DEBUG: Error in debug function:', error);
     }
   };
   
@@ -725,25 +703,6 @@ const Game: React.FC = () => {
     ? PlayerSide.Allied 
     : PlayerSide.German;
 
-  // Получаем информацию о текущей фазе
-  const getCurrentPhaseText = (phase: GamePhase): string => {
-    switch (phase) {
-      case GamePhase.Waiting:
-        return 'Ожидание начала';
-      case GamePhase.Setup:
-        return 'Подготовка';
-      case GamePhase.Movement:
-        return 'Фаза движения';
-      case GamePhase.Search:
-        return 'Фаза поиска';
-      case GamePhase.Combat:
-        return 'Боевая фаза';
-      case GamePhase.End:
-        return 'Конец игры';
-      default:
-        return 'Неизвестная фаза';
-    }
-  };
 
 
 
@@ -785,9 +744,9 @@ const Game: React.FC = () => {
                 {(() => {
                   const turnData = getTurnData(currentTurn);
                   if (turnData && turnData.current_phase) {
-                    return getPhaseDisplayName(turnData.current_phase);
+                    return PHASE_NAMES[turnData.current_phase];
                   }
-                  return getPhaseDisplayName(currentGame.current_phase);
+                  return PHASE_NAMES[currentGame.current_phase as GamePhase] || currentGame.current_phase;
                 })()}
               </span>
               <span className="phase-status">

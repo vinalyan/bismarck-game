@@ -406,7 +406,7 @@ func TestCompleteTurnTransition(t *testing.T) {
 	phases2 := models.GetPhaseSequence(2)
 	expectedPhases2 := []models.GamePhase{
 		models.PhaseVisibility,
-		models.PhasePursuit,
+		models.PhaseShadow,
 		models.PhaseMovement,
 		models.PhaseSearch,
 		models.PhaseAirAttack,
