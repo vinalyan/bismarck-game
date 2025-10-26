@@ -273,7 +273,13 @@ const Hex: React.FC<HexProps> = ({
       <g
         className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isAvailableForMovement ? 'available-for-movement' : ''}`}
         onClick={onClick}
-        onMouseEnter={onHover}
+        onMouseEnter={(e) => {
+          console.log('🖱️ Mouse entered g element:', coordinate.letter + coordinate.number);
+          onHover();
+          handleHexMouseEnter(e);
+        }}
+        onMouseLeave={handleHexMouseLeave}
+        onMouseMove={handleHexMouseMove}
         style={{ cursor: activeHex ? 'pointer' : 'default' }}
       >
       {/* Основной гекс */}
@@ -285,9 +291,6 @@ const Hex: React.FC<HexProps> = ({
         stroke={hexStyle.stroke}
         strokeWidth={hexStyle.strokeWidth}
         className="hex-shape"
-        onMouseEnter={handleHexMouseEnter}
-        onMouseLeave={handleHexMouseLeave}
-        onMouseMove={handleHexMouseMove}
       />
       
       
