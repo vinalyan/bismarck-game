@@ -449,8 +449,8 @@ export interface OffsetCoord {
 }
 
 // Кастомная функция для преобразования offset координат в пиксели
-export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
-  const hexWidth = hexRadius * Math.sqrt(3); // Ширина гекса
+export function offsetToPixel(coord: OffsetCoord, _hexRadius: number): Point {
+  // const hexWidth = hexRadius * Math.sqrt(3); // Ширина гекса
   
   // Рассчитываем доступную область для гексагональной сетки
   const availableWidth = MAP_CONSTANTS.BACKGROUND_WIDTH - MAP_CONSTANTS.MARGIN_LEFT - MAP_CONSTANTS.MARGIN_RIGHT;
@@ -485,7 +485,7 @@ export function offsetToPixel(coord: OffsetCoord, hexRadius: number): Point {
 
 
 // Расчет размеров SVG для карты (фиксированный размер)
-export function calculateMapSize(width: number, height: number, hexRadius: number): { width: number, height: number } {
+export function calculateMapSize(_width: number, _height: number, _hexRadius: number): { width: number, height: number } {
   // Используем фиксированный размер, равный размеру подложки
   return { 
     width: MAP_CONSTANTS.BACKGROUND_WIDTH, 

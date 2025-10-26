@@ -1,6 +1,6 @@
 // Типы для гексагональной карты
 
-import { Hex, Point, OffsetCoord, offsetToCube, cubeToOffset } from '../utils/hexUtils';
+import { Hex, OffsetCoord, offsetToCube, cubeToOffset } from '../utils/hexUtils';
 
 // Координаты гекса (для отображения пользователю)
 export interface HexCoordinate {

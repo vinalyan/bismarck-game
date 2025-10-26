@@ -18,10 +18,16 @@
 ```bash
 cd bismarck-game/frontend/editor
 npm install
-npm start
+npm run dev
 ```
 
-Приложение запустится на порту 3001.
+Приложение запустится на порту 3001 и автоматически откроется в браузере.
+
+## Команды
+
+- `npm run dev` - запуск dev-сервера
+- `npm run build` - сборка для production
+- `npm run preview` - предпросмотр production сборки
 
 ## Использование
 

@@ -9,6 +9,11 @@ node_modules/
 # Production
 /build
 
+# Vite
+dist
+dist-ssr
+*.local
+
 # Misc
 .DS_Store
 .env.local

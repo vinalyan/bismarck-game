@@ -2,9 +2,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { HexEditor } from './HexEditor';
-import { HexCoordinate, HexData, offsetToCoordinate } from '../types/mapTypes';
+import { HexCoordinate, HexData } from '../types/mapTypes';
 import { 
-  Point, OffsetCoord, offsetToPixel, offsetPolygonCorners, calculateMapSize, MAP_CONSTANTS
+  OffsetCoord, offsetToPixel, offsetPolygonCorners, calculateMapSize, MAP_CONSTANTS
 } from '../utils/hexUtils';
 import './HexMap.css';
 

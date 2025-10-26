@@ -1,6 +1,6 @@
 // Утилиты для работы со структурами
 
-import { Structure, MapStructures, StructureType } from '../types/editorTypes';
+import { Structure, MapStructures } from '../types/editorTypes';
 
 /**
  * Генерирует уникальный ID для структуры
@@ -80,7 +80,9 @@ export function mergeStructures(existing: MapStructures, imported: MapStructures
     convoyRoutes: [...existing.convoyRoutes, ...imported.convoyRoutes],
     airSectors: [...existing.airSectors, ...imported.airSectors],
     englishChannel: imported.englishChannel || existing.englishChannel,
-    restrictedDD: imported.restrictedDD || existing.restrictedDD
+    restrictedDD: imported.restrictedDD || existing.restrictedDD,
+    nonGameHexes: [...existing.nonGameHexes, ...imported.nonGameHexes],
+    landAreas: [...existing.landAreas, ...imported.landAreas]
   };
 }
 
