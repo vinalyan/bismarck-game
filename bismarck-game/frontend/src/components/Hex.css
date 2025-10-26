@@ -232,6 +232,19 @@
   opacity: 0.8;
 }
 
+/* Юнит с аварийным топливом */
+.unit-container.emergency-fuel .unit-background {
+  stroke: #ef4444 !important;
+  stroke-width: 3px !important;
+  fill: rgba(239, 68, 68, 0.2);
+  animation: emergencyFuelPulse 1.5s ease-in-out infinite;
+}
+
+.unit-container.emergency-fuel .unit-icon {
+  filter: drop-shadow(0 0 8px #ef4444) drop-shadow(0 0 16px #ef4444);
+  animation: emergencyFuelGlow 1.5s ease-in-out infinite;
+}
+
 /* ===== СТЕКИРОВАНИЕ ЮНИТОВ ===== */
 
 /* Контейнер свернутого стека */
@@ -260,6 +273,12 @@
   stroke: #6b7280;
   filter: drop-shadow(0 0 8px rgba(107, 114, 128, 0.6));
   opacity: 0.7;
+}
+
+.unit-stack-background.emergency-fuel {
+  stroke: #ef4444;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+  animation: emergencyFuelPulse 1.5s ease-in-out infinite;
 }
 
 .unit-stack-icon {
@@ -355,6 +374,19 @@
   opacity: 0.8;
 }
 
+/* Юнит с аварийным топливом в развернутом стеке */
+.stacked-unit.emergency-fuel .stacked-unit-background {
+  stroke: #ef4444 !important;
+  stroke-width: 3px !important;
+  fill: rgba(239, 68, 68, 0.2);
+  animation: emergencyFuelPulse 1.5s ease-in-out infinite;
+}
+
+.stacked-unit.emergency-fuel .stacked-unit-icon {
+  filter: drop-shadow(0 0 8px #ef4444) drop-shadow(0 0 16px #ef4444);
+  animation: emergencyFuelGlow 1.5s ease-in-out infinite;
+}
+
 /* Базовые стили для элементов в развернутом стеке */
 .stacked-unit-background {
   fill: rgba(255, 255, 255, 0.9);
@@ -447,5 +479,26 @@
   100% {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Анимации для аварийного топлива */
+@keyframes emergencyFuelPulse {
+  0%, 100% {
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
+  }
+  50% {
+    stroke-width: 4px;
+    filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.8));
+  }
+}
+
+@keyframes emergencyFuelGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px #ef4444) drop-shadow(0 0 16px #ef4444);
+  }
+  50% {
+    filter: drop-shadow(0 0 12px #ef4444) drop-shadow(0 0 24px #ef4444);
   }
 }

@@ -77,7 +77,7 @@ export type PlayerSide = 'german' | 'allied';
 export type WeatherType = 'clear' | 'storm' | 'fog' | 'ice';
 
 // Состояние юнита для визуальной подсветки
-export type UnitState = 'idle' | 'selected' | 'active' | 'cannot-move';
+export type UnitState = 'idle' | 'selected' | 'active' | 'cannot-move' | 'emergency-fuel';
 
 // Данные гекса
 export interface HexData {

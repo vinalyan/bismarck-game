@@ -165,9 +165,14 @@ const Hex: React.FC<HexProps> = ({
   };
 
   // Функция для определения состояния юнита
-  const getUnitState = (unit: any): 'idle' | 'selected' | 'active' | 'cannot-move' => {
+  const getUnitState = (unit: any): 'idle' | 'selected' | 'active' | 'cannot-move' | 'emergency-fuel' => {
     if (selectedUnit === unit.id) {
       return 'selected';
+    }
+    
+    // Проверяем аварийное топливо
+    if (unit.is_emergency_fuel === true) {
+      return 'emergency-fuel';
     }
     
     // Проверяем условия "не может двигаться"
@@ -189,10 +194,15 @@ const Hex: React.FC<HexProps> = ({
   };
 
   // Функция для определения состояния стека
-  const getStackState = (units: any[]): 'idle' | 'selected' | 'active' | 'cannot-move' => {
+  const getStackState = (units: any[]): 'idle' | 'selected' | 'active' | 'cannot-move' | 'emergency-fuel' => {
     // Если есть выбранный юнит в стеке
     if (units.some(unit => selectedUnit === unit.id)) {
       return 'selected';
+    }
+    
+    // Если есть юнит с аварийным топливом
+    if (units.some(unit => unit.is_emergency_fuel === true)) {
+      return 'emergency-fuel';
     }
     
     // Если все юниты не могут двигаться
