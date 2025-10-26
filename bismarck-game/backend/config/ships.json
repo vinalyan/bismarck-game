@@ -84,7 +84,7 @@
       "baseEvasion": 27,
       "radarLevel": 2,
       "hullBoxes": 9,
-      "setupHex": "A15",
+      "setupHex": "A10",
       "basePrimaryArmamentBow": 9,
       "basePrimaryArmamentStern": 5,
       "baseSecondaryArmament": 3,
@@ -113,7 +113,7 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
       "speedType": "S",
-      "setupHex": "A14",
+      "setupHex": "A11",
       "notes": "Имеет ненадежное главное вооружение",
       "specialRules": [
         {
@@ -137,7 +137,7 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 9,
       "speedType": "S",
-      "setupHex": "A13",
+      "setupHex": "A12",
       "notes": "Главный калибр в корме может стрелять только в начальной фазе боя",
       "specialRules": [
         {
@@ -281,7 +281,7 @@
       "baseSecondaryArmament": 2,
       "maxTorpedos": 4,
       "speedType": "F",
-      "setupHex": "A5"
+      "setupHex": "A19"
     },
     {
       "id": "suffolk",
@@ -297,7 +297,7 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A4"
+      "setupHex": "A20"
     },
     {
       "id": "london",
@@ -313,7 +313,7 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A3"
+      "setupHex": "A21"
     },
     {
       "id": "norfolk",
@@ -329,7 +329,7 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A2"
+      "setupHex": "A22"
     },
     {
       "id": "dorsetshire",
@@ -345,7 +345,7 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A1"
+      "setupHex": "A23"
     },
     {
       "id": "exeter",
@@ -377,7 +377,7 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B2"
+      "setupHex": "A24"
     },
     {
       "id": "galatea",
@@ -393,7 +393,7 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B3"
+      "setupHex": "A25"
     },
     {
       "id": "aurora",
@@ -409,7 +409,7 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B4"
+      "setupHex": "A26"
     },
     {
       "id": "cairo",
@@ -425,7 +425,7 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B5"
+      "setupHex": "A27"
     },
     {
       "id": "hermione",
@@ -553,7 +553,7 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B13"
+      "setupHex": "A28"
     },
     {
       "id": "troop_co_fl_1",
@@ -569,7 +569,7 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B14"
+      "setupHex": "A29"
     },
     {
       "id": "troop_co_fl_2",
@@ -796,7 +796,7 @@
       "baseEvasion": 20,
       "radarLevel": 1,
       "hullBoxes": 6,
-      "setupHex": "B15",
+      "setupHex": "A30",
       "basePrimaryArmamentBow": 4,
       "basePrimaryArmamentStern": 4,
       "baseSecondaryArmament": 6,

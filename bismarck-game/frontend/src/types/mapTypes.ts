@@ -44,7 +44,31 @@ export function hexToCoordinate(hex: Hex, letter: string, number: number): HexCo
 }
 
 // Типы гексов
-export type HexType = 'water' | 'land' | 'port' | 'ice' | 'fog';
+export type HexType = 'water' | 'land' | 'port' | 'ice' | 'fog' | 'non_game';
+
+// Структуры карты
+export interface MapStructure {
+  landAreas: LandArea[];
+  nonGameHexes: NonGameHex[];
+  restrictedDD?: RestrictedDD;
+}
+
+export interface LandArea {
+  type: string;
+  hexIds: string[];
+  name: string;
+}
+
+export interface NonGameHex {
+  type: string;
+  hexIds: string[];
+  name: string;
+}
+
+export interface RestrictedDD {
+  type: string;
+  hexIds: string[];
+}
 
 // Стороны игроков
 export type PlayerSide = 'german' | 'allied';
@@ -64,6 +88,8 @@ export interface HexData {
   unitSide?: PlayerSide | null; // Сторона юнита
   weather: WeatherType;      // Погода на гексе
   fogLevel: number;          // Уровень тумана войны (0-100)
+  hexType: 'water' | 'land' | 'non_game'; // Тип гекса для движения
+  isRestrictedDD: boolean;   // Разрешен ли гекс для немецких DD
 }
 
 // Юнит на карте

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Hex } from './Hex';
-import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate } from '../types/mapTypes';
+import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate, MapStructure } from '../types/mapTypes';
 import { MovementHex } from '../utils/movementUtils';
 import { ActiveHex } from '../utils/activeHexesUtils';
 import { 
@@ -22,6 +22,7 @@ interface HexMapProps {
   availableMovementHexes?: MovementHex[];
   activeHexes?: ActiveHex[];
   gameUnits?: any[]; // Единый источник данных юнитов
+  mapStructures?: MapStructure | null;
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -34,7 +35,8 @@ const HexMap: React.FC<HexMapProps> = ({
   playerSide = 'german',
   availableMovementHexes = [],
   activeHexes = [],
-  gameUnits = []
+  gameUnits = [],
+  mapStructures = null
 }) => {
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
@@ -113,9 +115,38 @@ const HexMap: React.FC<HexMapProps> = ({
           }
         });
         
+        // Определяем тип гекса на основе структур карты
+        let hexType: 'water' | 'land' | 'non_game' = 'water';
+        let isRestrictedDD = false;
+        
+        if (mapStructures) {
+          // Проверяем неигровые гексы
+          for (const nonGame of mapStructures.nonGameHexes) {
+            if (nonGame.hexIds.includes(hexId)) {
+              hexType = 'non_game';
+              break;
+            }
+          }
+          
+          // Проверяем сухопутные гексы (только если не неигровой)
+          if (hexType === 'water') {
+            for (const landArea of mapStructures.landAreas) {
+              if (landArea.hexIds.includes(hexId)) {
+                hexType = 'land';
+                break;
+              }
+            }
+          }
+          
+          // Проверяем ограничения для немецких DD
+          if (mapStructures.restrictedDD && mapStructures.restrictedDD.hexIds.includes(hexId)) {
+            isRestrictedDD = true;
+          }
+        }
+        
         newHexes.set(hexId, {
           coordinate,
-          type: 'water', // По умолчанию все гексы - вода
+          type: 'water', // Визуальный тип остается водой
           isVisible: true,
           isHighlighted: false,
           hasUnit,
@@ -123,13 +154,15 @@ const HexMap: React.FC<HexMapProps> = ({
           unitType,
           unitSide,
           weather: 'clear',
-          fogLevel: 0
+          fogLevel: 0,
+          hexType,
+          isRestrictedDD
         });
       }
     }
     
     return newHexes;
-  }, [width, height, gameUnits]);
+  }, [width, height, gameUnits, mapStructures]);
 
   // Обработчики событий
   const handleHexClick = (coordinate: HexCoordinate) => {

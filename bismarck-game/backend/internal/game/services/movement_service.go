@@ -22,28 +22,30 @@ type Cube struct {
 
 // MovementService предоставляет методы для работы с движением юнитов
 type MovementService struct {
-	db                *database.Database
-	logger            *logger.Logger
-	visibilityService *VisibilityService
-	phaseManager      *PhaseManager
-	unitService       *UnitService
-	hexCalculator     hexgrid.HexCalculator
-	validatorFactory  *validation.ValidatorFactory
+	db                  *database.Database
+	logger              *logger.Logger
+	visibilityService   *VisibilityService
+	phaseManager        *PhaseManager
+	unitService         *UnitService
+	hexCalculator       hexgrid.HexCalculator
+	validatorFactory    *validation.ValidatorFactory
+	mapStructureService *MapStructureService
 }
 
 // NewMovementService создает новый сервис движения
-func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService, phaseManager *PhaseManager, unitService *UnitService) *MovementService {
+func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService, phaseManager *PhaseManager, unitService *UnitService, mapStructureService *MapStructureService) *MovementService {
 	hexCalculator := hexgrid.NewStandardHexCalculator()
 	validatorFactory := validation.NewValidatorFactory(hexCalculator)
 
 	return &MovementService{
-		db:                db,
-		logger:            logger,
-		visibilityService: visibilityService,
-		phaseManager:      phaseManager,
-		unitService:       unitService,
-		hexCalculator:     hexCalculator,
-		validatorFactory:  validatorFactory,
+		db:                  db,
+		logger:              logger,
+		visibilityService:   visibilityService,
+		phaseManager:        phaseManager,
+		unitService:         unitService,
+		hexCalculator:       hexCalculator,
+		validatorFactory:    validatorFactory,
+		mapStructureService: mapStructureService,
 	}
 }
 
@@ -111,6 +113,11 @@ func (s *MovementService) GetAvailableMoves(unit *models.NavalUnit) ([]string, e
 	// Фильтруем по ограничениям движения
 	validHexes := []string{}
 	for _, hex := range availableHexes {
+		// Проверяем ограничения структур карты
+		if !s.mapStructureService.CanUnitMoveTo(unit, hex) {
+			continue
+		}
+
 		// Используем новую систему валидации
 		if err := s.validatorFactory.ValidateMovement(unit, unit.Position, hex, fuelTracking, s.getCurrentTurn(unit.GameID)); err == nil {
 			validHexes = append(validHexes, hex)

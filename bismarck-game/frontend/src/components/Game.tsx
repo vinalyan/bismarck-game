@@ -12,6 +12,7 @@ import { movementAPI } from '../services/api/movementAPI';
 import { shipsAPI } from '../services/api/shipsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
+import { mapService, MapStructure } from '../services/api/mapService';
 import { GameTurnResponse, PHASE_NAMES } from '../types/phaseTypes';
 import HexMap from './HexMap';
 import './Game.css';
@@ -32,6 +33,7 @@ const Game: React.FC = () => {
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [selectedUnitData, setSelectedUnitData] = useState<any>(null);
   const [availableMovementHexes, setAvailableMovementHexes] = useState<MovementHex[]>([]);
+  const [mapStructures, setMapStructures] = useState<MapStructure | null>(null);
   
   // Отслеживание изменений availableMovementHexes
   useEffect(() => {
@@ -83,6 +85,23 @@ const Game: React.FC = () => {
         }
     };
 
+    // Загружаем структуры карты
+    const loadMapStructures = async () => {
+      try {
+        const structures = await mapService.getMapStructures();
+        setMapStructures(structures);
+        console.log('Map structures loaded:', structures);
+      } catch (error) {
+        console.error('Error loading map structures:', error);
+        addNotification({
+          type: NotificationType.Error,
+          title: 'Ошибка загрузки структур карты',
+          message: 'Не удалось загрузить структуры карты с сервера',
+          read: false
+        });
+      }
+    };
+
     // Загружаем юниты игры из API
     const loadGameUnits = async () => {
       if (!currentGame?.id || !authToken) {
@@ -118,6 +137,7 @@ const Game: React.FC = () => {
     };
 
     loadShipsConfig();
+    loadMapStructures();
     loadGameUnits();
   }, [currentGame?.id, authToken, addNotification, setShipsConfig]);
 
@@ -1034,6 +1054,7 @@ const Game: React.FC = () => {
             availableMovementHexes={availableMovementHexes}
             activeHexes={[]}
             gameUnits={gameUnits}
+            mapStructures={mapStructures}
           />
         </div>
       </div>

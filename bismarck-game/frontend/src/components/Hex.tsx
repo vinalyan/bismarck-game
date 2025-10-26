@@ -121,25 +121,24 @@ const Hex: React.FC<HexProps> = ({
     let fillOpacity = 0; // Полностью прозрачные гексы
     
     // Цвет в зависимости от типа гекса (все прозрачные)
-    switch (hexData.type) {
+    switch (hexData.hexType) {
       case 'water':
         fill = 'url(#waterGradient)';
         fillOpacity = 0; // Полная прозрачность
         stroke = 'transparent';
         break;
       case 'land':
-        fill = 'url(#landGradient)';
-        fillOpacity = 0; // Полная прозрачность
+        fill = '#8B7355'; // Коричневый для суши
+        fillOpacity = 0.3;
         stroke = 'transparent';
         break;
-      case 'port':
-        fill = 'url(#portGradient)';
-        fillOpacity = 0; // Полная прозрачность
+      case 'non_game':
+        fill = '#333333'; // Серый для неигровых
+        fillOpacity = 0.1;
         stroke = 'transparent';
-        strokeWidth = 2;
         break;
       default:
-        fill = '#cccccc';
+        fill = 'url(#waterGradient)';
         fillOpacity = 0; // Полная прозрачность
         stroke = 'transparent';
     }
@@ -163,6 +162,15 @@ const Hex: React.FC<HexProps> = ({
         strokeWidth = config.strokeWidth;
         fillOpacity = config.opacity;
         fill = config.color;
+      }
+    }
+    
+    // Специальная подсветка для restricted DD гексов
+    if (hexData.isRestrictedDD) {
+      stroke = '#FF6B35'; // Оранжевый для restricted DD гексов
+      strokeWidth = 1;
+      if (!isAvailableForMovement && !activeHex) {
+        fillOpacity = 0.1; // Легкая подсветка
       }
     }
     

@@ -115,8 +115,15 @@ func (s *Server) setupRoutes() {
 	// Создаем сервисы для движения
 	visibilityLogger, _ := logger.New(logger.INFO, "visibility-service", "stdout")
 	visibilityService := services.NewVisibilityService(s.db, visibilityLogger)
+
+	// Создаем сервис структур карты
+	mapStructureService := services.NewMapStructureService()
+	if err := mapStructureService.LoadConfig("./config/map-structures.json"); err != nil {
+		logger.Error("Failed to load map structures", "error", err)
+	}
+
 	movementLogger, _ := logger.New(logger.INFO, "movement-service", "stdout")
-	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService)
+	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService, mapStructureService)
 
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
@@ -132,6 +139,7 @@ func (s *Server) setupRoutes() {
 	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, unitService, movementLogger)
 	emergencyFuelHandler := handlers.NewEmergencyFuelHandler(s.db, movementLogger, movementService, unitService)
 	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService)
+	mapHandler := handlers.NewMapHandler(mapStructureService)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
@@ -146,6 +154,9 @@ func (s *Server) setupRoutes() {
 
 	// Маршруты для заправки
 	s.router.HandleFunc("/api/refuel/all", refuelHandler.RefuelAll).Methods("POST")
+
+	// Маршруты для карты
+	s.router.HandleFunc("/api/map/structures", mapHandler.GetMapStructures).Methods("GET")
 
 	// WebSocket маршрут
 	s.router.HandleFunc("/ws", s.handleWebSocket)

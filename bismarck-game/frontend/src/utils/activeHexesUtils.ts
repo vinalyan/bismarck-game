@@ -1,7 +1,7 @@
 // Утилиты для управления активными гексами
 
 import React from 'react';
-import { HexCoordinate } from '../types/mapTypes';
+import { HexCoordinate, MapStructure } from '../types/mapTypes';
 
 // Типы активных гексов
 export type ActiveHexType = 
@@ -138,6 +138,38 @@ export const activeHexesUtils = {
           isReachable: true
         }
       };
+    });
+  },
+
+  // Фильтрация валидных гексов с учетом структур карты
+  filterValidHexes: (
+    hexes: ActiveHex[], 
+    unit: any,
+    mapStructures: MapStructure | null
+  ): ActiveHex[] => {
+    if (!mapStructures) return hexes;
+    
+    return hexes.filter(hex => {
+      const hexId = `${hex.coordinate.letter}${hex.coordinate.number}`;
+      
+      // Исключить неигровые гексы
+      for (const nonGame of mapStructures.nonGameHexes) {
+        if (nonGame.hexIds.includes(hexId)) return false;
+      }
+      
+      // Исключить сухопутные гексы
+      for (const landArea of mapStructures.landAreas) {
+        if (landArea.hexIds.includes(hexId)) return false;
+      }
+      
+      // Для немецких DD исключить гексы вне restricted зоны
+      if (unit.side === 'german' && unit.type === 'DD') {
+        if (!mapStructures.restrictedDD || !mapStructures.restrictedDD.hexIds.includes(hexId)) {
+          return false;
+        }
+      }
+      
+      return true;
     });
   },
 
