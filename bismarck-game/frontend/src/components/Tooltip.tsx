@@ -22,8 +22,8 @@ const Tooltip: React.FC<TooltipProps> = ({ visible, x, y, content }) => {
       className="tooltip"
       style={{
         position: 'fixed',
-        left: x + 10,
-        top: y - 10,
+        left: x + 37.8, // 1 см = 37.8 пикселей (при 96 DPI)
+        top: y + 37.8,  // 1 см = 37.8 пикселей (при 96 DPI)
         zIndex: 1000,
       }}
     >
