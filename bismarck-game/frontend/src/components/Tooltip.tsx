@@ -20,6 +20,13 @@ const Tooltip: React.FC<TooltipProps> = ({ visible, x, y, content }) => {
     return null;
   }
 
+  console.log('🎨 Rendering tooltip with styles:', {
+    position: 'fixed',
+    left: x + 10,
+    top: y - 10,
+    zIndex: 1000,
+  });
+
   return (
     <div 
       className="tooltip"
