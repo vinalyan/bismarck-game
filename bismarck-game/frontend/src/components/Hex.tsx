@@ -52,6 +52,8 @@ const Hex: React.FC<HexProps> = ({
   // Обработчики для подсказок
   const handleHexMouseEnter = (event: React.MouseEvent) => {
     console.log('🖱️ Mouse entered hex:', coordinate.letter + coordinate.number);
+    console.log('🎯 Event target:', event.target);
+    console.log('🎯 Current target:', event.currentTarget);
     
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
@@ -83,6 +85,7 @@ const Hex: React.FC<HexProps> = ({
       setShowTooltip(true);
       
       console.log('✅ Tooltip should be visible now');
+      console.log('📊 Current tooltip state:', { showTooltip: true, content, position: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } });
     }, 2000); // 2 секунды задержка
 
     onHover();
@@ -117,6 +120,11 @@ const Hex: React.FC<HexProps> = ({
       }
     };
   }, []);
+
+  // Отслеживание изменений состояния подсказки
+  useEffect(() => {
+    console.log('🔄 Tooltip state changed:', { showTooltip, tooltipPosition, tooltipContent });
+  }, [showTooltip, tooltipPosition, tooltipContent]);
 
   // Функция для определения пути к иконке юнита
   const getUnitIcon = (unitType: string, unitSide: string) => {
