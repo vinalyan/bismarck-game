@@ -29,6 +29,12 @@ interface HexMapProps {
   currentTurn?: number;
   onUnitStackClick?: (hexId: string, units: any[]) => void;
   onStackedUnitSelect?: (unit: any) => void;
+  onRefuelAllShips?: () => void;
+  onCompletePhase?: () => void;
+  onStartFirstTurn?: () => void;
+  isRefuelDisabled?: boolean;
+  isCompletePhaseDisabled?: boolean;
+  isStartFirstTurnVisible?: boolean;
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -47,7 +53,13 @@ const HexMap: React.FC<HexMapProps> = ({
   expandedStackHex = null,
   currentTurn = 0,
   onUnitStackClick,
-  onStackedUnitSelect
+  onStackedUnitSelect,
+  onRefuelAllShips,
+  onCompletePhase,
+  onStartFirstTurn,
+  isRefuelDisabled = false,
+  isCompletePhaseDisabled = false,
+  isStartFirstTurnVisible = false
 }) => {
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
@@ -357,6 +369,32 @@ const HexMap: React.FC<HexMapProps> = ({
         <button onClick={() => setMapOffset({ x: 0, y: 0 })}>
           Центр
         </button>
+        
+        {/* Кнопки управления игрой */}
+        <div className="game-controls">
+          {isStartFirstTurnVisible && (
+            <button 
+              className="action-button primary"
+              onClick={onStartFirstTurn}
+            >
+              🚀 Начать ход 1
+            </button>
+          )}
+          <button 
+            className="action-button"
+            onClick={onRefuelAllShips}
+            disabled={isRefuelDisabled}
+          >
+            Заправить (+4 топлива всем кораблям)
+          </button>
+          <button 
+            className="action-button"
+            onClick={onCompletePhase}
+            disabled={isCompletePhaseDisabled}
+          >
+            Завершить ход
+          </button>
+        </div>
       </div>
 
       <div className="hex-map-wrapper">

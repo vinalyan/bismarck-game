@@ -433,6 +433,51 @@ const Game: React.FC = () => {
     }
   };
 
+  // Обработчик начала первого хода
+  const handleStartFirstTurn = async () => {
+    if (!currentGame?.id) return;
+    
+    try {
+      console.log('🔄 Starting first turn...');
+      
+      // Начинаем первый ход
+      await phaseAPI.startTurn({ game_id: currentGame.id });
+      
+      console.log('✅ First turn started successfully');
+      
+      // Обновляем информацию о текущем ходе
+      const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
+      setCurrentTurn(updatedTurn);
+      
+      console.log('📊 Turn data updated:', {
+        turn_number: updatedTurn?.turn_number,
+        current_phase: updatedTurn?.current_phase,
+        status: updatedTurn?.status
+      });
+      
+      // Уведомляем об обновлении хода
+      window.dispatchEvent(new CustomEvent('turnUpdated', { detail: updatedTurn }));
+      
+      // Обновляем информацию об игре (чтобы current_phase обновился)
+      window.dispatchEvent(new CustomEvent('gameUpdated'));
+      
+      addNotification({
+        type: NotificationType.Success,
+        title: 'Ход начат',
+        message: 'Первый ход успешно начат',
+        read: false
+      });
+    } catch (error) {
+      console.error('Ошибка начала хода:', error);
+      addNotification({
+        type: NotificationType.Error,
+        title: 'Ошибка',
+        message: 'Не удалось начать ход',
+        read: false
+      });
+    }
+  };
+
   // Обработчик завершения фазы
   const handleCompletePhase = async () => {
     if (!currentGame?.id) return;
@@ -1092,25 +1137,19 @@ const Game: React.FC = () => {
             currentTurn={getTurnData(currentTurn)?.turn_number}
             onUnitStackClick={handleUnitStackClick}
             onStackedUnitSelect={handleStackedUnitSelect}
+            onRefuelAllShips={handleRefuelAllShips}
+            onCompletePhase={handleCompletePhase}
+            onStartFirstTurn={handleStartFirstTurn}
+            isRefuelDisabled={!currentGame || gameUnits.length === 0}
+            isCompletePhaseDisabled={!currentTurn || getTurnData(currentTurn)?.current_phase !== 'movement'}
+            isStartFirstTurnVisible={(() => {
+              const isGermanPlayer = currentGame?.player1_id === user?.id;
+              const isGameReady = currentGame?.status === 'active' && !!currentGame?.player2_id;
+              const turnData = getTurnData(currentTurn);
+              const isSetupTurn = turnData && turnData.turn_number === 0 && turnData.current_phase === 'setup';
+              return !!(isGermanPlayer && isGameReady && isSetupTurn);
+            })()}
           />
-        </div>
-
-        {/* Управление картой */}
-        <div className="map-controls">
-          <button 
-            className="action-button"
-            onClick={handleRefuelAllShips}
-            disabled={!currentGame || gameUnits.length === 0}
-          >
-            Заправить (+4 топлива всем кораблям)
-          </button>
-          <button 
-            className="action-button"
-            onClick={handleCompletePhase}
-            disabled={!currentTurn || getTurnData(currentTurn)?.current_phase !== 'movement'}
-          >
-            Завершить ход
-          </button>
         </div>
 
         {/* Правая панель - действия */}
@@ -1133,71 +1172,7 @@ const Game: React.FC = () => {
           <div className="action-panel">
             <h3>Действия</h3>
             <div className="action-buttons">
-              {/* Кнопка "Начать ход 1" - только для немецкого игрока на фазе setup */}
-              {(() => {
-                const isGermanPlayer = currentGame?.player1_id === user?.id;
-                const isGameReady = currentGame?.status === 'active' && !!currentGame?.player2_id;
-                // Кнопка показывается только если активный ход - это setup фаза (turn_number = 0)
-                const turnData = getTurnData(currentTurn);
-                const isSetupTurn = turnData && turnData.turn_number === 0 && turnData.current_phase === 'setup';
-                
-                
-                // Кнопка показывается только для немецкого игрока на setup фазе
-                if (isGermanPlayer && isGameReady && isSetupTurn) {
-                  return (
-              <button 
-                      className="action-button primary"
-                      onClick={async () => {
-                        if (!currentGame?.id) return;
-                        
-                        try {
-                          console.log('🔄 Starting first turn...');
-                          
-                          // Начинаем первый ход
-                          await phaseAPI.startTurn({ game_id: currentGame.id });
-                          
-                          console.log('✅ First turn started successfully');
-                          
-                          // Обновляем информацию о текущем ходе
-                          const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
-                          setCurrentTurn(updatedTurn);
-                          
-                          console.log('📊 Turn data updated:', {
-                            turn_number: updatedTurn?.turn_number,
-                            current_phase: updatedTurn?.current_phase,
-                            status: updatedTurn?.status
-                          });
-                          
-                          // Уведомляем об обновлении хода
-                          window.dispatchEvent(new CustomEvent('turnUpdated', { detail: updatedTurn }));
-                          
-                          // Обновляем информацию об игре (чтобы current_phase обновился)
-                          window.dispatchEvent(new CustomEvent('gameUpdated'));
-                          
-                          addNotification({
-                            type: NotificationType.Success,
-                            title: 'Ход начат',
-                            message: 'Первый ход успешно начат',
-                            read: false
-                          });
-                        } catch (error) {
-                          console.error('Ошибка начала хода:', error);
-                          addNotification({
-                            type: NotificationType.Error,
-                            title: 'Ошибка',
-                            message: 'Не удалось начать ход',
-                            read: false
-                          });
-                        }
-                      }}
-                    >
-                      🚀 Начать ход 1
-              </button>
-                  );
-                }
-                return null;
-              })()}
-              
+              {/* Кнопки управления игрой перенесены в HexMap */}
             </div>
           </div>
 

@@ -52,6 +52,51 @@
   border-color: rgba(255, 255, 255, 0.4);
 }
 
+/* Стили для кнопок управления игрой */
+.game-controls {
+  display: flex;
+  gap: 10px;
+  margin-left: 20px;
+  align-items: center;
+}
+
+.game-controls .action-button {
+  background: #4a90e2;
+  border: 1px solid #357abd;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.game-controls .action-button:hover:not(:disabled) {
+  background: #357abd;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.game-controls .action-button:disabled {
+  background: #6b7280;
+  border-color: #4b5563;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.game-controls .action-button.primary {
+  background: #10b981;
+  border-color: #059669;
+  font-weight: 600;
+}
+
+.game-controls .action-button.primary:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
 .hex-map-wrapper {
   flex: 1;
   overflow: auto;
