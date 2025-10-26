@@ -5,16 +5,17 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
-	"database/sql"
+	"bismarck-game/backend/pkg/testutil"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
-	"time"
 )
 
 // TestPhaseSequenceIntegration тестирует полную последовательность фаз для проверки корректности работы кнопки "Завершить"
 func TestPhaseSequenceIntegration(t *testing.T) {
 	// Настройка тестовой базы данных
-	db, err := setupTestDB()
+	db, err := testutil.SetupTestDatabase()
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -32,7 +33,7 @@ func TestPhaseSequenceIntegration(t *testing.T) {
 		turnNumber := 1
 
 		// Создаем игру и первый ход
-		err := createTestGame(db.GetConnection(), gameID)
+		err := testutil.CreateTestGame(db.GetConnection(), gameID)
 		if err != nil {
 			t.Fatalf("Failed to create test game: %v", err)
 		}
@@ -99,7 +100,7 @@ func TestPhaseSequenceIntegration(t *testing.T) {
 		turnNumber := 2
 
 		// Создаем игру и начинаем второй ход
-		err := createTestGame(db.GetConnection(), gameID)
+		err := testutil.CreateTestGame(db.GetConnection(), gameID)
 		if err != nil {
 			t.Fatalf("Failed to create test game: %v", err)
 		}
@@ -178,7 +179,7 @@ func TestPhaseSequenceIntegration(t *testing.T) {
 
 // TestPhaseRecordsIntegration тестирует корректность записей о фазах в базе данных
 func TestPhaseRecordsIntegration(t *testing.T) {
-	db, err := setupTestDB()
+	db, err := testutil.SetupTestDatabase()
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -292,7 +293,7 @@ func TestPhaseRecordsIntegration(t *testing.T) {
 
 // TestPhaseHandlersIntegration тестирует работу обработчиков фаз
 func TestPhaseHandlersIntegration(t *testing.T) {
-	db, err := setupTestDB()
+	db, err := testutil.SetupTestDatabase()
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -352,7 +353,7 @@ func TestPhaseHandlersIntegration(t *testing.T) {
 
 // TestCompleteTurnTransition тестирует переход между ходами
 func TestCompleteTurnTransition(t *testing.T) {
-	db, err := setupTestDB()
+	db, err := testutil.SetupTestDatabase()
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
@@ -438,33 +439,50 @@ func TestCompleteTurnTransition(t *testing.T) {
 
 // Вспомогательные функции для тестирования
 
-func setupTestDB() (*database.Database, error) {
-	// Здесь должна быть настройка тестовой базы данных
-	// Для простоты используем основную базу данных
-	// В реальном проекте нужно использовать тестовую БД
-	cfg := &config.DatabaseConfig{
-		Host:     "localhost",
-		Port:     5432,
-		User:     "postgres",
-		Password: "password",
-		Name:     "bismarck_game",
-		SSLMode:  "disable",
-	}
-	return database.New(cfg)
-}
+// Вспомогательные функции
 
 func createTestUnitService(db *database.Database) *UnitService {
 	log, _ := logger.New(logger.INFO, "test-unit-service", "stdout")
 	return NewUnitService(db, log)
 }
 
-func createTestGame(db *sql.DB, gameID string) error {
-	// Создаем тестовую игру
-	query := `
-		INSERT INTO games (id, name, status, current_phase, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (id) DO NOTHING
-	`
-	_, err := db.Exec(query, gameID, "Test Game", "active", "setup", time.Now(), time.Now())
-	return err
+func loadTestConfig() (*config.Config, error) {
+	// Сначала пытаемся загрузить из config.json
+	configPath := findConfigFile()
+	if configPath != "" {
+		cfg, err := config.Load(configPath)
+		if err == nil {
+			return cfg, nil
+		}
+	}
+
+	// Если не удалось загрузить из файла, используем тестовую конфигурацию
+	return config.GetTestConfig(), nil
+}
+
+func findConfigFile() string {
+	// Список возможных путей к конфигурации
+	possiblePaths := []string{
+		"config.json",
+		"../config.json",
+		"../../config.json",
+		"../../../config.json",
+		"../../../../config.json",
+	}
+
+	// Получаем текущую рабочую директорию
+	wd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	// Проверяем каждый возможный путь
+	for _, path := range possiblePaths {
+		fullPath := filepath.Join(wd, path)
+		if _, err := os.Stat(fullPath); err == nil {
+			return fullPath
+		}
+	}
+
+	return ""
 }

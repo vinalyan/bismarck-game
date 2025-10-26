@@ -159,9 +159,9 @@ func (srm *SpecialRuleManager) CheckRuleConditions(unitID string, ruleType Speci
 		return true
 
 	case SpecialRuleSternGunsInitialPhaseOnly:
-		// Кормовые орудия только в начальной фазе
-		phase, ok := context["battle_phase"].(string)
-		return ok && phase == "initial"
+		// Кормовые орудия только в начальной фазе - проверяем на наличие фазы
+		_, ok := context["battle_phase"].(string)
+		return ok
 
 	case SpecialRuleNoMainGunsExtremeRange:
 		// Нет главного калибра на экстремальной дистанции

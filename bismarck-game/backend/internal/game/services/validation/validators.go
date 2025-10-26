@@ -60,7 +60,14 @@ func NewTurnValidator() *TurnValidator {
 }
 
 func (v *TurnValidator) Validate(ctx *ValidationContext) error {
+	// Проверяем, что юнит не двигался в этом ходу
 	if ctx.Unit.LastMoveTurn == ctx.CurrentTurn {
+		return errors.New("unit already moved this turn")
+	}
+
+	// Дополнительная проверка: если юнит уже использовал движение, не позволяем двигаться снова
+	// Это предотвращает движение дважды в одном ходу
+	if ctx.Unit.MovementUsed > 0 && ctx.Unit.LastMoveTurn == ctx.CurrentTurn {
 		return errors.New("unit already moved this turn")
 	}
 

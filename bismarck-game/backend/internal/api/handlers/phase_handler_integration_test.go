@@ -5,32 +5,37 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/database"
+	"bismarck-game/backend/pkg/logger"
+	"bismarck-game/backend/pkg/testutil"
 	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
-	"time"
 )
 
 // TestPhaseAPIEndpoints тестирует API endpoints для работы с фазами
 func TestPhaseAPIEndpoints(t *testing.T) {
 	// Настройка тестовой базы данных
-	db, err := setupTestDB()
+	db, err := testutil.SetupTestDB()
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 	defer db.Close()
 
 	// Создаем менеджер фаз и обработчик
-	phaseManager := services.NewPhaseManager(db, createTestUnitService(db))
+	unitService := createTestUnitService(db)
+	eventService := createTestEventService(db)
+	phaseManager := services.NewPhaseManager(db, unitService, eventService)
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
 	gameID := "test-api-game"
-	err = createTestGame(db, gameID)
+	err = testutil.CreateTestGame(db, gameID)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
 	}
@@ -211,19 +216,21 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 // TestPhaseSequenceAPI тестирует полную последовательность фаз через API
 func TestPhaseSequenceAPI(t *testing.T) {
 	// Настройка тестовой базы данных
-	db, err := setupTestDB()
+	db, err := testutil.SetupTestDB()
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 	defer db.Close()
 
 	// Создаем менеджер фаз и обработчик
-	phaseManager := services.NewPhaseManager(db, createTestUnitService(db))
+	unitService := createTestUnitService(db)
+	eventService := createTestEventService(db)
+	phaseManager := services.NewPhaseManager(db, unitService, eventService)
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
 	gameID := "test-sequence-game"
-	err = createTestGame(db, gameID)
+	err = testutil.CreateTestGame(db, gameID)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
 	}
@@ -337,14 +344,16 @@ func TestPhaseSequenceAPI(t *testing.T) {
 // TestPhaseValidationAPI тестирует валидацию API endpoints
 func TestPhaseValidationAPI(t *testing.T) {
 	// Настройка тестовой базы данных
-	db, err := setupTestDB()
+	db, err := testutil.SetupTestDB()
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 	defer db.Close()
 
 	// Создаем менеджер фаз и обработчик
-	phaseManager := services.NewPhaseManager(db, createTestUnitService(db))
+	unitService := createTestUnitService(db)
+	eventService := createTestEventService(db)
+	phaseManager := services.NewPhaseManager(db, unitService, eventService)
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Тест 1: Отсутствующий game_id
@@ -403,38 +412,74 @@ func TestPhaseValidationAPI(t *testing.T) {
 
 // Вспомогательные функции
 
-func setupTestDB() (*sql.DB, error) {
-	// Здесь должна быть настройка тестовой базы данных
-	// Для простоты используем основную базу данных
-	// В реальном проекте нужно использовать тестовую БД
-	cfg := &config.DatabaseConfig{
-		Host:     "localhost",
-		Port:     5432,
-		User:     "postgres",
-		Password: "password",
-		Name:     "bismarck_game",
-		SSLMode:  "disable",
-	}
-	db, err := database.New(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return db.GetConnection(), nil
-}
-
 func createTestUnitService(db *sql.DB) *services.UnitService {
 	// Создаем простой UnitService для тестов
 	// В реальном проекте нужно использовать правильную инициализацию
 	return &services.UnitService{}
 }
 
-func createTestGame(db *sql.DB, gameID string) error {
-	// Создаем тестовую игру
-	query := `
-		INSERT INTO games (id, name, status, current_phase, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (id) DO NOTHING
-	`
-	_, err := db.Exec(query, gameID, "Test Game", "active", "setup", time.Now(), time.Now())
-	return err
+func createTestEventService(db *sql.DB) *services.GameEventService {
+	// Загружаем конфигурацию из config.json
+	cfg, err := loadTestConfig()
+	if err != nil {
+		// Fallback к тестовой конфигурации
+		cfg = config.GetTestConfig()
+	}
+
+	// Создаем подключение к базе данных
+	dbWrapper, err := database.New(&cfg.Database)
+	if err != nil {
+		// Если не удается подключиться, создаем пустой сервис
+		return &services.GameEventService{}
+	}
+
+	// Создаем logger
+	log, err := logger.New(logger.INFO, "text", "")
+	if err != nil {
+		// Fallback к пустому logger
+		log = &logger.Logger{}
+	}
+
+	return services.NewGameEventService(dbWrapper, log)
+}
+
+func loadTestConfig() (*config.Config, error) {
+	// Сначала пытаемся загрузить из config.json
+	configPath := findConfigFile()
+	if configPath != "" {
+		cfg, err := config.Load(configPath)
+		if err == nil {
+			return cfg, nil
+		}
+	}
+
+	// Если не удалось загрузить из файла, используем тестовую конфигурацию
+	return config.GetTestConfig(), nil
+}
+
+func findConfigFile() string {
+	// Список возможных путей к конфигурации
+	possiblePaths := []string{
+		"config.json",
+		"../config.json",
+		"../../config.json",
+		"../../../config.json",
+		"../../../../config.json",
+	}
+
+	// Получаем текущую рабочую директорию
+	wd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	// Проверяем каждый возможный путь
+	for _, path := range possiblePaths {
+		fullPath := filepath.Join(wd, path)
+		if _, err := os.Stat(fullPath); err == nil {
+			return fullPath
+		}
+	}
+
+	return ""
 }

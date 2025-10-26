@@ -18,13 +18,17 @@ func createTestMovementService() *MovementService {
 }
 
 // testValidateMovement тестирует валидацию движения без обращения к БД
-func testValidateMovement(service *MovementService, ship *models.NavalUnit, fromHex, toHex string) error {
+func testValidateMovement(service *MovementService, ship *models.NavalUnit, fromHex, toHex string, currentTurn int) error {
 	// Создаем мок-данные для тестирования
 	fuelTracking := &models.FuelTracking{
 		IsEmergencyFuel:   false,
 		PreviousTurnMoved: 0,
 	}
-	currentTurn := 1
+
+	// Если currentTurn не указан, используем значение по умолчанию
+	if currentTurn == 0 {
+		currentTurn = 1
+	}
 
 	// Используем валидаторы напрямую
 	return service.validatorFactory.ValidateMovement(ship, fromHex, toHex, fuelTracking, currentTurn)
@@ -48,7 +52,7 @@ func TestCompleteMovementCycle(t *testing.T) {
 		service := createTestMovementService()
 
 		// Тест 1: Валидация движения (используем только валидаторы без БД)
-		err := testValidateMovement(service, ship, "J30", "J32")
+		err := testValidateMovement(service, ship, "J30", "J32", 1)
 		if err != nil {
 			t.Errorf("ValidateMovement failed: %v", err)
 		}
@@ -89,7 +93,7 @@ func TestCompleteMovementCycle(t *testing.T) {
 		service := createTestMovementService()
 
 		// Тест 1: Валидация движения (используем новую систему валидации)
-		err := testValidateMovement(service, ship, "J30", "J31")
+		err := testValidateMovement(service, ship, "J30", "J31", 1)
 		if err != nil {
 			t.Errorf("ValidateMovement failed: %v", err)
 		}
@@ -131,7 +135,7 @@ func TestCompleteMovementCycle(t *testing.T) {
 		service := createTestMovementService()
 
 		// Тест 1: Валидация движения
-		err := testValidateMovement(service, ship, "J30", "J31")
+		err := testValidateMovement(service, ship, "J30", "J31", 1)
 		if err != nil {
 			t.Errorf("ValidateMovement failed: %v", err)
 		}
@@ -177,7 +181,7 @@ func TestCompleteMovementCycle(t *testing.T) {
 		service := createTestMovementService()
 
 		// Тест 1: Валидация движения
-		err := testValidateMovement(service, ship, "J30", "J31")
+		err := testValidateMovement(service, ship, "J30", "J31", 1)
 		if err != nil {
 			t.Errorf("ValidateMovement failed: %v", err)
 		}
@@ -225,7 +229,7 @@ func TestMovementWithRestrictions(t *testing.T) {
 		service := createTestMovementService()
 
 		// Попытка движения должна завершиться ошибкой
-		err := testValidateMovement(service, ship, "J30", "J31")
+		err := testValidateMovement(service, ship, "J30", "J31", 1)
 		if err == nil {
 			t.Error("Expected error for S ship with movement restrictions")
 		}
@@ -246,7 +250,7 @@ func TestMovementWithRestrictions(t *testing.T) {
 		service := createTestMovementService()
 
 		// Попытка движения должна завершиться ошибкой
-		err := testValidateMovement(service, ship, "J30", "J31")
+		err := testValidateMovement(service, ship, "J30", "J31", 1)
 		if err == nil {
 			t.Error("Expected error for VS ship with movement restrictions")
 		}
@@ -269,7 +273,7 @@ func TestMovementWithFuel(t *testing.T) {
 		service := createTestMovementService()
 
 		// Попытка движения должна завершиться ошибкой
-		err := testValidateMovement(service, ship, "J30", "J32")
+		err := testValidateMovement(service, ship, "J30", "J32", 1)
 		if err == nil {
 			t.Error("Expected error for F ship without fuel")
 		}
@@ -289,7 +293,7 @@ func TestMovementWithFuel(t *testing.T) {
 		service := createTestMovementService()
 
 		// Попытка движения должна завершиться ошибкой
-		err := testValidateMovement(service, ship, "J30", "J31")
+		err := testValidateMovement(service, ship, "J30", "J31", 1)
 		if err == nil {
 			t.Error("Expected error for M ship without fuel")
 		}
@@ -310,7 +314,7 @@ func TestMovementWithFuel(t *testing.T) {
 		service := createTestMovementService()
 
 		// S корабли не тратят топливо, поэтому могут двигаться
-		err := testValidateMovement(service, ship, "J30", "J31")
+		err := testValidateMovement(service, ship, "J30", "J31", 1)
 		if err != nil {
 			t.Errorf("S ship should be able to move without fuel: %v", err)
 		}
@@ -331,7 +335,7 @@ func TestMovementWithFuel(t *testing.T) {
 		service := createTestMovementService()
 
 		// VS корабли не тратят топливо, поэтому могут двигаться
-		err := testValidateMovement(service, ship, "J30", "J31")
+		err := testValidateMovement(service, ship, "J30", "J31", 1)
 		if err != nil {
 			t.Errorf("VS ship should be able to move without fuel: %v", err)
 		}
@@ -356,7 +360,7 @@ func TestMovementWithBoundaries(t *testing.T) {
 		service := createTestMovementService()
 
 		// Попытка пересечь границу должна завершиться ошибкой
-		err := testValidateMovement(service, ship, "Q28", "Q29")
+		err := testValidateMovement(service, ship, "Q28", "Q29", 1)
 		if err == nil {
 			t.Error("Expected error for German DD crossing boundary")
 		}
@@ -378,7 +382,7 @@ func TestMovementWithBoundaries(t *testing.T) {
 		service := createTestMovementService()
 
 		// Попытка войти в гекс конвоя должна завершиться ошибкой
-		err := testValidateMovement(service, ship, "H14", "H15")
+		err := testValidateMovement(service, ship, "H14", "H15", 1)
 		if err == nil {
 			t.Error("Expected error for German tanker entering convoy hex")
 		}
@@ -404,7 +408,7 @@ func TestMovementWithTurnTransition(t *testing.T) {
 		service := createTestMovementService()
 
 		// В новом ходу корабль может двигаться
-		err := testValidateMovement(service, ship, "J30", "J32")
+		err := testValidateMovement(service, ship, "J30", "J32", 6)
 		if err != nil {
 			t.Errorf("Ship should be able to move in new turn: %v", err)
 		}
@@ -417,15 +421,15 @@ func TestMovementWithTurnTransition(t *testing.T) {
 			Fuel:         18,
 			MaxFuel:      18,
 			Position:     "J30",
-			LastMoveTurn: 6, // Current turn
-			MovementUsed: 2, // Already moved
+			LastMoveTurn: 6,  // Current turn
+			MovementUsed: 2,  // Already moved
 			Evasion:      30, // Set high evasion to avoid damaged ship validation
 		}
 
 		service := createTestMovementService()
 
 		// Корабль не может двигаться дважды в одном ходу
-		err := testValidateMovement(service, ship, "J30", "J32")
+		err := testValidateMovement(service, ship, "J30", "J32", 6)
 		if err == nil {
 			t.Error("Expected error for ship moving twice in same turn")
 		}
@@ -469,7 +473,7 @@ func TestMovementWithAllShipTypes(t *testing.T) {
 				toHex = "J32"
 			}
 
-			err := testValidateMovement(service, ship, "J30", toHex)
+			err := testValidateMovement(service, ship, "J30", toHex, 1)
 			if err != nil {
 				t.Errorf("ValidateMovement failed for %s ship: %v", shipType.name, err)
 			}
