@@ -645,6 +645,26 @@ paths:
       summary: Получение статуса аварийного топлива
       tags:
       - Emergency Fuel
+  /api/map/structures:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Получение структур карты
+      tags:
+      - Map
   /games:
     get:
       consumes:
@@ -805,6 +825,64 @@ paths:
       security:
       - Bearer: []
       summary: Выполнение движения юнита
+      tags:
+      - Movement
+  /games/{gameId}/units/{unitId}/movement-cost:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID игры
+        in: path
+        name: gameId
+        required: true
+        type: string
+      - description: ID юнита
+        in: path
+        name: unitId
+        required: true
+        type: string
+      - description: Целевой гекс
+        in: query
+        name: to_hex
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+            properties:
+              unit_id:
+                type: string
+              from_hex:
+                type: string
+              to_hex:
+                type: string
+              fuel_cost:
+                type: integer
+              success:
+                type: boolean
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: Получение стоимости движения для гекса
       tags:
       - Movement
   /games/{gameId}/units/{unitId}/movement-history:
@@ -1174,21 +1252,6 @@ paths:
       summary: Получение очков победы для игры
       tags:
       - Games
-  /phases/all:
-    get:
-      consumes:
-      - application/json
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Получение информации о всех фазах
-      tags:
-      - Phases
   /phases/complete:
     post:
       consumes:
@@ -1215,37 +1278,6 @@ paths:
             additionalProperties: true
             type: object
       summary: Завершение текущей фазы
-      tags:
-      - Phases
-  /phases/info:
-    get:
-      consumes:
-      - application/json
-      parameters:
-      - description: Название фазы
-        in: query
-        name: phase
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Получение информации о фазе
       tags:
       - Phases
   /phases/next:
