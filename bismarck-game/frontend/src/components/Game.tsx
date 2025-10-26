@@ -1180,20 +1180,6 @@ const Game: React.FC = () => {
                 return null;
               })()}
               
-              <button 
-                className="action-button"
-                onClick={handleRefuelAllShips}
-                disabled={!currentGame || gameUnits.length === 0}
-              >
-                Заправить (+4 топлива всем кораблям)
-              </button>
-              <button 
-                className="action-button"
-                onClick={handleCompletePhase}
-                disabled={!currentTurn || getTurnData(currentTurn)?.current_phase !== 'movement'}
-              >
-                Завершить ход
-              </button>
             </div>
           </div>
 
@@ -1236,6 +1222,24 @@ const Game: React.FC = () => {
             onUnitStackClick={handleUnitStackClick}
             onStackedUnitSelect={handleStackedUnitSelect}
           />
+        </div>
+
+        {/* Управление картой */}
+        <div className="map-controls">
+          <button 
+            className="action-button"
+            onClick={handleRefuelAllShips}
+            disabled={!currentGame || gameUnits.length === 0}
+          >
+            Заправить (+4 топлива всем кораблям)
+          </button>
+          <button 
+            className="action-button"
+            onClick={handleCompletePhase}
+            disabled={!currentTurn || getTurnData(currentTurn)?.current_phase !== 'movement'}
+          >
+            Завершить ход
+          </button>
         </div>
       </div>
 

@@ -916,6 +916,18 @@
   overflow: hidden;
 }
 
+/* Управление картой */
+.map-controls {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin-top: 1rem;
+  justify-content: center;
+  align-items: center;
+}
+
 /* Стили для индикатора аварийного топлива */
 .emergency-fuel-indicator {
   background: rgba(245, 101, 101, 0.2);
