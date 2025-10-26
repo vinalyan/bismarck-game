@@ -504,6 +504,17 @@ const Game: React.FC = () => {
   // Обработчик выбора юнита из стека
   const handleStackedUnitSelect = (unit: any) => {
     console.log('Stacked unit selected:', unit);
+    
+    // Если кликнули на уже выбранный юнит - сбрасываем выбор
+    if (selectedUnit === unit.id) {
+      setSelectedUnit(null);
+      setSelectedUnitData(null);
+      setAvailableMovementHexes([]);
+      clearActiveHexes();
+      setExpandedStackHex(null);
+      return;
+    }
+    
     // Сворачиваем стек
     setExpandedStackHex(null);
     // Выбираем юнит
@@ -555,6 +566,15 @@ const Game: React.FC = () => {
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
     // console.log('🎯 Unit clicked:', unitId, unitData.type);
+    
+    // Если кликнули на уже выбранный юнит - сбрасываем выбор
+    if (selectedUnit === unitId) {
+      setSelectedUnit(null);
+      setSelectedUnitData(null);
+      setAvailableMovementHexes([]);
+      clearActiveHexes();
+      return;
+    }
     
     setSelectedUnit(unitId);
     setSelectedUnitData(unitData);
