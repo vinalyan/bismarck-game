@@ -9,9 +9,12 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) DEFAULT 'player',
+    stats JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP WITH TIME ZONE
+    last_login TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT true
 );
 
 -- Games table
@@ -24,10 +27,13 @@ CREATE TABLE IF NOT EXISTS games (
     current_phase VARCHAR(20) DEFAULT 'waiting',
     status VARCHAR(20) DEFAULT 'waiting',
     settings JSONB DEFAULT '{}',
-    victory_points JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP WITH TIME ZONE
+    completed_at TIMESTAMP WITH TIME ZONE,
+    winner UUID REFERENCES users(id),
+    victory_type VARCHAR(20),
+    started_at TIMESTAMP WITH TIME ZONE,
+    last_action_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Game states table (for persistence)
@@ -38,7 +44,8 @@ CREATE TABLE IF NOT EXISTS game_states (
     phase VARCHAR(20) NOT NULL,
     state_data JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(game_id, turn, phase)
+    sequence INTEGER DEFAULT 0,
+    checksum VARCHAR(255)
 );
 
 -- User sessions table
@@ -47,7 +54,35 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     token_hash VARCHAR(255) NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    ip_address INET,
+    user_agent TEXT,
+    is_active BOOLEAN DEFAULT true
+);
+
+-- User preferences table
+CREATE TABLE IF NOT EXISTS user_preferences (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    theme VARCHAR(20) DEFAULT 'dark',
+    language VARCHAR(10) DEFAULT 'en',
+    notifications BOOLEAN DEFAULT true,
+    sound_enabled BOOLEAN DEFAULT true,
+    auto_save BOOLEAN DEFAULT true,
+    show_tutorials BOOLEAN DEFAULT true,
+    default_game_mode VARCHAR(20) DEFAULT 'standard',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User achievements table
+CREATE TABLE IF NOT EXISTS user_achievements (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    achievement VARCHAR(100) NOT NULL,
+    unlocked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    progress INTEGER DEFAULT 0,
+    max_progress INTEGER DEFAULT 0,
+    UNIQUE(user_id, achievement)
 );
 
 -- Game turns table (for phase management)
@@ -98,16 +133,20 @@ CREATE TABLE IF NOT EXISTS movements (
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
+
 CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
 CREATE INDEX IF NOT EXISTS idx_games_player1 ON games(player1_id);
 CREATE INDEX IF NOT EXISTS idx_games_player2 ON games(player2_id);
+CREATE INDEX IF NOT EXISTS idx_games_created_at ON games(created_at);
+
 CREATE INDEX IF NOT EXISTS idx_game_states_game_id ON game_states(game_id);
+CREATE INDEX IF NOT EXISTS idx_game_states_turn_phase ON game_states(turn, phase);
+
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
-CREATE INDEX IF NOT EXISTS idx_game_turns_game_id ON game_turns(game_id);
-CREATE INDEX IF NOT EXISTS idx_game_turns_turn_number ON game_turns(turn_number);
-CREATE INDEX IF NOT EXISTS idx_phase_records_game_id ON phase_records(game_id);
-CREATE INDEX IF NOT EXISTS idx_phase_records_turn_phase ON phase_records(turn_number, phase);
-CREATE INDEX IF NOT EXISTS idx_movements_game_id ON movements(game_id);
-CREATE INDEX IF NOT EXISTS idx_movements_unit_id ON movements(unit_id);
-CREATE INDEX IF NOT EXISTS idx_movements_turn ON movements(turn);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_is_active ON user_sessions(is_active);
+
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user_id ON user_achievements(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_achievements_achievement ON user_achievements(achievement);

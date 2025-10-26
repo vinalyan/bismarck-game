@@ -9,9 +9,9 @@
     "host": "localhost",
     "port": 5432,
     "user": "bismarck_user",
-    "password": "",
+    "password": "bismarck_pass",
     "name": "bismarck_game",
-    "ssl_mode": "require"
+    "ssl_mode": "disable"
   },
   "redis": {
     "address": "localhost:6379",
@@ -19,7 +19,7 @@
     "db": 0
   },
   "jwt": {
-    "secret": "",
+    "secret": "dev-secret-key-change-in-production",
     "expiration": "24h"
   },
   "game": {

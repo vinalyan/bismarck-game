@@ -599,6 +599,64 @@ func getMigrations() []Migration {
 				ALTER TABLE naval_units DROP COLUMN IF EXISTS is_activated;
 			`,
 		},
+		{
+			Version:     "011_game_events",
+			Description: "Add game events table",
+			SQL: `
+				-- Game events table (for game log)
+				CREATE TABLE IF NOT EXISTS game_events (
+					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+					turn INTEGER NOT NULL,
+					phase VARCHAR(20) NOT NULL,
+					event_type VARCHAR(50) NOT NULL,
+					actor_id VARCHAR(255),
+					actor_name VARCHAR(255),
+					target_id VARCHAR(255),
+					target_name VARCHAR(255),
+					description TEXT NOT NULL,
+					data JSONB,
+					visibility JSONB,
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+				);
+
+				-- Create indexes for better performance
+				CREATE INDEX IF NOT EXISTS idx_game_events_game_id ON game_events(game_id);
+				CREATE INDEX IF NOT EXISTS idx_game_events_turn ON game_events(turn);
+				CREATE INDEX IF NOT EXISTS idx_game_events_created_at ON game_events(created_at);
+				CREATE INDEX IF NOT EXISTS idx_game_events_event_type ON game_events(event_type);
+			`,
+			RollbackSQL: `
+				DROP TABLE IF EXISTS game_events;
+			`,
+		},
+		{
+			Version:     "012_fix_phase_records",
+			Description: "Fix phase_records table structure",
+			SQL: `
+				-- Добавляем недостающие поля в phase_records
+				ALTER TABLE phase_records ADD COLUMN IF NOT EXISTS game_id UUID REFERENCES games(id) ON DELETE CASCADE;
+				ALTER TABLE phase_records ADD COLUMN IF NOT EXISTS turn_number INTEGER;
+				
+				-- Удаляем старый constraint если существует
+				ALTER TABLE phase_records DROP CONSTRAINT IF EXISTS phase_records_phase_turn_key;
+				
+				-- Создаем новый уникальный индекс
+				CREATE UNIQUE INDEX IF NOT EXISTS phase_records_game_turn_phase_idx ON phase_records(game_id, turn_number, phase);
+				
+				-- Удаляем старую колонку turn если существует
+				DO $$ 
+				BEGIN
+					IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'phase_records' AND column_name = 'turn') THEN
+						UPDATE phase_records SET turn_number = turn WHERE turn_number IS NULL;
+						ALTER TABLE phase_records DROP COLUMN turn;
+					END IF;
+				END $$;
+			`,
+			RollbackSQL: `
+				-- Rollback не поддерживается для этой миграции
+			`,
+		},
 	}
 }
 
