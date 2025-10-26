@@ -399,33 +399,6 @@
   opacity: 0.5;
 }
 
-/* Информация о погоде */
-.weather-info {
-  background: rgba(74, 144, 226, 0.1);
-  border-radius: 8px;
-  padding: 1rem;
-  border: 1px solid #4a90e2;
-}
-
-.weather-info h3 {
-  margin: 0 0 1rem 0;
-  color: #4a90e2;
-  font-size: 1.1rem;
-  border-bottom: 1px solid #4a90e2;
-  padding-bottom: 0.5rem;
-}
-
-.weather-item {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.weather-value {
-  font-weight: 600;
-  color: #4a90e2;
-}
 
 /* Модальное окно */
 .modal-overlay {

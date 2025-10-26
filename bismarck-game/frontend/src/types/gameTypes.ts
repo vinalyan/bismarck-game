@@ -268,7 +268,10 @@ export enum WSMessageType {
   ActionProcessed = 'action_processed',
   
   // Уведомления
-  Notification = 'notification'
+  Notification = 'notification',
+  
+  // События игры
+  GameEvent = 'game_event'
 }
 
 // Чат сообщение

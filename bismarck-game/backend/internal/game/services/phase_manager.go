@@ -13,13 +13,15 @@ type PhaseManager struct {
 	db            *sql.DB
 	unitService   *UnitService
 	phaseHandlers map[models.GamePhase]models.PhaseHandler
+	eventService  *GameEventService
 }
 
-func NewPhaseManager(db *sql.DB, unitService *UnitService) *PhaseManager {
+func NewPhaseManager(db *sql.DB, unitService *UnitService, eventService *GameEventService) *PhaseManager {
 	pm := &PhaseManager{
 		db:            db,
 		unitService:   unitService,
 		phaseHandlers: make(map[models.GamePhase]models.PhaseHandler),
+		eventService:  eventService,
 	}
 
 	// Регистрируем обработчики фаз
@@ -97,9 +99,17 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		return nil, fmt.Errorf("failed to update game: %v", err)
 	}
 
+	// Логируем событие смены хода
+	if pm.eventService != nil {
+		err := pm.eventService.LogTurnChangeEvent(gameID, turnNumber)
+		if err != nil {
+			log.Printf("Warning: failed to log turn change event: %v", err)
+		}
+	}
+
 	// Сбрасываем только ограничения движения, НЕ сбрасываем previous_turn_moved_hexes
 	// previous_turn_moved_hexes должен сохраняться до завершения фазы движения
-	
+
 	// Сначала получаем текущие значения для отладки
 	rows, err := pm.db.Query(`
 		SELECT id, name, no_movement_turns_left 
@@ -117,7 +127,7 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		}
 		rows.Close()
 	}
-	
+
 	resetMovementQuery := `
 		UPDATE naval_units 
 		SET 
@@ -132,7 +142,7 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		log.Printf("Warning: failed to reset movement restrictions: %v", err)
 	} else {
 		log.Printf("Movement restrictions reset for all units in game %s turn %d", gameID, turnNumber)
-		
+
 		// Проверяем результат
 		rows, err := pm.db.Query(`
 			SELECT id, name, no_movement_turns_left 
@@ -268,6 +278,19 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 	err = handler.Start(gameID, turnNumber)
 	if err != nil {
 		return fmt.Errorf("failed to start phase handler: %v", err)
+	}
+
+	// Логируем событие смены фазы
+	if pm.eventService != nil {
+		// Получаем предыдущую фазу
+		var previousPhase models.GamePhase
+		err := pm.db.QueryRow("SELECT current_phase FROM games WHERE id = $1", gameID).Scan(&previousPhase)
+		if err == nil && previousPhase != phase {
+			err := pm.eventService.LogPhaseChangeEvent(gameID, turnNumber, string(previousPhase), string(phase))
+			if err != nil {
+				log.Printf("Warning: failed to log phase change event: %v", err)
+			}
+		}
 	}
 
 	// Логирование начала фазы движения (без сброса)

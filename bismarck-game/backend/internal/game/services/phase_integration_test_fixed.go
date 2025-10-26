@@ -22,7 +22,9 @@ func TestPhaseSequenceIntegration(t *testing.T) {
 
 	// Создаем UnitService и PhaseManager
 	unitService := createTestUnitService(db)
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService)
+	eventLogger, _ := logger.New(logger.INFO, "test-event-service", "stdout")
+	eventService := NewGameEventService(db, eventLogger)
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService)
 
 	// Тест 1: Первый ход - последовательность фаз
 	t.Run("FirstTurnPhaseSequence", func(t *testing.T) {
@@ -184,7 +186,9 @@ func TestPhaseRecordsIntegration(t *testing.T) {
 
 	// Создаем UnitService и PhaseManager
 	unitService := createTestUnitService(db)
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService)
+	eventLogger, _ := logger.New(logger.INFO, "test-event-service", "stdout")
+	eventService := NewGameEventService(db, eventLogger)
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService)
 	gameID := "test-game-records"
 	turnNumber := 1
 
@@ -296,7 +300,9 @@ func TestPhaseHandlersIntegration(t *testing.T) {
 
 	// Создаем UnitService и PhaseManager
 	unitService := createTestUnitService(db)
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService)
+	eventLogger, _ := logger.New(logger.INFO, "test-event-service", "stdout")
+	eventService := NewGameEventService(db, eventLogger)
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService)
 	gameID := "test-game-handlers"
 	turnNumber := 1
 
@@ -354,7 +360,9 @@ func TestCompleteTurnTransition(t *testing.T) {
 
 	// Создаем UnitService и PhaseManager
 	unitService := createTestUnitService(db)
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService)
+	eventLogger, _ := logger.New(logger.INFO, "test-event-service", "stdout")
+	eventService := NewGameEventService(db, eventLogger)
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService)
 	gameID := "test-game-transition"
 
 	// Создаем игру

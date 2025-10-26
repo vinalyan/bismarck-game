@@ -1,0 +1,162 @@
+/* Стили для лога игры */
+.game-log {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid #4a90e2;
+  height: 800px;
+  display: flex;
+  flex-direction: column;
+  margin-top: 1rem;
+}
+
+.game-log-header {
+  padding: 12px;
+  border-bottom: 1px solid #4a90e2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(74, 144, 226, 0.1);
+  border-radius: 8px 8px 0 0;
+}
+
+.game-log-header h3 {
+  margin: 0;
+  color: #4a90e2;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.refresh-btn {
+  background: rgba(74, 144, 226, 0.2);
+  color: #4a90e2;
+  border: 1px solid #4a90e2;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: rgba(74, 144, 226, 0.3);
+  transform: scale(1.05);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-log-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.log-event {
+  background: rgba(74, 144, 226, 0.1);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 6px;
+  padding: 8px;
+  transition: background-color 0.2s ease;
+  border-left: 4px solid #4a90e2;
+}
+
+.log-event:hover {
+  background: rgba(74, 144, 226, 0.15);
+}
+
+.log-event.event-movement {
+  border-left-color: #4CAF50;
+}
+
+.log-event.event-phase_change {
+  border-left-color: #2196F3;
+}
+
+.log-event.event-turn_change {
+  border-left-color: #FF9800;
+}
+
+.event-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.event-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.event-time {
+  color: #a0a0a0;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.event-turn {
+  color: #666;
+  font-size: 11px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.event-description {
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.3;
+  word-wrap: break-word;
+}
+
+.loading {
+  text-align: center;
+  color: #888;
+  padding: 20px;
+  font-style: italic;
+}
+
+.error-message {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid #f44336;
+  color: #f44336;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.no-events {
+  text-align: center;
+  color: #888;
+  padding: 20px;
+  font-style: italic;
+}
+
+/* Стили для скроллбара */
+.game-log-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.game-log-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.game-log-content::-webkit-scrollbar-thumb {
+  background: rgba(74, 144, 226, 0.5);
+  border-radius: 3px;
+}
+
+.game-log-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(74, 144, 226, 0.7);
+}

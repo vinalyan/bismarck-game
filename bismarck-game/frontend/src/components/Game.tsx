@@ -15,6 +15,7 @@ import { refuelAPI } from '../services/api/refuelAPI';
 import { mapService, MapStructure } from '../services/api/mapService';
 import { GameTurnResponse, PHASE_NAMES } from '../types/phaseTypes';
 import HexMap from './HexMap';
+import GameLog from './GameLog';
 import './Game.css';
 
 const Game: React.FC = () => {
@@ -1026,22 +1027,10 @@ const Game: React.FC = () => {
             </div>
           </div>
 
-          {/* Информация о погоде */}
-          <div className="weather-info">
-            <h3>Погода</h3>
-            <div className="weather-item">
-              <span>Видимость:</span>
-              <span className="weather-value">Хорошая</span>
-            </div>
-            <div className="weather-item">
-              <span>Ветер:</span>
-              <span className="weather-value">Умеренный</span>
-            </div>
-            <div className="weather-item">
-              <span>Волнение:</span>
-              <span className="weather-value">Слабое</span>
-            </div>
-          </div>
+          {/* Лог игры */}
+          {currentGame && (
+            <GameLog gameId={currentGame.id} />
+          )}
         </div>
 
         {/* Основная область карты */}

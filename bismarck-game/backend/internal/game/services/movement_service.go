@@ -30,10 +30,11 @@ type MovementService struct {
 	hexCalculator       hexgrid.HexCalculator
 	validatorFactory    *validation.ValidatorFactory
 	mapStructureService *MapStructureService
+	eventService        *GameEventService
 }
 
 // NewMovementService создает новый сервис движения
-func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService, phaseManager *PhaseManager, unitService *UnitService, mapStructureService *MapStructureService) *MovementService {
+func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService, phaseManager *PhaseManager, unitService *UnitService, mapStructureService *MapStructureService, eventService *GameEventService) *MovementService {
 	hexCalculator := hexgrid.NewStandardHexCalculator()
 	validatorFactory := validation.NewValidatorFactory(hexCalculator)
 
@@ -46,6 +47,7 @@ func NewMovementService(db *database.Database, logger *logger.Logger, visibility
 		hexCalculator:       hexCalculator,
 		validatorFactory:    validatorFactory,
 		mapStructureService: mapStructureService,
+		eventService:        eventService,
 	}
 }
 
@@ -265,6 +267,24 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 
 	// Уведомляем игроков о движении
 	s.notifyPlayersAboutMovement(unit, movement)
+
+	// Логируем событие движения
+	if s.eventService != nil {
+		err := s.eventService.LogMovementEvent(
+			unit.GameID,
+			unit.ID,
+			unit.Name,
+			oldPosition,
+			toHex,
+			movement.Turn,
+			movement.Phase,
+			fuelCost,
+			movement.HexesMoved,
+		)
+		if err != nil {
+			s.logger.Warn("Failed to log movement event", "error", err)
+		}
+	}
 
 	s.logger.Info("Unit movement executed",
 		"unit_id", unit.ID,

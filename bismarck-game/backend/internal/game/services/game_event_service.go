@@ -1,0 +1,190 @@
+package services
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"bismarck-game/backend/internal/game/models"
+	"bismarck-game/backend/pkg/database"
+	"bismarck-game/backend/pkg/logger"
+
+	"github.com/google/uuid"
+)
+
+type GameEventService struct {
+	db     *database.Database
+	logger *logger.Logger
+}
+
+func NewGameEventService(db *database.Database, logger *logger.Logger) *GameEventService {
+	return &GameEventService{
+		db:     db,
+		logger: logger,
+	}
+}
+
+// LogMovementEvent логирует событие движения
+func (s *GameEventService) LogMovementEvent(gameID, unitID, unitName, fromHex, toHex string, turn int, phase string, fuelCost, hexesMoved int) error {
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       phase,
+		EventType:   models.EventTypeMovement,
+		ActorID:     unitID,
+		ActorName:   unitName,
+		Description: fmt.Sprintf("%s переместился из %s в %s", unitName, fromHex, toHex),
+		Data: map[string]interface{}{
+			"from_hex":    fromHex,
+			"to_hex":      toHex,
+			"fuel_cost":   fuelCost,
+			"hexes_moved": hexesMoved,
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}
+
+// LogPhaseChangeEvent логирует событие смены фазы
+func (s *GameEventService) LogPhaseChangeEvent(gameID string, turn int, fromPhase, toPhase string) error {
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       toPhase,
+		EventType:   models.EventTypePhaseChange,
+		Description: fmt.Sprintf("Фаза изменена с %s на %s", fromPhase, toPhase),
+		Data: map[string]interface{}{
+			"from_phase": fromPhase,
+			"to_phase":   toPhase,
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}
+
+// LogTurnChangeEvent логирует событие смены хода
+func (s *GameEventService) LogTurnChangeEvent(gameID string, turn int) error {
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       "setup",
+		EventType:   models.EventTypeTurnChange,
+		Description: fmt.Sprintf("Начался ход %d", turn),
+		Data: map[string]interface{}{
+			"turn": turn,
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}
+
+// GetGameEvents возвращает последние события игры
+func (s *GameEventService) GetGameEvents(gameID string, limit int) ([]models.GameEvent, error) {
+	query := `
+		SELECT id, game_id, turn, phase, event_type, actor_id, actor_name, 
+		       target_id, target_name, description, data, visibility, created_at
+		FROM game_events 
+		WHERE game_id = $1 
+		ORDER BY created_at DESC
+		LIMIT $2
+	`
+
+	rows, err := s.db.Query(query, gameID, limit)
+	if err != nil {
+		s.logger.Error("Failed to query game events", "error", err, "game_id", gameID)
+		return nil, fmt.Errorf("failed to get game events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []models.GameEvent
+	for rows.Next() {
+		var event models.GameEvent
+		var dataJSON, visibilityJSON []byte
+		var actorID, actorName, targetID, targetName sql.NullString
+
+		err := rows.Scan(
+			&event.ID, &event.GameID, &event.Turn, &event.Phase,
+			&event.EventType, &actorID, &actorName,
+			&targetID, &targetName, &event.Description,
+			&dataJSON, &visibilityJSON, &event.CreatedAt,
+		)
+		if err != nil {
+			s.logger.Error("Failed to scan game event", "error", err)
+			return nil, fmt.Errorf("failed to scan event: %w", err)
+		}
+
+		// Обрабатываем NULL значения
+		if actorID.Valid {
+			event.ActorID = actorID.String
+		}
+		if actorName.Valid {
+			event.ActorName = actorName.String
+		}
+		if targetID.Valid {
+			event.TargetID = targetID.String
+		}
+		if targetName.Valid {
+			event.TargetName = targetName.String
+		}
+
+		// Парсим JSON поля
+		if len(dataJSON) > 0 {
+			if err := json.Unmarshal(dataJSON, &event.Data); err != nil {
+				event.Data = make(map[string]interface{})
+			}
+		} else {
+			event.Data = make(map[string]interface{})
+		}
+
+		if len(visibilityJSON) > 0 {
+			if err := json.Unmarshal(visibilityJSON, &event.Visibility); err != nil {
+				event.Visibility = make(map[string]interface{})
+			}
+		} else {
+			event.Visibility = make(map[string]interface{})
+		}
+
+		events = append(events, event)
+	}
+
+	return events, nil
+}
+
+// saveEvent сохраняет событие в базу данных
+func (s *GameEventService) saveEvent(event *models.GameEvent) error {
+	dataJSON, _ := json.Marshal(event.Data)
+	visibilityJSON, _ := json.Marshal(event.Visibility)
+
+	query := `
+		INSERT INTO game_events (id, game_id, turn, phase, event_type, actor_id, actor_name,
+		                       target_id, target_name, description, data, visibility, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	`
+
+	_, err := s.db.Exec(query,
+		event.ID, event.GameID, event.Turn, event.Phase,
+		event.EventType, event.ActorID, event.ActorName,
+		event.TargetID, event.TargetName, event.Description,
+		dataJSON, visibilityJSON, event.CreatedAt,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to save game event: %w", err)
+	}
+
+	s.logger.Info("Game event logged",
+		"event_id", event.ID,
+		"game_id", event.GameID,
+		"event_type", event.EventType,
+		"description", event.Description,
+	)
+
+	return nil
+}

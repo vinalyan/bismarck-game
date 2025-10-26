@@ -69,14 +69,7 @@ export const phaseAPI = {
 
   // Перейти к следующей фазе
   nextPhase: async (request: NextPhaseRequest): Promise<void> => {
-    console.log('🔄 API: Calling nextPhase with request:', request);
-    try {
-      await apiClient.post('/api/phases/next', request);
-      console.log('✅ API: nextPhase completed successfully');
-    } catch (error) {
-      console.error('❌ API: nextPhase failed:', error);
-      throw error;
-    }
+    await apiClient.post('/api/phases/next', request);
   },
 
   // Начать новый ход

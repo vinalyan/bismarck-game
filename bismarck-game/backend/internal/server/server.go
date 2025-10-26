@@ -110,7 +110,12 @@ func (s *Server) setupRoutes() {
 	shipConfigService := services.NewShipConfigService()
 	unitLogger, _ := logger.New(logger.INFO, "unit-service", "stdout")
 	unitService := services.NewUnitService(s.db, unitLogger)
-	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService)
+
+	// Создаем сервис событий игры
+	eventLogger, _ := logger.New(logger.INFO, "game-event-service", "stdout")
+	eventService := services.NewGameEventService(s.db, eventLogger)
+
+	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, eventService)
 
 	// Создаем сервисы для движения
 	visibilityLogger, _ := logger.New(logger.INFO, "visibility-service", "stdout")
@@ -123,7 +128,7 @@ func (s *Server) setupRoutes() {
 	}
 
 	movementLogger, _ := logger.New(logger.INFO, "movement-service", "stdout")
-	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService, mapStructureService)
+	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService, mapStructureService, eventService)
 
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
@@ -140,6 +145,7 @@ func (s *Server) setupRoutes() {
 	emergencyFuelHandler := handlers.NewEmergencyFuelHandler(s.db, movementLogger, movementService, unitService)
 	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService)
 	mapHandler := handlers.NewMapHandler(mapStructureService)
+	gameEventHandler := handlers.NewGameEventHandler(eventService)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
@@ -157,6 +163,9 @@ func (s *Server) setupRoutes() {
 
 	// Маршруты для карты
 	s.router.HandleFunc("/api/map/structures", mapHandler.GetMapStructures).Methods("GET")
+
+	// Маршруты для событий игры
+	s.router.HandleFunc("/api/game-events", gameEventHandler.GetGameEvents).Methods("GET")
 
 	// WebSocket маршрут
 	s.router.HandleFunc("/ws", s.handleWebSocket)

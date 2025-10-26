@@ -200,6 +200,13 @@ class WebSocketClient {
         }
         break;
 
+      case WSMessageType.GameEvent:
+        // Событие игры - уведомляем компоненты о необходимости обновить логи
+        window.dispatchEvent(new CustomEvent('gameEventReceived', { 
+          detail: message.data 
+        }));
+        break;
+
       case WSMessageType.Error:
         // Ошибка
         store.addNotification({
