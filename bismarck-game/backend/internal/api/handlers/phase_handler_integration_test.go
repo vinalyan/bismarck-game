@@ -21,21 +21,21 @@ import (
 // TestPhaseAPIEndpoints тестирует API endpoints для работы с фазами
 func TestPhaseAPIEndpoints(t *testing.T) {
 	// Настройка тестовой базы данных
-	db, err := testutil.SetupTestDB()
+	db, err := testutil.SetupTestDatabase()
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 	defer db.Close()
 
 	// Создаем менеджер фаз и обработчик
-	unitService := createTestUnitService(db)
-	eventService := createTestEventService(db)
-	phaseManager := services.NewPhaseManager(db, unitService, eventService)
+	unitService := createTestUnitService(db.GetConnection())
+	eventService := createTestEventService(db.GetConnection())
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService)
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
 	gameID := "550e8400-e29b-41d4-a716-446655440001"
-	err = testutil.CreateTestGame(db, gameID)
+	err = testutil.CreateTestGame(db.GetConnection(), gameID)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
 	}
@@ -216,21 +216,21 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 // TestPhaseSequenceAPI тестирует полную последовательность фаз через API
 func TestPhaseSequenceAPI(t *testing.T) {
 	// Настройка тестовой базы данных
-	db, err := testutil.SetupTestDB()
+	db, err := testutil.SetupTestDatabase()
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 	defer db.Close()
 
 	// Создаем менеджер фаз и обработчик
-	unitService := createTestUnitService(db)
-	eventService := createTestEventService(db)
-	phaseManager := services.NewPhaseManager(db, unitService, eventService)
+	unitService := createTestUnitService(db.GetConnection())
+	eventService := createTestEventService(db.GetConnection())
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService)
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
 	gameID := "550e8400-e29b-41d4-a716-446655440002"
-	err = testutil.CreateTestGame(db, gameID)
+	err = testutil.CreateTestGame(db.GetConnection(), gameID)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
 	}
@@ -344,16 +344,16 @@ func TestPhaseSequenceAPI(t *testing.T) {
 // TestPhaseValidationAPI тестирует валидацию API endpoints
 func TestPhaseValidationAPI(t *testing.T) {
 	// Настройка тестовой базы данных
-	db, err := testutil.SetupTestDB()
+	db, err := testutil.SetupTestDatabase()
 	if err != nil {
 		t.Fatalf("Failed to setup test database: %v", err)
 	}
 	defer db.Close()
 
 	// Создаем менеджер фаз и обработчик
-	unitService := createTestUnitService(db)
-	eventService := createTestEventService(db)
-	phaseManager := services.NewPhaseManager(db, unitService, eventService)
+	unitService := createTestUnitService(db.GetConnection())
+	eventService := createTestEventService(db.GetConnection())
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService)
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Тест 1: Отсутствующий game_id

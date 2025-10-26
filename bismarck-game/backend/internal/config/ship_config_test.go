@@ -143,7 +143,7 @@ func TestLoadShipConfigsInvalidJSON(t *testing.T) {
 func TestGetShipConfig(t *testing.T) {
 	// Создаем менеджер и загружаем тестовые данные
 	manager := NewShipConfigManager()
-	
+
 	// Создаем временный файл с тестовыми данными
 	shipConfigContent := `{
 		"ships": [
@@ -214,7 +214,7 @@ func TestGetShipConfig(t *testing.T) {
 
 func TestGetShipsBySide(t *testing.T) {
 	manager := NewShipConfigManager()
-	
+
 	// Создаем временный файл с тестовыми данными
 	shipConfigContent := `{
 		"ships": [
@@ -339,7 +339,7 @@ func TestLoadShipConfigsFromDefaultPath(t *testing.T) {
 
 func TestShipConfigManagerMethods(t *testing.T) {
 	manager := NewShipConfigManager()
-	
+
 	// Тест IsConfigLoaded до загрузки
 	if manager.IsConfigLoaded() {
 		t.Error("Expected config not to be loaded initially")

@@ -64,7 +64,7 @@ func (m *MockRedisClient) Close() error {
 }
 
 func (m *MockRedisClient) Ping(ctx context.Context) *redis.StatusCmd {
-	return redis.NewStatusCmd(ctx, "ping", "pong")
+	return redis.NewStatusCmd(ctx, "ping")
 }
 
 func (m *MockRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
@@ -76,5 +76,10 @@ func (m *MockRedisClient) Get(ctx context.Context, key string) *redis.StringCmd 
 }
 
 func (m *MockRedisClient) Del(ctx context.Context, keys ...string) *redis.IntCmd {
-	return redis.NewIntCmd(ctx, "del", keys...)
+	args := make([]interface{}, len(keys)+1)
+	args[0] = "del"
+	for i, key := range keys {
+		args[i+1] = key
+	}
+	return redis.NewIntCmd(ctx, args...)
 }
