@@ -167,6 +167,29 @@
   border-radius: 8px;
   padding: 0.75rem;
   border-left: 4px solid #4a90e2;
+  transition: all 0.3s ease;
+}
+
+.unit-item:hover {
+  background: rgba(74, 144, 226, 0.2);
+  transform: translateX(4px);
+}
+
+.unit-item.unit-selected {
+  background: rgba(255, 215, 0, 0.2);
+  border-left: 4px solid #ffd700;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+  transform: translateX(4px);
+}
+
+.unit-item.unit-selected .unit-name {
+  color: #ffd700;
+  font-weight: 700;
+}
+
+.unit-item.unit-selected .unit-type {
+  background: rgba(255, 215, 0, 0.3);
+  color: #ffd700;
 }
 
 .unit-header {

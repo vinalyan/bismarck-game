@@ -957,7 +957,7 @@ const Game: React.FC = () => {
                     return (
                     <div 
                       key={unit.id} 
-                      className={`unit-item ${!canMove ? 'unit-disabled' : ''}`}
+                      className={`unit-item ${!canMove ? 'unit-disabled' : ''} ${selectedUnit === unit.id ? 'unit-selected' : ''}`}
                       onClick={() => {
                         // Парсим позицию юнита
                         const positionMatch = unit.position.match(/^([A-Z]+)(\d+)$/);
