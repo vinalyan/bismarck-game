@@ -285,9 +285,12 @@ const Hex: React.FC<HexProps> = ({
           {units.map((unit, index) => {
             const unitY = center.y + (index - (units.length - 1) / 2) * size * 0.8;
             
+            const unitState = getUnitState(unit);
+            
             return (
               <g
                 key={unit.id}
+                className={`stacked-unit ${unitState}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (onStackedUnitSelect) {
@@ -296,6 +299,24 @@ const Hex: React.FC<HexProps> = ({
                 }}
                 style={{ cursor: 'pointer' }}
               >
+                {/* Фоновый кружок для иконки */}
+                <circle
+                  cx={center.x}
+                  cy={unitY}
+                  r={12}
+                  className={`stacked-unit-background ${unitState}`}
+                />
+                
+                {/* Кольцо для выбранного юнита */}
+                {unitState === 'selected' && (
+                  <circle
+                    cx={center.x}
+                    cy={unitY}
+                    r={15}
+                    className="stacked-unit-selected-ring"
+                  />
+                )}
+                
                 {/* Иконка юнита */}
                 <image
                   href={getUnitIcon(unit.type, unit.nationality === 'german' ? 'german' : 'allied')}
@@ -303,7 +324,7 @@ const Hex: React.FC<HexProps> = ({
                   y={unitY - 10}
                   width={20}
                   height={20}
-                  className="stacked-unit-icon"
+                  className={`stacked-unit-icon ${unitState}`}
                   preserveAspectRatio="xMidYMid meet"
                 />
               </g>
