@@ -13,7 +13,12 @@ interface TooltipProps {
 }
 
 const Tooltip: React.FC<TooltipProps> = ({ visible, x, y, content }) => {
-  if (!visible) return null;
+  console.log('🔍 Tooltip render:', { visible, x, y, content });
+  
+  if (!visible) {
+    console.log('❌ Tooltip not visible, returning null');
+    return null;
+  }
 
   return (
     <div 

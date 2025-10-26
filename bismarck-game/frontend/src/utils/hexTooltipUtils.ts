@@ -51,9 +51,18 @@ export const getHexTypeForTooltip = (hexId: string, mapStructures: MapStructure 
  * Создает данные для подсказки гекса
  */
 export const createHexTooltip = (hexId: string, mapStructures: MapStructure | null) => {
-  return {
+  console.log('🔧 Creating tooltip for hex:', hexId);
+  console.log('🗺️ Map structures available:', !!mapStructures);
+  
+  const hexType = getHexTypeForTooltip(hexId, mapStructures);
+  const features = getHexFeatures(hexId, mapStructures);
+  
+  const result = {
     hexId,
-    hexType: getHexTypeForTooltip(hexId, mapStructures),
-    features: getHexFeatures(hexId, mapStructures),
+    hexType,
+    features,
   };
+  
+  console.log('📋 Tooltip result:', result);
+  return result;
 };

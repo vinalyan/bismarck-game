@@ -51,16 +51,29 @@ const Hex: React.FC<HexProps> = ({
 
   // Обработчики для подсказок
   const handleHexMouseEnter = (event: React.MouseEvent) => {
+    console.log('🖱️ Mouse entered hex:', coordinate.letter + coordinate.number);
+    
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
 
     hoverTimeoutRef.current = setTimeout(() => {
-      if (!hexRef.current) return;
+      console.log('⏰ Tooltip timeout triggered for hex:', coordinate.letter + coordinate.number);
+      
+      if (!hexRef.current) {
+        console.log('❌ hexRef.current is null');
+        return;
+      }
       
       const rect = hexRef.current.getBoundingClientRect();
       const hexId = `${coordinate.letter}${coordinate.number}`;
       const content = createHexTooltip(hexId, mapStructures);
+      
+      console.log('📊 Tooltip content:', content);
+      console.log('📍 Tooltip position:', {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      });
       
       setTooltipPosition({
         x: rect.left + rect.width / 2,
@@ -68,17 +81,22 @@ const Hex: React.FC<HexProps> = ({
       });
       setTooltipContent(content);
       setShowTooltip(true);
+      
+      console.log('✅ Tooltip should be visible now');
     }, 2000); // 2 секунды задержка
 
     onHover();
   };
 
   const handleHexMouseLeave = () => {
+    console.log('🖱️ Mouse left hex:', coordinate.letter + coordinate.number);
+    
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
     setShowTooltip(false);
+    console.log('❌ Tooltip hidden');
   };
 
   const handleHexMouseMove = (event: React.MouseEvent) => {
