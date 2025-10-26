@@ -56,7 +56,9 @@ const Hex: React.FC<HexProps> = ({
     }
 
     hoverTimeoutRef.current = setTimeout(() => {
-      const rect = event.currentTarget.getBoundingClientRect();
+      if (!hexRef.current) return;
+      
+      const rect = hexRef.current.getBoundingClientRect();
       const hexId = `${coordinate.letter}${coordinate.number}`;
       const content = createHexTooltip(hexId, mapStructures);
       
@@ -80,8 +82,8 @@ const Hex: React.FC<HexProps> = ({
   };
 
   const handleHexMouseMove = (event: React.MouseEvent) => {
-    if (showTooltip) {
-      const rect = event.currentTarget.getBoundingClientRect();
+    if (showTooltip && hexRef.current) {
+      const rect = hexRef.current.getBoundingClientRect();
       setTooltipPosition({
         x: rect.left + rect.width / 2,
         y: rect.top + rect.height / 2
