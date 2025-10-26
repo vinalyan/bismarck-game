@@ -20,7 +20,7 @@ export interface GameEventsResponse {
 }
 
 export const gameEventAPI = {
-  async getGameEvents(gameId: string, limit?: number): Promise<{
+  async getGameEvents(gameId: string, playerSide: string, limit?: number): Promise<{
     success: boolean;
     data?: GameEventsResponse;
     error?: string;
@@ -28,6 +28,7 @@ export const gameEventAPI = {
     try {
       const params = new URLSearchParams({
         game_id: gameId,
+        player_side: playerSide,
       });
       
       if (limit) {

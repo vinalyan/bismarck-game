@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gameEventAPI, GameEvent } from '../services/api/gameEventAPI';
+import { useGameStore } from '../stores/gameStore';
 import './GameLog.css';
 
 interface GameLogProps {
@@ -7,10 +8,25 @@ interface GameLogProps {
 }
 
 const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
+  const { currentGame, user } = useGameStore();
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const logContentRef = useRef<HTMLDivElement>(null);
+
+  // Определяем сторону игрока
+  const getPlayerSide = (): string => {
+    if (!currentGame || !user) return 'unknown';
+    
+    if (currentGame.player1_id === user.id) {
+      return 'german'; // Player1 всегда немцы
+    }
+    if (currentGame.player2_id === user.id) {
+      return 'allied'; // Player2 всегда союзники
+    }
+    
+    return 'unknown';
+  };
 
   useEffect(() => {
     loadEvents();
@@ -35,12 +51,20 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
     setLoading(true);
     setError(null);
     
+    const playerSide = getPlayerSide();
+    if (playerSide === 'unknown') {
+      setError('Unable to determine player side');
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const response = await gameEventAPI.getGameEvents(gameId, 15);
+      const response = await gameEventAPI.getGameEvents(gameId, playerSide, 15);
       
       if (response.success && response.data && response.data.events) {
+        // События уже приходят в правильном порядке (новые сверху)
         setEvents(response.data.events);
-        // Автопрокрутка к новым событиям
+        // Автопрокрутка к новым событиям (они уже сверху)
         setTimeout(() => {
           if (logContentRef.current) {
             logContentRef.current.scrollTop = 0;
