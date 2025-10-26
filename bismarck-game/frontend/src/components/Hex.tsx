@@ -283,7 +283,7 @@ const Hex: React.FC<HexProps> = ({
       return (
         <g className="expanded-unit-stack">
           {units.map((unit, index) => {
-            const unitY = center.y + (index - (units.length - 1) / 2) * size * 0.8;
+            const unitY = center.y + (index - (units.length - 1) / 2) * size * 1.2;
             
             const unitState = getUnitState(unit);
             
