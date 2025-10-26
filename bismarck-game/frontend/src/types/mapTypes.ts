@@ -179,3 +179,13 @@ export interface MapSettings {
   zoomLevel: number;
   panOffset: { x: number; y: number };
 }
+
+// Подсказка для гекса
+export interface HexTooltip {
+  hexId: string;
+  hexType: string;
+  features: string[];
+}
+
+// Особенности гекса
+export type HexFeature = 'fog' | 'port' | 'airport' | 'air_sector' | 'restricted_dd' | 'ice';

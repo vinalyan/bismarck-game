@@ -1,10 +1,12 @@
 // Компонент отдельного гекса
 
-import React from 'react';
-import { HexCoordinate, HexData } from '../types/mapTypes';
+import React, { useState, useRef, useEffect } from 'react';
+import { HexCoordinate, HexData, MapStructure } from '../types/mapTypes';
 import { Point } from '../utils/hexUtils';
 import { useGameStore } from '../stores/gameStore';
 import { ActiveHex, ACTIVE_HEX_CONFIGS } from '../utils/activeHexesUtils';
+import { createHexTooltip } from '../utils/hexTooltipUtils';
+import Tooltip from './Tooltip';
 import './Hex.css';
 
 interface HexProps {
@@ -16,6 +18,7 @@ interface HexProps {
   isSelected: boolean;
   isAvailableForMovement?: boolean;
   activeHex?: ActiveHex | null;
+  mapStructures?: MapStructure | null;
   onClick: () => void;
   onHover: () => void;
   onUnitClick?: (unitId: string, unitData: any) => void;
@@ -32,12 +35,69 @@ const Hex: React.FC<HexProps> = ({
   isSelected,
   isAvailableForMovement = false,
   activeHex = null,
+  mapStructures = null,
   onClick,
   onHover,
   onUnitClick,
   onUnitHover,
   onUnitLeave
 }) => {
+  // Состояние для подсказки
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [tooltipContent, setTooltipContent] = useState({ hexId: '', hexType: '', features: [] as string[] });
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hexRef = useRef<SVGPolygonElement>(null);
+
+  // Обработчики для подсказок
+  const handleHexMouseEnter = (event: React.MouseEvent) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+
+    hoverTimeoutRef.current = setTimeout(() => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const hexId = `${coordinate.letter}${coordinate.number}`;
+      const content = createHexTooltip(hexId, mapStructures);
+      
+      setTooltipPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      });
+      setTooltipContent(content);
+      setShowTooltip(true);
+    }, 2000); // 2 секунды задержка
+
+    onHover();
+  };
+
+  const handleHexMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setShowTooltip(false);
+  };
+
+  const handleHexMouseMove = (event: React.MouseEvent) => {
+    if (showTooltip) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setTooltipPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      });
+    }
+  };
+
+  // Очистка таймера при размонтировании
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Функция для определения пути к иконке юнита
   const getUnitIcon = (unitType: string, unitSide: string) => {
     if (['BB', 'BC', 'CV', 'CA', 'CL', 'DD', 'CG', 'TK'].includes(unitType)) {
@@ -190,12 +250,16 @@ const Hex: React.FC<HexProps> = ({
       >
       {/* Основной гекс */}
       <polygon
+        ref={hexRef}
         points={points}
         fill={hexStyle.fill}
         fillOpacity={hexStyle.fillOpacity}
         stroke={hexStyle.stroke}
         strokeWidth={hexStyle.strokeWidth}
         className="hex-shape"
+        onMouseEnter={handleHexMouseEnter}
+        onMouseLeave={handleHexMouseLeave}
+        onMouseMove={handleHexMouseMove}
       />
       
       
@@ -268,6 +332,14 @@ const Hex: React.FC<HexProps> = ({
         />
       )}
       </g>
+      
+      {/* Подсказка */}
+      <Tooltip
+        visible={showTooltip}
+        x={tooltipPosition.x}
+        y={tooltipPosition.y}
+        content={tooltipContent}
+      />
     </>
   );
 };

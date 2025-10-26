@@ -1,0 +1,126 @@
+.tooltip {
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease-in-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip-content {
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  min-width: 200px;
+  max-width: 300px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.tooltip-header {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.tooltip-header strong {
+  color: #4CAF50;
+  font-size: 16px;
+}
+
+.tooltip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tooltip-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tooltip-features {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tooltip-label {
+  color: #B0BEC5;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.tooltip-value {
+  font-weight: 600;
+}
+
+.tooltip-type-water {
+  color: #2196F3;
+}
+
+.tooltip-type-land {
+  color: #8B7355;
+}
+
+.tooltip-type-non_game {
+  color: #757575;
+}
+
+.tooltip-type-port {
+  color: #FF9800;
+}
+
+.tooltip-type-ice {
+  color: #E3F2FD;
+}
+
+.tooltip-type-fog {
+  color: #9E9E9E;
+}
+
+.tooltip-features-list {
+  margin: 0;
+  padding-left: 16px;
+  list-style: none;
+}
+
+.tooltip-feature {
+  position: relative;
+  padding-left: 16px;
+  margin-bottom: 2px;
+  color: #FFC107;
+}
+
+.tooltip-feature::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #FFC107;
+  font-weight: bold;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .tooltip-content {
+    min-width: 180px;
+    max-width: 250px;
+    font-size: 13px;
+    padding: 10px;
+  }
+  
+  .tooltip-header strong {
+    font-size: 15px;
+  }
+}

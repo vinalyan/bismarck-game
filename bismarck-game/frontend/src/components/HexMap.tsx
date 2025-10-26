@@ -285,6 +285,7 @@ const HexMap: React.FC<HexMapProps> = ({
           isSelected={!!isSelected}
           isAvailableForMovement={isAvailableForMovement}
           activeHex={activeHex}
+          mapStructures={mapStructures}
           onClick={() => handleHexClick(coordinate)}
           onHover={() => handleHexHover(coordinate)}
           onUnitClick={onUnitClick}
