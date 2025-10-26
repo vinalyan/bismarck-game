@@ -254,14 +254,14 @@ const Hex: React.FC<HexProps> = ({
           
           {/* Индикатор количества юнитов */}
           <circle
-            cx={center.x + size * 0.3}
-            cy={center.y - size * 0.3}
+            cx={center.x + size * 0.3 + 2}
+            cy={center.y - size * 0.3 - 2}
             r={size * 0.2}
             className="unit-count-badge"
           />
           <text
-            x={center.x + size * 0.3}
-            y={center.y - size * 0.25}
+            x={center.x + size * 0.3 + 2}
+            y={center.y - size * 0.25 - 2}
             className="unit-count-text"
           >
             {units.length}
