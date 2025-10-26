@@ -137,3 +137,8 @@ func (db *Database) PrepareContext(ctx context.Context, query string) (*sql.Stmt
 func (db *Database) GetStats() sql.DBStats {
 	return db.conn.Stats()
 }
+
+// GetConfig возвращает конфигурацию базы данных
+func (db *Database) GetConfig() *config.DatabaseConfig {
+	return db.cfg
+}

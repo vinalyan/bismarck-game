@@ -304,7 +304,7 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTracking, error) {
 	// Получаем данные о топливе из базы данных
 	query := `
-		SELECT fuel, max_fuel, previous_turn_moved_hexes, last_move_turn, is_emergency_fuel, emergency_removal_turn
+		SELECT fuel, max_fuel, previous_turn_moved_hexes, last_move_turn, is_emergency_fuel, emergency_turn
 		FROM naval_units
 		WHERE id = $1 AND game_id = $2`
 
@@ -343,7 +343,7 @@ func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) 
 		UPDATE naval_units SET
 			fuel = $1,
 			is_emergency_fuel = $2,
-			emergency_removal_turn = $3,
+			emergency_turn = $3,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $4 AND game_id = $5`
 

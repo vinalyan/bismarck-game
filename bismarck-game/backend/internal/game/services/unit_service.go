@@ -34,7 +34,7 @@ func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 			hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
 			secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
 			base_secondary_armament, torpedoes, max_torpedoes, radar_level,
-			status, detection_level, damage, is_emergency_fuel, emergency_removal_turn
+			status, detection_level, damage, is_emergency_fuel, emergency_turn
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
 			$14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
@@ -95,7 +95,7 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
 			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_removal_turn,
+			   is_emergency_fuel, emergency_turn,
 			   created_at, updated_at
 		FROM naval_units
 		WHERE game_id = $1 AND status != 'sunk'
@@ -182,7 +182,7 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
 			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_removal_turn, created_at, updated_at
+			   is_emergency_fuel, emergency_turn, created_at, updated_at
 		FROM naval_units
 		WHERE id = $1`
 
@@ -273,7 +273,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 			current_hull = $5, torpedoes = $6, status = $7,
 			detection_level = $8, last_known_pos = $9,
 			task_force_id = $10, damage = $11,
-			no_movement_turns_left = $12, is_emergency_fuel = $13, emergency_removal_turn = $14,
+			no_movement_turns_left = $12, is_emergency_fuel = $13, emergency_turn = $14,
 			movement_used = $15, last_move_turn = $16,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1`
@@ -398,7 +398,7 @@ func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]mode
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
 			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_removal_turn,
+			   is_emergency_fuel, emergency_turn,
 			   created_at, updated_at
 		FROM naval_units
 		WHERE game_id = $1 AND position = $2`
@@ -477,11 +477,16 @@ func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]mode
 
 // InitializeGameUnits инициализирует юниты для новой игры
 func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, player2ID string, shipConfigService *ShipConfigService) error {
+	s.logger.Info("InitializeGameUnits: Starting initialization", "game_id", gameID, "player1_id", player1ID, "player2_id", player2ID)
+
 	// Получаем все корабли из конфигурации
 	allShips, err := shipConfigService.GetAvailableShips("")
 	if err != nil {
+		s.logger.Error("InitializeGameUnits: Failed to get ship configurations", "error", err)
 		return fmt.Errorf("failed to get ship configurations: %w", err)
 	}
+
+	s.logger.Info("InitializeGameUnits: Got ships from config", "count", len(allShips))
 
 	// Создаем юниты для каждой стороны
 	for _, shipConfig := range allShips {
@@ -581,10 +586,10 @@ func (s *UnitService) GetUnitsWithExpiredEmergencyFuel(gameID string, currentTur
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
 			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_removal_turn, created_at, updated_at
+			   is_emergency_fuel, emergency_turn, created_at, updated_at
 		FROM naval_units
-		WHERE game_id = $1 AND is_emergency_fuel = true AND emergency_removal_turn <= $2
-		ORDER BY emergency_removal_turn`
+		WHERE game_id = $1 AND is_emergency_fuel = true AND emergency_turn <= $2
+		ORDER BY emergency_turn`
 
 	rows, err := s.db.Query(query, gameID, currentTurn)
 	if err != nil {
@@ -652,7 +657,7 @@ func (s *UnitService) updateEmergencyFuelStatus(unitID, gameID string, isEmergen
 	query := `
 		UPDATE naval_units SET
 			is_emergency_fuel = $1,
-			emergency_removal_turn = $2,
+			emergency_turn = $2,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $3 AND game_id = $4`
 

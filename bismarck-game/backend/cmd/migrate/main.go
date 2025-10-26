@@ -367,7 +367,7 @@ func getMigrations() []Migration {
 					no_movement_turns_left INTEGER DEFAULT 0,
 					is_activated BOOLEAN DEFAULT false,
 					is_emergency_fuel BOOLEAN DEFAULT false,
-					emergency_removal_turn INTEGER DEFAULT 0,
+					emergency_turn INTEGER DEFAULT 0,
 					
 					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

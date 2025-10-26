@@ -891,12 +891,15 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем видимые юниты для игрока
+	log.Printf("GetGameUnits: Getting visible units for game %s, user %s", gameID, userID)
 	units, err := h.unitService.GetVisibleUnits(gameID, userID)
 	if err != nil {
 		log.Printf("Error getting game units: %v", err)
-		pkgutils.WriteInternalError(w, "Failed to get game units")
+		pkgutils.WriteInternalError(w, fmt.Sprintf("Failed to get game units: %v", err))
 		return
 	}
+
+	log.Printf("GetGameUnits: Got %d units", len(units))
 
 	pkgutils.WriteSuccess(w, map[string]interface{}{
 		"units": units,
@@ -932,6 +935,103 @@ func (h *GameHandler) GetVictoryPoints(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// InitializeGameUnits инициализирует юниты для игры
+// @Summary Инициализация юнитов игры
+// @Tags Games
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "ID игры"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 401 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Router /games/{id}/initialize-units [post]
+func (h *GameHandler) InitializeGameUnits(w http.ResponseWriter, r *http.Request) {
+	log.Printf("InitializeGameUnits: Method called")
+	vars := mux.Vars(r)
+	gameID := vars["id"]
+	log.Printf("InitializeGameUnits: GameID = %s", gameID)
+
+	if gameID == "" {
+		pkgutils.WriteValidationError(w, "Game ID is required", map[string]string{
+			"id": "Game ID cannot be empty",
+		})
+		return
+	}
+
+	// Получаем ID пользователя из контекста
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		pkgutils.WriteUnauthorized(w, "Authentication required")
+		return
+	}
+
+	// Получаем игру
+	log.Printf("InitializeGameUnits: Getting game %s", gameID)
+	var game models.Game
+	query := `
+		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
+		       settings, created_at, updated_at, completed_at
+		FROM games 
+		WHERE id = $1
+	`
+
+	var settingsJSON []byte
+	var player2ID sql.NullString
+	var completedAt sql.NullTime
+
+	err = h.db.GetConnection().QueryRowContext(r.Context(), query, gameID).Scan(
+		&game.ID, &game.Name, &game.Player1ID, &player2ID,
+		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
+		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
+		&completedAt,
+	)
+	log.Printf("InitializeGameUnits: Query result - err=%v, game.ID=%s", err, game.ID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			pkgutils.WriteNotFound(w, "Game not found")
+			return
+		}
+		pkgutils.WriteInternalError(w, "Failed to get game")
+		return
+	}
+
+	// Обрабатываем nullable поля
+	if player2ID.Valid {
+		game.Player2ID = player2ID.String
+	}
+	if completedAt.Valid {
+		game.CompletedAt = &completedAt.Time
+	}
+
+	// Десериализуем настройки игры
+	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
+		pkgutils.WriteInternalError(w, "Failed to parse game settings")
+		return
+	}
+
+	// Проверяем, что пользователь является участником игры
+	if game.Player1ID != userID && game.Player2ID != userID {
+		pkgutils.WriteForbidden(w, "Only game participants can initialize units")
+		return
+	}
+
+	// Инициализируем юниты
+	log.Printf("InitializeGameUnits: Calling unitService.InitializeGameUnits")
+	err = h.unitService.InitializeGameUnits(gameID, game.Player1ID, game.Player2ID, h.shipConfigService)
+	if err != nil {
+		log.Printf("Error initializing game units: %v", err)
+		pkgutils.WriteInternalError(w, fmt.Sprintf("Failed to initialize game units: %v", err))
+		return
+	}
+
+	log.Printf("InitializeGameUnits: Units initialized successfully")
+
+	pkgutils.WriteSuccess(w, map[string]string{"message": "Game units initialized successfully"})
+}
+
 // RegisterRoutes регистрирует маршруты игр
 func (h *GameHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	gameRouter := router.PathPrefix("/api/games").Subrouter()
@@ -946,10 +1046,11 @@ func (h *GameHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 
 	gameRouter.HandleFunc("", h.CreateGame).Methods("POST")
 	gameRouter.HandleFunc("", h.GetGames).Methods("GET")
-	gameRouter.HandleFunc("/{id}", h.GetGame).Methods("GET")
 	gameRouter.HandleFunc("/{id}/units", h.GetGameUnits).Methods("GET")
 	gameRouter.HandleFunc("/{id}/victory-points", h.GetVictoryPoints).Methods("GET")
+	gameRouter.HandleFunc("/{id}/initialize-units", h.InitializeGameUnits).Methods("POST")
 	gameRouter.HandleFunc("/{id}/join", h.JoinGame).Methods("POST")
 	gameRouter.HandleFunc("/{id}/surrender", h.SurrenderGame).Methods("POST")
+	gameRouter.HandleFunc("/{id}", h.GetGame).Methods("GET")
 	gameRouter.HandleFunc("/{id}", h.DeleteGame).Methods("DELETE")
 }

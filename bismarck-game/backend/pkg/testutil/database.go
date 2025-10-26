@@ -109,12 +109,34 @@ func findConfigFile() string {
 
 // createTestSchema создает схему тестовой БД
 func createTestSchema(db *sql.DB) error {
-	// Читаем SQL файл со схемой
-	schemaPath := filepath.Join("pkg", "testutil", "schema.sql")
-	schemaSQL, err := ioutil.ReadFile(schemaPath)
+	// Получаем текущую директорию исполняемого файла
+	wd, err := os.Getwd()
 	if err != nil {
+		fmt.Printf("Failed to get working directory: %v\n", err)
+		return createBasicSchema(db)
+	}
+
+	// Пробуем найти schema.sql в разных местах
+	possiblePaths := []string{
+		filepath.Join(wd, "pkg", "testutil", "schema.sql"),
+		filepath.Join(wd, "..", "..", "pkg", "testutil", "schema.sql"),
+		filepath.Join(wd, "..", "pkg", "testutil", "schema.sql"),
+		filepath.Join(wd, "schema.sql"),
+	}
+
+	var schemaSQL []byte
+	var schemaPath string
+	for _, path := range possiblePaths {
+		if data, err := ioutil.ReadFile(path); err == nil {
+			schemaSQL = data
+			schemaPath = path
+			break
+		}
+	}
+
+	if len(schemaSQL) == 0 {
 		// Если файл не найден, создаем базовую схему
-		fmt.Printf("Schema file not found at %s, using basic schema\n", schemaPath)
+		fmt.Printf("Schema file not found, using basic schema\n")
 		return createBasicSchema(db)
 	}
 
@@ -203,7 +225,9 @@ func createBasicSchema(db *sql.DB) error {
 			last_move_turn INTEGER DEFAULT 0,
 			movement_used INTEGER DEFAULT 0,
 			no_movement_turns_left INTEGER DEFAULT 0,
+			is_activated BOOLEAN DEFAULT false,
 			is_emergency_fuel BOOLEAN DEFAULT false,
+			emergency_turn INTEGER DEFAULT 0,
 			emergency_removal_turn INTEGER,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -211,7 +235,7 @@ func createBasicSchema(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS air_units (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			game_id UUID NOT NULL REFERENCES games(id),
-			name VARCHAR(100) NOT NULL,
+			name VARCHAR(100),
 			type VARCHAR(20) NOT NULL,
 			owner VARCHAR(50) NOT NULL,
 			position VARCHAR(10) NOT NULL,
@@ -268,6 +292,7 @@ func createBasicSchema(db *sql.DB) error {
 			game_id UUID NOT NULL REFERENCES games(id),
 			unit_id UUID NOT NULL,
 			target_hex VARCHAR(10) NOT NULL,
+			search_type VARCHAR(20) NOT NULL,
 			result VARCHAR(20) NOT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,

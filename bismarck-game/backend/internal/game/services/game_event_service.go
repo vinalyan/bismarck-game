@@ -97,6 +97,8 @@ func (s *GameEventService) LogTurnChangeEvent(gameID string, turn int) error {
 
 // GetGameEvents возвращает последние события игры для конкретной стороны
 func (s *GameEventService) GetGameEvents(gameID, playerSide string, limit int) ([]models.GameEvent, error) {
+	s.logger.Info("Getting game events", "game_id", gameID, "player_side", playerSide, "limit", limit)
+
 	query := `
 		SELECT id, game_id, turn, phase, event_type, actor_id, actor_name, 
 		       target_id, target_name, description, data, visibility, created_at
@@ -113,7 +115,7 @@ func (s *GameEventService) GetGameEvents(gameID, playerSide string, limit int) (
 
 	rows, err := s.db.Query(query, gameID, playerSide, limit)
 	if err != nil {
-		s.logger.Error("Failed to query game events", "error", err, "game_id", gameID)
+		s.logger.Error("Failed to query game events", "error", err, "game_id", gameID, "player_side", playerSide, "limit", limit)
 		return nil, fmt.Errorf("failed to get game events: %w", err)
 	}
 	defer rows.Close()

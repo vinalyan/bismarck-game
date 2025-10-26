@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS naval_units (
     speed_rating VARCHAR(20),
     detection_level VARCHAR(20),
     damage JSONB DEFAULT '[]',
+    previous_turn_moved_hexes INTEGER DEFAULT 0,
+    last_move_turn INTEGER DEFAULT 0,
+    no_movement_turns_left INTEGER DEFAULT 0,
+    is_activated BOOLEAN DEFAULT false,
+    is_emergency_fuel BOOLEAN DEFAULT false,
+    emergency_turn INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -112,6 +118,7 @@ CREATE TABLE IF NOT EXISTS unit_searches (
     game_id UUID NOT NULL REFERENCES games(id),
     unit_id UUID NOT NULL,
     target_hex VARCHAR(10) NOT NULL,
+    search_type VARCHAR(20) NOT NULL,
     result VARCHAR(20) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

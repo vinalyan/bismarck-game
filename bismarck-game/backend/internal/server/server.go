@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -260,10 +261,21 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	// Проверяем базу данных
 	if err := s.db.HealthCheck(); err != nil {
-		health["database"] = "unhealthy"
+		health["database"] = map[string]interface{}{
+			"status": "unhealthy",
+			"error":  err.Error(),
+		}
 		health["status"] = "degraded"
 	} else {
-		health["database"] = "healthy"
+		// Получаем информацию о подключении к БД
+		dbConfig := s.db.GetConfig()
+		health["database"] = map[string]interface{}{
+			"status": "healthy",
+			"host":   dbConfig.Host,
+			"port":   dbConfig.Port,
+			"name":   dbConfig.Name,
+			"user":   dbConfig.User,
+		}
 	}
 
 	// Проверяем Redis
@@ -285,11 +297,14 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	// В реальном приложении здесь был бы json.Marshal
-	response := `{"status":"ok","service":"bismarck-game","version":"0.1.0","uptime":"` +
-		time.Since(s.startTime).String() + `","timestamp":` +
-		string(rune(time.Now().Unix())) + `}`
-	w.Write([]byte(response))
+	// Используем json.Marshal для правильного форматирования
+	jsonData, err := json.Marshal(health)
+	if err != nil {
+		logger.Error("Failed to marshal health response", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	w.Write(jsonData)
 }
 
 func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
