@@ -194,7 +194,7 @@ func TestPhaseRecordsIntegration(t *testing.T) {
 	turnNumber := 1
 
 	// Создаем игру
-	err = createTestGame(db.GetConnection(), gameID)
+	err = testutil.CreateTestGame(db.GetConnection(), gameID)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestPhaseHandlersIntegration(t *testing.T) {
 	turnNumber := 1
 
 	// Создаем игру
-	err = createTestGame(db.GetConnection(), gameID)
+	err = testutil.CreateTestGame(db.GetConnection(), gameID)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
 	}
@@ -367,7 +367,7 @@ func TestCompleteTurnTransition(t *testing.T) {
 	gameID := "test-game-transition"
 
 	// Создаем игру
-	err = createTestGame(db.GetConnection(), gameID)
+	err = testutil.CreateTestGame(db.GetConnection(), gameID)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
 	}

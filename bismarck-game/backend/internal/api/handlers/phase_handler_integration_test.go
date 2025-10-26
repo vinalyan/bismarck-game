@@ -34,7 +34,7 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
-	gameID := "test-api-game"
+	gameID := "550e8400-e29b-41d4-a716-446655440001"
 	err = testutil.CreateTestGame(db, gameID)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
@@ -229,7 +229,7 @@ func TestPhaseSequenceAPI(t *testing.T) {
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
-	gameID := "test-sequence-game"
+	gameID := "550e8400-e29b-41d4-a716-446655440002"
 	err = testutil.CreateTestGame(db, gameID)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
