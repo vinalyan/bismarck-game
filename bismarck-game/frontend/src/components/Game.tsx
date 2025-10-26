@@ -689,7 +689,15 @@ const Game: React.FC = () => {
       setExpandedStackHex(null);
     }
 
-    // Проверяем, есть ли выбранный юнит
+    // Снимаем выделение с юнитов при клике на любой гекс
+    if (selectedUnit) {
+      setSelectedUnit(null);
+      setSelectedUnitData(null);
+      setAvailableMovementHexes([]);
+      clearActiveHexes();
+    }
+
+    // Если нет выбранного юнита, просто выходим
     if (!selectedUnit || !selectedUnitData) {
       console.log('No selected unit or unit data');
       return;
@@ -970,7 +978,23 @@ const Game: React.FC = () => {
         </div>
 
         {/* Центральная область - карта */}
-        <div className="game-map">
+        <div 
+          className="game-map"
+          onClick={(e) => {
+            // Снимаем выделение при клике на пустую область карты
+            if (e.target === e.currentTarget) {
+              if (selectedUnit) {
+                setSelectedUnit(null);
+                setSelectedUnitData(null);
+                setAvailableMovementHexes([]);
+                clearActiveHexes();
+              }
+              if (expandedStackHex) {
+                setExpandedStackHex(null);
+              }
+            }
+          }}
+        >
           
           <HexMap
             width={MAP_CONSTANTS.HEX_GRID_WIDTH}
@@ -1102,7 +1126,23 @@ const Game: React.FC = () => {
         </div>
 
         {/* Основная область карты */}
-        <div className="map-container">
+        <div 
+          className="map-container"
+          onClick={(e) => {
+            // Снимаем выделение при клике на пустую область карты
+            if (e.target === e.currentTarget) {
+              if (selectedUnit) {
+                setSelectedUnit(null);
+                setSelectedUnitData(null);
+                setAvailableMovementHexes([]);
+                clearActiveHexes();
+              }
+              if (expandedStackHex) {
+                setExpandedStackHex(null);
+              }
+            }
+          }}
+        >
           <HexMap
             onHexClick={handleHexClick}
             onUnitClick={handleUnitClick}
