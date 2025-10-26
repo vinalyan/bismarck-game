@@ -76,6 +76,9 @@ export type PlayerSide = 'german' | 'allied';
 // Погодные условия
 export type WeatherType = 'clear' | 'storm' | 'fog' | 'ice';
 
+// Состояние юнита для визуальной подсветки
+export type UnitState = 'idle' | 'selected' | 'active' | 'cannot-move';
+
 // Данные гекса
 export interface HexData {
   coordinate: HexCoordinate;
@@ -83,9 +86,10 @@ export interface HexData {
   isVisible: boolean;        // Видим ли гекс игроку
   isHighlighted: boolean;    // Подсвечен ли гекс
   hasUnit: boolean;          // Есть ли юнит на гексе
-  unitId?: string | null;    // ID юнита
-  unitType?: string | null;  // Тип юнита (BB, BC, CV, CA, CL, DD, CG, TK, B, R)
-  unitSide?: PlayerSide | null; // Сторона юнита
+  unitId?: string | null;    // ID первого юнита (для обратной совместимости)
+  unitType?: string | null;  // Тип первого юнита (BB, BC, CV, CA, CL, DD, CG, TK, B, R)
+  unitSide?: PlayerSide | null; // Сторона первого юнита
+  units?: any[];             // Массив всех юнитов в гексе (GameUnit[])
   weather: WeatherType;      // Погода на гексе
   fogLevel: number;          // Уровень тумана войны (0-100)
   hexType: 'water' | 'land' | 'non_game'; // Тип гекса для движения

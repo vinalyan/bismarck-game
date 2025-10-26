@@ -184,3 +184,213 @@
   outline: 2px solid #ffffff;
   outline-offset: 2px;
 }
+
+/* ===== ПОДСВЕТКА ЮНИТОВ В РАЗНЫХ СОСТОЯНИЯХ ===== */
+
+/* Выбранный юнит */
+.unit-container.selected .unit-background {
+  stroke: #ffd700 !important;
+  stroke-width: 3px !important;
+  fill: rgba(255, 215, 0, 0.2);
+  animation: selectedUnitPulse 2s ease-in-out infinite;
+}
+
+.unit-container.selected .unit-icon {
+  filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 16px #ffd700);
+}
+
+.unit-selected-ring {
+  stroke: #ffd700;
+  stroke-width: 3px;
+  fill: none;
+  stroke-dasharray: 5,5;
+  animation: selectedRingRotate 3s linear infinite;
+}
+
+/* Активный юнит */
+.unit-container.active .unit-background {
+  stroke: #22c55e !important;
+  stroke-width: 3px !important;
+  fill: rgba(34, 197, 94, 0.2);
+  animation: activeUnitGlow 1.5s ease-in-out infinite;
+}
+
+.unit-container.active .unit-icon {
+  filter: drop-shadow(0 0 6px #22c55e);
+}
+
+/* Юнит, который не может двигаться */
+.unit-container.cannot-move .unit-background {
+  stroke: #ef4444 !important;
+  stroke-width: 2px !important;
+  fill: rgba(239, 68, 68, 0.1);
+  opacity: 0.7;
+}
+
+.unit-container.cannot-move .unit-icon {
+  filter: grayscale(0.5) drop-shadow(0 0 4px #ef4444);
+  opacity: 0.8;
+}
+
+/* ===== СТЕКИРОВАНИЕ ЮНИТОВ ===== */
+
+/* Контейнер свернутого стека */
+.unit-stack-container {
+  cursor: pointer;
+  animation: stackPulse 2s ease-in-out infinite;
+}
+
+.unit-stack-container:hover {
+  animation: stackHover 0.3s ease-out;
+}
+
+.unit-stack-background {
+  fill: rgba(255, 255, 255, 0.95);
+  stroke: #ffd700;
+  stroke-width: 3px;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+}
+
+.unit-stack-icon {
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.unit-count-badge {
+  fill: #ff6b35;
+  stroke: #ffffff;
+  stroke-width: 2px;
+  animation: countBounce 1s ease-in-out infinite;
+}
+
+.unit-count-text {
+  text-anchor: middle;
+  dominant-baseline: middle;
+  fill: #ffffff;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  font-size: 12px;
+}
+
+.unit-stack-ring {
+  fill: none;
+  stroke: #ffd700;
+  stroke-width: 2px;
+  stroke-dasharray: 5,5;
+  animation: stackRingRotate 3s linear infinite;
+}
+
+/* Развернутый стек юнитов */
+.expanded-unit-stack {
+  animation: expandStack 0.3s ease-out;
+}
+
+.stacked-unit {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stacked-unit:hover {
+  transform: scale(1.05);
+}
+
+.stacked-unit-background {
+  fill: rgba(255, 255, 255, 0.9);
+  stroke: #4a90e2;
+  stroke-width: 2px;
+  rx: 4;
+  ry: 4;
+}
+
+.stacked-unit.selected .stacked-unit-background {
+  stroke: #ffd700 !important;
+  stroke-width: 3px !important;
+  fill: rgba(255, 215, 0, 0.2);
+}
+
+.stacked-unit-icon {
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+.stacked-unit-text {
+  fill: #1f2937;
+  font-size: 10px;
+  font-weight: bold;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* ===== АНИМАЦИИ ===== */
+
+@keyframes selectedUnitPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.8));
+  }
+}
+
+@keyframes selectedRingRotate {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 20;
+  }
+}
+
+@keyframes activeUnitGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px #22c55e);
+  }
+  50% {
+    filter: drop-shadow(0 0 12px #22c55e);
+  }
+}
+
+@keyframes stackPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.8));
+  }
+}
+
+@keyframes stackHover {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes countBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes stackRingRotate {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 20;
+  }
+}
+
+@keyframes expandStack {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

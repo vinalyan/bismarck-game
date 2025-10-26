@@ -35,6 +35,7 @@ const Game: React.FC = () => {
   const [selectedUnitData, setSelectedUnitData] = useState<any>(null);
   const [availableMovementHexes, setAvailableMovementHexes] = useState<MovementHex[]>([]);
   const [mapStructures, setMapStructures] = useState<MapStructure | null>(null);
+  const [expandedStackHex, setExpandedStackHex] = useState<string | null>(null);
   
   // Отслеживание изменений availableMovementHexes
   useEffect(() => {
@@ -494,6 +495,63 @@ const Game: React.FC = () => {
     }
   };
 
+  // Обработчик клика по стеку юнитов
+  const handleUnitStackClick = (hexId: string, units: any[]) => {
+    console.log('Unit stack clicked:', hexId, units);
+    setExpandedStackHex(hexId);
+  };
+
+  // Обработчик выбора юнита из стека
+  const handleStackedUnitSelect = (unit: any) => {
+    console.log('Stacked unit selected:', unit);
+    // Сворачиваем стек
+    setExpandedStackHex(null);
+    // Выбираем юнит
+    setSelectedUnit(unit.id);
+    setSelectedUnitData(unit);
+    
+    // Очищаем предыдущие активные гексы
+    clearActiveHexes();
+
+    // Проверяем, что мы находимся в фазе движения
+    const currentPhase = getTurnData(currentTurn)?.current_phase;
+    if (currentPhase !== 'movement') {
+      setAvailableMovementHexes([]);
+      return;
+    }
+
+    // Остальная логика выбора юнита (аналогично handleUnitClick)
+    const currentPosition = unit.position;
+    const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 0;
+    
+    // Проверяем, не двигался ли юнит уже в этом ходу
+    if (unit.last_move_turn === currentTurnNumber) {
+      setAvailableMovementHexes([]);
+      return;
+    }
+
+    // Получаем конфигурацию корабля
+    const shipsByType = getShipsByType(unit.type);
+    const shipConfig = shipsByType.length > 0 ? shipsByType[0] : null;
+
+    if (shipConfig) {
+      const updatedUnitData = {
+        ...unit,
+        position: currentPosition,
+        shipConfig: shipConfig,
+        maxFuel: shipConfig.maxFuel,
+        currentFuel: unit.fuel || Math.floor(shipConfig.maxFuel * 0.85)
+      };
+      setSelectedUnitData(updatedUnitData);
+
+      // Получаем доступные гексы для движения
+      if (currentPosition && currentGame?.id && authToken) {
+        // Логика загрузки доступных ходов аналогична handleUnitClick
+        // Здесь можно добавить вызов API для получения доступных ходов
+      }
+    }
+  };
+
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
     // console.log('🎯 Unit clicked:', unitId, unitData.type);
@@ -626,6 +684,11 @@ const Game: React.FC = () => {
 
   // Обработчик клика по гексу
   const handleHexClick = async (coordinate: HexCoordinate) => {
+    // Сворачиваем стек при клике на другой гекс
+    if (expandedStackHex) {
+      setExpandedStackHex(null);
+    }
+
     // Проверяем, есть ли выбранный юнит
     if (!selectedUnit || !selectedUnitData) {
       console.log('No selected unit or unit data');
@@ -922,6 +985,11 @@ const Game: React.FC = () => {
             availableMovementHexes={availableMovementHexes}
             activeHexes={activeHexes}
             gameUnits={gameUnits}
+            selectedUnit={selectedUnit}
+            expandedStackHex={expandedStackHex}
+            currentTurn={getTurnData(currentTurn)?.turn_number}
+            onUnitStackClick={handleUnitStackClick}
+            onStackedUnitSelect={handleStackedUnitSelect}
           />
         </div>
 
@@ -1044,6 +1112,11 @@ const Game: React.FC = () => {
             activeHexes={[]}
             gameUnits={gameUnits}
             mapStructures={mapStructures}
+            selectedUnit={selectedUnit}
+            expandedStackHex={expandedStackHex}
+            currentTurn={getTurnData(currentTurn)?.turn_number}
+            onUnitStackClick={handleUnitStackClick}
+            onStackedUnitSelect={handleStackedUnitSelect}
           />
         </div>
       </div>

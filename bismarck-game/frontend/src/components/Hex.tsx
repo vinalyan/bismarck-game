@@ -18,6 +18,9 @@ interface HexProps {
   isAvailableForMovement?: boolean;
   activeHex?: ActiveHex | null;
   mapStructures?: MapStructure | null;
+  selectedUnit?: string | null;
+  expandedStackHex?: string | null;
+  currentTurn?: number;
   onClick: () => void;
   onHover: () => void;
   onUnitClick?: (unitId: string, unitData: any) => void;
@@ -25,6 +28,8 @@ interface HexProps {
   onUnitLeave?: () => void;
   onTooltipShow?: (x: number, y: number, content: { hexId: string; hexType: string; features: string[] }) => void;
   onTooltipHide?: () => void;
+  onUnitStackClick?: (hexId: string, units: any[]) => void;
+  onStackedUnitSelect?: (unit: any) => void;
 }
 
 const Hex: React.FC<HexProps> = ({
@@ -37,13 +42,18 @@ const Hex: React.FC<HexProps> = ({
   isAvailableForMovement = false,
   activeHex = null,
   mapStructures = null,
+  selectedUnit = null,
+  expandedStackHex = null,
+  currentTurn = 0,
   onClick,
   onHover,
   onUnitClick,
   onUnitHover,
   onUnitLeave,
   onTooltipShow,
-  onTooltipHide
+  onTooltipHide,
+  onUnitStackClick,
+  onStackedUnitSelect
 }) => {
   // Состояние для подсказки
   const [showTooltip, setShowTooltip] = useState(false);
@@ -152,6 +162,213 @@ const Hex: React.FC<HexProps> = ({
     const coordinates = `${coordinate.letter}${coordinate.number}`;
     
     return `${sideFlag} ${sideName} ${typeName}\n${unitId}\nПозиция: ${coordinates}`;
+  };
+
+  // Функция для определения состояния юнита
+  const getUnitState = (unit: any): 'idle' | 'selected' | 'active' | 'cannot-move' => {
+    if (selectedUnit === unit.id) {
+      return 'selected';
+    }
+    
+    // Проверяем условия "не может двигаться"
+    if (unit.last_move_turn === currentTurn || 
+        unit.no_movement_turns_left > 0 || 
+        unit.fuel <= 0) {
+      return 'cannot-move';
+    }
+    
+    // Здесь можно добавить логику для "active" состояния
+    // Пока возвращаем 'idle'
+    return 'idle';
+  };
+
+  // Функция для получения CSS класса состояния юнита
+  const getUnitStateClass = (unit: any): string => {
+    const state = getUnitState(unit);
+    return `unit-container ${state}`;
+  };
+
+  // Функция рендеринга юнитов
+  const renderUnits = () => {
+    if (!hexData.hasUnit || !hexData.units || hexData.units.length === 0) {
+      return null;
+    }
+
+    const units = hexData.units;
+    const isStack = units.length > 1;
+    const hexId = `${coordinate.letter}${coordinate.number}`;
+    const isExpanded = expandedStackHex === hexId;
+
+    if (isStack && !isExpanded) {
+      // Отображаем свернутый стек юнитов
+      return (
+        <g 
+          className="unit-stack-container"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onUnitStackClick) {
+              onUnitStackClick(hexId, units);
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+        >
+          {/* Фоновый кружок для стека */}
+          <circle
+            cx={center.x}
+            cy={center.y}
+            r={size * 0.6}
+            className="unit-stack-background"
+          />
+          
+          {/* Иконка первого юнита */}
+          <image
+            href={getUnitIcon(units[0].type, units[0].nationality === 'german' ? 'german' : 'allied')}
+            x={center.x - size * 0.4}
+            y={center.y - size * 0.4}
+            width={size * 0.8}
+            height={size * 0.8}
+            className="unit-stack-icon"
+            preserveAspectRatio="xMidYMid meet"
+          />
+          
+          {/* Индикатор количества юнитов */}
+          <circle
+            cx={center.x + size * 0.3}
+            cy={center.y - size * 0.3}
+            r={size * 0.2}
+            className="unit-count-badge"
+          />
+          <text
+            x={center.x + size * 0.3}
+            y={center.y - size * 0.25}
+            className="unit-count-text"
+          >
+            {units.length}
+          </text>
+          
+          {/* Анимированное кольцо для привлечения внимания */}
+          <circle
+            cx={center.x}
+            cy={center.y}
+            r={size * 0.7}
+            className="unit-stack-ring"
+          />
+        </g>
+      );
+    }
+
+    if (isStack && isExpanded) {
+      // Отображаем развернутый стек (вертикальный список)
+      return (
+        <g className="expanded-unit-stack">
+          {units.map((unit, index) => {
+            const unitY = center.y + (index - (units.length - 1) / 2) * size * 0.8;
+            
+            return (
+              <g
+                key={unit.id}
+                className={`stacked-unit ${getUnitStateClass(unit)}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onStackedUnitSelect) {
+                    onStackedUnitSelect(unit);
+                  }
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                {/* Фоновый прямоугольник */}
+                <rect
+                  x={center.x - size * 0.6}
+                  y={unitY - size * 0.3}
+                  width={size * 1.2}
+                  height={size * 0.6}
+                  className="stacked-unit-background"
+                />
+                
+                {/* Иконка юнита */}
+                <image
+                  href={getUnitIcon(unit.type, unit.nationality === 'german' ? 'german' : 'allied')}
+                  x={center.x - size * 0.5}
+                  y={unitY - size * 0.25}
+                  width={size * 0.5}
+                  height={size * 0.5}
+                  className="stacked-unit-icon"
+                  preserveAspectRatio="xMidYMid meet"
+                />
+                
+                {/* Название юнита */}
+                <text
+                  x={center.x + size * 0.1}
+                  y={unitY}
+                  className="stacked-unit-text"
+                >
+                  {unit.name || unit.type}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      );
+    }
+
+    // Отображаем одиночный юнит (существующая логика)
+    const unit = units[0];
+    const unitState = getUnitState(unit);
+    
+    return (
+      <g 
+        className={getUnitStateClass(unit)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onUnitClick) {
+            onUnitClick(hexData.unitId!, {
+              id: hexData.unitId,
+              type: hexData.unitType,
+              side: hexData.unitSide,
+              position: coordinate,
+              name: getUnitName(hexData.unitType || '', hexData.unitSide || 'german'),
+              maxFuel: 10,
+              currentFuel: 8
+            });
+          }
+        }}
+        style={{ cursor: 'pointer' }}
+      >
+        {/* Фоновый кружок для лучшей видимости */}
+        <circle
+          cx={center.x}
+          cy={center.y}
+          r={size * 0.5}
+          fill="rgba(255, 255, 255, 0.9)"
+          stroke={hexData.unitSide === 'german' ? '#1e3a8a' : '#991b1b'}
+          strokeWidth={2}
+          className="unit-background"
+        />
+        
+        {/* Кольцо для выбранного юнита */}
+        {unitState === 'selected' && (
+          <circle
+            cx={center.x}
+            cy={center.y}
+            r={size * 0.6}
+            className="unit-selected-ring"
+          />
+        )}
+        
+        {/* Иконка юнита */}
+        <image
+          href={getUnitIcon(hexData.unitType || '', hexData.unitSide || 'german')}
+          x={center.x - size * 0.5}
+          y={center.y - size * 0.5}
+          width={size * 1.0}
+          height={size * 1.0}
+          className="unit-icon"
+          preserveAspectRatio="xMidYMid meet"
+        />
+      </g>
+    );
   };
 
   // Обработчики для tooltip
@@ -271,51 +488,8 @@ const Hex: React.FC<HexProps> = ({
       />
       
       
-      {/* Юнит на гексе */}
-      {hexData.hasUnit && hexData.unitId && (
-        <g 
-          className="unit-container"
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={(e) => {
-            e.stopPropagation(); // Останавливаем всплытие события
-            if (onUnitClick) {
-              onUnitClick(hexData.unitId!, {
-                id: hexData.unitId,
-                type: hexData.unitType,
-                side: hexData.unitSide,
-                position: coordinate,
-                name: getUnitName(hexData.unitType || '', hexData.unitSide || 'german'),
-                // Данные корабля будут загружены через API при необходимости
-                maxFuel: 10, // Временное значение, будет заменено данными из API
-                currentFuel: 8 // Временное значение, будет заменено данными из API
-              });
-            }
-          }}
-          style={{ cursor: 'pointer' }}
-        >
-          {/* Фоновый кружок для лучшей видимости */}
-          <circle
-            cx={center.x}
-            cy={center.y}
-            r={size * 0.5}
-            fill="rgba(255, 255, 255, 0.9)"
-            stroke={hexData.unitSide === 'german' ? '#1e3a8a' : '#991b1b'}
-            strokeWidth={2}
-            className="unit-background"
-          />
-          {/* Иконка юнита */}
-          <image
-            href={getUnitIcon(hexData.unitType || '', hexData.unitSide || 'german')}
-            x={center.x - size * 0.5}
-            y={center.y - size * 0.5}
-            width={size * 1.0}
-            height={size * 1.0}
-            className="unit-icon"
-            preserveAspectRatio="xMidYMid meet"
-          />
-        </g>
-      )}
+      {/* Юниты на гексе */}
+      {renderUnits()}
       
       {/* Маркер тумана войны */}
       {hexData.fogLevel > 0 && (

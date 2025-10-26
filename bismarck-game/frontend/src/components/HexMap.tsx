@@ -24,6 +24,11 @@ interface HexMapProps {
   activeHexes?: ActiveHex[];
   gameUnits?: any[]; // Единый источник данных юнитов
   mapStructures?: MapStructure | null;
+  selectedUnit?: string | null;
+  expandedStackHex?: string | null;
+  currentTurn?: number;
+  onUnitStackClick?: (hexId: string, units: any[]) => void;
+  onStackedUnitSelect?: (unit: any) => void;
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -37,7 +42,12 @@ const HexMap: React.FC<HexMapProps> = ({
   availableMovementHexes = [],
   activeHexes = [],
   gameUnits = [],
-  mapStructures = null
+  mapStructures = null,
+  selectedUnit = null,
+  expandedStackHex = null,
+  currentTurn = 0,
+  onUnitStackClick,
+  onStackedUnitSelect
 }) => {
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
@@ -90,43 +100,34 @@ const HexMap: React.FC<HexMapProps> = ({
         
         const hexId = `${letter}${number}`;
         
-        // Проверяем, есть ли юнит в этой позиции
-        let hasUnit = false;
-        let unitId = null;
-        let unitType = null;
-        let unitSide: 'german' | 'allied' | null = null;
-
-        // Ищем юнит в этой позиции напрямую из gameUnits
-        gameUnits.forEach(unit => {
-          if (unit.position && unit.position.trim() !== '') {
-            // Парсим позицию юнита
-            const match = unit.position.match(/^([A-Z]+)(\d+)$/);
-            if (match) {
-              const letter = match[1];
-              const number = parseInt(match[2]);
-              
-              // Преобразуем букву в row
-              let unitRow: number;
-              if (letter.length === 1) {
-                // A, B, C, ..., Z (0-25)
-                unitRow = letter.charCodeAt(0) - 65;
-              } else if (letter.length === 2 && letter.startsWith('A')) {
-                // AA, AB, AC, ..., AH (26-33)
-                unitRow = 26 + (letter.charCodeAt(1) - 65);
-              } else {
-                return; // Неверный формат позиции
-              }
-              
-              // Проверяем, находится ли юнит в этой позиции
-              if (unitRow === row && (number - 1) === col) {
-                hasUnit = true;
-                unitId = unit.id;
-                unitType = unit.type;
-                unitSide = unit.nationality === 'german' ? 'german' : 'allied';
-              }
-            }
+        // Группируем юниты по позиции
+        const unitsInHex = gameUnits.filter(unit => {
+          if (!unit.position || unit.position.trim() === '') return false;
+          
+          const match = unit.position.match(/^([A-Z]+)(\d+)$/);
+          if (!match) return false;
+          
+          const unitLetter = match[1];
+          const unitNumber = parseInt(match[2]);
+          
+          let unitRow: number;
+          if (unitLetter.length === 1) {
+            // A, B, C, ..., Z (0-25)
+            unitRow = unitLetter.charCodeAt(0) - 65;
+          } else if (unitLetter.length === 2 && unitLetter.startsWith('A')) {
+            // AA, AB, AC, ..., AH (26-33)
+            unitRow = 26 + (unitLetter.charCodeAt(1) - 65);
+          } else {
+            return false;
           }
+          
+          return unitRow === row && (unitNumber - 1) === col;
         });
+
+        const hasUnit = unitsInHex.length > 0;
+        const unitId = hasUnit ? unitsInHex[0].id : null;
+        const unitType = hasUnit ? unitsInHex[0].type : null;
+        const unitSide = hasUnit ? (unitsInHex[0].nationality === 'german' ? 'german' : 'allied') : null;
         
         // Определяем тип гекса на основе структур карты
         let hexType: 'water' | 'land' | 'non_game' = 'water';
@@ -166,6 +167,7 @@ const HexMap: React.FC<HexMapProps> = ({
           unitId,
           unitType,
           unitSide,
+          units: unitsInHex, // Массив всех юнитов в гексе
           weather: 'clear',
           fogLevel: 0,
           hexType,
@@ -313,6 +315,9 @@ const HexMap: React.FC<HexMapProps> = ({
           isAvailableForMovement={isAvailableForMovement}
           activeHex={activeHex}
           mapStructures={mapStructures}
+          selectedUnit={selectedUnit}
+          expandedStackHex={expandedStackHex}
+          currentTurn={currentTurn}
           onClick={() => handleHexClick(coordinate)}
           onHover={() => handleHexHover(coordinate)}
           onUnitClick={onUnitClick}
@@ -320,6 +325,8 @@ const HexMap: React.FC<HexMapProps> = ({
           onUnitLeave={handleUnitLeave}
           onTooltipShow={handleHexTooltipShow}
           onTooltipHide={handleHexTooltipHide}
+          onUnitStackClick={onUnitStackClick}
+          onStackedUnitSelect={onStackedUnitSelect}
         />
       );
     });
