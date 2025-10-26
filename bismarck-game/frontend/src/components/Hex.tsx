@@ -47,24 +47,18 @@ const Hex: React.FC<HexProps> = ({
 }) => {
   // Состояние для подсказки
   const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const [tooltipContent, setTooltipContent] = useState({ hexId: '', hexType: '', features: [] as string[] });
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hexRef = useRef<SVGPolygonElement>(null);
 
   // Обработчики для подсказок
   const handleHexMouseEnter = (event: React.MouseEvent) => {
-    console.log('🖱️ Mouse entered hex:', coordinate.letter + coordinate.number);
     
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
 
     hoverTimeoutRef.current = setTimeout(() => {
-      console.log('⏰ Tooltip timeout triggered for hex:', coordinate.letter + coordinate.number);
-      
       if (!hexRef.current) {
-        console.log('❌ hexRef.current is null');
         return;
       }
       
@@ -72,25 +66,12 @@ const Hex: React.FC<HexProps> = ({
       const hexId = `${coordinate.letter}${coordinate.number}`;
       const content = createHexTooltip(hexId, mapStructures);
       
-      console.log('📊 Tooltip content:', content);
-      console.log('📍 Tooltip position:', {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2
-      });
-      
-      setTooltipPosition({
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2
-      });
-      setTooltipContent(content);
       setShowTooltip(true);
       
       // Передаем данные подсказки в HexMap
       if (onTooltipShow) {
         onTooltipShow(rect.left + rect.width / 2, rect.top + rect.height / 2, content);
       }
-      
-      console.log('✅ Tooltip should be visible now');
     }, 2000); // 2 секунды задержка
 
     onHover();
@@ -110,13 +91,7 @@ const Hex: React.FC<HexProps> = ({
   };
 
   const handleHexMouseMove = (event: React.MouseEvent) => {
-    if (showTooltip && hexRef.current) {
-      const rect = hexRef.current.getBoundingClientRect();
-      setTooltipPosition({
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2
-      });
-    }
+    // Подсказка теперь управляется на уровне HexMap
   };
 
   // Очистка таймера при размонтировании
@@ -128,12 +103,6 @@ const Hex: React.FC<HexProps> = ({
     };
   }, []);
 
-  // Отслеживание изменений состояния подсказки
-  useEffect(() => {
-    if (showTooltip) {
-      console.log('🔄 Tooltip state changed:', { showTooltip, tooltipPosition, tooltipContent });
-    }
-  }, [showTooltip, tooltipPosition, tooltipContent]);
 
   // Функция для определения пути к иконке юнита
   const getUnitIcon = (unitType: string, unitSide: string) => {
