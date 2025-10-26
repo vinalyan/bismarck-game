@@ -221,14 +221,14 @@
 
 /* Юнит, который не может двигаться */
 .unit-container.cannot-move .unit-background {
-  stroke: #ef4444 !important;
+  stroke: #6b7280 !important;
   stroke-width: 2px !important;
-  fill: rgba(239, 68, 68, 0.1);
+  fill: rgba(107, 114, 128, 0.1);
   opacity: 0.7;
 }
 
 .unit-container.cannot-move .unit-icon {
-  filter: grayscale(0.5) drop-shadow(0 0 4px #ef4444);
+  filter: grayscale(0.8) drop-shadow(0 0 4px #6b7280);
   opacity: 0.8;
 }
 
@@ -305,6 +305,23 @@
   stroke: #ffd700 !important;
   stroke-width: 3px !important;
   fill: rgba(255, 215, 0, 0.2);
+}
+
+.stacked-unit.cannot-move .stacked-unit-background {
+  stroke: #6b7280 !important;
+  stroke-width: 2px !important;
+  fill: rgba(107, 114, 128, 0.1);
+  opacity: 0.7;
+}
+
+.stacked-unit.cannot-move .stacked-unit-icon {
+  filter: grayscale(0.8) drop-shadow(0 0 4px #6b7280);
+  opacity: 0.8;
+}
+
+.stacked-unit.cannot-move .stacked-unit-text {
+  fill: #6b7280;
+  opacity: 0.8;
 }
 
 .stacked-unit-icon {
