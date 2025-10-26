@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Hex } from './Hex';
+import Tooltip from './Tooltip';
 import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate, MapStructure } from '../types/mapTypes';
 import { MovementHex } from '../utils/movementUtils';
 import { ActiveHex } from '../utils/activeHexesUtils';
@@ -47,6 +48,18 @@ const HexMap: React.FC<HexMapProps> = ({
     unitSide: string;
     x: number;
     y: number;
+  } | null>(null);
+
+  // Состояние для подсказки гекса
+  const [hexTooltip, setHexTooltip] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    content: {
+      hexId: string;
+      hexType: string;
+      features: string[];
+    };
   } | null>(null);
 
   // Генерируем координаты гексов
@@ -211,6 +224,20 @@ const HexMap: React.FC<HexMapProps> = ({
     setTooltip(null);
   };
 
+  // Обработчики для подсказки гекса
+  const handleHexTooltipShow = (x: number, y: number, content: { hexId: string; hexType: string; features: string[] }) => {
+    setHexTooltip({
+      visible: true,
+      x,
+      y,
+      content
+    });
+  };
+
+  const handleHexTooltipHide = () => {
+    setHexTooltip(null);
+  };
+
   // Вычисляем размеры SVG с использованием универсальной функции
   const { width: svgWidth, height: svgHeight } = calculateMapSize(width, height, hexRadius);
 
@@ -291,6 +318,8 @@ const HexMap: React.FC<HexMapProps> = ({
           onUnitClick={onUnitClick}
           onUnitHover={handleUnitHover}
           onUnitLeave={handleUnitLeave}
+          onTooltipShow={handleHexTooltipShow}
+          onTooltipHide={handleHexTooltipHide}
         />
       );
     });
@@ -409,6 +438,16 @@ const HexMap: React.FC<HexMapProps> = ({
             }}
           />
         </div>
+      )}
+      
+      {/* Подсказка для гекса */}
+      {hexTooltip && (
+        <Tooltip
+          visible={hexTooltip.visible}
+          x={hexTooltip.x}
+          y={hexTooltip.y}
+          content={hexTooltip.content}
+        />
       )}
     </div>
   );

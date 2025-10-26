@@ -6,7 +6,6 @@ import { Point } from '../utils/hexUtils';
 import { useGameStore } from '../stores/gameStore';
 import { ActiveHex, ACTIVE_HEX_CONFIGS } from '../utils/activeHexesUtils';
 import { createHexTooltip } from '../utils/hexTooltipUtils';
-import Tooltip from './Tooltip';
 import './Hex.css';
 
 interface HexProps {
@@ -24,6 +23,8 @@ interface HexProps {
   onUnitClick?: (unitId: string, unitData: any) => void;
   onUnitHover?: (unitId: string, unitType: string, unitSide: string, x: number, y: number) => void;
   onUnitLeave?: () => void;
+  onTooltipShow?: (x: number, y: number, content: { hexId: string; hexType: string; features: string[] }) => void;
+  onTooltipHide?: () => void;
 }
 
 const Hex: React.FC<HexProps> = ({
@@ -40,7 +41,9 @@ const Hex: React.FC<HexProps> = ({
   onHover,
   onUnitClick,
   onUnitHover,
-  onUnitLeave
+  onUnitLeave,
+  onTooltipShow,
+  onTooltipHide
 }) => {
   // Состояние для подсказки
   const [showTooltip, setShowTooltip] = useState(false);
@@ -82,6 +85,11 @@ const Hex: React.FC<HexProps> = ({
       setTooltipContent(content);
       setShowTooltip(true);
       
+      // Передаем данные подсказки в HexMap
+      if (onTooltipShow) {
+        onTooltipShow(rect.left + rect.width / 2, rect.top + rect.height / 2, content);
+      }
+      
       console.log('✅ Tooltip should be visible now');
     }, 2000); // 2 секунды задержка
 
@@ -94,6 +102,11 @@ const Hex: React.FC<HexProps> = ({
       hoverTimeoutRef.current = null;
     }
     setShowTooltip(false);
+    
+    // Скрываем подсказку в HexMap
+    if (onTooltipHide) {
+      onTooltipHide();
+    }
   };
 
   const handleHexMouseMove = (event: React.MouseEvent) => {
@@ -358,14 +371,6 @@ const Hex: React.FC<HexProps> = ({
         />
       )}
       </g>
-      
-      {/* Подсказка */}
-      <Tooltip
-        visible={showTooltip}
-        x={tooltipPosition.x}
-        y={tooltipPosition.y}
-        content={tooltipContent}
-      />
     </>
   );
 };
