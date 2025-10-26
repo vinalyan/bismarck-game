@@ -24,7 +24,7 @@ const Tooltip: React.FC<TooltipProps> = ({ visible, x, y, content }) => {
     zIndex: 1000,
   });
 
-  return (
+  const tooltipElement = (
     <div 
       className="tooltip"
       style={{
@@ -61,6 +61,11 @@ const Tooltip: React.FC<TooltipProps> = ({ visible, x, y, content }) => {
       </div>
     </div>
   );
+
+  // Проверяем, что элемент действительно рендерится
+  console.log('🔍 Tooltip element created:', tooltipElement);
+  
+  return tooltipElement;
 };
 
 // Функция для получения отображаемого имени типа гекса
