@@ -1,6 +1,7 @@
 package services
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -307,13 +308,19 @@ func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTr
 		FROM naval_units
 		WHERE id = $1 AND game_id = $2`
 
-	var fuel, maxFuel, previousTurnMoved, lastMoveTurn, emergencyTurn int
+	var fuel, maxFuel, previousTurnMoved, lastMoveTurn int
 	var isEmergencyFuel bool
+	var emergencyTurn sql.NullInt32
 
 	err := s.db.QueryRow(query, unitID, gameID).Scan(&fuel, &maxFuel, &previousTurnMoved, &lastMoveTurn, &isEmergencyFuel, &emergencyTurn)
 	if err != nil {
 		s.logger.Error("Failed to get fuel tracking", "error", err, "unit_id", unitID)
 		return nil, fmt.Errorf("failed to get fuel tracking: %w", err)
+	}
+
+	emergencyTurnValue := 0
+	if emergencyTurn.Valid {
+		emergencyTurnValue = int(emergencyTurn.Int32)
 	}
 
 	return &models.FuelTracking{
@@ -324,7 +331,7 @@ func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTr
 		MaxFuel:           maxFuel,
 		PreviousTurnMoved: previousTurnMoved,
 		IsEmergencyFuel:   isEmergencyFuel,
-		EmergencyTurn:     emergencyTurn,
+		EmergencyTurn:     emergencyTurnValue,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
 	}, nil

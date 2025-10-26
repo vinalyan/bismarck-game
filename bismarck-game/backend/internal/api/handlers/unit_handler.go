@@ -69,12 +69,31 @@ func (h *UnitHandler) GetUnits(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["gameId"]
 
+	// Получаем query параметры для фильтрации
+	query := r.URL.Query()
+	unitType := query.Get("type")
+	owner := query.Get("owner")
+
 	// Получаем морские юниты
 	navalUnits, err := h.unitService.GetNavalUnitsByGameID(gameID)
 	if err != nil {
 		h.logger.Error("Failed to get naval units", "game_id", gameID, "error", err)
 		utils.WriteInternalError(w, "Failed to get naval units")
 		return
+	}
+
+	// Применяем фильтры к морским юнитам
+	filteredNavalUnits := []models.NavalUnit{}
+	for _, unit := range navalUnits {
+		// Фильтр по типу
+		if unitType != "" && string(unit.Type) != unitType {
+			continue
+		}
+		// Фильтр по владельцу
+		if owner != "" && unit.Owner != owner {
+			continue
+		}
+		filteredNavalUnits = append(filteredNavalUnits, unit)
 	}
 
 	// Получаем воздушные юниты
@@ -85,9 +104,23 @@ func (h *UnitHandler) GetUnits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Применяем фильтры к воздушным юнитам
+	filteredAirUnits := []models.AirUnit{}
+	for _, unit := range airUnits {
+		// Фильтр по типу
+		if unitType != "" && string(unit.Type) != unitType {
+			continue
+		}
+		// Фильтр по владельцу
+		if owner != "" && unit.Owner != owner {
+			continue
+		}
+		filteredAirUnits = append(filteredAirUnits, unit)
+	}
+
 	response := map[string]interface{}{
-		"naval_units": navalUnits,
-		"air_units":   airUnits,
+		"naval_units": filteredNavalUnits,
+		"air_units":   filteredAirUnits,
 	}
 
 	utils.WriteSuccessResponse(w, response)
@@ -146,8 +179,15 @@ func (h *UnitHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Используем MovementService для движения
-	movement, err := h.movementService.ExecuteMovement(unit, req.To)
+	// Получаем userID из контекста
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	// Используем MovementService для движения с проверкой владельца
+	movement, err := h.movementService.ExecuteMovementWithOwner(unit, req.To, userID)
 	if err != nil {
 		h.logger.Error("Failed to move unit", "unit_id", req.UnitID, "error", err)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())

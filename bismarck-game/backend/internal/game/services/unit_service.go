@@ -112,7 +112,8 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 	for rows.Next() {
 		var unit models.NavalUnit
 		var damageJSON []byte
-		var lastKnownPos, taskForceID sql.NullString
+		var lastKnownPos, taskForceID, detectionLevel sql.NullString
+		var emergencyRemovalTurn sql.NullInt32
 
 		err := rows.Scan(
 			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
@@ -120,9 +121,9 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 			&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
 			&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
 			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
-			&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
+			&unit.Status, &detectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
 			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
-			&unit.IsEmergencyFuel, &unit.EmergencyTurn,
+			&unit.IsEmergencyFuel, &emergencyRemovalTurn,
 			&unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {
@@ -133,11 +134,17 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 		// Парсим JSON поля
 		json.Unmarshal(damageJSON, &unit.Damage)
 
+		if detectionLevel.Valid {
+			unit.DetectionLevel = models.DetectionLevel(detectionLevel.String)
+		}
 		if lastKnownPos.Valid {
 			unit.LastKnownPos = &lastKnownPos.String
 		}
 		if taskForceID.Valid {
 			unit.TaskForceID = &taskForceID.String
+		}
+		if emergencyRemovalTurn.Valid {
+			unit.EmergencyTurn = int(emergencyRemovalTurn.Int32)
 		}
 
 		units = append(units, unit)
@@ -181,7 +188,8 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 
 	var unit models.NavalUnit
 	var damageJSON []byte
-	var lastKnownPos, taskForceID sql.NullString
+	var lastKnownPos, taskForceID, detectionLevel sql.NullString
+	var emergencyRemovalTurn sql.NullInt32
 
 	err := s.db.QueryRow(query, unitID).Scan(
 		&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
@@ -189,9 +197,9 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 		&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
 		&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
 		&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
-		&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
+		&unit.Status, &detectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
 		&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
-		&unit.IsEmergencyFuel, &unit.EmergencyTurn, &unit.CreatedAt, &unit.UpdatedAt,
+		&unit.IsEmergencyFuel, &emergencyRemovalTurn, &unit.CreatedAt, &unit.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -204,11 +212,17 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 	// Парсим JSON поля
 	json.Unmarshal(damageJSON, &unit.Damage)
 
+	if detectionLevel.Valid {
+		unit.DetectionLevel = models.DetectionLevel(detectionLevel.String)
+	}
 	if lastKnownPos.Valid {
 		unit.LastKnownPos = &lastKnownPos.String
 	}
 	if taskForceID.Valid {
 		unit.TaskForceID = &taskForceID.String
+	}
+	if emergencyRemovalTurn.Valid {
+		unit.EmergencyTurn = int(emergencyRemovalTurn.Int32)
 	}
 
 	return &unit, nil
@@ -237,7 +251,7 @@ func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, erro
 		var unit models.AirUnit
 
 		err := rows.Scan(
-			&unit.ID, &unit.GameID, &unit.Type, &unit.Owner, &unit.Position, &unit.BasePosition,
+			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Owner, &unit.Position, &unit.BasePosition,
 			&unit.MaxSpeed, &unit.Endurance, &unit.Status, &unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {
@@ -448,7 +462,7 @@ func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]mode
 		var unit models.AirUnit
 
 		err := airRows.Scan(
-			&unit.ID, &unit.GameID, &unit.Type, &unit.Owner, &unit.Position, &unit.BasePosition,
+			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Owner, &unit.Position, &unit.BasePosition,
 			&unit.MaxSpeed, &unit.Endurance, &unit.Status, &unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {

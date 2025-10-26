@@ -114,9 +114,11 @@ func createTestSchema(db *sql.DB) error {
 	schemaSQL, err := ioutil.ReadFile(schemaPath)
 	if err != nil {
 		// Если файл не найден, создаем базовую схему
+		fmt.Printf("Schema file not found at %s, using basic schema\n", schemaPath)
 		return createBasicSchema(db)
 	}
 
+	fmt.Printf("Using schema file: %s\n", schemaPath)
 	// Выполняем SQL схему
 	_, err = db.Exec(string(schemaSQL))
 	return err
@@ -124,6 +126,24 @@ func createTestSchema(db *sql.DB) error {
 
 // createBasicSchema создает базовую схему если файл schema.sql не найден
 func createBasicSchema(db *sql.DB) error {
+	// Сначала удаляем существующие таблицы
+	dropQueries := []string{
+		"DROP TABLE IF EXISTS movements",
+		"DROP TABLE IF EXISTS unit_searches",
+		"DROP TABLE IF EXISTS game_events",
+		"DROP TABLE IF EXISTS unit_visibility",
+		"DROP TABLE IF EXISTS task_force_units",
+		"DROP TABLE IF EXISTS task_forces",
+		"DROP TABLE IF EXISTS air_units",
+		"DROP TABLE IF EXISTS naval_units",
+		"DROP TABLE IF EXISTS games",
+		"DROP TABLE IF EXISTS users",
+	}
+
+	for _, query := range dropQueries {
+		db.Exec(query) // Игнорируем ошибки при удалении
+	}
+
 	// Создаем только основные таблицы
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS users (
@@ -176,7 +196,13 @@ func createBasicSchema(db *sql.DB) error {
 			radar_level INTEGER DEFAULT 0,
 			speed_rating VARCHAR(20),
 			detection_level VARCHAR(20),
+			last_known_pos VARCHAR(10),
+			task_force_id UUID,
 			damage JSONB DEFAULT '[]',
+			previous_turn_moved_hexes INTEGER DEFAULT 0,
+			last_move_turn INTEGER DEFAULT 0,
+			movement_used INTEGER DEFAULT 0,
+			no_movement_turns_left INTEGER DEFAULT 0,
 			is_emergency_fuel BOOLEAN DEFAULT false,
 			emergency_removal_turn INTEGER,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -185,12 +211,19 @@ func createBasicSchema(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS air_units (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			game_id UUID NOT NULL REFERENCES games(id),
+			name VARCHAR(100) NOT NULL,
 			type VARCHAR(20) NOT NULL,
 			owner VARCHAR(50) NOT NULL,
 			position VARCHAR(10) NOT NULL,
 			base_position VARCHAR(10),
 			max_speed INTEGER,
 			endurance INTEGER,
+			current_fuel INTEGER DEFAULT 0,
+			search_factors INTEGER DEFAULT 0,
+			detection_level VARCHAR(20),
+			is_visible BOOLEAN DEFAULT true,
+			last_known_pos VARCHAR(10),
+			markers JSONB DEFAULT '[]',
 			status VARCHAR(20) DEFAULT 'operational',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -244,9 +277,14 @@ func createBasicSchema(db *sql.DB) error {
 			unit_id UUID NOT NULL,
 			from_hex VARCHAR(10) NOT NULL,
 			to_hex VARCHAR(10) NOT NULL,
+			path JSONB DEFAULT '[]',
+			fuel_cost INTEGER DEFAULT 0,
 			hexes_moved INTEGER NOT NULL,
 			movement_type VARCHAR(20) NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			turn INTEGER DEFAULT 1,
+			phase VARCHAR(20) DEFAULT 'movement',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 	}
 

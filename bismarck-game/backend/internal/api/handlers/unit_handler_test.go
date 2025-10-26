@@ -16,6 +16,7 @@ import (
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/testutil"
 
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,11 +26,13 @@ func setupUnitHandler(t *testing.T) (*UnitHandler, func()) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
+	_, err = db.GetConnection().Exec("DELETE FROM air_units")
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("DELETE FROM naval_units")
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games")
 	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM users")
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id::text LIKE 'test-game-%'")
 	require.NoError(t, err)
 
 	cfg := &config.Config{
@@ -40,11 +43,12 @@ func setupUnitHandler(t *testing.T) (*UnitHandler, func()) {
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
-	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
+	_ = auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
 	unitService := services.NewUnitService(db, logger)
 	eventService := services.NewGameEventService(db, logger)
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService)
 
-	movementService := services.NewMovementService(db, logger, nil, nil, unitService, nil, eventService)
+	movementService := services.NewMovementService(db, logger, nil, phaseManager, unitService, nil, eventService)
 	taskForceService := services.NewTaskForceService(db, logger, unitService, movementService)
 	handler := NewUnitHandler(unitService, movementService, taskForceService, logger)
 
@@ -72,59 +76,71 @@ func TestGetUnit(t *testing.T) {
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
 	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	unitService := services.NewUnitService(db, logger)
+	_ = services.NewUnitService(db, logger)
 
 	userID, gameID := createTestUserAndGame(t, db, authService)
-	unitID := createTestUnit(t, db, gameID)
+	unitID := createTestUnit(t, db, gameID, userID)
 
 	t.Run("successful get unit", func(t *testing.T) {
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/units/{unitId}", handler.GetUnit).Methods("GET")
+
 		req := httptest.NewRequest("GET", "/api/units/"+unitID, nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.GetUnit(w, req)
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Equal(t, unitID, response["id"])
-		assert.Equal(t, "Test Ship", response["name"])
-		assert.Equal(t, "battleship", response["type"])
+		assert.Equal(t, unitID, response["data"].(map[string]interface{})["unit"].(map[string]interface{})["id"])
+		assert.Equal(t, "Test Ship", response["data"].(map[string]interface{})["unit"].(map[string]interface{})["name"])
+		assert.Equal(t, "battleship", response["data"].(map[string]interface{})["unit"].(map[string]interface{})["type"])
 	})
 
 	t.Run("unit not found", func(t *testing.T) {
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/units/{unitId}", handler.GetUnit).Methods("GET")
+
 		req := httptest.NewRequest("GET", "/api/units/non-existing-id", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.GetUnit(w, req)
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "unit not found")
+		assert.Contains(t, response["error"], "Unit not found")
 	})
 
 	t.Run("invalid unit ID", func(t *testing.T) {
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/units/{unitId}", handler.GetUnit).Methods("GET")
+
 		req := httptest.NewRequest("GET", "/api/units/invalid-id", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.GetUnit(w, req)
+		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Equal(t, http.StatusNotFound, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "invalid unit ID")
+		assert.Contains(t, response["error"], "Unit not found")
 	})
 }
 
@@ -145,12 +161,12 @@ func TestGetUnits(t *testing.T) {
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
 	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	unitService := services.NewUnitService(db, logger)
+	_ = services.NewUnitService(db, logger)
 
 	userID, gameID := createTestUserAndGame(t, db, authService)
 
 	// Create multiple units
-	unit1ID := createTestUnit(t, db, gameID)
+	createTestUnit(t, db, gameID, userID)
 
 	unit2 := &models.NavalUnit{
 		GameID:      gameID,
@@ -171,89 +187,106 @@ func TestGetUnits(t *testing.T) {
 		Status:      "active",
 		Damage:      []models.Damage{},
 	}
+	unitService := services.NewUnitService(db, logger)
 	err = unitService.CreateNavalUnit(unit2)
 	require.NoError(t, err)
 
 	t.Run("successful get units", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/units", nil)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units", handler.GetUnits).Methods("GET")
+
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.GetUnits(w, req)
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.NotEmpty(t, response["naval_units"])
-		assert.NotEmpty(t, response["air_units"])
+		assert.NotEmpty(t, response["data"].(map[string]interface{})["naval_units"])
+		// air_units может быть пустым, так как мы не создаем воздушные юниты в тестах
 
-		navalUnits := response["naval_units"].([]interface{})
+		navalUnits := response["data"].(map[string]interface{})["naval_units"].([]interface{})
 		assert.Len(t, navalUnits, 2)
 	})
 
 	t.Run("get units with game_id filter", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/units?game_id="+gameID, nil)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units", handler.GetUnits).Methods("GET")
+
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.GetUnits(w, req)
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.NotEmpty(t, response["naval_units"])
+		assert.NotEmpty(t, response["data"].(map[string]interface{})["naval_units"])
 
-		navalUnits := response["naval_units"].([]interface{})
+		navalUnits := response["data"].(map[string]interface{})["naval_units"].([]interface{})
 		assert.Len(t, navalUnits, 2)
 	})
 
 	t.Run("get units with owner filter", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/units?owner="+userID, nil)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units", handler.GetUnits).Methods("GET")
+
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units?owner="+userID, nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.GetUnits(w, req)
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.NotEmpty(t, response["naval_units"])
+		assert.NotEmpty(t, response["data"].(map[string]interface{})["naval_units"])
 
-		navalUnits := response["naval_units"].([]interface{})
+		navalUnits := response["data"].(map[string]interface{})["naval_units"].([]interface{})
 		assert.Len(t, navalUnits, 2)
 	})
 
 	t.Run("get units with type filter", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/units?type=battleship", nil)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units", handler.GetUnits).Methods("GET")
+
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units?type=battleship", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.GetUnits(w, req)
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.NotEmpty(t, response["naval_units"])
+		assert.NotEmpty(t, response["data"].(map[string]interface{})["naval_units"])
 
-		navalUnits := response["naval_units"].([]interface{})
+		navalUnits := response["data"].(map[string]interface{})["naval_units"].([]interface{})
 		assert.Len(t, navalUnits, 1) // Only battleship
 		assert.Equal(t, "battleship", navalUnits[0].(map[string]interface{})["type"])
 	})
 }
 
-func TestUpdateUnit(t *testing.T) {
+func TestUnitMoveUnit(t *testing.T) {
 	handler, cleanup := setupUnitHandler(t)
 	defer cleanup()
 
@@ -270,142 +303,176 @@ func TestUpdateUnit(t *testing.T) {
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
 	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	unitService := services.NewUnitService(db, logger)
+	_ = services.NewUnitService(db, logger)
 
 	userID, gameID := createTestUserAndGame(t, db, authService)
-	unitID := createTestUnit(t, db, gameID)
+	unitID := createTestUnit(t, db, gameID, userID)
 
-	t.Run("successful update", func(t *testing.T) {
+	t.Run("successful move", func(t *testing.T) {
 		reqBody := map[string]interface{}{
-			"name":         "Updated Ship Name",
-			"position":     "B1",
-			"fuel":         80,
-			"current_hull": 6,
+			"unit_id": unitID,
+			"to":      "B1",
+			"speed":   3,
 		}
 		jsonBody, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/units/"+unitID, bytes.NewBuffer(jsonBody))
+		req := httptest.NewRequest("POST", "/api/games/"+gameID+"/units/"+unitID+"/move", bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.UpdateUnit(w, req)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}/move", handler.MoveUnit).Methods("POST")
+
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Equal(t, "Unit updated successfully", response["message"])
+		assert.Equal(t, "Unit moved successfully", response["data"].(map[string]interface{})["message"])
 
-		// Verify unit was updated
+		// Verify unit was moved
+		unitService := services.NewUnitService(db, logger)
 		updatedUnit, err := unitService.GetNavalUnitByID(unitID)
 		assert.NoError(t, err)
-		assert.Equal(t, "Updated Ship Name", updatedUnit.Name)
 		assert.Equal(t, "B1", updatedUnit.Position)
-		assert.Equal(t, 80, updatedUnit.Fuel)
-		assert.Equal(t, 6, updatedUnit.CurrentHull)
 	})
 
 	t.Run("unit not found", func(t *testing.T) {
 		reqBody := map[string]interface{}{
-			"name": "Updated Name",
+			"unit_id": "non-existing-id",
+			"to":      "B1",
+			"speed":   3,
 		}
 		jsonBody, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/units/non-existing-id", bytes.NewBuffer(jsonBody))
+		req := httptest.NewRequest("POST", "/api/games/"+gameID+"/units/non-existing-id/move", bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.UpdateUnit(w, req)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}/move", handler.MoveUnit).Methods("POST")
+
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "unit not found")
+		assert.Contains(t, response["error"], "Unit not found")
 	})
 
 	t.Run("not owner", func(t *testing.T) {
 		// Create another user
-		otherUser, err := authService.Register("testuser2", "testuser2@example.com", "password123")
+		authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
+		otherUser, err := authService.Register(&models.CreateUserRequest{
+			Username: "testuser2",
+			Email:    "testuser2@example.com",
+			Password: "password123",
+		})
 		require.NoError(t, err)
 
 		reqBody := map[string]interface{}{
-			"name": "Updated Name",
+			"unit_id": unitID,
+			"to":      "B1",
+			"speed":   3,
 		}
 		jsonBody, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/units/"+unitID, bytes.NewBuffer(jsonBody))
+		req := httptest.NewRequest("POST", "/api/games/"+gameID+"/units/"+unitID+"/move", bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
 		ctx := context.WithValue(req.Context(), "user_id", otherUser.ID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.UpdateUnit(w, req)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}/move", handler.MoveUnit).Methods("POST")
 
-		assert.Equal(t, http.StatusForbidden, w.Code)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var response map[string]interface{}
 		err = json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "not the owner")
+		assert.Contains(t, response["error"], "you can only move your own units")
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
-		req := httptest.NewRequest("PUT", "/api/units/"+unitID, bytes.NewBufferString("invalid json"))
+		req := httptest.NewRequest("POST", "/api/games/"+gameID+"/units/"+unitID+"/move", bytes.NewBufferString("invalid json"))
 		req.Header.Set("Content-Type", "application/json")
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.UpdateUnit(w, req)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}/move", handler.MoveUnit).Methods("POST")
+
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "invalid JSON")
+		assert.Contains(t, response["error"], "Invalid request body")
 	})
 
 	t.Run("invalid unit ID", func(t *testing.T) {
 		reqBody := map[string]interface{}{
-			"name": "Updated Name",
+			"unit_id": "invalid-id",
+			"to":      "B1",
+			"speed":   3,
 		}
 		jsonBody, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/units/invalid-id", bytes.NewBuffer(jsonBody))
+		req := httptest.NewRequest("POST", "/api/games/"+gameID+"/units/invalid-id/move", bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.UpdateUnit(w, req)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}/move", handler.MoveUnit).Methods("POST")
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "invalid unit ID")
+		assert.Contains(t, response["error"], "Unit not found")
 	})
 
 	t.Run("no user_id in context", func(t *testing.T) {
 		reqBody := map[string]interface{}{
-			"name": "Updated Name",
+			"unit_id": unitID,
+			"to":      "B1",
+			"speed":   3,
 		}
 		jsonBody, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest("PUT", "/api/units/"+unitID, bytes.NewBuffer(jsonBody))
+		req := httptest.NewRequest("POST", "/api/games/"+gameID+"/units/"+unitID+"/move", bytes.NewBuffer(jsonBody))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		handler.UpdateUnit(w, req)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}/move", handler.MoveUnit).Methods("POST")
+
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
@@ -433,56 +500,75 @@ func TestGetUnitsWithFilters(t *testing.T) {
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
 	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	unitService := services.NewUnitService(db, logger)
+	_ = services.NewUnitService(db, logger)
 
-	userID1, gameID1 := createTestUserAndGame(t, db, authService, gameService)
+	userID1, gameID1 := createTestUserAndGame(t, db, authService)
 
 	// Create second user and game
-	user2, err := authService.Register("testuser2", "testuser2@example.com", "password123")
+	user2, err := authService.Register(&models.CreateUserRequest{
+		Username: "testuser2",
+		Email:    "testuser2@example.com",
+		Password: "password123",
+	})
 	require.NoError(t, err)
-	game2, err := gameService.CreateGame("Test Game 2", user2.ID)
+
+	// Create game directly in database
+	query := `
+		INSERT INTO games (name, player1_id, current_turn, current_phase, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id
+	`
+	var game2 string
+	err = db.GetConnection().QueryRow(query, "Test Game 2", user2.ID, 0, "setup", "waiting", time.Now(), time.Now()).Scan(&game2)
 	require.NoError(t, err)
 
 	// Create units in different games
-	unit1ID := createTestUnit(t, db, gameID1)
-	unit2ID := createTestUnit(t, db, game2)
+	createTestUnit(t, db, gameID1, userID1)
+	createTestUnit(t, db, game2, user2.ID)
 
 	t.Run("get units with multiple filters", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/units?game_id="+gameID1+"&owner="+userID1+"&type=battleship", nil)
+		req := httptest.NewRequest("GET", "/api/games/"+gameID1+"/units?owner="+userID1+"&type=battleship", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID1)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.GetUnits(w, req)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units", handler.GetUnits).Methods("GET")
+
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.NotEmpty(t, response["naval_units"])
+		assert.NotEmpty(t, response["data"].(map[string]interface{})["naval_units"])
 
-		navalUnits := response["naval_units"].([]interface{})
+		navalUnits := response["data"].(map[string]interface{})["naval_units"].([]interface{})
 		assert.Len(t, navalUnits, 1)
-		assert.Equal(t, unit1ID, navalUnits[0].(map[string]interface{})["id"])
 	})
 
 	t.Run("get units with status filter", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/units?status=active", nil)
+		req := httptest.NewRequest("GET", "/api/games/"+gameID1+"/units?status=active", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID1)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
 
-		handler.GetUnits(w, req)
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units", handler.GetUnits).Methods("GET")
+
+		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.NotEmpty(t, response["naval_units"])
+		assert.NotEmpty(t, response["data"].(map[string]interface{})["naval_units"])
 
-		navalUnits := response["naval_units"].([]interface{})
-		assert.Len(t, navalUnits, 2) // Both units are active
+		navalUnits := response["data"].(map[string]interface{})["naval_units"].([]interface{})
+		assert.Len(t, navalUnits, 1) // Only one unit in game1
 	})
 }

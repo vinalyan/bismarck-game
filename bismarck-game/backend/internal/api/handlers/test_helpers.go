@@ -34,15 +34,32 @@ func createTestUserAndGame(t *testing.T, db *database.Database, authService *aut
 }
 
 // createTestUnit создает тестовый юнит
-func createTestUnit(t *testing.T, db *database.Database, gameID string) string {
+func createTestUnit(t *testing.T, db *database.Database, gameID string, ownerID string) string {
 	query := `
-		INSERT INTO naval_units (game_id, name, type, owner, position, status, speed_rating, detection_level, damage)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO naval_units (game_id, name, type, class, owner, nationality, position, setup_hex, evasion, base_evasion, speed_rating, fuel, max_fuel, hull_boxes, current_hull, status, damage)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING id
 	`
 
 	var unitID string
-	err := db.GetConnection().QueryRow(query, gameID, "Test Ship", "BB", "german", "A1", "active", "F", "none", "[]").Scan(&unitID)
+	err := db.GetConnection().QueryRow(query,
+		gameID,
+		"Test Ship",
+		"battleship",
+		"Bismarck",
+		ownerID,
+		"german",
+		"A1",
+		"A1",
+		3,
+		3,
+		"medium",
+		100,
+		100,
+		8,
+		8,
+		"active",
+		"[]").Scan(&unitID)
 	require.NoError(t, err)
 
 	return unitID

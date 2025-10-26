@@ -25,6 +25,10 @@ func setupGameHandler(t *testing.T) (*GameHandler, func()) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
+	_, err = db.GetConnection().Exec("DELETE FROM air_units")
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("DELETE FROM naval_units")
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games")
 	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM users")

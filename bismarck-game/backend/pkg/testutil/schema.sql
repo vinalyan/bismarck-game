@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS naval_units (
 CREATE TABLE IF NOT EXISTS air_units (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     game_id UUID NOT NULL REFERENCES games(id),
+    name VARCHAR(100) NOT NULL,
     type VARCHAR(20) NOT NULL,
     owner VARCHAR(50) NOT NULL,
     position VARCHAR(10) NOT NULL,

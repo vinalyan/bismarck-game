@@ -212,6 +212,7 @@ type NavalUnit struct {
 type AirUnit struct {
 	ID           string        `json:"id" db:"id"`
 	GameID       string        `json:"game_id" db:"game_id"`
+	Name         string        `json:"name" db:"name"`
 	Type         UnitType      `json:"type" db:"type"` // B (боевой) или R (разведывательный)
 	Owner        string        `json:"owner" db:"owner"`
 	Position     string        `json:"position" db:"position"` // Hex coordinate
@@ -246,7 +247,6 @@ type TaskForce struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
-
 
 // UnitSearch представляет поиск юнита
 type UnitSearch struct {
