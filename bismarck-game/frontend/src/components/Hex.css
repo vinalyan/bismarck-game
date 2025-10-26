@@ -246,9 +246,20 @@
 
 .unit-stack-background {
   fill: rgba(255, 255, 255, 0.95);
-  stroke: #ffd700;
+  stroke: #4a90e2;
   stroke-width: 3px;
+  filter: drop-shadow(0 0 8px rgba(74, 144, 226, 0.6));
+}
+
+.unit-stack-background.selected {
+  stroke: #ffd700;
   filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+}
+
+.unit-stack-background.cannot-move {
+  stroke: #6b7280;
+  filter: drop-shadow(0 0 8px rgba(107, 114, 128, 0.6));
+  opacity: 0.7;
 }
 
 .unit-stack-icon {

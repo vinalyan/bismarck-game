@@ -502,7 +502,7 @@ const Game: React.FC = () => {
   };
 
   // Обработчик выбора юнита из стека
-  const handleStackedUnitSelect = (unit: any) => {
+  const handleStackedUnitSelect = async (unit: any) => {
     console.log('Stacked unit selected:', unit);
     
     // Если кликнули на уже выбранный юнит - сбрасываем выбор
@@ -531,34 +531,92 @@ const Game: React.FC = () => {
       return;
     }
 
-    // Остальная логика выбора юнита (аналогично handleUnitClick)
+    // Получаем актуальную позицию юнита
     const currentPosition = unit.position;
-    const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 0;
     
     // Проверяем, не двигался ли юнит уже в этом ходу
+    const currentTurnNumber = getTurnData(currentTurn)?.turn_number || 0;
     if (unit.last_move_turn === currentTurnNumber) {
       setAvailableMovementHexes([]);
       return;
     }
 
+    // Получаем актуальные данные юнита с сервера
+    let gameUnit: GameUnit | undefined;
+    try {
+      if (currentGame?.id && authToken) {
+        const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
+        if (unitsResponse.success && unitsResponse.data) {
+          gameUnit = unitsResponse.data.units.find((unit: GameUnit) => unit.id === unit.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching fresh unit data:', error);
+    }
+
+    // Если не удалось получить свежие данные, используем локальные
+    if (!gameUnit) {
+      gameUnit = gameUnits.find(u => u.id === unit.id);
+    }
+    
     // Получаем конфигурацию корабля
-    const shipsByType = getShipsByType(unit.type);
+    const shipsByType = getShipsByType(gameUnit?.type || unit.type);
     const shipConfig = shipsByType.length > 0 ? shipsByType[0] : null;
 
     if (shipConfig) {
       const updatedUnitData = {
         ...unit,
+        ...gameUnit, // Добавляем данные из API
         position: currentPosition,
         shipConfig: shipConfig,
         maxFuel: shipConfig.maxFuel,
-        currentFuel: unit.fuel || Math.floor(shipConfig.maxFuel * 0.85)
+        currentFuel: gameUnit?.fuel || unit.fuel || Math.floor(shipConfig.maxFuel * 0.85)
       };
       setSelectedUnitData(updatedUnitData);
 
-      // Получаем доступные гексы для движения
+      // Получаем доступные гексы для движения с сервера
       if (currentPosition && currentGame?.id && authToken) {
-        // Логика загрузки доступных ходов аналогична handleUnitClick
-        // Здесь можно добавить вызов API для получения доступных ходов
+        try {
+          const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unit.id, authToken);
+          
+          if (availableMovesResponse && availableMovesResponse.available_hexes) {
+            // Преобразуем ответ сервера в формат MovementHex[]
+            const availableHexes: MovementHex[] = availableMovesResponse.available_hexes.map(hex => {
+              // Парсим строку гекса (например, "K15") в HexCoordinate
+              const match = hex.match(/^([A-Z]+)(\d+)$/);
+              if (!match) {
+                console.error('Invalid hex format:', hex);
+                return null;
+              }
+              
+              const letter = match[1];
+              const number = parseInt(match[2]);
+              
+              // Преобразуем в координаты сетки
+              const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
+              const col = number - 1;
+              
+              return {
+                coordinate: {
+                  letter,
+                  number,
+                  col,
+                  row
+                },
+                distance: 1, // Временное значение
+                fuelCost: 1, // Временное значение
+                isReachable: true // Временное значение
+              };
+            }).filter(hex => hex !== null) as MovementHex[];
+            
+            setAvailableMovementHexes(availableHexes);
+          } else {
+            setAvailableMovementHexes([]);
+          }
+        } catch (error) {
+          console.error('Error fetching available moves:', error);
+          setAvailableMovementHexes([]);
+        }
       }
     }
   };

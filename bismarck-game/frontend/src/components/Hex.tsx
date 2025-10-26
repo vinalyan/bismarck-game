@@ -188,6 +188,26 @@ const Hex: React.FC<HexProps> = ({
     return `unit-container ${state}`;
   };
 
+  // Функция для определения состояния стека
+  const getStackState = (units: any[]): 'idle' | 'selected' | 'active' | 'cannot-move' => {
+    // Если есть выбранный юнит в стеке
+    if (units.some(unit => selectedUnit === unit.id)) {
+      return 'selected';
+    }
+    
+    // Если все юниты не могут двигаться
+    if (units.every(unit => 
+      unit.last_move_turn === currentTurn || 
+      unit.no_movement_turns_left > 0 || 
+      unit.fuel <= 0
+    )) {
+      return 'cannot-move';
+    }
+    
+    // По умолчанию idle
+    return 'idle';
+  };
+
   // Функция рендеринга юнитов
   const renderUnits = () => {
     if (!hexData.hasUnit || !hexData.units || hexData.units.length === 0) {
@@ -201,9 +221,10 @@ const Hex: React.FC<HexProps> = ({
 
     if (isStack && !isExpanded) {
       // Отображаем свернутый стек юнитов
+      const stackState = getStackState(units);
       return (
         <g 
-          className="unit-stack-container"
+          className={`unit-stack-container ${stackState}`}
           onClick={(e) => {
             e.stopPropagation();
             if (onUnitStackClick) {
@@ -217,7 +238,7 @@ const Hex: React.FC<HexProps> = ({
             cx={center.x}
             cy={center.y}
             r={size * 0.6}
-            className="unit-stack-background"
+            className={`unit-stack-background ${stackState}`}
           />
           
           {/* Иконка первого юнита */}
@@ -267,7 +288,6 @@ const Hex: React.FC<HexProps> = ({
             return (
               <g
                 key={unit.id}
-                className={`stacked-unit ${getUnitStateClass(unit)}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (onStackedUnitSelect) {
@@ -276,34 +296,16 @@ const Hex: React.FC<HexProps> = ({
                 }}
                 style={{ cursor: 'pointer' }}
               >
-                {/* Фоновый прямоугольник */}
-                <rect
-                  x={center.x - size * 0.6}
-                  y={unitY - size * 0.3}
-                  width={size * 1.2}
-                  height={size * 0.6}
-                  className="stacked-unit-background"
-                />
-                
                 {/* Иконка юнита */}
                 <image
                   href={getUnitIcon(unit.type, unit.nationality === 'german' ? 'german' : 'allied')}
-                  x={center.x - size * 0.5}
-                  y={unitY - size * 0.25}
-                  width={size * 0.5}
-                  height={size * 0.5}
+                  x={center.x - 10}
+                  y={unitY - 10}
+                  width={20}
+                  height={20}
                   className="stacked-unit-icon"
                   preserveAspectRatio="xMidYMid meet"
                 />
-                
-                {/* Название юнита */}
-                <text
-                  x={center.x + size * 0.1}
-                  y={unitY}
-                  className="stacked-unit-text"
-                >
-                  {unit.name || unit.type}
-                </text>
               </g>
             );
           })}
