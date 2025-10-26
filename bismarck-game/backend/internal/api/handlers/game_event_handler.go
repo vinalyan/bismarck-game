@@ -21,10 +21,16 @@ func NewGameEventHandler(eventService *services.GameEventService) *GameEventHand
 // GetGameEvents возвращает события игры
 func (h *GameEventHandler) GetGameEvents(w http.ResponseWriter, r *http.Request) {
 	gameID := r.URL.Query().Get("game_id")
+	playerSide := r.URL.Query().Get("player_side")
 	limitStr := r.URL.Query().Get("limit")
 
 	if gameID == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "Missing required parameter: game_id")
+		return
+	}
+
+	if playerSide == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "Missing required parameter: player_side")
 		return
 	}
 
@@ -35,7 +41,7 @@ func (h *GameEventHandler) GetGameEvents(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	events, err := h.eventService.GetGameEvents(gameID, limit)
+	events, err := h.eventService.GetGameEvents(gameID, playerSide, limit)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get game events")
 		return

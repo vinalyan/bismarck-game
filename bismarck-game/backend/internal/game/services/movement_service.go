@@ -270,6 +270,8 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 
 	// Логируем событие движения
 	if s.eventService != nil {
+		// Определяем сторону игрока по владельцу юнита
+		playerSide := s.getPlayerSide(unit.GameID, unit.Owner)
 		err := s.eventService.LogMovementEvent(
 			unit.GameID,
 			unit.ID,
@@ -280,6 +282,7 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 			movement.Phase,
 			fuelCost,
 			movement.HexesMoved,
+			playerSide,
 		)
 		if err != nil {
 			s.logger.Warn("Failed to log movement event", "error", err)
@@ -415,6 +418,27 @@ func (s *MovementService) notifyPlayersAboutMovement(unit *models.NavalUnit, mov
 	s.logger.Info("Notifying players about movement",
 		"unit_id", unit.ID,
 		"movement_id", movement.ID)
+}
+
+// getPlayerSide определяет сторону игрока по ID игры и ID игрока
+func (s *MovementService) getPlayerSide(gameID, playerID string) string {
+	query := `SELECT player1_id, player2_id FROM games WHERE id = $1`
+	var player1ID, player2ID string
+
+	err := s.db.QueryRow(query, gameID).Scan(&player1ID, &player2ID)
+	if err != nil {
+		s.logger.Error("Failed to get game players", "error", err, "game_id", gameID)
+		return "unknown"
+	}
+
+	if player1ID == playerID {
+		return "german" // Player1 всегда немцы
+	}
+	if player2ID == playerID {
+		return "allied" // Player2 всегда союзники
+	}
+
+	return "unknown"
 }
 
 // HexToCube преобразует гекс (например, "J30") в кубические координаты

@@ -26,7 +26,7 @@ func NewGameEventService(db *database.Database, logger *logger.Logger) *GameEven
 }
 
 // LogMovementEvent логирует событие движения
-func (s *GameEventService) LogMovementEvent(gameID, unitID, unitName, fromHex, toHex string, turn int, phase string, fuelCost, hexesMoved int) error {
+func (s *GameEventService) LogMovementEvent(gameID, unitID, unitName, fromHex, toHex string, turn int, phase string, fuelCost, hexesMoved int, playerSide string) error {
 	event := &models.GameEvent{
 		ID:          uuid.New().String(),
 		GameID:      gameID,
@@ -41,6 +41,10 @@ func (s *GameEventService) LogMovementEvent(gameID, unitID, unitName, fromHex, t
 			"to_hex":      toHex,
 			"fuel_cost":   fuelCost,
 			"hexes_moved": hexesMoved,
+		},
+		Visibility: map[string]interface{}{
+			"player_side": playerSide, // Сторона игрока, который совершил действие
+			"is_public":   false,      // Движения видны только своей стороне
 		},
 		CreatedAt: time.Now(),
 	}
@@ -61,6 +65,9 @@ func (s *GameEventService) LogPhaseChangeEvent(gameID string, turn int, fromPhas
 			"from_phase": fromPhase,
 			"to_phase":   toPhase,
 		},
+		Visibility: map[string]interface{}{
+			"is_public": true, // Смена фаз видна всем игрокам
+		},
 		CreatedAt: time.Now(),
 	}
 
@@ -79,24 +86,32 @@ func (s *GameEventService) LogTurnChangeEvent(gameID string, turn int) error {
 		Data: map[string]interface{}{
 			"turn": turn,
 		},
+		Visibility: map[string]interface{}{
+			"is_public": true, // Смена ходов видна всем игрокам
+		},
 		CreatedAt: time.Now(),
 	}
 
 	return s.saveEvent(event)
 }
 
-// GetGameEvents возвращает последние события игры
-func (s *GameEventService) GetGameEvents(gameID string, limit int) ([]models.GameEvent, error) {
+// GetGameEvents возвращает последние события игры для конкретной стороны
+func (s *GameEventService) GetGameEvents(gameID, playerSide string, limit int) ([]models.GameEvent, error) {
 	query := `
 		SELECT id, game_id, turn, phase, event_type, actor_id, actor_name, 
 		       target_id, target_name, description, data, visibility, created_at
 		FROM game_events 
 		WHERE game_id = $1 
+		AND visibility IS NOT NULL
+		AND (
+			visibility->>'is_public' = 'true' 
+			OR visibility->>'player_side' = $2
+		)
 		ORDER BY created_at DESC
-		LIMIT $2
+		LIMIT $3
 	`
 
-	rows, err := s.db.Query(query, gameID, limit)
+	rows, err := s.db.Query(query, gameID, playerSide, limit)
 	if err != nil {
 		s.logger.Error("Failed to query game events", "error", err, "game_id", gameID)
 		return nil, fmt.Errorf("failed to get game events: %w", err)
