@@ -15,6 +15,7 @@
       "maxTorpedos": 0,
       "speedType": "F",
       "setupHex": "J30",
+      "startingTaskForce": "KG-1",
       "notes": "После первого раунда боя считается кораблем без радара",
       "specialRules": [
         {
@@ -40,7 +41,8 @@
       "baseSecondaryArmament": 5,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "J29"
+      "setupHex": "J30",
+      "startingTaskForce": "KG-1"
     },
 
     {
@@ -73,7 +75,8 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "J27"
+      "setupHex": "J30",
+      "startingTaskForce": "KG-1"
     },
     {
       "id": "prince_of_wales",

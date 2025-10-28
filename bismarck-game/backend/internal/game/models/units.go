@@ -1,6 +1,9 @@
 package models
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -236,16 +239,20 @@ type Damage struct {
 
 // TaskForce представляет оперативное соединение
 type TaskForce struct {
-	ID        string    `json:"id" db:"id"`
-	GameID    string    `json:"game_id" db:"game_id"`
-	Name      string    `json:"name" db:"name"`
-	Owner     string    `json:"owner" db:"owner"`
-	Position  string    `json:"position" db:"position"` // Hex coordinate
-	Speed     int       `json:"speed" db:"speed"`
-	Units     []string  `json:"units" db:"units"` // IDs юнитов
-	IsVisible bool      `json:"is_visible" db:"is_visible"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID             string    `json:"id" db:"id"`
+	GameID         string    `json:"game_id" db:"game_id"`
+	Name           string    `json:"name" db:"name"`
+	Owner          string    `json:"owner" db:"owner"`
+	Nationality    string    `json:"nationality" db:"nationality"` // 'german' or 'allied'
+	Position       string    `json:"position" db:"position"`       // Hex coordinate
+	Speed          int       `json:"speed" db:"speed"`
+	Units          []string  `json:"units" db:"units"` // IDs юнитов
+	IsVisible      bool      `json:"is_visible" db:"is_visible"`
+	DetectionLevel string    `json:"detection_level" db:"detection_level"` // 'none', 'sighted', 'shadowed', 'lost'
+	LastMoveTurn   int       `json:"last_move_turn" db:"last_move_turn"`
+	IsActivated    bool      `json:"is_activated" db:"is_activated"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // UnitSearch представляет поиск юнита
@@ -406,6 +413,64 @@ func (tf *TaskForce) RemoveUnit(unitID string) {
 // IsEmpty проверяет, пусто ли соединение
 func (tf *TaskForce) IsEmpty() bool {
 	return len(tf.Units) == 0
+}
+
+// CanMoveThisTurn проверяет, может ли Task Force двигаться в этом ходу
+func (tf *TaskForce) CanMoveThisTurn(currentTurn int) bool {
+	return tf.LastMoveTurn < currentTurn && tf.DetectionLevel != "sighted"
+}
+
+// CanAddUnit проверяет, можно ли добавить юнит в Task Force
+func (tf *TaskForce) CanAddUnit() bool {
+	return tf.DetectionLevel != "sighted"
+}
+
+// CanRemoveUnit проверяет, можно ли удалить юнит из Task Force
+func (tf *TaskForce) CanRemoveUnit() bool {
+	return tf.DetectionLevel != "sighted"
+}
+
+// GetNextAvailableName генерирует следующее доступное имя для Task Force
+func GetNextAvailableName(nationality string, existingNames []string) string {
+	prefix := "TF"
+	if nationality == "german" {
+		prefix = "KG" // Kampfgruppe
+	}
+
+	// Создаем map для быстрого поиска существующих номеров
+	usedNumbers := make(map[int]bool)
+	for _, name := range existingNames {
+		if len(name) > 3 && name[:2] == prefix {
+			if num := parseTaskForceNumber(name); num > 0 {
+				usedNumbers[num] = true
+			}
+		}
+	}
+
+	// Находим первый свободный номер
+	for i := 1; i <= 999; i++ {
+		if !usedNumbers[i] {
+			return fmt.Sprintf("%s-%d", prefix, i)
+		}
+	}
+
+	// Fallback - если все номера заняты (что практически невозможно)
+	return fmt.Sprintf("%s-%d", prefix, len(existingNames)+1)
+}
+
+// parseTaskForceNumber извлекает номер из имени Task Force
+func parseTaskForceNumber(name string) int {
+	parts := strings.Split(name, "-")
+	if len(parts) != 2 {
+		return 0
+	}
+
+	num, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return 0
+	}
+
+	return num
 }
 
 // Методы для тактического боя NavalUnit

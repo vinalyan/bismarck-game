@@ -52,11 +52,27 @@ export interface GameUnit {
   updated_at: string;
 }
 
+// Интерфейс для Task Force
+export interface TaskForce {
+  id: string;
+  name: string;
+  nationality: string;
+  position: string;
+  units: string[];
+  speed: number;
+  detection_level: string;
+  last_move_turn: number;
+  is_activated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // Интерфейс для ответа API
 export interface UnitsResponse {
   success: boolean;
   data: {
     units: GameUnit[];
+    task_forces?: TaskForce[];
   };
   error?: string;
 }

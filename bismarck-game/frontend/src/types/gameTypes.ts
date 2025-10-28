@@ -434,12 +434,25 @@ export interface TaskForce {
   gameId: string;
   name: string;
   owner: string;
+  nationality: string; // 'german' or 'allied'
   position: string; // Hex coordinate
   speed: number;
   units: string[]; // IDs юнитов
   isVisible: boolean;
+  detectionLevel: string; // 'none', 'sighted', 'shadowed', 'lost'
+  lastMoveTurn: number;
+  isActivated: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// Расширенная информация о Task Force с юнитами
+export interface TaskForceDetails extends TaskForce {
+  unitsData: NavalUnit[]; // Полные данные юнитов
+  effectiveSpeed: number;
+  totalSearchFactors: number;
+  canForm: boolean;
+  canSplit: boolean;
 }
 
 // Движение юнита

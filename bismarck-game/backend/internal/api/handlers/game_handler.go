@@ -24,15 +24,17 @@ type GameHandler struct {
 	unitService       *services.UnitService
 	shipConfigService *services.ShipConfigService
 	phaseManager      *services.PhaseManager
+	taskForceService  *services.TaskForceService
 }
 
 // NewGameHandler создает новый обработчик игр
-func NewGameHandler(db *database.Database, unitService *services.UnitService, shipConfigService *services.ShipConfigService, phaseManager *services.PhaseManager) *GameHandler {
+func NewGameHandler(db *database.Database, unitService *services.UnitService, shipConfigService *services.ShipConfigService, phaseManager *services.PhaseManager, taskForceService *services.TaskForceService) *GameHandler {
 	return &GameHandler{
 		db:                db,
 		unitService:       unitService,
 		shipConfigService: shipConfigService,
 		phaseManager:      phaseManager,
+		taskForceService:  taskForceService,
 	}
 }
 
@@ -47,6 +49,93 @@ func getUserIDFromContext(r *http.Request) (string, error) {
 		return "", fmt.Errorf("invalid user_id type in context")
 	}
 	return userID, nil
+}
+
+// createStartingTaskForces создает стартовые Task Forces на основе конфигурации кораблей
+func (h *GameHandler) createStartingTaskForces(gameID string) error {
+	log.Printf("Creating starting task forces for game %s", gameID)
+
+	// Получаем группы Task Forces из конфигурации
+	taskForceGroups, err := h.shipConfigService.GetTaskForceGroups()
+	if err != nil {
+		log.Printf("Error getting task force groups: %v", err)
+		return fmt.Errorf("failed to get task force groups: %w", err)
+	}
+
+	if len(taskForceGroups) == 0 {
+		log.Printf("No starting task forces configured")
+		return nil
+	}
+
+	// Получаем все юниты игры для поиска соответствующих кораблей
+	allUnits, err := h.unitService.GetNavalUnitsByGameID(gameID)
+	if err != nil {
+		log.Printf("Error getting game units: %v", err)
+		return fmt.Errorf("failed to get game units: %w", err)
+	}
+
+	// Создаем карту юнитов по именам для быстрого поиска
+	unitsByName := make(map[string]*models.NavalUnit)
+	for i := range allUnits {
+		unitsByName[allUnits[i].Name] = &allUnits[i]
+	}
+
+	// Создаем Task Force для каждой группы
+	for taskForceName, ships := range taskForceGroups {
+		log.Printf("Creating task force %s with %d ships", taskForceName, len(ships))
+
+		// Находим соответствующие юниты
+		var unitIDs []string
+		var firstUnit *models.NavalUnit
+
+		for _, ship := range ships {
+			if unit, exists := unitsByName[ship.Name]; exists {
+				unitIDs = append(unitIDs, unit.ID)
+				if firstUnit == nil {
+					firstUnit = unit
+				}
+				log.Printf("Adding unit %s (%s) to task force %s", unit.Name, unit.ID, taskForceName)
+			} else {
+				log.Printf("Warning: Unit %s not found for task force %s", ship.Name, taskForceName)
+			}
+		}
+
+		if len(unitIDs) < 2 {
+			log.Printf("Warning: Task force %s has less than 2 units (%d), skipping", taskForceName, len(unitIDs))
+			continue
+		}
+
+		if firstUnit == nil {
+			log.Printf("Warning: No valid units found for task force %s", taskForceName)
+			continue
+		}
+
+		// Создаем Task Force
+		taskForce := &models.TaskForce{
+			GameID:         gameID,
+			Name:           taskForceName,
+			Owner:          firstUnit.Owner,
+			Nationality:    firstUnit.Nationality,
+			Position:       firstUnit.Position,
+			Units:          unitIDs,
+			IsVisible:      true,
+			DetectionLevel: string(models.DetectionLevelNone),
+			LastMoveTurn:   0,
+			IsActivated:    false,
+		}
+
+		err = h.taskForceService.CreateTaskForce(taskForce)
+		if err != nil {
+			log.Printf("Error creating task force %s: %v", taskForceName, err)
+			return fmt.Errorf("failed to create task force %s: %w", taskForceName, err)
+		}
+
+		log.Printf("Successfully created task force %s (%s) with %d units at position %s",
+			taskForce.Name, taskForce.ID, len(unitIDs), taskForce.Position)
+	}
+
+	log.Printf("Successfully created all starting task forces for game %s", gameID)
+	return nil
 }
 
 // CreateGame создает новую игру
@@ -196,6 +285,15 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 			// Не прерываем создание игры, просто логируем ошибку
 		} else {
 			log.Printf("Game units initialized successfully for game %s", game.ID)
+
+			// Создаем стартовые Task Forces
+			err = h.createStartingTaskForces(game.ID)
+			if err != nil {
+				log.Printf("Error creating starting task forces: %v", err)
+				// Не прерываем создание игры, но логируем ошибку
+			} else {
+				log.Printf("Starting task forces created successfully for game %s", game.ID)
+			}
 		}
 	}
 
@@ -612,6 +710,15 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("Game units initialized successfully after join for game %s", gameID)
 
+			// Создаем стартовые Task Forces
+			err = h.createStartingTaskForces(gameID)
+			if err != nil {
+				log.Printf("Error creating starting task forces after join: %v", err)
+				// Не прерываем присоединение к игре, но логируем ошибку
+			} else {
+				log.Printf("Starting task forces created successfully after join for game %s", gameID)
+			}
+
 			// Автоматически запускаем setup фазу (размещение кораблей)
 			// Это происходит в фоне, не блокируя ответ
 			go func() {
@@ -899,10 +1006,20 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("GetGameUnits: Got %d units", len(units))
+	// Получаем Task Forces для игры
+	log.Printf("GetGameUnits: Getting task forces for game %s", gameID)
+	taskForces, err := h.taskForceService.GetTaskForcesByGameID(gameID)
+	if err != nil {
+		log.Printf("Error getting task forces: %v", err)
+		// Не прерываем выполнение, просто логируем ошибку
+		taskForces = []models.TaskForce{}
+	}
+
+	log.Printf("GetGameUnits: Got %d units and %d task forces", len(units), len(taskForces))
 
 	pkgutils.WriteSuccess(w, map[string]interface{}{
-		"units": units,
+		"units":       units,
+		"task_forces": taskForces,
 	})
 }
 

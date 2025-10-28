@@ -657,6 +657,79 @@ func getMigrations() []Migration {
 				-- Rollback не поддерживается для этой миграции
 			`,
 		},
+		{
+			Version:     "013_add_task_forces",
+			Description: "Add Task Forces table for operational groups",
+			SQL: `
+				-- Task Forces table
+				CREATE TABLE IF NOT EXISTS task_forces (
+					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
+					name VARCHAR(20) NOT NULL,
+					owner VARCHAR(50) NOT NULL,
+					nationality VARCHAR(20) NOT NULL, -- 'german' or 'allied' 
+					position VARCHAR(10) NOT NULL,    -- Hex coordinate (e.g., 'A1', 'B15')
+					speed INTEGER NOT NULL DEFAULT 1, -- Effective speed (1-6, determined by slowest unit)
+					units JSONB NOT NULL DEFAULT '[]', -- Array of unit IDs in this task force
+					is_visible BOOLEAN DEFAULT true,
+					detection_level VARCHAR(20) DEFAULT 'none', -- 'none', 'sighted', 'shadowed', 'lost'
+					last_move_turn INTEGER DEFAULT 0, -- Last turn this TF moved
+					is_activated BOOLEAN DEFAULT false, -- Whether TF is activated this turn
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+				);
+
+				-- Add indexes for performance
+				CREATE INDEX IF NOT EXISTS idx_task_forces_game_id ON task_forces(game_id);
+				CREATE INDEX IF NOT EXISTS idx_task_forces_owner ON task_forces(owner);
+				CREATE INDEX IF NOT EXISTS idx_task_forces_position ON task_forces(position);
+				CREATE INDEX IF NOT EXISTS idx_task_forces_nationality ON task_forces(nationality);
+				CREATE INDEX IF NOT EXISTS idx_task_forces_created_at ON task_forces(created_at);
+
+				-- Add task_force_id field to naval_units table if it doesn't exist
+				DO $$ 
+				BEGIN
+					-- Check if column exists
+					IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+								  WHERE table_name = 'naval_units' AND column_name = 'task_force_id') THEN
+						ALTER TABLE naval_units ADD COLUMN task_force_id UUID REFERENCES task_forces(id) ON DELETE SET NULL;
+						CREATE INDEX IF NOT EXISTS idx_naval_units_task_force_id ON naval_units(task_force_id);
+					END IF;
+				END $$;
+
+				-- Add constraints
+				DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+								  WHERE constraint_name = 'check_task_force_name_format' AND table_name = 'task_forces') THEN
+						ALTER TABLE task_forces ADD CONSTRAINT check_task_force_name_format 
+							CHECK (name ~ '^(TF|KG)-[0-9]+$');
+					END IF;
+				END $$;
+
+				-- Add function to update updated_at timestamp
+				CREATE OR REPLACE FUNCTION update_task_force_updated_at()
+				RETURNS TRIGGER AS $$
+				BEGIN
+					NEW.updated_at = CURRENT_TIMESTAMP;
+					RETURN NEW;
+				END;
+				$$ language 'plpgsql';
+
+				-- Add trigger to automatically update updated_at
+				DROP TRIGGER IF EXISTS trigger_update_task_force_updated_at ON task_forces;
+				CREATE TRIGGER trigger_update_task_force_updated_at
+					BEFORE UPDATE ON task_forces
+					FOR EACH ROW
+					EXECUTE FUNCTION update_task_force_updated_at();
+			`,
+			RollbackSQL: `
+				DROP TRIGGER IF EXISTS trigger_update_task_force_updated_at ON task_forces;
+				DROP FUNCTION IF EXISTS update_task_force_updated_at();
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS task_force_id;
+				DROP TABLE IF EXISTS task_forces;
+			`,
+		},
 	}
 }
 

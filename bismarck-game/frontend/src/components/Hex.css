@@ -502,3 +502,124 @@
     filter: drop-shadow(0 0 12px #ef4444) drop-shadow(0 0 24px #ef4444);
   }
 }
+
+/* ===== СТИЛИ ДЛЯ TASK FORCES ===== */
+
+/* Основной контейнер Task Force */
+.task-force-container {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* Фоновый кружок Task Force */
+.task-force-background {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  filter: drop-shadow(0px 0px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* Иконка Task Force */
+.task-force-icon {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+  filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Кольцо выделения для выбранного Task Force */
+.task-force-selected-ring {
+  stroke: #FFD700;
+  stroke-width: 3px;
+  fill: none;
+  stroke-dasharray: 5,5;
+  animation: selectedRingRotate 3s linear infinite;
+}
+
+/* Имя Task Force */
+.task-force-name {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Счетчик кораблей Task Force */
+.task-force-count {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ===== СОСТОЯНИЯ TASK FORCES ===== */
+
+/* Выбранный Task Force */
+.task-force-container.selected .task-force-background {
+  stroke: #ffd700 !important;
+  stroke-width: 3px !important;
+  fill: rgba(255, 215, 0, 0.2);
+  animation: selectedUnitPulse 2s ease-in-out infinite;
+}
+
+.task-force-container.selected .task-force-icon {
+  filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 16px #ffd700);
+}
+
+/* Активный Task Force */
+.task-force-container.active .task-force-background {
+  stroke: #22c55e !important;
+  stroke-width: 3px !important;
+  fill: rgba(34, 197, 94, 0.2);
+  animation: activeUnitGlow 1.5s ease-in-out infinite;
+}
+
+.task-force-container.active .task-force-icon {
+  filter: drop-shadow(0 0 6px #22c55e);
+}
+
+/* Task Force, который не может двигаться */
+.task-force-container.cannot-move .task-force-background {
+  stroke: #6b7280 !important;
+  stroke-width: 2px !important;
+  fill: rgba(107, 114, 128, 0.1);
+  opacity: 0.7;
+}
+
+.task-force-container.cannot-move .task-force-icon {
+  filter: grayscale(0.8) drop-shadow(0 0 4px #6b7280);
+  opacity: 0.8;
+}
+
+.task-force-container.cannot-move .task-force-name,
+.task-force-container.cannot-move .task-force-count {
+  fill: #6b7280 !important;
+  opacity: 0.8;
+}
+
+/* Idle состояние Task Force */
+.task-force-container.idle .task-force-background {
+  stroke: #4a90e2;
+  stroke-width: 2px;
+  filter: drop-shadow(0 0 4px rgba(74, 144, 226, 0.4));
+}
+
+/* Эффекты при наведении */
+.task-force-container:hover .task-force-background {
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 8px rgba(74, 144, 226, 0.6));
+}
+
+.task-force-container:hover .task-force-icon {
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+/* Цвета для разных национальностей */
+.task-force-container.german .task-force-background {
+  stroke: #1e3a8a;
+}
+
+.task-force-container.allied .task-force-background {
+  stroke: #991b1b;
+}

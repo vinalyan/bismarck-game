@@ -214,12 +214,115 @@ const Hex: React.FC<HexProps> = ({
       return 'cannot-move';
     }
     
-    // По умолчанию idle
-    return 'idle';
+  // По умолчанию idle
+  return 'idle';
+};
+
+// Функция для определения состояния Task Force
+const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'cannot-move' => {
+  // Если Task Force выбран
+  if (selectedUnit === taskForce.id) {
+    return 'selected';
+  }
+  
+  // Проверяем, может ли двигаться (если есть данные о последнем ходе)
+  if (taskForce.last_move_turn === currentTurn) {
+    return 'cannot-move';
+  }
+  
+  // По умолчанию idle
+  return 'idle';
+};
+
+  // Функция рендеринга Task Force маркера
+  const renderTaskForce = (taskForce: any) => {
+    const tfName = taskForce.name || 'TF';
+    const nationality = taskForce.nationality === 'german' ? 'german' : 'allied';
+    const unitCount = taskForce.units?.length || 0;
+    const svgPath = `/assets/units/${nationality}/TF/TF.svg`;
+    const tfState = getTaskForceState(taskForce);
+    
+    return (
+      <g 
+        className={`task-force-container ${nationality} ${tfState}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onUnitClick) {
+            onUnitClick(taskForce.id, taskForce);
+          }
+        }}
+        style={{ cursor: 'pointer' }}
+      >
+        {/* Фоновый кружок для лучшей видимости */}
+        <circle
+          cx={center.x}
+          cy={center.y}
+          r={size * 0.5}
+          fill="rgba(255, 255, 255, 0.9)"
+          stroke={nationality === 'german' ? '#1e3a8a' : '#991b1b'}
+          strokeWidth={2}
+          className="task-force-background"
+        />
+        
+        {/* Кольцо для выбранного Task Force */}
+        {tfState === 'selected' && (
+          <circle
+            cx={center.x}
+            cy={center.y}
+            r={size * 0.6}
+            className="task-force-selected-ring"
+            fill="none"
+            stroke="#FFD700"
+            strokeWidth={3}
+          />
+        )}
+        
+        {/* Task Force SVG иконка */}
+        <image
+          x={center.x - size * 0.5}
+          y={center.y - size * 0.5}
+          width={size * 1.0}
+          height={size * 1.0}
+          href={svgPath}
+          className={`task-force-icon ${nationality}`}
+        />
+        
+        {/* Имя Task Force */}
+        <text
+          x={center.x}
+          y={center.y + size * 0.7}
+          className="task-force-name"
+          textAnchor="middle"
+          fontSize="10"
+          fill={nationality === 'german' ? '#1D3A43' : '#CA6649'}
+          fontWeight="bold"
+        >
+          {tfName}
+        </text>
+        
+        {/* Количество кораблей */}
+        <text
+          x={center.x}
+          y={center.y + size * 0.85}
+          className="task-force-count"
+          textAnchor="middle"
+          fontSize="8"
+          fill={nationality === 'german' ? '#1D3A43' : '#CA6649'}
+        >
+          ({unitCount})
+        </text>
+      </g>
+    );
   };
 
   // Функция рендеринга юнитов
   const renderUnits = () => {
+    // Сначала проверяем Task Forces
+    if (hexData.taskForces && hexData.taskForces.length > 0) {
+      return renderTaskForce(hexData.taskForces[0]);
+    }
+    
+    // Затем обычные юниты
     if (!hexData.hasUnit || !hexData.units || hexData.units.length === 0) {
       return null;
     }

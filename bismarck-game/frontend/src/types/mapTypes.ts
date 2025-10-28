@@ -85,15 +85,16 @@ export interface HexData {
   type: HexType;
   isVisible: boolean;        // Видим ли гекс игроку
   isHighlighted: boolean;    // Подсвечен ли гекс
-  hasUnit: boolean;          // Есть ли юнит на гексе
-  unitId?: string | null;    // ID первого юнита (для обратной совместимости)
-  unitType?: string | null;  // Тип первого юнита (BB, BC, CV, CA, CL, DD, CG, TK, B, R)
-  unitSide?: PlayerSide | null; // Сторона первого юнита
-  units?: any[];             // Массив всех юнитов в гексе (GameUnit[])
+  hasUnit: boolean;          // Есть ли юнит или Task Force на гексе
+  unitId?: string | null;    // ID первого юнита или Task Force
+  unitType?: string | null;  // Тип юнита (BB, BC, CV, CA, CL, DD, CG, TK, B, R) или 'TF' для Task Force
+  unitSide?: PlayerSide | null; // Сторона юнита/Task Force
+  units?: any[];             // Массив отдельных юнитов в гексе (не в Task Forces)
+  taskForces?: any[];        // Массив Task Forces в гексе
   weather: WeatherType;      // Погода на гексе
   fogLevel: number;          // Уровень тумана войны (0-100)
   hexType: 'water' | 'land' | 'non_game'; // Тип гекса для движения
-  isRestrictedDD: boolean;   // Разрешен ли гекс для немецких DD
+  isRestrictedDD?: boolean;  // Разрешен ли гекс для немецких DD
 }
 
 // Юнит на карте

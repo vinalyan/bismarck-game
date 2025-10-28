@@ -131,6 +131,10 @@ func (s *Server) setupRoutes() {
 	movementLogger, _ := logger.New(logger.INFO, "movement-service", "stdout")
 	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService, mapStructureService, eventService)
 
+	// Создаем сервис Task Forces
+	taskForceLogger, _ := logger.New(logger.INFO, "taskforce-service", "stdout")
+	taskForceService := services.NewTaskForceService(s.db, taskForceLogger, unitService, movementService)
+
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
 		logger.Error("Failed to load ship config", "error", err)
@@ -138,7 +142,7 @@ func (s *Server) setupRoutes() {
 
 	// Создаем обработчики
 	authHandler := handlers.NewAuthHandler(s.authService)
-	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService, phaseManager)
+	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService, phaseManager, taskForceService)
 	shipConfigLogger, _ := logger.New(logger.INFO, "ship-config-service", "stdout")
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService, unitService, shipConfigLogger)
 	phaseHandler := handlers.NewPhaseHandler(phaseManager)

@@ -7,7 +7,7 @@ import { HexCoordinate } from '../types/mapTypes';
 import { MovementHex } from '../utils/movementUtils';
 import { useActiveHexes } from '../utils/activeHexesUtils';
 import { MAP_CONSTANTS } from '../utils/hexUtils';
-import { unitsAPI, GameUnit } from '../services/api/unitsAPI';
+import { unitsAPI, GameUnit, TaskForce } from '../services/api/unitsAPI';
 import { movementAPI } from '../services/api/movementAPI';
 import { shipsAPI } from '../services/api/shipsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
@@ -60,6 +60,7 @@ const Game: React.FC = () => {
 
   const [loadingShips] = useState(false);
   const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
+  const [taskForces, setTaskForces] = useState<TaskForce[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
 
   // Хук для управления активными гексами
@@ -114,8 +115,13 @@ const Game: React.FC = () => {
         setLoadingUnits(true);
         const response = await unitsAPI.getGameUnits(currentGame.id, authToken);
         
-        if (response.success && response.data && response.data.units) {
-          setGameUnits(response.data.units);
+        if (response.success && response.data) {
+          if (response.data.units) {
+            setGameUnits(response.data.units);
+          }
+          if (response.data.task_forces) {
+            setTaskForces(response.data.task_forces);
+          }
         } else {
           console.error('Failed to load game units:', response.error);
           addNotification({
@@ -152,8 +158,13 @@ const Game: React.FC = () => {
     const interval = setInterval(async () => {
       try {
         const response = await unitsAPI.getGameUnits(currentGame.id, authToken);
-        if (response.success && response.data && response.data.units) {
-          setGameUnits(response.data.units);
+        if (response.success && response.data) {
+          if (response.data.units) {
+            setGameUnits(response.data.units);
+          }
+          if (response.data.task_forces) {
+            setTaskForces(response.data.task_forces);
+          }
         }
       } catch (error) {
         console.error('Error updating game units:', error);
@@ -1132,6 +1143,7 @@ const Game: React.FC = () => {
             availableMovementHexes={availableMovementHexes}
             activeHexes={activeHexes}
             gameUnits={gameUnits}
+            taskForces={taskForces}
             selectedUnit={selectedUnit}
             expandedStackHex={expandedStackHex}
             currentTurn={getTurnData(currentTurn)?.turn_number}

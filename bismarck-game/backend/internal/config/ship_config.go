@@ -21,7 +21,8 @@ type ShipConfig struct {
 	BaseSecondaryArmament    int                 `json:"baseSecondaryArmament"`
 	MaxTorpedos              int                 `json:"maxTorpedos"`
 	SpeedType                string              `json:"speedType"`
-	SetupHex                 string              `json:"setupHex,omitempty"` // Стартовая позиция при начале игры
+	SetupHex                 string              `json:"setupHex,omitempty"`          // Стартовая позиция при начале игры
+	StartingTaskForce        string              `json:"startingTaskForce,omitempty"` // Стартовый Task Force
 	Notes                    string              `json:"notes,omitempty"`
 	SpecialRules             []SpecialRuleConfig `json:"specialRules,omitempty"`
 }
@@ -126,6 +127,38 @@ func (scm *ShipConfigManager) GetAllShips() ([]ShipConfig, error) {
 	}
 
 	return scm.config.Ships, nil
+}
+
+// GetShipsByTaskForce возвращает все корабли для указанного стартового Task Force
+func (scm *ShipConfigManager) GetShipsByTaskForce(taskForceName string) ([]ShipConfig, error) {
+	if scm.config == nil {
+		return nil, ErrConfigNotLoaded
+	}
+
+	var ships []ShipConfig
+	for _, ship := range scm.config.Ships {
+		if ship.StartingTaskForce == taskForceName {
+			ships = append(ships, ship)
+		}
+	}
+
+	return ships, nil
+}
+
+// GetTaskForceGroups возвращает группировку кораблей по стартовым Task Forces
+func (scm *ShipConfigManager) GetTaskForceGroups() (map[string][]ShipConfig, error) {
+	if scm.config == nil {
+		return nil, ErrConfigNotLoaded
+	}
+
+	groups := make(map[string][]ShipConfig)
+	for _, ship := range scm.config.Ships {
+		if ship.StartingTaskForce != "" {
+			groups[ship.StartingTaskForce] = append(groups[ship.StartingTaskForce], ship)
+		}
+	}
+
+	return groups, nil
 }
 
 // GetShipNames возвращает список всех названий кораблей

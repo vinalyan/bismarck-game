@@ -23,11 +23,13 @@ interface HexMapProps {
   availableMovementHexes?: MovementHex[];
   activeHexes?: ActiveHex[];
   gameUnits?: any[]; // Единый источник данных юнитов
+  taskForces?: any[]; // Данные Task Forces  
   mapStructures?: MapStructure | null;
   selectedUnit?: string | null;
   expandedStackHex?: string | null;
   currentTurn?: number;
   onUnitStackClick?: (hexId: string, units: any[]) => void;
+  onTaskForceClick?: (taskForceId: string, taskForceData: any) => void;
   onStackedUnitSelect?: (unit: any) => void;
   onRefuelAllShips?: () => void;
   onCompletePhase?: () => void;
@@ -44,15 +46,17 @@ const HexMap: React.FC<HexMapProps> = ({
   onHexHover,
   onUnitClick,
   selectedHex,
-  playerSide = 'german',
+  playerSide = 'allied',
   availableMovementHexes = [],
   activeHexes = [],
   gameUnits = [],
+  taskForces = [],
   mapStructures = null,
   selectedUnit = null,
   expandedStackHex = null,
   currentTurn = 0,
   onUnitStackClick,
+  onTaskForceClick,
   onStackedUnitSelect,
   onRefuelAllShips,
   onCompletePhase,
@@ -112,9 +116,34 @@ const HexMap: React.FC<HexMapProps> = ({
         
         const hexId = `${letter}${number}`;
         
-        // Группируем юниты по позиции
+        // Находим Task Forces в этом гексе
+        const taskForcesInHex = taskForces.filter(tf => {
+          if (!tf.position || tf.position.trim() === '') return false;
+          
+          const match = tf.position.match(/^([A-Z]+)(\d+)$/);
+          if (!match) return false;
+          
+          const tfLetter = match[1];
+          const tfNumber = parseInt(match[2]);
+          
+          let tfRow: number;
+          if (tfLetter.length === 1) {
+            tfRow = tfLetter.charCodeAt(0) - 65;
+          } else if (tfLetter.length === 2 && tfLetter.startsWith('A')) {
+            tfRow = 26 + (tfLetter.charCodeAt(1) - 65);
+          } else {
+            return false;
+          }
+          
+          return tfRow === row && (tfNumber - 1) === col;
+        });
+
+        // Группируем юниты по позиции, исключая те что в Task Forces
         const unitsInHex = gameUnits.filter(unit => {
           if (!unit.position || unit.position.trim() === '') return false;
+          
+          // Если юнит в Task Force, не показываем его отдельно
+          if (unit.task_force_id) return false;
           
           const match = unit.position.match(/^([A-Z]+)(\d+)$/);
           if (!match) return false;
@@ -137,9 +166,14 @@ const HexMap: React.FC<HexMapProps> = ({
         });
 
         const hasUnit = unitsInHex.length > 0;
-        const unitId = hasUnit ? unitsInHex[0].id : null;
-        const unitType = hasUnit ? unitsInHex[0].type : null;
-        const unitSide = hasUnit ? (unitsInHex[0].nationality === 'german' ? 'german' : 'allied') : null;
+        const hasTaskForce = taskForcesInHex.length > 0;
+        
+        // Приоритет отображения: сначала Task Forces, затем отдельные юниты
+        const unitId = hasTaskForce ? taskForcesInHex[0].id : (hasUnit ? unitsInHex[0].id : null);
+        const unitType = hasTaskForce ? 'TF' : (hasUnit ? unitsInHex[0].type : null);
+        const unitSide = hasTaskForce 
+          ? (taskForcesInHex[0].nationality === 'german' ? 'german' : 'allied')
+          : (hasUnit ? (unitsInHex[0].nationality === 'german' ? 'german' : 'allied') : null);
         
         // Определяем тип гекса на основе структур карты
         let hexType: 'water' | 'land' | 'non_game' = 'water';
@@ -175,11 +209,12 @@ const HexMap: React.FC<HexMapProps> = ({
           type: 'water', // Визуальный тип остается водой
           isVisible: true,
           isHighlighted: false,
-          hasUnit,
+          hasUnit: hasUnit || hasTaskForce,
           unitId,
           unitType,
           unitSide,
-          units: unitsInHex, // Массив всех юнитов в гексе
+          units: unitsInHex, // Массив отдельных юнитов в гексе
+          taskForces: taskForcesInHex, // Массив Task Forces в гексе
           weather: 'clear',
           fogLevel: 0,
           hexType,
@@ -189,7 +224,7 @@ const HexMap: React.FC<HexMapProps> = ({
     }
     
     return newHexes;
-  }, [width, height, gameUnits, mapStructures]);
+  }, [width, height, gameUnits, taskForces, mapStructures]);
 
   // Обработчики событий
   const handleHexClick = (coordinate: HexCoordinate) => {

@@ -205,6 +205,18 @@ func (scs *ShipConfigService) ValidateShipConfig(shipConfig *config.ShipConfig) 
 	return nil
 }
 
+// GetTaskForceGroups возвращает группировку кораблей по стартовым Task Forces
+func (scs *ShipConfigService) GetTaskForceGroups() (map[string][]config.ShipConfig, error) {
+	groups, err := scs.configManager.GetTaskForceGroups()
+	if err != nil {
+		scs.logger.Error("Ошибка получения групп Task Forces", "error", err)
+		return nil, err
+	}
+
+	scs.logger.Debug("Получены группы Task Forces", "count", len(groups))
+	return groups, nil
+}
+
 // generateUnitID генерирует уникальный ID для юнита
 func generateUnitID() string {
 	// Генерируем UUID для совместимости с базой данных
