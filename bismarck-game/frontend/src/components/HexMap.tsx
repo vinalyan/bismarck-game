@@ -10,6 +10,9 @@ import { ActiveHex } from '../utils/activeHexesUtils';
 import { 
   Point, OffsetCoord, offsetToPixel, offsetPolygonCorners, calculateMapSize, MAP_CONSTANTS, getCubeNeighbors
 } from '../utils/hexUtils';
+import { phaseAPI } from '../services/api/phaseAPI';
+import { gameEventAPI } from '../services/api/gameEventAPI';
+import { unitsAPI } from '../services/api/unitsAPI';
 import './HexMap.css';
 
 interface HexMapProps {
@@ -28,6 +31,9 @@ interface HexMapProps {
   selectedUnit?: string | null;
   expandedStackHex?: string | null;
   currentTurn?: number;
+  gameId?: string;
+  authToken?: string | null;
+  onRefreshData?: () => void; // Callback для обновления данных в родительском компоненте
   onUnitStackClick?: (hexId: string, units: any[]) => void;
   onTaskForceClick?: (taskForceId: string, taskForceData: any) => void;
   onStackedUnitSelect?: (unit: any) => void;
@@ -55,6 +61,9 @@ const HexMap: React.FC<HexMapProps> = ({
   selectedUnit = null,
   expandedStackHex = null,
   currentTurn = 0,
+  gameId,
+  authToken,
+  onRefreshData,
   onUnitStackClick,
   onTaskForceClick,
   onStackedUnitSelect,
@@ -87,6 +96,39 @@ const HexMap: React.FC<HexMapProps> = ({
       features: string[];
     };
   } | null>(null);
+
+  // Функция обновления данных игры
+  const handleRefresh = async () => {
+    if (!gameId || !playerSide || !authToken) {
+      console.warn('Missing required data for refresh:', { gameId, playerSide, authToken: !!authToken });
+      return;
+    }
+
+    try {
+      console.log('🔄 Refreshing game data...');
+      
+      // 1. Обновляем текущую фазу
+      console.log('📋 Fetching current phase...');
+      await phaseAPI.getCurrentPhase(gameId);
+      
+      // 2. Обновляем события игры
+      console.log('📝 Fetching game events...');
+      await gameEventAPI.getGameEvents(gameId, playerSide, 15);
+      
+      // 3. Обновляем юниты
+      console.log('⚔️ Fetching game units...');
+      await unitsAPI.getGameUnits(gameId, authToken);
+      
+      // 4. Вызываем callback для обновления данных в родительском компоненте
+      if (onRefreshData) {
+        onRefreshData();
+      }
+      
+      console.log('✅ Game data refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error refreshing game data:', error);
+    }
+  };
 
   // Генерируем координаты гексов
   const hexes = useMemo(() => {
@@ -389,8 +431,8 @@ const HexMap: React.FC<HexMapProps> = ({
       </div>
       
       <div className="map-controls">
-        <button onClick={() => setMapOffset({ x: mapOffset.x - 50, y: mapOffset.y })}>
-          ←
+        <button onClick={handleRefresh} title="Обновить данные игры">
+          🔄
         </button>
         <button onClick={() => setMapOffset({ x: mapOffset.x + 50, y: mapOffset.y })}>
           →

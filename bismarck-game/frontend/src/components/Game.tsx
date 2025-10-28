@@ -352,22 +352,44 @@ const Game: React.FC = () => {
 
         setSelectedUnitData(updatedUnitData);
 
-        // Обновляем данные юнитов с сервера после движения
+        // Обновляем данные юнитов и Task Forces с сервера после движения
         try {
           const updatedUnits = await unitsAPI.getGameUnits(currentGame.id, authToken);
-          if (updatedUnits.success && updatedUnits.data && updatedUnits.data.units) {
-            setGameUnits(updatedUnits.data.units);
+          if (updatedUnits.success && updatedUnits.data) {
+            // Обновляем юниты
+            if (updatedUnits.data.units) {
+              setGameUnits(updatedUnits.data.units);
+            }
+            // Обновляем Task Forces
+            if (updatedUnits.data.task_forces) {
+              setTaskForces(updatedUnits.data.task_forces);
+            }
           }
         } catch (error) {
           console.error('Error updating units after movement:', error);
           // Fallback: локальное обновление если сервер недоступен
-          setGameUnits(prevUnits => 
-            prevUnits.map(unit => 
-              unit.id === selectedUnit 
-                ? { ...unit, position: positionString, fuel: response.data?.fuel || unit.fuel }
-                : unit
-            )
-          );
+          const isTaskForce = selectedUnitData?.isTaskForce === true || 
+                             (selectedUnitData?.name && (!selectedUnitData?.type || selectedUnitData?.type === 'taskforce'));
+          
+          if (isTaskForce) {
+            // Обновляем Task Force
+            setTaskForces(prevTaskForces => 
+              prevTaskForces.map(tf => 
+                tf.id === selectedUnit 
+                  ? { ...tf, position: positionString }
+                  : tf
+              )
+            );
+          } else {
+            // Обновляем обычный юнит
+            setGameUnits(prevUnits => 
+              prevUnits.map(unit => 
+                unit.id === selectedUnit 
+                  ? { ...unit, position: positionString, fuel: response.data?.fuel || unit.fuel }
+                  : unit
+              )
+            );
+          }
         }
 
         // Очищаем активные гексы
@@ -420,11 +442,18 @@ const Game: React.FC = () => {
       });
 
       if (response.success) {
-        // Обновляем список кораблей
+        // Обновляем список кораблей и Task Forces
         if (authToken) {
           const updatedUnits = await unitsAPI.getGameUnits(currentGame.id, authToken);
           if (updatedUnits.success && updatedUnits.data) {
-            setGameUnits(updatedUnits.data.units);
+            // Обновляем юниты
+            if (updatedUnits.data.units) {
+              setGameUnits(updatedUnits.data.units);
+            }
+            // Обновляем Task Forces
+            if (updatedUnits.data.task_forces) {
+              setTaskForces(updatedUnits.data.task_forces);
+            }
           }
         }
 
@@ -1156,6 +1185,28 @@ const Game: React.FC = () => {
             taskForces={taskForces}
             selectedUnit={selectedUnit}
             expandedStackHex={expandedStackHex}
+            gameId={currentGame?.id || undefined}
+            authToken={authToken}
+            onRefreshData={() => {
+              // Обновляем все данные игры
+              if (currentGame?.id && authToken) {
+                // Загружаем юниты
+                unitsAPI.getGameUnits(currentGame.id, authToken).then(response => {
+                  if (response.success && response.data) {
+                    if (response.data.units) {
+                      setGameUnits(response.data.units);
+                    }
+                    if (response.data.task_forces) {
+                      setTaskForces(response.data.task_forces);
+                    }
+                  }
+                });
+                // Загружаем текущую фазу
+                phaseAPI.getCurrentPhase(currentGame.id).then(turn => {
+                  setCurrentTurn(turn);
+                });
+              }
+            }}
             currentTurn={getTurnData(currentTurn)?.turn_number}
             onUnitStackClick={handleUnitStackClick}
             onStackedUnitSelect={handleStackedUnitSelect}
@@ -1230,10 +1281,33 @@ const Game: React.FC = () => {
             availableMovementHexes={availableMovementHexes}
             activeHexes={[]}
             gameUnits={gameUnits}
+            taskForces={taskForces}
             mapStructures={mapStructures}
             selectedUnit={selectedUnit}
             expandedStackHex={expandedStackHex}
             currentTurn={getTurnData(currentTurn)?.turn_number}
+            gameId={currentGame?.id || undefined}
+            authToken={authToken}
+            onRefreshData={() => {
+              // Обновляем все данные игры
+              if (currentGame?.id && authToken) {
+                // Загружаем юниты
+                unitsAPI.getGameUnits(currentGame.id, authToken).then(response => {
+                  if (response.success && response.data) {
+                    if (response.data.units) {
+                      setGameUnits(response.data.units);
+                    }
+                    if (response.data.task_forces) {
+                      setTaskForces(response.data.task_forces);
+                    }
+                  }
+                });
+                // Загружаем текущую фазу
+                phaseAPI.getCurrentPhase(currentGame.id).then(turn => {
+                  setCurrentTurn(turn);
+                });
+              }
+            }}
             onUnitStackClick={handleUnitStackClick}
             onStackedUnitSelect={handleStackedUnitSelect}
           />
