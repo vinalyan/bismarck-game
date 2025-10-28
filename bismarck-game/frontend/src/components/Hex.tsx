@@ -324,7 +324,7 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
       const unitState = getUnitState(item);
       return (
         <g 
-          className={`single-unit ${unitState}`}
+          className={`unit-container ${unitState}`}
           onClick={(e) => {
             e.stopPropagation();
             if (onUnitClick) {
