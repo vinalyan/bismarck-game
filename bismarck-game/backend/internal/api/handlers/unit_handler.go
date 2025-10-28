@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"bismarck-game/backend/internal/game/models"
@@ -149,7 +150,7 @@ func (h *UnitHandler) GetUnit(w http.ResponseWriter, r *http.Request) {
 	utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
 }
 
-// MoveUnit перемещает юнит
+// MoveUnit перемещает юнит или Task Force
 func (h *UnitHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gameID := vars["gameId"]
@@ -166,7 +167,47 @@ func (h *UnitHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем юнит для проверки
+	// Получаем userID из контекста
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	// Проверяем, является ли переданный ID Task Force
+	isTaskForce := h.isTaskForce(gameID, req.UnitID)
+	h.logger.Info("MoveUnit request",
+		"game_id", gameID,
+		"unit_id", req.UnitID,
+		"to", req.To,
+		"is_task_force", isTaskForce)
+
+	if isTaskForce {
+		// Обрабатываем движение Task Force
+		err := h.moveTaskForce(req.UnitID, req.To, gameID, userID)
+		if err != nil {
+			h.logger.Error("Failed to move task force", "task_force_id", req.UnitID, "error", err)
+			utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		// Получаем обновленный Task Force
+		taskForce, err := h.taskForceService.GetTaskForceByID(req.UnitID)
+		if err != nil {
+			utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get updated task force")
+			return
+		}
+
+		response := map[string]interface{}{
+			"task_force": taskForce,
+			"message":    "Task Force moved successfully",
+		}
+
+		utils.WriteSuccessResponse(w, response)
+		return
+	}
+
+	// Обрабатываем как NavalUnit (существующая логика)
 	unit, err := h.unitService.GetNavalUnitByID(req.UnitID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
@@ -176,13 +217,6 @@ func (h *UnitHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	// Проверяем, что юнит принадлежит игре
 	if unit.GameID != gameID {
 		utils.WriteErrorResponse(w, http.StatusForbidden, "Unit does not belong to this game")
-		return
-	}
-
-	// Получаем userID из контекста
-	userID, ok := r.Context().Value("user_id").(string)
-	if !ok {
-		utils.WriteErrorResponse(w, http.StatusUnauthorized, "user not authenticated")
 		return
 	}
 
@@ -605,4 +639,49 @@ func (h *UnitHandler) GetUnitSearches(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteSuccessResponse(w, response)
+}
+
+// isTaskForce проверяет, является ли переданный ID идентификатором Task Force
+func (h *UnitHandler) isTaskForce(gameID, unitID string) bool {
+	taskForce, err := h.taskForceService.GetTaskForceByID(unitID)
+	return err == nil && taskForce != nil && taskForce.GameID == gameID
+}
+
+// moveTaskForce выполняет движение Task Force
+func (h *UnitHandler) moveTaskForce(taskForceID, toHex, gameID, userID string) error {
+	// Получаем Task Force
+	taskForce, err := h.taskForceService.GetTaskForceByID(taskForceID)
+	if err != nil {
+		return err
+	}
+
+	// Проверяем принадлежность к игре
+	if taskForce.GameID != gameID {
+		return fmt.Errorf("task force does not belong to this game")
+	}
+
+	// Проверяем владельца
+	if taskForce.Owner != userID {
+		return fmt.Errorf("you are not the owner of this task force")
+	}
+
+	// Проверяем возможность движения
+	canMove, reason := h.taskForceService.CanTaskForceMove(taskForceID)
+	if !canMove {
+		return fmt.Errorf("task force cannot move: %s", reason)
+	}
+
+	// Выполняем движение через MovementService
+	err = h.movementService.ExecuteTaskForceMovement(taskForceID, toHex)
+	if err != nil {
+		return err
+	}
+
+	h.logger.Info("Task Force moved successfully",
+		"task_force_id", taskForceID,
+		"from", taskForce.Position,
+		"to", toHex,
+		"owner", userID)
+
+	return nil
 }

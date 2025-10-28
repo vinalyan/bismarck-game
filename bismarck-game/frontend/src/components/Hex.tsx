@@ -315,6 +315,7 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
     );
   };
 
+
   // Функция рендеринга юнитов
   const renderUnits = () => {
     // Сначала проверяем Task Forces

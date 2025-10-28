@@ -122,7 +122,11 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 		unit, _ := s.unitService.GetNavalUnitByID(unitID)
 		if unit != nil {
 			unit.TaskForceID = &taskForce.ID
+			// Обнуляем позицию корабля - теперь он перемещается только с Task Force
+			unit.Position = ""
 			s.unitService.UpdateNavalUnit(unit)
+			s.logger.Info("Unit added to task force and position cleared",
+				"unit_id", unitID, "unit_name", unit.Name, "task_force_id", taskForce.ID)
 		}
 	}
 
@@ -344,49 +348,21 @@ func (s *TaskForceService) RemoveUnitFromTaskForce(taskForceID string, unitID st
 	return nil
 }
 
-// MoveTaskForce перемещает Task Force
+// MoveTaskForce перемещает Task Force используя MovementService
 func (s *TaskForceService) MoveTaskForce(taskForceID string, to string, speed int) error {
-	// Получаем Task Force
-	taskForce, err := s.GetTaskForceByID(taskForceID)
+	// Проверяем, может ли Task Force двигаться
+	canMove, reason := s.CanTaskForceMove(taskForceID)
+	if !canMove {
+		return fmt.Errorf("task force cannot move: %s", reason)
+	}
+
+	// Используем MovementService для выполнения движения Task Force
+	err := s.movementService.ExecuteTaskForceMovement(taskForceID, to)
 	if err != nil {
-		return fmt.Errorf("failed to get task force: %w", err)
+		return fmt.Errorf("failed to execute task force movement: %w", err)
 	}
 
-	// Получаем все юниты в Task Force
-	units, err := s.unitService.GetNavalUnitsByGameID(taskForce.GameID)
-	if err != nil {
-		return fmt.Errorf("failed to get units: %w", err)
-	}
-
-	// Перемещаем все юниты в Task Force
-	for _, unitID := range taskForce.Units {
-		for _, unit := range units {
-			if unit.ID == unitID {
-				// Проверяем, может ли юнит двигаться
-				if !unit.CanMove() {
-					return fmt.Errorf("unit %s cannot move", unitID)
-				}
-
-				// Используем MovementService для движения
-				_, err = s.movementService.ExecuteMovement(&unit, to)
-				if err != nil {
-					return fmt.Errorf("failed to move unit %s: %w", unitID, err)
-				}
-				break
-			}
-		}
-	}
-
-	// Обновляем позицию Task Force
-	taskForce.Position = to
-	taskForce.Speed = speed
-
-	err = s.updateTaskForce(taskForce)
-	if err != nil {
-		return fmt.Errorf("failed to update task force: %w", err)
-	}
-
-	s.logger.Info("Moved task force", "task_force_id", taskForceID, "to", to, "speed", speed)
+	s.logger.Info("Task force movement completed", "task_force_id", taskForceID, "to", to)
 	return nil
 }
 
@@ -520,4 +496,111 @@ func (s *TaskForceService) GetTaskForceTotalSearchFactors(taskForceID string) (i
 	}
 
 	return totalSearchFactors, nil
+}
+
+// CanTaskForceMove проверяет, может ли Task Force двигаться
+func (s *TaskForceService) CanTaskForceMove(taskForceID string) (bool, string) {
+	// Получаем Task Force
+	taskForce, err := s.GetTaskForceByID(taskForceID)
+	if err != nil {
+		return false, fmt.Sprintf("failed to get task force: %v", err)
+	}
+
+	// Проверяем уровень обнаружения
+	if taskForce.DetectionLevel == "sighted" {
+		return false, "task force is sighted and cannot move"
+	}
+
+	// Получаем все корабли в составе TF и проверяем их ограничения
+	for _, unitID := range taskForce.Units {
+		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		if err != nil {
+			s.logger.Warn("Failed to get unit for movement check", "unit_id", unitID, "error", err)
+			continue
+		}
+
+		// Проверяем базовые ограничения движения
+		if !unit.CanMove() {
+			return false, fmt.Sprintf("unit %s (%s) cannot move", unit.Name, unitID)
+		}
+
+		// Проверяем ограничения для медленных кораблей (S/VS)
+		if unit.NoMovementTurnsLeft > 0 {
+			return false, fmt.Sprintf("unit %s (%s) cannot move - %d turns restriction left",
+				unit.Name, unitID, unit.NoMovementTurnsLeft)
+		}
+
+		// Проверяем топливо (включая аварийное топливо)
+		if unit.Fuel <= 0 && !unit.IsEmergencyFuel {
+			return false, fmt.Sprintf("unit %s (%s) has no fuel", unit.Name, unitID)
+		}
+	}
+
+	return true, ""
+}
+
+// GetTaskForceMovementRestrictions получает ограничения движения для Task Force
+func (s *TaskForceService) GetTaskForceMovementRestrictions(taskForceID string) map[string]interface{} {
+	restrictions := make(map[string]interface{})
+
+	// Получаем Task Force
+	taskForce, err := s.GetTaskForceByID(taskForceID)
+	if err != nil {
+		restrictions["error"] = fmt.Sprintf("failed to get task force: %v", err)
+		return restrictions
+	}
+
+	restrictions["task_force_id"] = taskForceID
+	restrictions["detection_level"] = taskForce.DetectionLevel
+	restrictions["can_move"] = taskForce.DetectionLevel != "sighted"
+
+	unitRestrictions := make([]map[string]interface{}, 0)
+	maxDistance := 6 // Максимальное расстояние по умолчанию
+	hasEmergencyFuel := false
+	minMovementTurnsLeft := 0
+
+	// Анализируем ограничения для каждого корабля
+	for _, unitID := range taskForce.Units {
+		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		if err != nil {
+			s.logger.Warn("Failed to get unit for restrictions analysis", "unit_id", unitID, "error", err)
+			continue
+		}
+
+		unitInfo := map[string]interface{}{
+			"unit_id":                unitID,
+			"unit_name":              unit.Name,
+			"can_move":               unit.CanMove(),
+			"fuel":                   unit.Fuel,
+			"is_emergency_fuel":      unit.IsEmergencyFuel,
+			"no_movement_turns_left": unit.NoMovementTurnsLeft,
+			"speed_rating":           unit.SpeedRating,
+			"max_distance":           unit.SpeedRating.GetMaxMovementDistance(),
+		}
+
+		// Определяем максимальное расстояние (по самому медленному кораблю)
+		unitMaxDistance := unit.SpeedRating.GetMaxMovementDistance()
+		if unit.IsEmergencyFuel {
+			unitMaxDistance = 1 // Аварийное топливо ограничивает до 1 гекса
+			hasEmergencyFuel = true
+		}
+		if unitMaxDistance < maxDistance {
+			maxDistance = unitMaxDistance
+		}
+
+		// Определяем ограничения движения (берем максимальное значение)
+		if unit.NoMovementTurnsLeft > minMovementTurnsLeft {
+			minMovementTurnsLeft = unit.NoMovementTurnsLeft
+		}
+
+		unitRestrictions = append(unitRestrictions, unitInfo)
+	}
+
+	restrictions["units"] = unitRestrictions
+	restrictions["max_distance"] = maxDistance
+	restrictions["has_emergency_fuel"] = hasEmergencyFuel
+	restrictions["movement_turns_left"] = minMovementTurnsLeft
+	restrictions["total_units"] = len(taskForce.Units)
+
+	return restrictions
 }

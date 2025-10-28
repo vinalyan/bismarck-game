@@ -679,7 +679,7 @@ const Game: React.FC = () => {
 
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
-    // console.log('🎯 Unit clicked:', unitId, unitData.type);
+    console.log('🎯 Unit clicked:', unitId, unitData.type || unitData.name, 'isTaskForce:', unitData.name ? true : false);
     
     // Если кликнули на уже выбранный юнит - сбрасываем выбор
     if (selectedUnit === unitId) {
@@ -736,26 +736,29 @@ const Game: React.FC = () => {
       gameUnit = gameUnits.find(unit => unit.id === unitId);
     }
     
-    // Получаем конфигурацию корабля из store по типу
-    const shipsByType = getShipsByType(gameUnit?.type || unitData.type);
+    // Проверяем, является ли это Task Force
+    const isTaskForce = unitData.name && !unitData.type;
+    
+    // Получаем конфигурацию корабля из store по типу (для Task Force пропускаем)
+    const shipsByType = isTaskForce ? [] : getShipsByType(gameUnit?.type || unitData.type);
     const shipConfig = shipsByType.length > 0 ? shipsByType[0] : null;
 
     // Обновляем данные юнита с информацией о корабле
-    if (shipConfig) {
+    if (shipConfig || isTaskForce) {
       const updatedUnitData = {
         ...unitData,
         ...gameUnit, // Добавляем данные из API
         position: currentPosition, // Используем актуальную позицию
         shipConfig: shipConfig,
-        maxFuel: shipConfig.maxFuel,
-        currentFuel: gameUnit?.fuel || unitData.fuel || Math.floor(shipConfig.maxFuel * 0.85) // Используем реальное топливо из API
+        maxFuel: isTaskForce ? 100 : (shipConfig?.maxFuel || 100), // Заглушка для Task Force
+        currentFuel: isTaskForce ? 85 : (gameUnit?.fuel || unitData.fuel || Math.floor((shipConfig?.maxFuel || 100) * 0.85)) // Заглушка для Task Force
       };
       setSelectedUnitData(updatedUnitData);
 
       // Получаем доступные гексы для движения с сервера
       if (currentPosition && currentGame?.id && authToken) {
         try {
-          // console.log('🚀 Loading available moves...');
+          console.log('🚀 Loading available moves for unit:', unitId, 'type:', unitData.type || unitData.name);
           const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unitId, authToken);
           // console.log('🎯 Server response - available_hexes:', availableMovesResponse.available_hexes);
           // console.log('🎯 Server response - max_distance:', availableMovesResponse.max_distance);
@@ -809,7 +812,7 @@ const Game: React.FC = () => {
         }
       }
     } else {
-      console.log('No ship config found for unit');
+      console.log('No ship config found for unit and not a Task Force');
       setAvailableMovementHexes([]);
     }
   };

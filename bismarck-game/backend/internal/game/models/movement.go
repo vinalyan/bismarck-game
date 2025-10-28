@@ -11,6 +11,7 @@ const (
 	MovementTypeNormal    MovementType = "normal"    // Обычное движение
 	MovementTypePursued   MovementType = "pursued"   // Движение преследуемого юнита
 	MovementTypeEmergency MovementType = "emergency" // Аварийное движение (при нехватке топлива)
+	MovementTypeTaskForce MovementType = "taskforce" // Движение в составе Task Force
 )
 
 // Movement представляет движение юнита

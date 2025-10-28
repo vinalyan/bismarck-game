@@ -19,15 +19,17 @@ type MovementHandler struct {
 	movementService   *services.MovementService
 	visibilityService *services.VisibilityService
 	unitService       *services.UnitService
+	taskForceService  *services.TaskForceService
 	logger            *logger.Logger
 }
 
 // NewMovementHandler создает новый обработчик движения
-func NewMovementHandler(movementService *services.MovementService, visibilityService *services.VisibilityService, unitService *services.UnitService, logger *logger.Logger) *MovementHandler {
+func NewMovementHandler(movementService *services.MovementService, visibilityService *services.VisibilityService, unitService *services.UnitService, taskForceService *services.TaskForceService, logger *logger.Logger) *MovementHandler {
 	return &MovementHandler{
 		movementService:   movementService,
 		visibilityService: visibilityService,
 		unitService:       unitService,
+		taskForceService:  taskForceService,
 		logger:            logger,
 	}
 }
@@ -55,7 +57,47 @@ func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Получаем юнит (упрощенная реализация)
+	// Проверяем, является ли переданный ID Task Force
+	if h.isTaskForce(gameID, unitID) {
+		// Обрабатываем как Task Force
+		availableHexes, fuelCosts, err := h.getTaskForceAvailableMoves(unitID, gameID)
+		if err != nil {
+			h.logger.Error("Failed to get task force available moves", "error", err, "task_force_id", unitID)
+			http.Error(w, "Failed to get task force available moves", http.StatusInternalServerError)
+			return
+		}
+
+		// Получаем Task Force для логирования и ответа
+		taskForce, err := h.taskForceService.GetTaskForceByID(unitID)
+		if err != nil {
+			h.logger.Error("Failed to get task force for response", "error", err, "task_force_id", unitID)
+			http.Error(w, "Failed to get task force", http.StatusInternalServerError)
+			return
+		}
+
+		// Логируем результат для отладки
+		h.logger.Info("Task Force available moves calculated",
+			"task_force_id", unitID,
+			"task_force_name", taskForce.Name,
+			"position", taskForce.Position,
+			"speed", taskForce.Speed,
+			"available_hexes_count", len(availableHexes),
+			"available_hexes", availableHexes)
+
+		response := models.AvailableMovesResponse{
+			UnitID:         unitID,
+			CurrentHex:     taskForce.Position,
+			AvailableHexes: availableHexes,
+			MaxDistance:    taskForce.Speed,
+			FuelCosts:      fuelCosts,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Обрабатываем как NavalUnit (существующая логика)
 	unit, err := h.getUnit(gameID, unitID)
 	if err != nil {
 		h.logger.Error("Failed to get unit", "error", err, "game_id", gameID, "unit_id", unitID)
@@ -225,11 +267,54 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем юнит
+	// Проверяем, является ли переданный ID Task Force
+	if h.isTaskForce(gameID, unitID) {
+		h.logger.Info("Moving Task Force", "task_force_id", unitID, "to_hex", movementReq.ToHex)
+
+		// Выполняем движение Task Force
+		err := h.movementService.ExecuteTaskForceMovement(unitID, movementReq.ToHex)
+		if err != nil {
+			h.logger.Error("Failed to execute task force movement", "error", err, "task_force_id", unitID)
+			response := models.MovementResponse{
+				Success: false,
+				Message: err.Error(),
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		// Получаем обновленный Task Force
+		taskForce, err := h.taskForceService.GetTaskForceByID(unitID)
+		if err != nil {
+			h.logger.Error("Failed to get updated task force", "error", err, "task_force_id", unitID)
+			response := models.MovementResponse{
+				Success: false,
+				Message: "Failed to get updated task force",
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		response := models.MovementResponse{
+			Success:     true,
+			Message:     "Task Force moved successfully",
+			NewPosition: taskForce.Position,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Получаем юнит (NavalUnit)
 	h.logger.Info("Getting unit for movement", "game_id", gameID, "unit_id", unitID)
 	unit, err := h.getUnit(gameID, unitID)
 	if err != nil {
-		h.logger.Error("Failed to get unit", "error", err, "game_id", gameID, "unit_id", unitID)
+		h.logger.Error("Failed to get unit from database", "error", err, "unit_id", unitID)
 		http.Error(w, "Unit not found", http.StatusNotFound)
 		return
 	}
@@ -481,6 +566,143 @@ func (h *MovementHandler) getMovementHistory(gameID, unitID string, _ int) ([]*m
 			Phase:      "movement",
 		},
 	}, nil
+}
+
+// isTaskForce проверяет, является ли переданный ID Task Force
+func (h *MovementHandler) isTaskForce(gameID, unitID string) bool {
+	// Пытаемся получить Task Force по ID
+	_, err := h.taskForceService.GetTaskForceByID(unitID)
+	return err == nil
+}
+
+// getTaskForceAvailableMoves рассчитывает доступные ходы для Task Force
+func (h *MovementHandler) getTaskForceAvailableMoves(taskForceID, gameID string) ([]string, map[string]int, error) {
+	// Получаем Task Force
+	taskForce, err := h.taskForceService.GetTaskForceByID(taskForceID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get task force: %w", err)
+	}
+
+	h.logger.Info("Task Force details",
+		"task_force_id", taskForceID,
+		"name", taskForce.Name,
+		"position", taskForce.Position,
+		"units_count", len(taskForce.Units),
+		"detection_level", taskForce.DetectionLevel)
+
+	// Проверяем, может ли Task Force двигаться
+	canMove, reason := h.taskForceService.CanTaskForceMove(taskForceID)
+	if !canMove {
+		h.logger.Warn("Task Force cannot move", "task_force_id", taskForceID, "reason", reason)
+		return []string{}, map[string]int{}, nil
+	}
+
+	if len(taskForce.Units) == 0 {
+		h.logger.Warn("Task Force has no units", "task_force_id", taskForceID)
+		return []string{}, map[string]int{}, nil
+	}
+
+	// Получаем все корабли в составе TF
+	var allAvailableHexes [][]string
+	allFuelCosts := make(map[string]int)
+
+	for _, unitID := range taskForce.Units {
+		unit, err := h.unitService.GetNavalUnitByID(unitID)
+		if err != nil {
+			h.logger.Warn("Failed to get unit in task force", "unit_id", unitID, "error", err)
+			continue
+		}
+
+		h.logger.Info("Processing TF unit",
+			"unit_id", unitID,
+			"name", unit.Name,
+			"original_position", unit.Position,
+			"fuel", unit.Fuel,
+			"no_movement_turns_left", unit.NoMovementTurnsLeft,
+			"speed_rating", unit.SpeedRating)
+
+		// Подменяем позицию корабля на позицию TF для расчета
+		originalPosition := unit.Position
+		unit.Position = taskForce.Position
+
+		// Получаем доступные ходы для корабля
+		availableHexes, err := h.movementService.GetAvailableMoves(unit)
+		if err != nil {
+			h.logger.Warn("Failed to get available moves for unit in TF", "unit_id", unitID, "error", err)
+			// Если не можем получить ходы для корабля, считаем что у него нет доступных ходов
+			availableHexes = []string{}
+		}
+
+		h.logger.Info("Unit available moves",
+			"unit_id", unitID,
+			"available_hexes_count", len(availableHexes),
+			"available_hexes", availableHexes)
+
+		// Восстанавливаем оригинальную позицию
+		unit.Position = originalPosition
+
+		// Рассчитываем стоимость топлива для каждого доступного гекса
+		for _, hex := range availableHexes {
+			fuelCost, err := h.movementService.CalculateFuelCost(unit, taskForce.Position, hex)
+			if err != nil {
+				h.logger.Warn("Failed to calculate fuel cost for TF unit", "unit_id", unitID, "hex", hex, "error", err)
+				fuelCost = 0
+			}
+			// Суммируем стоимость топлива для всех кораблей в TF
+			allFuelCosts[hex] += fuelCost
+		}
+
+		allAvailableHexes = append(allAvailableHexes, availableHexes)
+	}
+
+	// Находим пересечение всех доступных гексов (логика "худшего случая")
+	var intersectionHexes []string
+	if len(allAvailableHexes) > 0 {
+		h.logger.Info("Computing intersection",
+			"units_processed", len(allAvailableHexes),
+			"first_unit_hexes", len(allAvailableHexes[0]))
+
+		intersectionHexes = allAvailableHexes[0]
+		for i := 1; i < len(allAvailableHexes); i++ {
+			beforeIntersection := len(intersectionHexes)
+			intersectionHexes = intersectSlices(intersectionHexes, allAvailableHexes[i])
+			h.logger.Info("Intersection step",
+				"step", i,
+				"before_count", beforeIntersection,
+				"after_count", len(intersectionHexes),
+				"current_unit_hexes", len(allAvailableHexes[i]))
+		}
+	}
+
+	h.logger.Info("Task Force final result",
+		"task_force_id", taskForceID,
+		"final_hexes_count", len(intersectionHexes),
+		"final_hexes", intersectionHexes)
+
+	// Фильтруем стоимость топлива только для доступных гексов
+	filteredFuelCosts := make(map[string]int)
+	for _, hex := range intersectionHexes {
+		filteredFuelCosts[hex] = allFuelCosts[hex]
+	}
+
+	return intersectionHexes, filteredFuelCosts, nil
+}
+
+// intersectSlices находит пересечение двух слайсов строк
+func intersectSlices(slice1, slice2 []string) []string {
+	set := make(map[string]bool)
+	for _, item := range slice1 {
+		set[item] = true
+	}
+
+	var intersection []string
+	for _, item := range slice2 {
+		if set[item] {
+			intersection = append(intersection, item)
+			delete(set, item) // Избегаем дубликатов
+		}
+	}
+	return intersection
 }
 
 // RegisterRoutes регистрирует маршруты для движения

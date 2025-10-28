@@ -146,7 +146,7 @@ func (s *Server) setupRoutes() {
 	shipConfigLogger, _ := logger.New(logger.INFO, "ship-config-service", "stdout")
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService, unitService, shipConfigLogger)
 	phaseHandler := handlers.NewPhaseHandler(phaseManager)
-	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, unitService, movementLogger)
+	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, unitService, taskForceService, movementLogger)
 	emergencyFuelHandler := handlers.NewEmergencyFuelHandler(s.db, movementLogger, movementService, unitService)
 	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService)
 	mapHandler := handlers.NewMapHandler(mapStructureService)

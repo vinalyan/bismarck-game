@@ -586,3 +586,257 @@ func (s *MovementService) CheckAndActivateEmergencyFuel(gameID, unitID string) e
 
 	return nil
 }
+
+// GetTaskForceAvailableMoves рассчитывает доступные ходы для Task Force
+func (s *MovementService) GetTaskForceAvailableMoves(taskForceID string) ([]string, error) {
+	// Получаем Task Force из базы данных напрямую
+	taskForce, err := s.getTaskForceByID(taskForceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task force: %w", err)
+	}
+
+	if len(taskForce.Units) == 0 {
+		return []string{}, nil
+	}
+
+	// Получаем все корабли в составе TF и рассчитываем доступные ходы
+	var allAvailableHexes [][]string
+
+	for _, unitID := range taskForce.Units {
+		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		if err != nil {
+			s.logger.Warn("Failed to get unit in task force", "unit_id", unitID, "error", err)
+			// Если корабль недоступен, считаем что у него нет доступных ходов
+			allAvailableHexes = append(allAvailableHexes, []string{})
+			continue
+		}
+
+		// Подменяем позицию корабля на позицию TF для расчета
+		originalPosition := unit.Position
+		unit.Position = taskForce.Position
+
+		// Получаем доступные ходы для корабля
+		availableHexes, err := s.GetAvailableMoves(unit)
+		if err != nil {
+			s.logger.Warn("Failed to get available moves for unit in TF", "unit_id", unitID, "error", err)
+			availableHexes = []string{}
+		}
+
+		// Восстанавливаем оригинальную позицию
+		unit.Position = originalPosition
+
+		allAvailableHexes = append(allAvailableHexes, availableHexes)
+	}
+
+	// Находим пересечение всех доступных гексов (логика "худшего случая")
+	if len(allAvailableHexes) == 0 {
+		return []string{}, nil
+	}
+
+	intersectionHexes := allAvailableHexes[0]
+	for i := 1; i < len(allAvailableHexes); i++ {
+		intersectionHexes = s.intersectSlices(intersectionHexes, allAvailableHexes[i])
+	}
+
+	return intersectionHexes, nil
+}
+
+// ExecuteTaskForceMovement выполняет движение Task Force
+func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) error {
+	// Получаем Task Force
+	taskForce, err := s.getTaskForceByID(taskForceID)
+	if err != nil {
+		return fmt.Errorf("failed to get task force: %w", err)
+	}
+
+	// Проверяем, что Task Force может двигаться
+	if taskForce.DetectionLevel == "sighted" {
+		return fmt.Errorf("task force cannot move - it is sighted")
+	}
+
+	// Выполняем движение для каждого корабля в TF
+	for _, unitID := range taskForce.Units {
+		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		if err != nil {
+			s.logger.Warn("Failed to get unit for TF movement", "unit_id", unitID, "error", err)
+			continue
+		}
+
+		// Выполняем движение корабля из позиции TF в новую позицию
+		_, err = s.executeTaskForceUnitMovement(unit, taskForce.Position, toHex)
+		if err != nil {
+			return fmt.Errorf("failed to move unit %s in task force: %w", unitID, err)
+		}
+	}
+
+	// Обновляем позицию Task Force
+	err = s.updateTaskForcePosition(taskForceID, toHex)
+	if err != nil {
+		return fmt.Errorf("failed to update task force position: %w", err)
+	}
+
+	s.logger.Info("Task Force movement executed",
+		"task_force_id", taskForceID,
+		"from", taskForce.Position,
+		"to", toHex,
+		"units_moved", len(taskForce.Units))
+
+	return nil
+}
+
+// CalculateTaskForceFuelCost рассчитывает общую стоимость топлива для движения Task Force
+func (s *MovementService) CalculateTaskForceFuelCost(taskForceID, toHex string) (int, error) {
+	// Получаем Task Force
+	taskForce, err := s.getTaskForceByID(taskForceID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get task force: %w", err)
+	}
+
+	totalFuelCost := 0
+
+	// Рассчитываем стоимость топлива для каждого корабля в TF
+	for _, unitID := range taskForce.Units {
+		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		if err != nil {
+			s.logger.Warn("Failed to get unit for fuel cost calculation", "unit_id", unitID, "error", err)
+			continue
+		}
+
+		// Рассчитываем стоимость топлива для корабля из позиции TF в новую позицию
+		fuelCost, err := s.CalculateFuelCost(unit, taskForce.Position, toHex)
+		if err != nil {
+			s.logger.Warn("Failed to calculate fuel cost for TF unit", "unit_id", unitID, "error", err)
+			continue
+		}
+
+		totalFuelCost += fuelCost
+	}
+
+	return totalFuelCost, nil
+}
+
+// executeTaskForceUnitMovement выполняет движение отдельного корабля в составе TF
+func (s *MovementService) executeTaskForceUnitMovement(unit *models.NavalUnit, fromHex, toHex string) (*models.Movement, error) {
+	// Рассчитываем стоимость топлива
+	fuelCost, err := s.CalculateFuelCost(unit, fromHex, toHex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate fuel cost: %w", err)
+	}
+
+	// Проверяем, достаточно ли топлива
+	if unit.Fuel < fuelCost {
+		return nil, fmt.Errorf("insufficient fuel for movement - unit %s needs %d but has %d", unit.Name, fuelCost, unit.Fuel)
+	}
+
+	// Списываем топливо
+	unit.Fuel -= fuelCost
+
+	// Обновляем статистику движения
+	unit.PreviousTurnMovedHexes = s.hexCalculator.CalculateDistance(fromHex, toHex)
+	unit.LastMoveTurn = s.getCurrentTurn(unit.GameID)
+	unit.MovementUsed += unit.PreviousTurnMovedHexes
+
+	// Устанавливаем ограничения движения для медленных кораблей
+	if unit.SpeedRating == models.SpeedTypeSlow || unit.SpeedRating == models.SpeedTypeVerySlow {
+		unit.NoMovementTurnsLeft = unit.SpeedRating.GetMovementRestrictionAfterMove()
+	}
+
+	// Обновляем позицию корабля (синхронизируем с TF)
+	unit.Position = toHex
+
+	// Сохраняем изменения в базе данных
+	err = s.unitService.UpdateNavalUnit(unit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update unit: %w", err)
+	}
+
+	// Создаем запись о движении
+	movement := &models.Movement{
+		ID:           s.generateID(),
+		GameID:       unit.GameID,
+		UnitID:       unit.ID,
+		FromHex:      fromHex,
+		ToHex:        toHex,
+		Path:         []string{fromHex, toHex},
+		FuelCost:     fuelCost,
+		HexesMoved:   unit.PreviousTurnMovedHexes,
+		MovementType: models.MovementTypeTaskForce, // Новый тип движения для TF
+		Turn:         s.getCurrentTurn(unit.GameID),
+		Phase:        s.getCurrentPhase(unit.GameID),
+		CreatedAt:    time.Now(),
+	}
+
+	// Сохраняем движение в базе данных
+	err = s.saveMovement(movement)
+	if err != nil {
+		s.logger.Warn("Failed to save movement record", "error", err)
+	}
+
+	return movement, nil
+}
+
+// getTaskForceByID получает Task Force по ID из базы данных
+func (s *MovementService) getTaskForceByID(taskForceID string) (*models.TaskForce, error) {
+	query := `
+		SELECT id, game_id, name, owner, nationality, position, speed, units, is_visible,
+		       detection_level, last_move_turn, is_activated, created_at, updated_at
+		FROM task_forces
+		WHERE id = $1`
+
+	var taskForce models.TaskForce
+	var unitsJSON []byte
+
+	err := s.db.QueryRow(query, taskForceID).Scan(
+		&taskForce.ID, &taskForce.GameID, &taskForce.Name, &taskForce.Owner,
+		&taskForce.Nationality, &taskForce.Position, &taskForce.Speed,
+		&unitsJSON, &taskForce.IsVisible, &taskForce.DetectionLevel,
+		&taskForce.LastMoveTurn, &taskForce.IsActivated,
+		&taskForce.CreatedAt, &taskForce.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task force: %w", err)
+	}
+
+	err = json.Unmarshal(unitsJSON, &taskForce.Units)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal task force units: %w", err)
+	}
+
+	return &taskForce, nil
+}
+
+// updateTaskForcePosition обновляет позицию Task Force в базе данных
+func (s *MovementService) updateTaskForcePosition(taskForceID, newPosition string) error {
+	query := `
+		UPDATE task_forces SET
+			position = $2,
+			last_move_turn = $3,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1`
+
+	currentTurn := s.getCurrentTurn("") // Получим turn из другого источника если понадобится
+
+	_, err := s.db.Exec(query, taskForceID, newPosition, currentTurn)
+	if err != nil {
+		return fmt.Errorf("failed to update task force position: %w", err)
+	}
+
+	return nil
+}
+
+// intersectSlices находит пересечение двух слайсов строк
+func (s *MovementService) intersectSlices(slice1, slice2 []string) []string {
+	set := make(map[string]bool)
+	for _, item := range slice1 {
+		set[item] = true
+	}
+
+	var intersection []string
+	for _, item := range slice2 {
+		if set[item] {
+			intersection = append(intersection, item)
+			delete(set, item) // Избегаем дубликатов
+		}
+	}
+	return intersection
+}
