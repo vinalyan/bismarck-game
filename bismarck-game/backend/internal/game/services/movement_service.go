@@ -675,6 +675,28 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 		return fmt.Errorf("failed to update task force position: %w", err)
 	}
 
+	// Логируем событие движения Task Force в игровой лог
+	if s.eventService != nil {
+		currentTurn := s.getCurrentTurn(taskForce.GameID)
+		currentPhase := s.getCurrentPhase(taskForce.GameID)
+		playerSide := s.getPlayerSide(taskForce.GameID, taskForce.Owner)
+		
+		err := s.eventService.LogTaskForceMovementEvent(
+			taskForce.GameID,
+			taskForceID,
+			taskForce.Name,
+			taskForce.Position,
+			toHex,
+			currentTurn,
+			string(currentPhase),
+			len(taskForce.Units),
+			playerSide,
+		)
+		if err != nil {
+			s.logger.Warn("Failed to log task force movement event", "error", err)
+		}
+	}
+
 	s.logger.Info("Task Force movement executed",
 		"task_force_id", taskForceID,
 		"from", taskForce.Position,

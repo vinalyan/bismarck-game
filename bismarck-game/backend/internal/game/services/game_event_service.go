@@ -52,6 +52,33 @@ func (s *GameEventService) LogMovementEvent(gameID, unitID, unitName, fromHex, t
 	return s.saveEvent(event)
 }
 
+// LogTaskForceMovementEvent логирует событие движения Task Force
+func (s *GameEventService) LogTaskForceMovementEvent(gameID, taskForceID, taskForceName, fromHex, toHex string, turn int, phase string, unitsCount int, playerSide string) error {
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       phase,
+		EventType:   models.EventTypeMovement,
+		ActorID:     taskForceID,
+		ActorName:   taskForceName,
+		Description: fmt.Sprintf("Task Force %s переместился из %s в %s (%d кораблей)", taskForceName, fromHex, toHex, unitsCount),
+		Data: map[string]interface{}{
+			"from_hex":      fromHex,
+			"to_hex":        toHex,
+			"units_count":   unitsCount,
+			"is_task_force": true,
+		},
+		Visibility: map[string]interface{}{
+			"player_side": playerSide, // Сторона игрока, который совершил действие
+			"is_public":   false,      // Движения Task Force видны только своей стороне
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}
+
 // LogPhaseChangeEvent логирует событие смены фазы
 func (s *GameEventService) LogPhaseChangeEvent(gameID string, turn int, fromPhase, toPhase string) error {
 	event := &models.GameEvent{
