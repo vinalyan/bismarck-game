@@ -604,3 +604,32 @@ func (s *TaskForceService) GetTaskForceMovementRestrictions(taskForceID string) 
 
 	return restrictions
 }
+
+// HandleUnitSunk обрабатывает потопление корабля - удаляет его из Task Force
+func (s *TaskForceService) HandleUnitSunk(unitID string) error {
+	// Получаем информацию о юните
+	unit, err := s.unitService.GetNavalUnitByID(unitID)
+	if err != nil {
+		// Если юнит не найден, возможно он уже удален - это нормально
+		s.logger.Debug("Unit not found when handling sunk event", "unit_id", unitID, "error", err)
+		return nil
+	}
+
+	// Если юнит не в Task Force, ничего не делаем
+	if unit.TaskForceID == nil {
+		return nil
+	}
+
+	taskForceID := *unit.TaskForceID
+	s.logger.Info("Removing sunk unit from task force", "unit_id", unitID, "unit_name", unit.Name, "task_force_id", taskForceID)
+
+	// Удаляем юнит из Task Force
+	err = s.RemoveUnitFromTaskForce(taskForceID, unitID)
+	if err != nil {
+		s.logger.Error("Failed to remove sunk unit from task force", "unit_id", unitID, "task_force_id", taskForceID, "error", err)
+		return fmt.Errorf("failed to remove sunk unit from task force: %w", err)
+	}
+
+	s.logger.Info("Sunk unit successfully removed from task force", "unit_id", unitID, "task_force_id", taskForceID)
+	return nil
+}

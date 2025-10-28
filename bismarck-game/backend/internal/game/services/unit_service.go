@@ -11,10 +11,14 @@ import (
 	"bismarck-game/backend/pkg/logger"
 )
 
+// UnitSunkHandler это функция для обработки потопления корабля
+type UnitSunkHandler func(unitID string) error
+
 // UnitService предоставляет методы для работы с юнитами
 type UnitService struct {
-	db     *database.Database
-	logger *logger.Logger
+	db         *database.Database
+	logger     *logger.Logger
+	onUnitSunk UnitSunkHandler
 }
 
 // NewUnitService создает новый сервис юнитов
@@ -23,6 +27,11 @@ func NewUnitService(db *database.Database, logger *logger.Logger) *UnitService {
 		db:     db,
 		logger: logger,
 	}
+}
+
+// SetUnitSunkHandler устанавливает обработчик для потопления корабля
+func (s *UnitService) SetUnitSunkHandler(handler UnitSunkHandler) {
+	s.onUnitSunk = handler
 }
 
 // CreateNavalUnit создает новый морской юнит
@@ -267,6 +276,15 @@ func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, erro
 
 // UpdateNavalUnit обновляет морской юнит
 func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
+	// Получаем текущий статус для проверки изменения на 'sunk'
+	var currentStatus string
+	statusQuery := `SELECT status FROM naval_units WHERE id = $1`
+	err := s.db.QueryRow(statusQuery, unit.ID).Scan(&currentStatus)
+	if err != nil && err != sql.ErrNoRows {
+		s.logger.Error("Failed to get current unit status", "unit_id", unit.ID, "error", err)
+		// Продолжаем обновление, даже если не удалось получить текущий статус
+	}
+
 	query := `
 		UPDATE naval_units SET
 			position = $2, evasion = $3, fuel = $4,
@@ -284,9 +302,11 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 		"unit_id", unit.ID,
 		"position", unit.Position,
 		"no_movement_turns_left", unit.NoMovementTurnsLeft,
-		"speed_rating", unit.SpeedRating)
+		"speed_rating", unit.SpeedRating,
+		"old_status", currentStatus,
+		"new_status", unit.Status)
 
-	_, err := s.db.Exec(query,
+	_, err = s.db.Exec(query,
 		unit.ID, unit.Position, unit.Evasion, unit.Fuel,
 		unit.CurrentHull, unit.Torpedoes, unit.Status,
 		unit.DetectionLevel, unit.LastKnownPos,
@@ -297,6 +317,19 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 	if err != nil {
 		s.logger.Error("Failed to update naval unit", "unit_id", unit.ID, "error", err)
 		return fmt.Errorf("failed to update naval unit: %w", err)
+	}
+
+	// Проверяем, не стал ли корабль затонувшим
+	if currentStatus != "sunk" && string(unit.Status) == "sunk" {
+		s.logger.Info("Unit status changed to sunk, handling sunk event", "unit_id", unit.ID)
+		// Обрабатываем потопление корабля (удаление из Task Force)
+		if s.onUnitSunk != nil {
+			err = s.onUnitSunk(unit.ID)
+			if err != nil {
+				s.logger.Error("Failed to handle unit sunk event", "unit_id", unit.ID, "error", err)
+				// Не возвращаем ошибку, так как основная операция (обновление) уже выполнена
+			}
+		}
 	}
 
 	s.logger.Info("Updated naval unit", "unit_id", unit.ID)
@@ -681,6 +714,16 @@ func (s *UnitService) DeleteNavalUnit(unitID string) error {
 	}
 
 	s.logger.Info("Naval unit deleted", "unit_id", unitID)
+
+	// Обрабатываем потопление корабля (удаление из Task Force)
+	if s.onUnitSunk != nil {
+		err = s.onUnitSunk(unitID)
+		if err != nil {
+			s.logger.Error("Failed to handle unit sunk event", "unit_id", unitID, "error", err)
+			// Не возвращаем ошибку, так как основная операция (потопление) уже выполнена
+		}
+	}
+
 	return nil
 }
 

@@ -680,7 +680,7 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 		currentTurn := s.getCurrentTurn(taskForce.GameID)
 		currentPhase := s.getCurrentPhase(taskForce.GameID)
 		playerSide := s.getPlayerSide(taskForce.GameID, taskForce.Owner)
-		
+
 		err := s.eventService.LogTaskForceMovementEvent(
 			taskForce.GameID,
 			taskForceID,

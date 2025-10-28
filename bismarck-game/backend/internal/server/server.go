@@ -135,6 +135,9 @@ func (s *Server) setupRoutes() {
 	taskForceLogger, _ := logger.New(logger.INFO, "taskforce-service", "stdout")
 	taskForceService := services.NewTaskForceService(s.db, taskForceLogger, unitService, movementService)
 
+	// Настраиваем автоматическое удаление затонувших кораблей из Task Forces
+	unitService.SetUnitSunkHandler(taskForceService.HandleUnitSunk)
+
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
 		logger.Error("Failed to load ship config", "error", err)
