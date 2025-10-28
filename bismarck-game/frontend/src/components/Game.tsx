@@ -679,7 +679,13 @@ const Game: React.FC = () => {
 
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
-    console.log('🎯 Unit clicked:', unitId, unitData.type || unitData.name, 'isTaskForce:', unitData.name ? true : false);
+    const isTaskForce = unitData.isTaskForce === true || (unitData.name && (!unitData.type || unitData.type === 'taskforce'));
+    console.log('🎯 Unit clicked:', unitId, 'data:', {
+      name: unitData.name,
+      type: unitData.type,
+      isTaskForce: isTaskForce,
+      hasPosition: !!unitData.position
+    });
     
     // Если кликнули на уже выбранный юнит - сбрасываем выбор
     if (selectedUnit === unitId) {
@@ -736,8 +742,7 @@ const Game: React.FC = () => {
       gameUnit = gameUnits.find(unit => unit.id === unitId);
     }
     
-    // Проверяем, является ли это Task Force
-    const isTaskForce = unitData.name && !unitData.type;
+    // isTaskForce уже определена в начале функции
     
     // Получаем конфигурацию корабля из store по типу (для Task Force пропускаем)
     const shipsByType = isTaskForce ? [] : getShipsByType(gameUnit?.type || unitData.type);
