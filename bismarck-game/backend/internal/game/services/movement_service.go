@@ -807,6 +807,12 @@ func (s *MovementService) getTaskForceByID(taskForceID string) (*models.TaskForc
 
 // updateTaskForcePosition обновляет позицию Task Force в базе данных
 func (s *MovementService) updateTaskForcePosition(taskForceID, newPosition string) error {
+	// Сначала получаем Task Force чтобы узнать gameID
+	taskForce, err := s.getTaskForceByID(taskForceID)
+	if err != nil {
+		return fmt.Errorf("failed to get task force for position update: %w", err)
+	}
+
 	query := `
 		UPDATE task_forces SET
 			position = $2,
@@ -814,12 +820,17 @@ func (s *MovementService) updateTaskForcePosition(taskForceID, newPosition strin
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1`
 
-	currentTurn := s.getCurrentTurn("") // Получим turn из другого источника если понадобится
+	currentTurn := s.getCurrentTurn(taskForce.GameID)
 
-	_, err := s.db.Exec(query, taskForceID, newPosition, currentTurn)
+	_, err = s.db.Exec(query, taskForceID, newPosition, currentTurn)
 	if err != nil {
 		return fmt.Errorf("failed to update task force position: %w", err)
 	}
+
+	s.logger.Info("Task Force position and last_move_turn updated",
+		"task_force_id", taskForceID,
+		"new_position", newPosition,
+		"last_move_turn", currentTurn)
 
 	return nil
 }
