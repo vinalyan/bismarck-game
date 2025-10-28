@@ -155,23 +155,24 @@ const Game: React.FC = () => {
       return;
     }
 
-    const interval = setInterval(async () => {
-      try {
-        const response = await unitsAPI.getGameUnits(currentGame.id, authToken);
-        if (response.success && response.data) {
-          if (response.data.units) {
-            setGameUnits(response.data.units);
-          }
-          if (response.data.task_forces) {
-            setTaskForces(response.data.task_forces);
-          }
-        }
-      } catch (error) {
-        console.error('Error updating game units:', error);
-      }
-    }, 5000); // Обновляем каждые 5 секунд
+    // Отключен автоматический polling - используем WebSocket для обновлений
+    // const interval = setInterval(async () => {
+    //   try {
+    //     const response = await unitsAPI.getGameUnits(currentGame.id, authToken);
+    //     if (response.success && response.data) {
+    //       if (response.data.units) {
+    //         setGameUnits(response.data.units);
+    //       }
+    //       if (response.data.task_forces) {
+    //         setTaskForces(response.data.task_forces);
+    //       }
+    //     }
+    //   } catch (error) {
+    //     console.error('Error updating game units:', error);
+    //   }
+    // }, 5000); // Обновляем каждые 5 секунд
 
-    return () => clearInterval(interval);
+    // return () => clearInterval(interval);
   }, [currentGame?.id, authToken]);
 
   // Загружаем информацию о текущем ходе при монтировании компонента
@@ -200,56 +201,57 @@ const Game: React.FC = () => {
       return;
     }
 
-    const interval = setInterval(async () => {
-      // Проверяем, что страница активна
-      if (document.hidden) {
-        return;
-      }
-      
-      try {
-        const turn = await phaseAPI.getCurrentPhase(currentGame.id);
-        const previousTurn = currentTurn;
-        
-        setCurrentTurn(turn);
-        
-        // Проверяем, изменилась ли фаза
-        if (previousTurn && turn) {
-          const previousTurnData = getTurnData(previousTurn);
-          const currentTurnData = getTurnData(turn);
-          
-          if (previousTurnData && currentTurnData) {
-            // Если изменилась фаза или ход
-            if (previousTurnData.current_phase !== currentTurnData.current_phase ||
-                previousTurnData.turn_number !== currentTurnData.turn_number) {
-              
-              // Показываем уведомление о смене фазы
-              if (previousTurnData.current_phase !== currentTurnData.current_phase) {
-                addNotification({
-                  type: NotificationType.Info,
-                  title: 'Смена фазы',
-                  message: `Переход к фазе: ${PHASE_NAMES[currentTurnData.current_phase]}`,
-                  read: false
-                });
-              }
-              
-              // Показываем уведомление о новом ходе
-              if (previousTurnData.turn_number !== currentTurnData.turn_number) {
-                addNotification({
-                  type: NotificationType.Success,
-                  title: 'Новый ход',
-                  message: `Начат ход ${currentTurnData.turn_number}`,
-                  read: false
-                });
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error updating current turn:', error);
-      }
-    }, 10000); // Обновляем каждые 10 секунд
+    // Отключен автоматический polling фазы - используем WebSocket для обновлений
+    // const interval = setInterval(async () => {
+    //   // Проверяем, что страница активна
+    //   if (document.hidden) {
+    //     return;
+    //   }
+    //   
+    //   try {
+    //     const turn = await phaseAPI.getCurrentPhase(currentGame.id);
+    //     const previousTurn = currentTurn;
+    //     
+    //     setCurrentTurn(turn);
+    //     
+    //     // Проверяем, изменилась ли фаза
+    //     if (previousTurn && turn) {
+    //       const previousTurnData = getTurnData(previousTurn);
+    //       const currentTurnData = getTurnData(turn);
+    //       
+    //       if (previousTurnData && currentTurnData) {
+    //         // Если изменилась фаза или ход
+    //         if (previousTurnData.current_phase !== currentTurnData.current_phase ||
+    //             previousTurnData.turn_number !== currentTurnData.turn_number) {
+    //           
+    //           // Показываем уведомление о смене фазы
+    //           if (previousTurnData.current_phase !== currentTurnData.current_phase) {
+    //             addNotification({
+    //               type: NotificationType.Info,
+    //               title: 'Смена фазы',
+    //               message: `Переход к фазе: ${PHASE_NAMES[currentTurnData.current_phase]}`,
+    //               read: false
+    //             });
+    //           }
+    //           
+    //           // Показываем уведомление о новом ходе
+    //           if (previousTurnData.turn_number !== currentTurnData.turn_number) {
+    //             addNotification({
+    //               type: NotificationType.Success,
+    //               title: 'Новый ход',
+    //               message: `Начат ход ${currentTurnData.turn_number}`,
+    //               read: false
+    //             });
+    //           }
+    //         }
+    //       }
+    //     }
+    //   } catch (error) {
+    //     console.error('Error updating current turn:', error);
+    //   }
+    // }, 10000); // Обновляем каждые 10 секунд
 
-    return () => clearInterval(interval);
+    // return () => clearInterval(interval);
   }, [currentGame?.id, currentTurn, addNotification]);
 
   // Таймер обратного отсчета для автоматических фаз

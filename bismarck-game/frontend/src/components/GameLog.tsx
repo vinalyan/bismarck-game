@@ -31,8 +31,8 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
   useEffect(() => {
     loadEvents();
     
-    // Обновляем события каждые 5 секунд
-    const interval = setInterval(loadEvents, 5000);
+    // Отключен автоматический polling - используем WebSocket для обновлений
+    // const interval = setInterval(loadEvents, 5000);
     
     // Слушаем WebSocket события для мгновенного обновления
     const handleGameEvent = () => {
@@ -42,7 +42,7 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
     window.addEventListener('gameEventReceived', handleGameEvent);
     
     return () => {
-      clearInterval(interval);
+      // clearInterval(interval);
       window.removeEventListener('gameEventReceived', handleGameEvent);
     };
   }, [gameId]);
