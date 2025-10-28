@@ -39,11 +39,19 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
       loadEvents();
     };
     
+    // Слушаем события manual refresh для обновления лога
+    const handleGameLogRefresh = () => {
+      console.log('📢 GameLog received refresh event, reloading events...');
+      loadEvents();
+    };
+    
     window.addEventListener('gameEventReceived', handleGameEvent);
+    window.addEventListener('gameLogRefresh', handleGameLogRefresh);
     
     return () => {
       // clearInterval(interval);
       window.removeEventListener('gameEventReceived', handleGameEvent);
+      window.removeEventListener('gameLogRefresh', handleGameLogRefresh);
     };
   }, [gameId]);
 

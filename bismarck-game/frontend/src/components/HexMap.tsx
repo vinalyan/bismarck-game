@@ -124,6 +124,10 @@ const HexMap: React.FC<HexMapProps> = ({
         onRefreshData();
       }
       
+      // 5. Уведомляем GameLog о необходимости обновления событий
+      console.log('📢 Triggering GameLog refresh...');
+      window.dispatchEvent(new CustomEvent('gameLogRefresh'));
+      
       console.log('✅ Game data refreshed successfully');
     } catch (error) {
       console.error('❌ Error refreshing game data:', error);
