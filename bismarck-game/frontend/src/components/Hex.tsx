@@ -316,33 +316,132 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
   };
 
 
+  // Функция рендеринга смешанных элементов (Task Forces + Units)
+  const renderSingleUnit = (item: any) => {
+    if (item.isTaskForce) {
+      return renderTaskForce(item);
+    } else {
+      const unitState = getUnitState(item);
+      return (
+        <g 
+          className={`single-unit ${unitState}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onUnitClick) {
+              onUnitClick(item.id, item);
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+        >
+          {/* Фоновый кружок для лучшей видимости */}
+          <circle
+            cx={center.x}
+            cy={center.y}
+            r={size * 0.5}
+            fill="rgba(255, 255, 255, 0.9)"
+            stroke={item.nationality === 'german' ? '#1e3a8a' : '#991b1b'}
+            strokeWidth={2}
+            className="unit-background"
+          />
+          
+          {/* Кольцо для выбранного юнита */}
+          {unitState === 'selected' && (
+            <circle
+              cx={center.x}
+              cy={center.y}
+              r={size * 0.6}
+              className="unit-selected-ring"
+            />
+          )}
+          
+          {/* Иконка юнита */}
+          <image
+            href={getUnitIcon(item.type, item.nationality === 'german' ? 'german' : 'allied')}
+            x={center.x - size * 0.5}
+            y={center.y - size * 0.5}
+            width={size * 1.0}
+            height={size * 1.0}
+            className="unit-icon"
+            preserveAspectRatio="xMidYMid meet"
+          />
+        </g>
+      );
+    }
+  };
+
+  // Функция для определения состояния смешанного стека (Task Forces + Units)
+  const getStackStateForMixedItems = (items: Array<any & { isTaskForce: boolean }>): 'idle' | 'selected' | 'active' | 'cannot-move' | 'emergency-fuel' => {
+    // Если есть выбранный объект в стеке
+    if (items.some(item => selectedUnit === item.id)) {
+      return 'selected';
+    }
+
+    // Если есть юнит с аварийным топливом
+    if (items.some(item => !item.isTaskForce && item.is_emergency_fuel === true)) {
+      return 'emergency-fuel';
+    }
+
+    // Если все объекты не могут двигаться
+    if (items.every(item => {
+      if (item.isTaskForce) {
+        return item.last_move_turn === currentTurn;
+      } else {
+        return item.last_move_turn === currentTurn ||
+               item.no_movement_turns_left > 0 ||
+               item.fuel <= 0;
+      }
+    })) {
+      return 'cannot-move';
+    }
+
+    // По умолчанию idle
+    return 'idle';
+  };
+
   // Функция рендеринга юнитов
   const renderUnits = () => {
-    // Сначала проверяем Task Forces
+    // Собираем все объекты в гексе для стекирования
+    const allItems: Array<any & { isTaskForce: boolean }> = [];
+
+    // Добавляем Task Forces
     if (hexData.taskForces && hexData.taskForces.length > 0) {
-      return renderTaskForce(hexData.taskForces[0]);
+      hexData.taskForces.forEach(tf => {
+        allItems.push({ ...tf, type: 'taskforce', isTaskForce: true });
+      });
     }
-    
-    // Затем обычные юниты
-    if (!hexData.hasUnit || !hexData.units || hexData.units.length === 0) {
+
+    // Добавляем обычные юниты
+    if (hexData.hasUnit && hexData.units && hexData.units.length > 0) {
+      hexData.units.forEach(unit => {
+        allItems.push({ ...unit, isTaskForce: false });
+      });
+    }
+
+    // Если нет объектов для отображения
+    if (allItems.length === 0) {
       return null;
     }
 
-    const units = hexData.units;
-    const isStack = units.length > 1;
+    // Если только один объект (Task Force или Unit)
+    if (allItems.length === 1) {
+      const item = allItems[0];
+      return renderSingleUnit(item);
+    }
+
+    // Если несколько объектов - показываем стек
     const hexId = `${coordinate.letter}${coordinate.number}`;
     const isExpanded = expandedStackHex === hexId;
+    const stackState = getStackStateForMixedItems(allItems);
 
-    if (isStack && !isExpanded) {
-      // Отображаем свернутый стек юнитов
-      const stackState = getStackState(units);
+    if (!isExpanded) {
+      // Отображаем свернутый стек (Task Forces + Units)
       return (
-        <g 
+        <g
           className={`unit-stack-container ${stackState}`}
           onClick={(e) => {
             e.stopPropagation();
             if (onUnitStackClick) {
-              onUnitStackClick(hexId, units);
+              onUnitStackClick(hexId, allItems);
             }
           }}
           style={{ cursor: 'pointer' }}
@@ -354,19 +453,31 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
             r={size * 0.6}
             className={`unit-stack-background ${stackState}`}
           />
-          
-          {/* Иконка первого юнита */}
-          <image
-            href={getUnitIcon(units[0].type, units[0].nationality === 'german' ? 'german' : 'allied')}
-            x={center.x - size * 0.4}
-            y={center.y - size * 0.4}
-            width={size * 0.8}
-            height={size * 0.8}
-            className="unit-stack-icon"
-            preserveAspectRatio="xMidYMid meet"
-          />
-          
-          {/* Индикатор количества юнитов */}
+
+          {/* Иконка первого объекта (Task Force или Unit) */}
+          {allItems[0].isTaskForce ? (
+            <image
+              href={`/assets/units/${allItems[0].nationality === 'german' ? 'german' : 'allied'}/TF/TF.svg`}
+              x={center.x - size * 0.4}
+              y={center.y - size * 0.4}
+              width={size * 0.8}
+              height={size * 0.8}
+              className="unit-stack-icon taskforce"
+              preserveAspectRatio="xMidYMid meet"
+            />
+          ) : (
+            <image
+              href={getUnitIcon(allItems[0].type, allItems[0].nationality === 'german' ? 'german' : 'allied')}
+              x={center.x - size * 0.4}
+              y={center.y - size * 0.4}
+              width={size * 0.8}
+              height={size * 0.8}
+              className="unit-stack-icon"
+              preserveAspectRatio="xMidYMid meet"
+            />
+          )}
+
+          {/* Индикатор количества объектов */}
           <circle
             cx={center.x + size * 0.4}
             cy={center.y - size * 0.4}
@@ -378,9 +489,9 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
             y={center.y - size * 0.4 + 1}
             className="unit-count-text"
           >
-            {units.length}
+            {allItems.length}
           </text>
-          
+
           {/* Анимированное кольцо для привлечения внимания */}
           <circle
             cx={center.x}
@@ -392,23 +503,23 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
       );
     }
 
-    if (isStack && isExpanded) {
-      // Отображаем развернутый стек (вертикальный список)
+    if (isExpanded) {
+      // Отображаем развернутый стек (вертикальный список смешанных объектов)
       return (
         <g className="expanded-unit-stack">
-          {units.map((unit, index) => {
-            const unitY = center.y + (index - (units.length - 1) / 2) * size * 1.2;
-            
-            const unitState = getUnitState(unit);
-            
+          {allItems.map((item, index) => {
+            const itemY = center.y + (index - (allItems.length - 1) / 2) * size * 1.2;
+
+            const itemState = item.isTaskForce ? getTaskForceState(item) : getUnitState(item);
+
             return (
               <g
-                key={unit.id}
-                className={`stacked-unit ${unitState}`}
+                key={item.id}
+                className={`stacked-unit ${itemState} ${item.isTaskForce ? 'task-force' : 'naval-unit'}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (onStackedUnitSelect) {
-                    onStackedUnitSelect(unit);
+                    onStackedUnitSelect(item);
                   }
                 }}
                 style={{ cursor: 'pointer' }}
@@ -416,31 +527,43 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
                 {/* Фоновый кружок для иконки */}
                 <circle
                   cx={center.x}
-                  cy={unitY}
+                  cy={itemY}
                   r={12}
-                  className={`stacked-unit-background ${unitState}`}
+                  className={`stacked-unit-background ${itemState}`}
                 />
-                
-                {/* Кольцо для выбранного юнита */}
-                {unitState === 'selected' && (
+
+                {/* Кольцо для выбранного объекта */}
+                {itemState === 'selected' && (
                   <circle
                     cx={center.x}
-                    cy={unitY}
+                    cy={itemY}
                     r={15}
                     className="stacked-unit-selected-ring"
                   />
                 )}
-                
-                {/* Иконка юнита */}
-                <image
-                  href={getUnitIcon(unit.type, unit.nationality === 'german' ? 'german' : 'allied')}
-                  x={center.x - 10}
-                  y={unitY - 10}
-                  width={20}
-                  height={20}
-                  className={`stacked-unit-icon ${unitState}`}
-                  preserveAspectRatio="xMidYMid meet"
-                />
+
+                {/* Иконка объекта (Task Force или Unit) */}
+                {item.isTaskForce ? (
+                  <image
+                    href={`/assets/units/${item.nationality === 'german' ? 'german' : 'allied'}/TF/TF.svg`}
+                    x={center.x - 10}
+                    y={itemY - 10}
+                    width={20}
+                    height={20}
+                    className={`stacked-unit-icon taskforce ${itemState}`}
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                ) : (
+                  <image
+                    href={getUnitIcon(item.type, item.nationality === 'german' ? 'german' : 'allied')}
+                    x={center.x - 10}
+                    y={itemY - 10}
+                    width={20}
+                    height={20}
+                    className={`stacked-unit-icon ${itemState}`}
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                )}
               </g>
             );
           })}
@@ -448,64 +571,8 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
       );
     }
 
-    // Отображаем одиночный юнит (существующая логика)
-    const unit = units[0];
-    const unitState = getUnitState(unit);
-    
-    return (
-      <g 
-        className={getUnitStateClass(unit)}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onUnitClick) {
-            onUnitClick(hexData.unitId!, {
-              id: hexData.unitId,
-              type: hexData.unitType,
-              side: hexData.unitSide,
-              position: coordinate,
-              name: getUnitName(hexData.unitType || '', hexData.unitSide || 'german'),
-              maxFuel: 10,
-              currentFuel: 8
-            });
-          }
-        }}
-        style={{ cursor: 'pointer' }}
-      >
-        {/* Фоновый кружок для лучшей видимости */}
-        <circle
-          cx={center.x}
-          cy={center.y}
-          r={size * 0.5}
-          fill="rgba(255, 255, 255, 0.9)"
-          stroke={hexData.unitSide === 'german' ? '#1e3a8a' : '#991b1b'}
-          strokeWidth={2}
-          className="unit-background"
-        />
-        
-        {/* Кольцо для выбранного юнита */}
-        {unitState === 'selected' && (
-          <circle
-            cx={center.x}
-            cy={center.y}
-            r={size * 0.6}
-            className="unit-selected-ring"
-          />
-        )}
-        
-        {/* Иконка юнита */}
-        <image
-          href={getUnitIcon(hexData.unitType || '', hexData.unitSide || 'german')}
-          x={center.x - size * 0.5}
-          y={center.y - size * 0.5}
-          width={size * 1.0}
-          height={size * 1.0}
-          className="unit-icon"
-          preserveAspectRatio="xMidYMid meet"
-        />
-      </g>
-    );
+    // Fallback для одиночных юнитов (не должно происходить с новой логикой)
+    return null;
   };
 
   // Обработчики для tooltip
