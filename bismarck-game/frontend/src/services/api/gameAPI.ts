@@ -13,7 +13,9 @@ import {
   JoinGameRequest,
   SurrenderGameRequest,
   UpdateProfileRequest,
-  ChangePasswordRequest
+  ChangePasswordRequest,
+  TaskForce,
+  TaskForceDetails
 } from '../../types/gameTypes';
 
 // Базовый URL API
@@ -147,6 +149,52 @@ export const gameAPI = {
   // Удаление игры
   deleteGame: async (gameId: string): Promise<APIResponse> => {
     const response = await apiClient.delete(`/games/${gameId}`);
+    return response.data;
+  },
+
+  // Task Force API endpoints
+  getTaskForces: async (gameId: string): Promise<APIResponse<TaskForce[]>> => {
+    const response = await apiClient.get(`/games/${gameId}/task-forces`);
+    return response.data;
+  },
+
+  getTaskForce: async (gameId: string, taskForceId: string): Promise<APIResponse<TaskForceDetails>> => {
+    const response = await apiClient.get(`/games/${gameId}/task-forces/${taskForceId}`);
+    return response.data;
+  },
+
+  createTaskForce: async (gameId: string, data: {
+    name?: string;
+    unitIds: string[];
+    formation: string;
+  }): Promise<APIResponse<TaskForce>> => {
+    const response = await apiClient.post(`/games/${gameId}/task-forces`, {
+      name: data.name,
+      unit_ids: data.unitIds,
+      formation: data.formation,
+    });
+    return response.data;
+  },
+
+  addUnitToTaskForce: async (gameId: string, data: {
+    taskForceId: string;
+    unitId: string;
+  }): Promise<APIResponse> => {
+    const response = await apiClient.post(`/games/${gameId}/task-forces/add-unit`, {
+      task_force_id: data.taskForceId,
+      unit_id: data.unitId,
+    });
+    return response.data;
+  },
+
+  removeUnitFromTaskForce: async (gameId: string, data: {
+    taskForceId: string;
+    unitId: string;
+  }): Promise<APIResponse> => {
+    const response = await apiClient.post(`/games/${gameId}/task-forces/remove-unit`, {
+      task_force_id: data.taskForceId,
+      unit_id: data.unitId,
+    });
     return response.data;
   },
 };

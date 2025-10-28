@@ -1006,9 +1006,9 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем Task Forces для игры
-	log.Printf("GetGameUnits: Getting task forces for game %s", gameID)
-	taskForces, err := h.taskForceService.GetTaskForcesByGameID(gameID)
+	// Получаем видимые Task Forces для игрока
+	log.Printf("GetGameUnits: Getting visible task forces for game %s, user %s", gameID, userID)
+	taskForces, err := h.taskForceService.GetVisibleTaskForcesByGameID(gameID, userID)
 	if err != nil {
 		log.Printf("Error getting task forces: %v", err)
 		// Не прерываем выполнение, просто логируем ошибку

@@ -170,6 +170,27 @@ func (s *TaskForceService) GetTaskForcesByGameID(gameID string) ([]models.TaskFo
 	return taskForces, rows.Err()
 }
 
+// GetVisibleTaskForcesByGameID возвращает видимые Task Forces для игрока
+func (s *TaskForceService) GetVisibleTaskForcesByGameID(gameID string, playerID string) ([]models.TaskForce, error) {
+	// Получаем все Task Forces игры
+	allTaskForces, err := s.GetTaskForcesByGameID(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task forces: %w", err)
+	}
+
+	// Фильтруем только видимые для игрока Task Forces
+	var visibleTaskForces []models.TaskForce
+	for _, taskForce := range allTaskForces {
+		// Игрок видит только свои Task Forces
+		if taskForce.Owner == playerID {
+			visibleTaskForces = append(visibleTaskForces, taskForce)
+		}
+		// TODO: Добавить логику для обнаруженных вражеских Task Forces
+	}
+
+	return visibleTaskForces, nil
+}
+
 // GetTaskForceByID возвращает Task Force по ID
 func (s *TaskForceService) GetTaskForceByID(taskForceID string) (*models.TaskForce, error) {
 	query := `
