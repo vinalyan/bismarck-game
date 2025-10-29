@@ -65,11 +65,11 @@ func NewHub() *Hub {
 	return &Hub{
 		clients:          make(map[*Client]bool),
 		rooms:            make(map[string]map[*Client]bool),
-		Register:         make(chan *Client),
-		Unregister:       make(chan *Client),
-		broadcast:        make(chan []byte),
-		roomBroadcast:    make(chan *RoomMessage),
-		sendToClientChan: make(chan *ClientMessage),
+		Register:         make(chan *Client, 100),         // Увеличиваем буфер
+		Unregister:       make(chan *Client, 100),         // Увеличиваем буфер
+		broadcast:        make(chan []byte, 1000),         // Увеличиваем буфер
+		roomBroadcast:    make(chan *RoomMessage, 1000),   // Увеличиваем буфер
+		sendToClientChan: make(chan *ClientMessage, 1000), // Увеличиваем буфер
 		stats: &HubStats{
 			StartTime:    time.Now(),
 			LastActivity: time.Now(),

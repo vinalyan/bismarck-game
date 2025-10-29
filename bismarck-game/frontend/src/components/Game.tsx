@@ -14,6 +14,7 @@ import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
 import { mapService, MapStructure } from '../services/api/mapService';
 import { GameTurnResponse, PHASE_NAMES } from '../types/phaseTypes';
+import wsClient from '../services/websocket/websocketClient';
 import HexMap from './HexMap';
 import GameLog from './GameLog';
 import './Game.css';
@@ -296,6 +297,107 @@ const Game: React.FC = () => {
       window.removeEventListener('turnUpdated', handleTurnUpdate as EventListener);
     };
   }, []);
+
+  // Переподключение WebSocket при смене игры
+  useEffect(() => {
+    if (currentGame?.id && authToken) {
+      console.log('🔄 Reconnecting WebSocket with game_id:', currentGame.id);
+      wsClient.disconnect();
+      wsClient.connect(authToken, currentGame.id).catch((error) => {
+        console.error('Failed to reconnect WebSocket with game_id:', error);
+      });
+    }
+  }, [currentGame?.id, authToken]);
+
+  // Обработчик WebSocket событий смены фаз
+  useEffect(() => {
+    const handleGameEventReceived = async (event: CustomEvent) => {
+      const eventData = event.detail;
+      
+      if (!eventData || !currentGame?.id) {
+        return;
+      }
+
+      console.log('🔔 WebSocket game event received:', eventData);
+
+      // Обрабатываем разные типы событий фаз
+      switch (eventData.event) {
+        case 'phase_changed':
+          // Обновляем текущую фазу
+          try {
+            const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
+            if (updatedTurn) {
+              setCurrentTurn(updatedTurn);
+            }
+            
+            // Показываем уведомление
+            const phaseName = eventData.data?.phase ? PHASE_NAMES[eventData.data.phase as GamePhase] : 'Неизвестная фаза';
+            addNotification({
+              type: NotificationType.Info,
+              title: 'Смена фазы',
+              message: `Фаза изменена на: ${phaseName}`,
+              read: false,
+            });
+          } catch (error) {
+            console.error('Error updating phase after phase_changed event:', error);
+          }
+          break;
+
+        case 'phase_advanced':
+          // Обновляем текущую фазу
+          try {
+            const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
+            if (updatedTurn) {
+              setCurrentTurn(updatedTurn);
+            }
+            
+            // Показываем уведомление
+            const fromPhase = eventData.data?.from_phase ? PHASE_NAMES[eventData.data.from_phase as GamePhase] : 'Неизвестная фаза';
+            const toPhase = eventData.data?.to_phase ? PHASE_NAMES[eventData.data.to_phase as GamePhase] : 'Неизвестная фаза';
+            addNotification({
+              type: NotificationType.Info,
+              title: 'Переход к следующей фазе',
+              message: `Переход с фазы "${fromPhase}" на "${toPhase}"`,
+              read: false,
+            });
+          } catch (error) {
+            console.error('Error updating phase after phase_advanced event:', error);
+          }
+          break;
+
+        case 'turn_completed':
+          // Показываем уведомление о завершении хода
+          const completedTurn = eventData.data?.completed_turn || 0;
+          addNotification({
+            type: NotificationType.Success,
+            title: 'Ход завершен',
+            message: `Ход ${completedTurn} успешно завершен`,
+            read: false,
+          });
+          
+          // Обновляем текущую фазу для нового хода
+          try {
+            const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
+            if (updatedTurn) {
+              setCurrentTurn(updatedTurn);
+            }
+          } catch (error) {
+            console.error('Error updating turn after turn_completed event:', error);
+          }
+          break;
+
+        default:
+          // Игнорируем другие события
+          break;
+      }
+    };
+
+    window.addEventListener('gameEventReceived', handleGameEventReceived as unknown as EventListener);
+    
+    return () => {
+      window.removeEventListener('gameEventReceived', handleGameEventReceived as unknown as EventListener);
+    };
+  }, [currentGame?.id, addNotification]);
 
   // Обработчик обновления игры
   useEffect(() => {

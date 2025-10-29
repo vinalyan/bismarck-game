@@ -50,7 +50,7 @@ func setupUnitHandler(t *testing.T) (*UnitHandler, func()) {
 	// Создаем WebSocket Hub для тестов
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
-	
+
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 
 	movementService := services.NewMovementService(db, logger, nil, phaseManager, unitService, nil, eventService)

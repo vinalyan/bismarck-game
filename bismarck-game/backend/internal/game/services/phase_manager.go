@@ -309,6 +309,9 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 
 	log.Printf("Started phase %s for game %s turn %d", phase, gameID, turnNumber)
 
+	// Логируем смену фазы
+	log.Printf("🔄 PHASE CHANGE: Game %s turn %d - Phase changed to: %s", gameID, turnNumber, phase)
+
 	// Отправляем WebSocket уведомление о смене фазы
 	if pm.wsHub != nil {
 		pm.wsHub.BroadcastGameEvent(gameID, "phase_changed", map[string]interface{}{
@@ -317,6 +320,7 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 			"game_id":     gameID,
 			"message":     fmt.Sprintf("Фаза изменена на: %s", phase),
 		})
+		log.Printf("📡 WebSocket: Sent phase_changed event for game %s", gameID)
 	}
 
 	// Вызываем API для получения текущей фазы в горутине
@@ -623,6 +627,9 @@ func (pm *PhaseManager) CompleteTurn(gameID string, turnNumber int) error {
 		return fmt.Errorf("failed to complete turn: %v", err)
 	}
 
+	// Логируем завершение хода
+	log.Printf("🔄 TURN COMPLETED: Game %s - Turn %d completed", gameID, turnNumber)
+
 	// Отправляем WebSocket уведомление о завершении хода
 	if pm.wsHub != nil {
 		pm.wsHub.BroadcastGameEvent(gameID, "turn_completed", map[string]interface{}{
@@ -630,6 +637,7 @@ func (pm *PhaseManager) CompleteTurn(gameID string, turnNumber int) error {
 			"game_id":        gameID,
 			"message":        fmt.Sprintf("Ход %d завершен", turnNumber),
 		})
+		log.Printf("📡 WebSocket: Sent turn_completed event for game %s", gameID)
 	}
 
 	// Вызываем API для получения текущей фазы в горутине

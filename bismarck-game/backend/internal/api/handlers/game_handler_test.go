@@ -46,11 +46,11 @@ func setupGameHandler(t *testing.T) (*GameHandler, func()) {
 	_ = auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
 	unitService := services.NewUnitService(db, logger)
 	eventService := services.NewGameEventService(db, logger)
-	
+
 	// Создаем WebSocket Hub для тестов
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
-	
+
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 
 	shipConfigService := services.NewShipConfigService()

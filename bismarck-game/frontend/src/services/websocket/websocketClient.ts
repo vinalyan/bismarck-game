@@ -17,7 +17,7 @@ class WebSocketClient {
   }
 
   // Подключение к WebSocket
-  connect(token?: string): Promise<void> {
+  connect(token?: string, gameId?: string): Promise<void> {
     return new Promise((resolve, reject) => {
       if (this.isConnecting || this.ws?.readyState === WebSocket.OPEN) {
         resolve();
@@ -25,7 +25,13 @@ class WebSocketClient {
       }
 
       this.isConnecting = true;
-      const wsUrl = token ? `${this.url}?token=${token}` : this.url;
+      
+      // Строим URL с параметрами
+      const params = new URLSearchParams();
+      if (token) params.append('token', token);
+      if (gameId) params.append('game_id', gameId);
+      
+      const wsUrl = params.toString() ? `${this.url}?${params.toString()}` : this.url;
 
       try {
         this.ws = new WebSocket(wsUrl);

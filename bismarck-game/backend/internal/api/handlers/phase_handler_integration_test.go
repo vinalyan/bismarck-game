@@ -34,7 +34,7 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 	// Создаем WebSocket Hub для тестов
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
-	
+
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
@@ -233,7 +233,7 @@ func TestPhaseSequenceAPI(t *testing.T) {
 	// Создаем WebSocket Hub для тестов
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
-	
+
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
@@ -365,7 +365,7 @@ func TestPhaseValidationAPI(t *testing.T) {
 	// Создаем WebSocket Hub для тестов
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
-	
+
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
