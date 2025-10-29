@@ -330,6 +330,9 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 	// Остальные фазы автоматически переходят к следующей через свои обработчики
 	if phase == models.PhaseMovement {
 		log.Printf("Phase %s requires manual completion", phase)
+		
+		// Дополнительный вызов API для фазы движения
+		go pm.callCurrentPhaseAPI(gameID)
 	}
 
 	return nil
