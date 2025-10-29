@@ -1337,6 +1337,7 @@ const Game: React.FC = () => {
               const isSetupTurn = turnData && turnData.turn_number === 0 && turnData.current_phase === 'setup';
               return !!(isGermanPlayer && isGameReady && isSetupTurn);
             })()}
+            currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
           />
         </div>
 
@@ -1425,6 +1426,7 @@ const Game: React.FC = () => {
             }}
             onUnitStackClick={handleUnitStackClick}
             onStackedUnitSelect={handleStackedUnitSelect}
+            currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
           />
         </div>
       </div>

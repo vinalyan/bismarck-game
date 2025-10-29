@@ -21,6 +21,7 @@ interface HexProps {
   selectedUnit?: string | null;
   expandedStackHex?: string | null;
   currentTurn?: number;
+  isTFCandidate?: boolean;
   onClick: () => void;
   onHover: () => void;
   onUnitClick?: (unitId: string, unitData: any) => void;
@@ -45,6 +46,7 @@ const Hex: React.FC<HexProps> = ({
   selectedUnit = null,
   expandedStackHex = null,
   currentTurn = 0,
+  isTFCandidate = false,
   onClick,
   onHover,
   onUnitClick,
@@ -670,7 +672,7 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
   return (
     <>
       <g
-        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isAvailableForMovement ? 'available-for-movement' : ''}`}
+        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isAvailableForMovement ? 'available-for-movement' : ''} ${isTFCandidate ? 'tf-candidate' : ''}`}
         onClick={onClick}
         onMouseEnter={(e) => {
           onHover();
