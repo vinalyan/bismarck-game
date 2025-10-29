@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS naval_units (
     game_id UUID NOT NULL REFERENCES games(id),
     name VARCHAR(100) NOT NULL,
     type VARCHAR(20) NOT NULL,
+    category VARCHAR(20) DEFAULT 'naval',
     class VARCHAR(50),
     owner VARCHAR(50) NOT NULL,
     nationality VARCHAR(20) DEFAULT 'german',
@@ -130,8 +131,13 @@ CREATE TABLE IF NOT EXISTS unit_visibility (
 CREATE TABLE IF NOT EXISTS game_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     game_id UUID NOT NULL REFERENCES games(id),
+    turn INTEGER NOT NULL,
+    phase VARCHAR(20) NOT NULL,
     event_type VARCHAR(50) NOT NULL,
-    event_data JSONB,
+    actor_id VARCHAR(255),
+    actor_name VARCHAR(255),
+    description TEXT NOT NULL,
+    data JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -142,6 +148,7 @@ CREATE TABLE IF NOT EXISTS unit_searches (
     unit_id UUID NOT NULL,
     target_hex VARCHAR(10) NOT NULL,
     search_type VARCHAR(20) NOT NULL,
+    search_factors INTEGER DEFAULT 0,
     result VARCHAR(20) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

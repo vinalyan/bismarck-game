@@ -48,7 +48,8 @@ func setupGameHandler(t *testing.T) (*GameHandler, func()) {
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService)
 
 	shipConfigService := services.NewShipConfigService()
-	handler := NewGameHandler(db, unitService, shipConfigService, phaseManager)
+	taskForceService := services.NewTaskForceService(db, logger, unitService, nil)
+	handler := NewGameHandler(db, unitService, shipConfigService, phaseManager, taskForceService)
 
 	cleanup := func() {
 		db.Close()

@@ -37,6 +37,10 @@ func TestGetVisibleUnitsForPlayer(t *testing.T) {
 	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id::text LIKE 'test-game-%'")
 	require.NoError(t, err)
 
+	// Create test game first
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
+	require.NoError(t, err)
+
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
 	service := NewVisibilityService(db, logger)
@@ -44,7 +48,7 @@ func TestGetVisibleUnitsForPlayer(t *testing.T) {
 
 	// Create test units
 	unit1 := &models.NavalUnit{
-		GameID:      "test-game-1",
+		GameID:      "550e8400-e29b-41d4-a716-446655440001",
 		Name:        "Visible Ship",
 		Type:        "battleship",
 		Class:       "Bismarck",
@@ -66,7 +70,7 @@ func TestGetVisibleUnitsForPlayer(t *testing.T) {
 	require.NoError(t, err)
 
 	unit2 := &models.NavalUnit{
-		GameID:      "test-game-1",
+		GameID:      "550e8400-e29b-41d4-a716-446655440001",
 		Name:        "Hidden Ship",
 		Type:        "cruiser",
 		Class:       "Prinz Eugen",
@@ -89,7 +93,7 @@ func TestGetVisibleUnitsForPlayer(t *testing.T) {
 
 	// Create visibility records
 	visibility1 := &models.UnitVisibilityState{
-		GameID:       "test-game-1",
+		GameID:       "550e8400-e29b-41d4-a716-446655440001",
 		UnitID:       unit1.ID,
 		PlayerID:     "testuser2",
 		Visibility:   models.VisibilitySighted,
@@ -100,7 +104,7 @@ func TestGetVisibleUnitsForPlayer(t *testing.T) {
 	require.NoError(t, err)
 
 	visibility2 := &models.UnitVisibilityState{
-		GameID:       "test-game-1",
+		GameID:       "550e8400-e29b-41d4-a716-446655440001",
 		UnitID:       unit2.ID,
 		PlayerID:     "testuser1",
 		Visibility:   models.VisibilityUnknown,
@@ -111,7 +115,7 @@ func TestGetVisibleUnitsForPlayer(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("get visible units for player", func(t *testing.T) {
-		visibleUnits, err := service.GetVisibleUnitsForPlayer("test-game-1", "testuser2")
+		visibleUnits, err := service.GetVisibleUnitsForPlayer("550e8400-e29b-41d4-a716-446655440001", "testuser2")
 		assert.NoError(t, err)
 		assert.Len(t, visibleUnits, 1)
 		assert.Equal(t, unit1.ID, visibleUnits[0].UnitID)
@@ -140,7 +144,7 @@ func TestGetLastKnownPositions(t *testing.T) {
 
 	// Create test visibility records
 	visibility1 := &models.UnitVisibilityState{
-		GameID:       "test-game-1",
+		GameID:       "550e8400-e29b-41d4-a716-446655440001",
 		UnitID:       "unit-1",
 		PlayerID:     "testuser1",
 		Visibility:   models.VisibilityUnknown,
@@ -151,7 +155,7 @@ func TestGetLastKnownPositions(t *testing.T) {
 	require.NoError(t, err)
 
 	visibility2 := &models.UnitVisibilityState{
-		GameID:       "test-game-1",
+		GameID:       "550e8400-e29b-41d4-a716-446655440001",
 		UnitID:       "unit-2",
 		PlayerID:     "testuser1",
 		Visibility:   models.VisibilityUnknown,
@@ -162,7 +166,7 @@ func TestGetLastKnownPositions(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("get last known positions", func(t *testing.T) {
-		lastKnown, err := service.GetLastKnownPositions("test-game-1", "testuser1")
+		lastKnown, err := service.GetLastKnownPositions("550e8400-e29b-41d4-a716-446655440001", "testuser1")
 		assert.NoError(t, err)
 		assert.Len(t, lastKnown, 2)
 
@@ -197,7 +201,7 @@ func TestUpdateUnitVisibility(t *testing.T) {
 
 	t.Run("successful update", func(t *testing.T) {
 		visibility := &models.UnitVisibilityState{
-			GameID:       "test-game-1",
+			GameID:       "550e8400-e29b-41d4-a716-446655440001",
 			UnitID:       "unit-1",
 			PlayerID:     "testuser1",
 			Visibility:   models.VisibilitySighted,
@@ -233,6 +237,10 @@ func TestProcessMovementVisibility(t *testing.T) {
 	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id::text LIKE 'test-game-%'")
 	require.NoError(t, err)
 
+	// Create test game first
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
+	require.NoError(t, err)
+
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
 	service := NewVisibilityService(db, logger)
@@ -240,7 +248,7 @@ func TestProcessMovementVisibility(t *testing.T) {
 
 	// Create test unit
 	unit := &models.NavalUnit{
-		GameID:      "test-game-1",
+		GameID:      "550e8400-e29b-41d4-a716-446655440001",
 		Name:        "Test Ship",
 		Type:        "battleship",
 		Class:       "Bismarck",
@@ -262,11 +270,11 @@ func TestProcessMovementVisibility(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("process movement visibility", func(t *testing.T) {
-		err := service.ProcessMovementVisibility("test-game-1", unit.ID, "A1", "B1")
+		err := service.ProcessMovementVisibility("550e8400-e29b-41d4-a716-446655440001", unit.ID, "A1", "B1")
 		assert.NoError(t, err)
 
 		// Verify visibility was updated
-		visibleUnits, err := service.GetVisibleUnitsForPlayer("test-game-1", "testuser2")
+		visibleUnits, err := service.GetVisibleUnitsForPlayer("550e8400-e29b-41d4-a716-446655440001", "testuser2")
 		assert.NoError(t, err)
 		assert.Len(t, visibleUnits, 1)
 		assert.Equal(t, unit.ID, visibleUnits[0].UnitID)
@@ -274,7 +282,7 @@ func TestProcessMovementVisibility(t *testing.T) {
 	})
 
 	t.Run("process movement visibility for non-existing unit", func(t *testing.T) {
-		err := service.ProcessMovementVisibility("test-game-1", "non-existing-unit", "A1", "B1")
+		err := service.ProcessMovementVisibility("550e8400-e29b-41d4-a716-446655440001", "non-existing-unit", "A1", "B1")
 		assert.Error(t, err)
 	})
 }
@@ -294,7 +302,7 @@ func TestGetUnitVisibility(t *testing.T) {
 
 	// Create test visibility record
 	visibility := &models.UnitVisibilityState{
-		GameID:       "test-game-1",
+		GameID:       "550e8400-e29b-41d4-a716-446655440001",
 		UnitID:       "unit-1",
 		PlayerID:     "testuser1",
 		Visibility:   models.VisibilitySighted,
@@ -305,13 +313,13 @@ func TestGetUnitVisibility(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("get existing unit visibility", func(t *testing.T) {
-		retrievedVisibility, err := service.GetUnitVisibility("test-game-1", "unit-1", "testuser1")
+		retrievedVisibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1")
 		assert.NoError(t, err)
 		assert.Equal(t, models.VisibilitySighted, retrievedVisibility)
 	})
 
 	t.Run("get non-existing unit visibility", func(t *testing.T) {
-		_, err := service.GetUnitVisibility("test-game-1", "non-existing-unit", "testuser1")
+		_, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "non-existing-unit", "testuser1")
 		assert.Error(t, err)
 	})
 }
@@ -330,26 +338,26 @@ func TestSetUnitSighted(t *testing.T) {
 	service := NewVisibilityService(db, logger)
 
 	t.Run("set unit as sighted", func(t *testing.T) {
-		err := service.SetUnitSighted("test-game-1", "unit-1", "testuser1", "A1")
+		err := service.SetUnitSighted("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1", "A1")
 		assert.NoError(t, err)
 
 		// Verify unit was set as sighted
-		visibility, err := service.GetUnitVisibility("test-game-1", "unit-1", "testuser1")
+		visibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1")
 		assert.NoError(t, err)
 		assert.Equal(t, models.VisibilitySighted, visibility)
 	})
 
 	t.Run("update existing sighted unit", func(t *testing.T) {
 		// First sighting
-		err := service.SetUnitSighted("test-game-1", "unit-2", "testuser1", "A1")
+		err := service.SetUnitSighted("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1", "A1")
 		assert.NoError(t, err)
 
 		// Second sighting at different position
-		err = service.SetUnitSighted("test-game-1", "unit-2", "testuser1", "B1")
+		err = service.SetUnitSighted("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1", "B1")
 		assert.NoError(t, err)
 
 		// Verify position was updated
-		visibility, err := service.GetUnitVisibility("test-game-1", "unit-2", "testuser1")
+		visibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1")
 		assert.NoError(t, err)
 		assert.Equal(t, models.VisibilitySighted, visibility)
 	})
@@ -369,26 +377,26 @@ func TestSetUnitShadowed(t *testing.T) {
 	service := NewVisibilityService(db, logger)
 
 	t.Run("set unit as shadowed", func(t *testing.T) {
-		err := service.SetUnitShadowed("test-game-1", "unit-1", "testuser1", "A1")
+		err := service.SetUnitShadowed("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1", "A1")
 		assert.NoError(t, err)
 
 		// Verify unit was set as shadowed
-		visibility, err := service.GetUnitVisibility("test-game-1", "unit-1", "testuser1")
+		visibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1")
 		assert.NoError(t, err)
 		assert.Equal(t, models.VisibilityShadowed, visibility)
 	})
 
 	t.Run("update existing shadowed unit", func(t *testing.T) {
 		// First shadowing
-		err := service.SetUnitShadowed("test-game-1", "unit-2", "testuser1", "A1")
+		err := service.SetUnitShadowed("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1", "A1")
 		assert.NoError(t, err)
 
 		// Second shadowing at different position
-		err = service.SetUnitShadowed("test-game-1", "unit-2", "testuser1", "B1")
+		err = service.SetUnitShadowed("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1", "B1")
 		assert.NoError(t, err)
 
 		// Verify position was updated
-		visibility, err := service.GetUnitVisibility("test-game-1", "unit-2", "testuser1")
+		visibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1")
 		assert.NoError(t, err)
 		assert.Equal(t, models.VisibilityShadowed, visibility)
 	})
@@ -409,7 +417,7 @@ func TestClearUnitVisibility(t *testing.T) {
 
 	// Create test visibility record
 	visibility := &models.UnitVisibilityState{
-		GameID:       "test-game-1",
+		GameID:       "550e8400-e29b-41d4-a716-446655440001",
 		UnitID:       "unit-1",
 		PlayerID:     "testuser1",
 		Visibility:   models.VisibilitySighted,
@@ -420,16 +428,16 @@ func TestClearUnitVisibility(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("clear unit visibility", func(t *testing.T) {
-		err := service.ClearUnitVisibility("test-game-1", "unit-1", "testuser1")
+		err := service.ClearUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1")
 		assert.NoError(t, err)
 
 		// Verify visibility was cleared
-		_, err = service.GetUnitVisibility("test-game-1", "unit-1", "testuser1")
+		_, err = service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1")
 		assert.Error(t, err)
 	})
 
 	t.Run("clear non-existing unit visibility", func(t *testing.T) {
-		err := service.ClearUnitVisibility("test-game-1", "non-existing-unit", "testuser1")
+		err := service.ClearUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "non-existing-unit", "testuser1")
 		assert.NoError(t, err) // Should not error for non-existing records
 	})
 }

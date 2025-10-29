@@ -149,16 +149,16 @@ func createTestSchema(db *sql.DB) error {
 
 	// Сначала удаляем все таблицы для чистого старта
 	dropQueries := []string{
-		"DROP TABLE IF EXISTS movements",
-		"DROP TABLE IF EXISTS unit_searches",
-		"DROP TABLE IF EXISTS game_events",
-		"DROP TABLE IF EXISTS unit_visibility",
-		"DROP TABLE IF EXISTS task_force_units",
-		"DROP TABLE IF EXISTS task_forces",
-		"DROP TABLE IF EXISTS air_units",
-		"DROP TABLE IF EXISTS naval_units",
-		"DROP TABLE IF EXISTS games",
-		"DROP TABLE IF EXISTS users",
+		"DROP TABLE IF EXISTS movements CASCADE",
+		"DROP TABLE IF EXISTS unit_searches CASCADE",
+		"DROP TABLE IF EXISTS game_events CASCADE",
+		"DROP TABLE IF EXISTS unit_visibility CASCADE",
+		"DROP TABLE IF EXISTS task_force_units CASCADE",
+		"DROP TABLE IF EXISTS task_forces CASCADE",
+		"DROP TABLE IF EXISTS air_units CASCADE",
+		"DROP TABLE IF EXISTS naval_units CASCADE",
+		"DROP TABLE IF EXISTS games CASCADE",
+		"DROP TABLE IF EXISTS users CASCADE",
 	}
 
 	for _, query := range dropQueries {
@@ -219,6 +219,7 @@ func createBasicSchema(db *sql.DB) error {
 			game_id UUID NOT NULL REFERENCES games(id),
 			name VARCHAR(100) NOT NULL,
 			type VARCHAR(20) NOT NULL,
+			category VARCHAR(20) DEFAULT 'naval',
 			class VARCHAR(50),
 			owner VARCHAR(50) NOT NULL,
 			nationality VARCHAR(50),

@@ -50,8 +50,9 @@ func setupMovementHandler(t *testing.T) (*MovementHandler, func()) {
 	mapStructureService := services.NewMapStructureService()
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService)
 	movementService := services.NewMovementService(db, logger, visibilityService, phaseManager, unitService, mapStructureService, eventService)
+	taskForceService := services.NewTaskForceService(db, logger, unitService, movementService)
 
-	handler := NewMovementHandler(movementService, visibilityService, unitService, logger)
+	handler := NewMovementHandler(movementService, visibilityService, unitService, taskForceService, logger)
 
 	cleanup := func() {
 		db.Close()
