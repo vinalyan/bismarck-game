@@ -11,6 +11,7 @@ class WebSocketClient {
   private reconnectInterval = 1000;
   private pingInterval: NodeJS.Timeout | null = null;
   private isConnecting = false;
+  private currentGameId: string | null = null;
 
   constructor() {
     this.url = process.env.REACT_APP_WS_URL || 'ws://localhost:8080/ws';
@@ -19,7 +20,13 @@ class WebSocketClient {
   // Подключение к WebSocket
   connect(token?: string, gameId?: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (this.isConnecting || this.ws?.readyState === WebSocket.OPEN) {
+      // Если уже подключен к той же игре, не переподключаемся
+      if (this.ws?.readyState === WebSocket.OPEN && this.currentGameId === gameId) {
+        resolve();
+        return;
+      }
+      
+      if (this.isConnecting) {
         resolve();
         return;
       }
@@ -40,6 +47,7 @@ class WebSocketClient {
         this.ws.onopen = () => {
           console.log('WebSocket connected');
           this.isConnecting = false;
+          this.currentGameId = gameId || null;
           this.reconnectAttempts = 0;
           this.startPing();
           useGameStore.getState().setConnected(true);
@@ -48,16 +56,25 @@ class WebSocketClient {
 
         this.ws.onmessage = (event) => {
           try {
-            const message: WSMessage = JSON.parse(event.data);
-            this.handleMessage(message);
+            // Разделяем сообщения по переносам строк (если их несколько)
+            const messages = event.data.split('\n').filter((msg: string) => msg.trim());
+            
+            for (const messageText of messages) {
+              if (messageText.trim()) {
+                const message: WSMessage = JSON.parse(messageText.trim());
+                this.handleMessage(message);
+              }
+            }
           } catch (error) {
             console.error('Error parsing WebSocket message:', error);
+            console.error('Raw message:', event.data);
           }
         };
 
         this.ws.onclose = (event) => {
           console.log('WebSocket disconnected:', event.code, event.reason);
           this.isConnecting = false;
+          this.currentGameId = null;
           this.stopPing();
           useGameStore.getState().setConnected(false);
           
