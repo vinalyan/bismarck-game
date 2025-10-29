@@ -457,13 +457,8 @@ const Game: React.FC = () => {
 
   // Обработчик движения
   const handleMovement = async (targetCoordinate: HexCoordinate) => {
-    console.log('handleMovement called:', targetCoordinate);
-    console.log('selectedUnitData:', selectedUnitData);
-    console.log('currentGame:', currentGame);
-    console.log('authToken:', authToken);
     
     if (!selectedUnitData || !currentGame?.id || !authToken) {
-      console.log('Missing required data for movement');
       return;
     }
 
@@ -477,8 +472,6 @@ const Game: React.FC = () => {
         { unit_id: selectedUnit!, to_hex: positionString },
         authToken
       );
-      
-      console.log('Movement response:', response);
 
       if (response.success) {
         // Обновляем данные юнита с сервера
@@ -542,8 +535,6 @@ const Game: React.FC = () => {
           message: `${selectedUnitData.name} перемещен в ${positionString}`,
           read: false
         });
-
-        console.log('Movement completed successfully');
       } else {
         addNotification({
           type: NotificationType.Error,
@@ -851,12 +842,6 @@ const Game: React.FC = () => {
   // Обработчик клика по юниту
   const handleUnitClick = async (unitId: string, unitData: any) => {
     const isTaskForce = unitData.isTaskForce === true || (unitData.name && (!unitData.type || unitData.type === 'taskforce'));
-    console.log('🎯 Unit clicked:', unitId, 'data:', {
-      name: unitData.name,
-      type: unitData.type,
-      isTaskForce: isTaskForce,
-      hasPosition: !!unitData.position
-    });
     
     // Если кликнули на уже выбранный юнит - сбрасываем выбор
     if (selectedUnit === unitId) {
@@ -934,7 +919,6 @@ const Game: React.FC = () => {
       // Получаем доступные гексы для движения с сервера
       if (currentPosition && currentGame?.id && authToken) {
         try {
-          console.log('🚀 Loading available moves for unit:', unitId, 'type:', unitData.type || unitData.name);
           const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unitId, authToken);
           // console.log('🎯 Server response - available_hexes:', availableMovesResponse.available_hexes);
           // console.log('🎯 Server response - max_distance:', availableMovesResponse.max_distance);
@@ -988,7 +972,6 @@ const Game: React.FC = () => {
         }
       }
     } else {
-      console.log('No ship config found for unit and not a Task Force');
       setAvailableMovementHexes([]);
     }
   };
@@ -1012,15 +995,12 @@ const Game: React.FC = () => {
 
     // Если нет выбранного юнита, просто выходим
     if (!selectedUnit || !selectedUnitData) {
-      console.log('No selected unit or unit data');
       return;
     }
 
     // Проверяем, что мы находимся в фазе движения
     const currentPhase = getTurnData(currentTurn)?.current_phase;
-    console.log('Current phase:', currentPhase);
     if (currentPhase !== 'movement') {
-      console.log('Not in movement phase');
       return;
     }
 
@@ -1029,15 +1009,10 @@ const Game: React.FC = () => {
       hex.coordinate.col === coordinate.col && 
       hex.coordinate.row === coordinate.row
     );
-    console.log('Is available for movement:', isAvailableForMovement);
-    console.log('Available movement hexes:', availableMovementHexes);
 
     if (isAvailableForMovement) {
-      console.log('Executing movement to:', coordinate);
       // Выполняем движение
       handleMovement(coordinate);
-    } else {
-      console.log('Hex not available for movement');
     }
   };
 
