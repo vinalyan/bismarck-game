@@ -570,9 +570,21 @@ func (h *MovementHandler) getMovementHistory(gameID, unitID string, _ int) ([]*m
 
 // isTaskForce проверяет, является ли переданный ID Task Force
 func (h *MovementHandler) isTaskForce(gameID, unitID string) bool {
-	// Пытаемся получить Task Force по ID
+	// Сначала пытаемся получить Task Force по ID
 	_, err := h.taskForceService.GetTaskForceByID(unitID)
-	return err == nil
+	if err == nil {
+		return true
+	}
+	
+	// Если не нашли Task Force, проверяем, не является ли это ID юнита в составе Task Force
+	// Для этого нужно проверить, есть ли у юнита task_force_id
+	unit, err := h.unitService.GetNavalUnitByID(unitID)
+	if err != nil {
+		return false
+	}
+	
+	// Если у юнита есть task_force_id, значит это ID юнита, а не Task Force
+	return unit.TaskForceID != ""
 }
 
 // getTaskForceAvailableMoves рассчитывает доступные ходы для Task Force
