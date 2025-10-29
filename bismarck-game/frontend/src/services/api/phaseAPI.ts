@@ -41,7 +41,6 @@ export const phaseAPI = {
   getCurrentPhase: async (gameId: string): Promise<GameTurn | null> => {
     try {
       const response = await apiClient.get(`/api/phases/current?game_id=${gameId}`);
-      console.log('📋 phaseAPI.getCurrentPhase response:', JSON.stringify(response.data, null, 2));
       
       // Обрабатываем вложенную структуру ответа
       let turnData = response.data;
@@ -53,7 +52,6 @@ export const phaseAPI = {
         turnData = turnData.data;
       }
       
-      console.log('📋 Extracted turn data:', turnData);
       return turnData;
     } catch (error: any) {
       if (error.response?.status === 404) {

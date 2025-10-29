@@ -342,9 +342,6 @@ const Game: React.FC = () => {
         return;
       }
 
-      console.log('🔔 WebSocket game event received:', eventData);
-      console.log('🔍 eventData.event:', eventData.event);
-      console.log('🔍 eventData keys:', Object.keys(eventData));
 
       // Получаем сторону игрока для API вызовов
       const currentPlayerSide = getPlayerSideString();
@@ -359,16 +356,10 @@ const Game: React.FC = () => {
               gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15)
             ]);
             
-            console.log('🔍 phase_changed: results:', results);
             const updatedTurn = results[0];
-            console.log('🔍 phase_changed: updatedTurn:', updatedTurn);
             
             if (updatedTurn) {
-              console.log('✅ Updated turn from phase_changed event:', updatedTurn);
               setCurrentTurn(updatedTurn);
-              console.log('✅ setCurrentTurn called');
-            } else {
-              console.log('❌ updatedTurn is null or undefined');
             }
             
             // Показываем уведомление
@@ -392,16 +383,10 @@ const Game: React.FC = () => {
               gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15)
             ]);
             
-            console.log('🔍 phase_advanced: results:', results);
             const updatedTurn = results[0];
-            console.log('🔍 phase_advanced: updatedTurn:', updatedTurn);
             
             if (updatedTurn) {
-              console.log('✅ Updated turn from phase_advanced event:', updatedTurn);
               setCurrentTurn(updatedTurn);
-              console.log('✅ setCurrentTurn called');
-            } else {
-              console.log('❌ updatedTurn is null or undefined');
             }
             
             // Показываем уведомление
@@ -432,7 +417,6 @@ const Game: React.FC = () => {
           try {
             const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
             if (updatedTurn) {
-              console.log('✅ Updated turn from turn_completed event:', updatedTurn);
               setCurrentTurn(updatedTurn);
             }
           } catch (error) {
