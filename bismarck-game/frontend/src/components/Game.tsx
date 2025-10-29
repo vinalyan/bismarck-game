@@ -343,6 +343,8 @@ const Game: React.FC = () => {
       }
 
       console.log('🔔 WebSocket game event received:', eventData);
+      console.log('🔍 eventData.event:', eventData.event);
+      console.log('🔍 eventData keys:', Object.keys(eventData));
 
       // Получаем сторону игрока для API вызовов
       const currentPlayerSide = getPlayerSideString();
