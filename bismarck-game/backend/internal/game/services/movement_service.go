@@ -396,6 +396,11 @@ func (s *MovementService) saveMovement(movement *models.Movement) error {
 }
 
 func (s *MovementService) getCurrentTurn(gameID string) int {
+	// Если PhaseManager не инициализирован (для тестов), возвращаем 1
+	if s.phaseManager == nil {
+		return 1
+	}
+
 	// Получаем текущий ход из PhaseManager
 	turn, err := s.phaseManager.GetCurrentPhase(gameID)
 	if err != nil || turn == nil {
@@ -406,6 +411,11 @@ func (s *MovementService) getCurrentTurn(gameID string) int {
 }
 
 func (s *MovementService) getCurrentPhase(gameID string) string {
+	// Если PhaseManager не инициализирован (для тестов), возвращаем "movement"
+	if s.phaseManager == nil {
+		return "movement"
+	}
+
 	// Получаем текущую фазу из PhaseManager
 	turn, err := s.phaseManager.GetCurrentPhase(gameID)
 	if err != nil || turn == nil {
@@ -763,8 +773,8 @@ func (s *MovementService) executeTaskForceUnitMovement(unit *models.NavalUnit, f
 		unit.NoMovementTurnsLeft = unit.SpeedRating.GetMovementRestrictionAfterMove()
 	}
 
-	// Обновляем позицию корабля (синхронизируем с TF)
-	unit.Position = toHex
+	// Юниты в Task Force не должны иметь собственной позиции
+	unit.Position = ""
 
 	// Сохраняем изменения в базе данных
 	err = s.unitService.UpdateNavalUnit(unit)

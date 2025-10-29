@@ -506,10 +506,8 @@ func (s *TaskForceService) CanTaskForceMove(taskForceID string) (bool, string) {
 		return false, fmt.Sprintf("failed to get task force: %v", err)
 	}
 
-	// Проверяем уровень обнаружения
-	if taskForce.DetectionLevel == "sighted" {
-		return false, "task force is sighted and cannot move"
-	}
+	// Примечание: Task Force может двигаться независимо от DetectionLevel
+	// Ограничения DetectionLevel применяются только к составу (добавление/удаление юнитов)
 
 	// Получаем все корабли в составе TF и проверяем их ограничения
 	for _, unitID := range taskForce.Units {
@@ -552,7 +550,7 @@ func (s *TaskForceService) GetTaskForceMovementRestrictions(taskForceID string) 
 
 	restrictions["task_force_id"] = taskForceID
 	restrictions["detection_level"] = taskForce.DetectionLevel
-	restrictions["can_move"] = taskForce.DetectionLevel != "sighted"
+	restrictions["can_move"] = true // Task Force может двигаться независимо от DetectionLevel
 
 	unitRestrictions := make([]map[string]interface{}, 0)
 	maxDistance := 6 // Максимальное расстояние по умолчанию

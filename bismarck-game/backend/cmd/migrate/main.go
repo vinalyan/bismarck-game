@@ -661,23 +661,30 @@ func getMigrations() []Migration {
 			Version:     "013_add_task_forces",
 			Description: "Add Task Forces table for operational groups",
 			SQL: `
-				-- Task Forces table
-				CREATE TABLE IF NOT EXISTS task_forces (
-					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
-					name VARCHAR(20) NOT NULL,
-					owner VARCHAR(50) NOT NULL,
-					nationality VARCHAR(20) NOT NULL, -- 'german' or 'allied' 
-					position VARCHAR(10) NOT NULL,    -- Hex coordinate (e.g., 'A1', 'B15')
-					speed INTEGER NOT NULL DEFAULT 1, -- Effective speed (1-6, determined by slowest unit)
-					units JSONB NOT NULL DEFAULT '[]', -- Array of unit IDs in this task force
-					is_visible BOOLEAN DEFAULT true,
-					detection_level VARCHAR(20) DEFAULT 'none', -- 'none', 'sighted', 'shadowed', 'lost'
-					last_move_turn INTEGER DEFAULT 0, -- Last turn this TF moved
-					is_activated BOOLEAN DEFAULT false, -- Whether TF is activated this turn
-					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-				);
+				-- Update existing task_forces table with missing fields
+				-- Note: table was created in migration 002, but missing fields
+				
+				-- Add missing columns to task_forces table
+				ALTER TABLE task_forces ADD COLUMN IF NOT EXISTS nationality VARCHAR(20) DEFAULT 'german';
+				ALTER TABLE task_forces ADD COLUMN IF NOT EXISTS detection_level VARCHAR(20) DEFAULT 'none';
+				ALTER TABLE task_forces ADD COLUMN IF NOT EXISTS last_move_turn INTEGER DEFAULT 0;
+				ALTER TABLE task_forces ADD COLUMN IF NOT EXISTS is_activated BOOLEAN DEFAULT false;
+				
+				-- Convert units from TEXT[] to JSONB if needed
+				DO $$ 
+				BEGIN
+					-- Check if units column is TEXT[] and convert to JSONB
+					IF EXISTS (SELECT 1 FROM information_schema.columns 
+							  WHERE table_name = 'task_forces' AND column_name = 'units' 
+							  AND data_type = 'ARRAY') THEN
+						-- First backup the data, then alter column type
+						ALTER TABLE task_forces RENAME COLUMN units TO units_old;
+						ALTER TABLE task_forces ADD COLUMN units JSONB DEFAULT '[]';
+						-- Copy data from old column (converting TEXT[] to JSONB)
+						UPDATE task_forces SET units = to_jsonb(units_old);
+						ALTER TABLE task_forces DROP COLUMN units_old;
+					END IF;
+				END $$;
 
 				-- Add indexes for performance
 				CREATE INDEX IF NOT EXISTS idx_task_forces_game_id ON task_forces(game_id);
@@ -728,6 +735,32 @@ func getMigrations() []Migration {
 				DROP FUNCTION IF EXISTS update_task_force_updated_at();
 				ALTER TABLE naval_units DROP COLUMN IF EXISTS task_force_id;
 				DROP TABLE IF EXISTS task_forces;
+			`,
+		},
+		{
+			Version:     "014_add_missing_naval_unit_fields",
+			Description: "Add missing fields to naval_units table",
+			SQL: `
+				-- Add missing fields to naval_units table that are expected by the Go models
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS emergency_removal_turn INTEGER;
+				
+				-- Ensure movement_used is INTEGER, not BOOLEAN (some installations may have it as BOOLEAN)
+				DO $$ 
+				BEGIN
+					-- Check if movement_used is BOOLEAN and convert to INTEGER
+					IF EXISTS (SELECT 1 FROM information_schema.columns 
+							  WHERE table_name = 'naval_units' AND column_name = 'movement_used' 
+							  AND data_type = 'boolean') THEN
+						-- Convert BOOLEAN to INTEGER: true -> 1, false -> 0
+						ALTER TABLE naval_units ALTER COLUMN movement_used TYPE INTEGER USING CASE WHEN movement_used THEN 1 ELSE 0 END;
+					END IF;
+				END $$;
+				
+				-- Add comments for new fields
+				COMMENT ON COLUMN naval_units.emergency_removal_turn IS 'Turn when unit will be automatically removed due to emergency fuel depletion';
+			`,
+			RollbackSQL: `
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS emergency_removal_turn;
 			`,
 		},
 	}

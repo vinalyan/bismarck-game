@@ -121,16 +121,21 @@ func createTestSchema(db *sql.DB) error {
 		filepath.Join(wd, "pkg", "testutil", "schema.sql"),
 		filepath.Join(wd, "..", "..", "pkg", "testutil", "schema.sql"),
 		filepath.Join(wd, "..", "pkg", "testutil", "schema.sql"),
+		filepath.Join(wd, "..", "..", "..", "pkg", "testutil", "schema.sql"),
 		filepath.Join(wd, "schema.sql"),
 	}
 
 	var schemaSQL []byte
 	var schemaPath string
 	for _, path := range possiblePaths {
+		fmt.Printf("Trying schema path: %s\n", path)
 		if data, err := ioutil.ReadFile(path); err == nil {
 			schemaSQL = data
 			schemaPath = path
+			fmt.Printf("Found schema at: %s\n", path)
 			break
+		} else {
+			fmt.Printf("Failed to read %s: %v\n", path, err)
 		}
 	}
 
@@ -141,6 +146,28 @@ func createTestSchema(db *sql.DB) error {
 	}
 
 	fmt.Printf("Using schema file: %s\n", schemaPath)
+
+	// Сначала удаляем все таблицы для чистого старта
+	dropQueries := []string{
+		"DROP TABLE IF EXISTS movements",
+		"DROP TABLE IF EXISTS unit_searches",
+		"DROP TABLE IF EXISTS game_events",
+		"DROP TABLE IF EXISTS unit_visibility",
+		"DROP TABLE IF EXISTS task_force_units",
+		"DROP TABLE IF EXISTS task_forces",
+		"DROP TABLE IF EXISTS air_units",
+		"DROP TABLE IF EXISTS naval_units",
+		"DROP TABLE IF EXISTS games",
+		"DROP TABLE IF EXISTS users",
+	}
+
+	for _, query := range dropQueries {
+		_, err = db.Exec(query)
+		if err != nil {
+			fmt.Printf("Warning: failed to drop table: %v\n", err)
+		}
+	}
+
 	// Выполняем SQL схему
 	_, err = db.Exec(string(schemaSQL))
 	return err
@@ -257,8 +284,14 @@ func createBasicSchema(db *sql.DB) error {
 			game_id UUID NOT NULL REFERENCES games(id),
 			name VARCHAR(100) NOT NULL,
 			owner VARCHAR(50) NOT NULL,
+			nationality VARCHAR(20) NOT NULL DEFAULT 'german',
 			position VARCHAR(10) NOT NULL,
+			speed INTEGER DEFAULT 0,
+			units JSONB DEFAULT '[]',
 			is_visible BOOLEAN DEFAULT true,
+			detection_level VARCHAR(20) DEFAULT 'none',
+			last_move_turn INTEGER DEFAULT 0,
+			is_activated BOOLEAN DEFAULT false,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
