@@ -226,8 +226,13 @@ class WebSocketClient {
 
       case WSMessageType.GameEvent:
         // Событие игры - уведомляем компоненты о необходимости обновить логи
+        // Добавляем тип события к данным, чтобы обработчик мог его определить
+        const eventDetail = {
+          ...message.data,
+          event: message.event // Добавляем event из message
+        };
         window.dispatchEvent(new CustomEvent('gameEventReceived', { 
-          detail: message.data 
+          detail: eventDetail 
         }));
         break;
 

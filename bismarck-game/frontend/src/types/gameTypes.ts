@@ -241,6 +241,7 @@ export enum NotificationType {
 export interface WSMessage {
   type: WSMessageType;
   data: any;
+  event?: string; // Тип события (для game_event сообщений)
   timestamp: number;
   gameId?: string;
   userId?: string;
