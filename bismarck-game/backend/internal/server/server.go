@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -116,7 +117,13 @@ func (s *Server) setupRoutes() {
 	eventLogger, _ := logger.New(logger.INFO, "game-event-service", "stdout")
 	eventService := services.NewGameEventService(s.db, eventLogger)
 
-	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, eventService)
+	// Формируем базовый URL API из адреса сервера
+	apiBaseURL := s.config.Server.Address
+	if apiBaseURL != "" && !strings.HasPrefix(apiBaseURL, "http://") && !strings.HasPrefix(apiBaseURL, "https://") {
+		apiBaseURL = "http://" + apiBaseURL
+	}
+
+	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, eventService, s.wsHub, apiBaseURL)
 
 	// Создаем сервисы для движения
 	visibilityLogger, _ := logger.New(logger.INFO, "visibility-service", "stdout")

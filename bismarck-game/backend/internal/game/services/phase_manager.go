@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"time"
 
 	"bismarck-game/backend/internal/game/models"
+	"bismarck-game/backend/internal/websocket"
 )
 
 type PhaseManager struct {
@@ -14,14 +17,20 @@ type PhaseManager struct {
 	unitService   *UnitService
 	phaseHandlers map[models.GamePhase]models.PhaseHandler
 	eventService  *GameEventService
+	wsHub         *websocket.Hub
+	httpClient    *http.Client
+	apiBaseURL    string
 }
 
-func NewPhaseManager(db *sql.DB, unitService *UnitService, eventService *GameEventService) *PhaseManager {
+func NewPhaseManager(db *sql.DB, unitService *UnitService, eventService *GameEventService, wsHub *websocket.Hub, apiBaseURL string) *PhaseManager {
 	pm := &PhaseManager{
 		db:            db,
 		unitService:   unitService,
 		phaseHandlers: make(map[models.GamePhase]models.PhaseHandler),
 		eventService:  eventService,
+		wsHub:         wsHub,
+		httpClient:    &http.Client{Timeout: 5 * time.Second},
+		apiBaseURL:    apiBaseURL,
 	}
 
 	// Регистрируем обработчики фаз
@@ -300,6 +309,19 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 
 	log.Printf("Started phase %s for game %s turn %d", phase, gameID, turnNumber)
 
+	// Отправляем WebSocket уведомление о смене фазы
+	if pm.wsHub != nil {
+		pm.wsHub.BroadcastGameEvent(gameID, "phase_changed", map[string]interface{}{
+			"phase":       string(phase),
+			"turn_number": turnNumber,
+			"game_id":     gameID,
+			"message":     fmt.Sprintf("Фаза изменена на: %s", phase),
+		})
+	}
+
+	// Вызываем API для получения текущей фазы в горутине
+	go pm.callCurrentPhaseAPI(gameID)
+
 	// Фазы setup и movement требуют ручного завершения
 	// Остальные фазы автоматически переходят к следующей через свои обработчики
 	if phase == models.PhaseMovement {
@@ -495,6 +517,34 @@ func (pm *PhaseManager) GetPhaseRecords(gameID string, turnNumber int) ([]models
 	return records, nil
 }
 
+// callCurrentPhaseAPI вызывает API endpoint для получения текущей фазы
+func (pm *PhaseManager) callCurrentPhaseAPI(gameID string) {
+	if pm.apiBaseURL == "" || pm.httpClient == nil {
+		return
+	}
+
+	// Формируем URL запроса
+	apiURL := fmt.Sprintf("%s/api/phases/current?game_id=%s", pm.apiBaseURL, url.QueryEscape(gameID))
+
+	log.Printf("🔗 Calling API: GET %s", apiURL)
+
+	// Выполняем HTTP запрос
+	req, err := http.NewRequest("GET", apiURL, nil)
+	if err != nil {
+		log.Printf("❌ Failed to create API request: %v", err)
+		return
+	}
+
+	resp, err := pm.httpClient.Do(req)
+	if err != nil {
+		log.Printf("❌ Failed to call API: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	log.Printf("✅ API call completed: GET %s - Status: %d", apiURL, resp.StatusCode)
+}
+
 // NextPhase переходит к следующей фазе
 func (pm *PhaseManager) NextPhase(gameID string) error {
 	turn, err := pm.GetCurrentPhase(gameID)
@@ -540,6 +590,21 @@ func (pm *PhaseManager) NextPhase(gameID string) error {
 	}
 
 	log.Printf("Advanced to next phase %s for game %s turn %d", nextPhase, gameID, turn.TurnNumber)
+
+	// Отправляем WebSocket уведомление о переходе к следующей фазе
+	if pm.wsHub != nil {
+		pm.wsHub.BroadcastGameEvent(gameID, "phase_advanced", map[string]interface{}{
+			"from_phase":  string(turn.CurrentPhase),
+			"to_phase":    string(nextPhase),
+			"turn_number": turn.TurnNumber,
+			"game_id":     gameID,
+			"message":     fmt.Sprintf("Переход с фазы %s на %s", turn.CurrentPhase, nextPhase),
+		})
+	}
+
+	// Вызываем API для получения текущей фазы в горутине
+	go pm.callCurrentPhaseAPI(gameID)
+
 	return nil
 }
 
@@ -557,6 +622,18 @@ func (pm *PhaseManager) CompleteTurn(gameID string, turnNumber int) error {
 	if err != nil {
 		return fmt.Errorf("failed to complete turn: %v", err)
 	}
+
+	// Отправляем WebSocket уведомление о завершении хода
+	if pm.wsHub != nil {
+		pm.wsHub.BroadcastGameEvent(gameID, "turn_completed", map[string]interface{}{
+			"completed_turn": turnNumber,
+			"game_id":        gameID,
+			"message":        fmt.Sprintf("Ход %d завершен", turnNumber),
+		})
+	}
+
+	// Вызываем API для получения текущей фазы в горутине
+	go pm.callCurrentPhaseAPI(gameID)
 
 	// Начинаем следующий ход
 	_, err = pm.StartTurn(gameID)

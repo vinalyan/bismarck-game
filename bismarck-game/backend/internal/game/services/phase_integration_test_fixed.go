@@ -3,6 +3,7 @@ package services
 import (
 	"bismarck-game/backend/internal/config"
 	"bismarck-game/backend/internal/game/models"
+	"bismarck-game/backend/internal/websocket"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/testutil"
@@ -25,7 +26,11 @@ func TestPhaseSequenceIntegration(t *testing.T) {
 	unitService := createTestUnitService(db)
 	eventLogger, _ := logger.New(logger.INFO, "test-event-service", "stdout")
 	eventService := NewGameEventService(db, eventLogger)
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService)
+	// Создаем WebSocket Hub для тестов
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+	
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 
 	// Тест 1: Первый ход - последовательность фаз
 	t.Run("FirstTurnPhaseSequence", func(t *testing.T) {
@@ -189,7 +194,11 @@ func TestPhaseRecordsIntegration(t *testing.T) {
 	unitService := createTestUnitService(db)
 	eventLogger, _ := logger.New(logger.INFO, "test-event-service", "stdout")
 	eventService := NewGameEventService(db, eventLogger)
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService)
+	// Создаем WebSocket Hub для тестов
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+	
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 	gameID := "test-game-records"
 	turnNumber := 1
 
@@ -303,7 +312,11 @@ func TestPhaseHandlersIntegration(t *testing.T) {
 	unitService := createTestUnitService(db)
 	eventLogger, _ := logger.New(logger.INFO, "test-event-service", "stdout")
 	eventService := NewGameEventService(db, eventLogger)
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService)
+	// Создаем WebSocket Hub для тестов
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+	
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 	gameID := "test-game-handlers"
 	turnNumber := 1
 
@@ -363,7 +376,11 @@ func TestCompleteTurnTransition(t *testing.T) {
 	unitService := createTestUnitService(db)
 	eventLogger, _ := logger.New(logger.INFO, "test-event-service", "stdout")
 	eventService := NewGameEventService(db, eventLogger)
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService)
+	// Создаем WebSocket Hub для тестов
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+	
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 	gameID := "test-game-transition"
 
 	// Создаем игру
