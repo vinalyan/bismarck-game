@@ -4,6 +4,7 @@ import (
 	"bismarck-game/backend/internal/config"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
+	"bismarck-game/backend/internal/websocket"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/testutil"
@@ -30,7 +31,11 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 	// Создаем менеджер фаз и обработчик
 	unitService := createTestUnitService(db.GetConnection())
 	eventService := createTestEventService(db.GetConnection())
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService)
+	// Создаем WebSocket Hub для тестов
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+	
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
@@ -225,7 +230,11 @@ func TestPhaseSequenceAPI(t *testing.T) {
 	// Создаем менеджер фаз и обработчик
 	unitService := createTestUnitService(db.GetConnection())
 	eventService := createTestEventService(db.GetConnection())
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService)
+	// Создаем WebSocket Hub для тестов
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+	
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
@@ -353,7 +362,11 @@ func TestPhaseValidationAPI(t *testing.T) {
 	// Создаем менеджер фаз и обработчик
 	unitService := createTestUnitService(db.GetConnection())
 	eventService := createTestEventService(db.GetConnection())
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService)
+	// Создаем WebSocket Hub для тестов
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+	
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Тест 1: Отсутствующий game_id

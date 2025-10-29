@@ -13,6 +13,7 @@ import (
 	"bismarck-game/backend/internal/config"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
+	"bismarck-game/backend/internal/websocket"
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/testutil"
 
@@ -46,7 +47,11 @@ func setupUnitHandler(t *testing.T) (*UnitHandler, func()) {
 	_ = auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
 	unitService := services.NewUnitService(db, logger)
 	eventService := services.NewGameEventService(db, logger)
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService)
+	// Создаем WebSocket Hub для тестов
+	wsHub := websocket.NewHub()
+	go wsHub.Run()
+	
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
 
 	movementService := services.NewMovementService(db, logger, nil, phaseManager, unitService, nil, eventService)
 	taskForceService := services.NewTaskForceService(db, logger, unitService, movementService)
