@@ -41,7 +41,20 @@ export const phaseAPI = {
   getCurrentPhase: async (gameId: string): Promise<GameTurn | null> => {
     try {
       const response = await apiClient.get(`/api/phases/current?game_id=${gameId}`);
-      return response.data.data;
+      console.log('📋 phaseAPI.getCurrentPhase response:', JSON.stringify(response.data, null, 2));
+      
+      // Обрабатываем вложенную структуру ответа
+      let turnData = response.data;
+      if (turnData.data) {
+        turnData = turnData.data;
+      }
+      // Если data.data существует, используем его
+      if (turnData.data) {
+        turnData = turnData.data;
+      }
+      
+      console.log('📋 Extracted turn data:', turnData);
+      return turnData;
     } catch (error: any) {
       if (error.response?.status === 404) {
         // Нет активного хода
