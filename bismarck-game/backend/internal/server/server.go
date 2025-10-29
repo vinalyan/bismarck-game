@@ -120,7 +120,12 @@ func (s *Server) setupRoutes() {
 	// Формируем базовый URL API из адреса сервера
 	apiBaseURL := s.config.Server.Address
 	if apiBaseURL != "" && !strings.HasPrefix(apiBaseURL, "http://") && !strings.HasPrefix(apiBaseURL, "https://") {
-		apiBaseURL = "http://" + apiBaseURL
+		// Если адрес начинается с ":", добавляем localhost
+		if strings.HasPrefix(apiBaseURL, ":") {
+			apiBaseURL = "http://localhost" + apiBaseURL
+		} else {
+			apiBaseURL = "http://" + apiBaseURL
+		}
 	}
 
 	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, eventService, s.wsHub, apiBaseURL)

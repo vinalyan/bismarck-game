@@ -330,7 +330,7 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 	// Остальные фазы автоматически переходят к следующей через свои обработчики
 	if phase == models.PhaseMovement {
 		log.Printf("Phase %s requires manual completion", phase)
-		
+
 		// Дополнительный вызов API для фазы движения
 		go pm.callCurrentPhaseAPI(gameID)
 	}
@@ -526,7 +526,15 @@ func (pm *PhaseManager) GetPhaseRecords(gameID string, turnNumber int) ([]models
 
 // callCurrentPhaseAPI вызывает API endpoint для получения текущей фазы
 func (pm *PhaseManager) callCurrentPhaseAPI(gameID string) {
-	if pm.apiBaseURL == "" || pm.httpClient == nil {
+	log.Printf("🔗 callCurrentPhaseAPI called for game %s (apiBaseURL=%s)", gameID, pm.apiBaseURL)
+	
+	if pm.apiBaseURL == "" {
+		log.Printf("⚠️ apiBaseURL is empty, skipping API call")
+		return
+	}
+	
+	if pm.httpClient == nil {
+		log.Printf("⚠️ httpClient is nil, skipping API call")
 		return
 	}
 
