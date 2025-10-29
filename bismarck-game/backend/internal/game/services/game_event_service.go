@@ -87,10 +87,11 @@ func (s *GameEventService) LogPhaseChangeEvent(gameID string, turn int, fromPhas
 		Turn:        turn,
 		Phase:       toPhase,
 		EventType:   models.EventTypePhaseChange,
-		Description: fmt.Sprintf("Фаза изменена с %s на %s", fromPhase, toPhase),
+		Description: fmt.Sprintf("Фаза изменена: %s → %s (ход %d)", fromPhase, toPhase, turn),
 		Data: map[string]interface{}{
 			"from_phase": fromPhase,
 			"to_phase":   toPhase,
+			"turn":       turn,
 		},
 		Visibility: map[string]interface{}{
 			"is_public": true, // Смена фаз видна всем игрокам

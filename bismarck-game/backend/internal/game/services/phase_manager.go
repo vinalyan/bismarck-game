@@ -595,6 +595,11 @@ func (pm *PhaseManager) NextPhase(gameID string) error {
 
 	log.Printf("Advanced to next phase %s for game %s turn %d", nextPhase, gameID, turn.TurnNumber)
 
+	// Логируем событие смены фазы в БД
+	if pm.eventService != nil {
+		pm.eventService.LogPhaseChangeEvent(gameID, turn.TurnNumber, string(turn.CurrentPhase), string(nextPhase))
+	}
+
 	// Отправляем WebSocket уведомление о переходе к следующей фазе
 	if pm.wsHub != nil {
 		pm.wsHub.BroadcastGameEvent(gameID, "phase_advanced", map[string]interface{}{
