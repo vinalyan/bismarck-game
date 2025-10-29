@@ -38,22 +38,22 @@ func (s *UnitService) SetUnitSunkHandler(handler UnitSunkHandler) {
 func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 	query := `
 		INSERT INTO naval_units (
-			game_id, name, type, class, owner, nationality, position, setup_hex,
+			game_id, name, type, category, class, owner, nationality, position, setup_hex,
 			evasion, base_evasion, speed_rating, fuel, max_fuel,
 			hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
 			secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
 			base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			status, detection_level, damage, is_emergency_fuel, emergency_turn
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-			$14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-			$25, $26, $27, $28, $29
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+			$15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25,
+			$26, $27, $28, $29, $30
 		) RETURNING id, created_at, updated_at`
 
 	damageJSON, _ := json.Marshal(unit.Damage)
 
 	err := s.db.QueryRow(query,
-		unit.GameID, unit.Name, unit.Type, unit.Class, unit.Owner, unit.Nationality, unit.Position, unit.SetupHex,
+		unit.GameID, unit.Name, unit.Type, unit.Category, unit.Class, unit.Owner, unit.Nationality, unit.Position, unit.SetupHex,
 		unit.Evasion, unit.BaseEvasion, unit.SpeedRating, unit.Fuel, unit.MaxFuel,
 		unit.HullBoxes, unit.CurrentHull, unit.PrimaryArmamentBow, unit.PrimaryArmamentStern,
 		unit.SecondaryArmament, unit.BasePrimaryArmamentBow, unit.BasePrimaryArmamentStern,
@@ -538,7 +538,8 @@ func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, playe
 			GameID:                   gameID,
 			Name:                     shipConfig.Name,
 			Type:                     models.UnitType(shipConfig.Type),
-			Class:                    shipConfig.Name, // Используем имя как класс
+			Category:                 models.UnitCategoryNaval, // Устанавливаем категорию как naval
+			Class:                    shipConfig.Name,          // Используем имя как класс
 			Owner:                    ownerID,
 			Nationality:              shipConfig.Side,
 			Position:                 shipConfig.SetupHex, // Используем setupHex как стартовую позицию

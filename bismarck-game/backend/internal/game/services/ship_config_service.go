@@ -65,7 +65,8 @@ func (scs *ShipConfigService) CreateNavalUnitFromConfig(shipID, gameID, owner st
 		GameID:                   gameID,
 		Name:                     shipConfig.Name,
 		Type:                     models.UnitType(shipConfig.Type),
-		Class:                    shipConfig.Name, // Используем название как класс
+		Category:                 models.UnitCategoryNaval, // Устанавливаем категорию как naval
+		Class:                    shipConfig.Name,          // Используем название как класс
 		Owner:                    owner,
 		Position:                 position,
 		MaxFuel:                  shipConfig.MaxFuel,

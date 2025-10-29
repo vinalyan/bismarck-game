@@ -766,6 +766,35 @@ func getMigrations() []Migration {
 				ALTER TABLE naval_units DROP COLUMN IF EXISTS emergency_removal_turn;
 			`,
 		},
+		{
+			Version:     "015_add_unit_type_field",
+			Description: "Add type field to naval_units table for unit classification",
+			SQL: `
+				-- Add category field to naval_units table
+				ALTER TABLE naval_units ADD COLUMN IF NOT EXISTS category VARCHAR(20) DEFAULT 'naval';
+				
+				-- Add constraint for valid unit categories
+				DO $$ 
+				BEGIN
+					IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints 
+								  WHERE constraint_name = 'check_unit_category' AND table_name = 'naval_units') THEN
+						ALTER TABLE naval_units ADD CONSTRAINT check_unit_category 
+							CHECK (category IN ('naval', 'taskforce', 'air'));
+					END IF;
+				END $$;
+				
+				-- Add index for performance
+				CREATE INDEX IF NOT EXISTS idx_naval_units_category ON naval_units(category);
+				
+				-- Add comment
+				COMMENT ON COLUMN naval_units.category IS 'Unit category: naval, taskforce, or air';
+			`,
+			RollbackSQL: `
+				DROP INDEX IF EXISTS idx_naval_units_category;
+				ALTER TABLE naval_units DROP CONSTRAINT IF EXISTS check_unit_category;
+				ALTER TABLE naval_units DROP COLUMN IF EXISTS category;
+			`,
+		},
 	}
 }
 

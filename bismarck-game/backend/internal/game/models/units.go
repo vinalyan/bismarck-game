@@ -10,6 +10,15 @@ import (
 // UnitType представляет тип юнита
 type UnitType string
 
+// UnitCategory представляет категорию юнита (naval, taskforce, air)
+type UnitCategory string
+
+const (
+	UnitCategoryNaval     UnitCategory = "naval"
+	UnitCategoryTaskForce UnitCategory = "taskforce"
+	UnitCategoryAir       UnitCategory = "air"
+)
+
 // Морские юниты (корабли)
 const (
 	// BB - Линейный корабль (Battleship)
@@ -150,22 +159,23 @@ const (
 
 // NavalUnit представляет морской юнит
 type NavalUnit struct {
-	ID          string    `json:"id" db:"id"`
-	GameID      string    `json:"game_id" db:"game_id"`
-	Name        string    `json:"name" db:"name"`
-	Type        UnitType  `json:"type" db:"type"`
-	Class       string    `json:"class" db:"class"`
-	Owner       string    `json:"owner" db:"owner"`
-	Nationality string    `json:"nationality" db:"nationality"`
-	Position    string    `json:"position" db:"position"`   // Hex coordinate
-	SetupHex    string    `json:"setup_hex" db:"setup_hex"` // Стартовая позиция при начале игры
-	Evasion     int       `json:"evasion" db:"evasion"`     // Скорость в узлах
-	BaseEvasion int       `json:"base_evasion" db:"base_evasion"`
-	SpeedRating SpeedType `json:"speed_rating" db:"speed_rating"` // F, M, S, VS
-	Fuel        int       `json:"fuel" db:"fuel"`
-	MaxFuel     int       `json:"max_fuel" db:"max_fuel"`
-	HullBoxes   int       `json:"hull_boxes" db:"hull_boxes"`
-	CurrentHull int       `json:"current_hull" db:"current_hull"`
+	ID          string       `json:"id" db:"id"`
+	GameID      string       `json:"game_id" db:"game_id"`
+	Name        string       `json:"name" db:"name"`
+	Type        UnitType     `json:"type" db:"type"`
+	Category    UnitCategory `json:"category" db:"category"`
+	Class       string       `json:"class" db:"class"`
+	Owner       string       `json:"owner" db:"owner"`
+	Nationality string       `json:"nationality" db:"nationality"`
+	Position    string       `json:"position" db:"position"`   // Hex coordinate
+	SetupHex    string       `json:"setup_hex" db:"setup_hex"` // Стартовая позиция при начале игры
+	Evasion     int          `json:"evasion" db:"evasion"`     // Скорость в узлах
+	BaseEvasion int          `json:"base_evasion" db:"base_evasion"`
+	SpeedRating SpeedType    `json:"speed_rating" db:"speed_rating"` // F, M, S, VS
+	Fuel        int          `json:"fuel" db:"fuel"`
+	MaxFuel     int          `json:"max_fuel" db:"max_fuel"`
+	HullBoxes   int          `json:"hull_boxes" db:"hull_boxes"`
+	CurrentHull int          `json:"current_hull" db:"current_hull"`
 
 	// Вооружение (простые числовые характеристики)
 	PrimaryArmamentBow   int `json:"primary_armament_bow" db:"primary_armament_bow"`     // Основное вооружение (нос) - текущее
