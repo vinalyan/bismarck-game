@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { gameEventAPI, GameEvent } from '../services/api/gameEventAPI';
+import { phaseAPI } from '../services/api/phaseAPI';
 import { useGameStore } from '../stores/gameStore';
 import './GameLog.css';
 
@@ -35,8 +36,12 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
     // const interval = setInterval(loadEvents, 5000);
     
     // Слушаем WebSocket события для мгновенного обновления
-    const handleGameEvent = () => {
-      loadEvents();
+    const handleGameEvent = async () => {
+      // Загружаем и события, и текущую фазу
+      await Promise.all([
+        loadEvents(),
+        phaseAPI.getCurrentPhase(gameId).catch(err => console.error('Error loading current phase:', err))
+      ]);
     };
     
     // Слушаем события manual refresh для обновления лога

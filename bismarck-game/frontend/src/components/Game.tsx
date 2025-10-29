@@ -13,6 +13,7 @@ import { shipsAPI } from '../services/api/shipsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
 import { mapService, MapStructure } from '../services/api/mapService';
+import { gameEventAPI } from '../services/api/gameEventAPI';
 import { GameTurnResponse, PHASE_NAMES } from '../types/phaseTypes';
 import wsClient from '../services/websocket/websocketClient';
 import HexMap from './HexMap';
@@ -332,12 +333,16 @@ const Game: React.FC = () => {
       // Обрабатываем разные типы событий фаз
       switch (eventData.event) {
         case 'phase_changed':
-          // Обновляем текущую фазу
+          // Обновляем текущую фазу и события игры
           try {
-            const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
-            if (updatedTurn) {
-              setCurrentTurn(updatedTurn);
-            }
+            await Promise.all([
+              phaseAPI.getCurrentPhase(currentGame.id).then(updatedTurn => {
+                if (updatedTurn) {
+                  setCurrentTurn(updatedTurn);
+                }
+              }),
+              gameEventAPI.getGameEvents(currentGame.id, playerSide || 'german', 15)
+            ]);
             
             // Показываем уведомление
             const phaseName = eventData.data?.phase ? PHASE_NAMES[eventData.data.phase as GamePhase] : 'Неизвестная фаза';
@@ -353,12 +358,16 @@ const Game: React.FC = () => {
           break;
 
         case 'phase_advanced':
-          // Обновляем текущую фазу
+          // Обновляем текущую фазу и события игры
           try {
-            const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
-            if (updatedTurn) {
-              setCurrentTurn(updatedTurn);
-            }
+            await Promise.all([
+              phaseAPI.getCurrentPhase(currentGame.id).then(updatedTurn => {
+                if (updatedTurn) {
+                  setCurrentTurn(updatedTurn);
+                }
+              }),
+              gameEventAPI.getGameEvents(currentGame.id, playerSide || 'german', 15)
+            ]);
             
             // Показываем уведомление
             const fromPhase = eventData.data?.from_phase ? PHASE_NAMES[eventData.data.from_phase as GamePhase] : 'Неизвестная фаза';
