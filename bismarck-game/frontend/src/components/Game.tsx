@@ -302,18 +302,20 @@ const Game: React.FC = () => {
   useEffect(() => {
     if (currentGame?.id && authToken) {
       console.log('🔄 Connecting WebSocket with game_id:', currentGame.id);
-      wsClient.connect(authToken, currentGame.id).catch((error) => {
-        console.error('Failed to connect WebSocket with game_id:', error);
-      });
-    }
-    
-    // Отключение WebSocket при выходе из игры
-    return () => {
-      if (currentGame?.id) {
+      
+      // Небольшая задержка перед подключением
+      const timer = setTimeout(() => {
+        wsClient.connect(authToken, currentGame.id).catch((error) => {
+          console.error('Failed to connect WebSocket with game_id:', error);
+        });
+      }, 100);
+      
+      return () => {
+        clearTimeout(timer);
         console.log('🔄 Disconnecting WebSocket for game_id:', currentGame.id);
         wsClient.disconnect();
-      }
-    };
+      };
+    }
   }, [currentGame?.id, authToken]);
 
   // Обработчик WebSocket событий смены фаз
