@@ -525,12 +525,12 @@ func (pm *PhaseManager) GetPhaseRecords(gameID string, turnNumber int) ([]models
 // callCurrentPhaseAPI вызывает API endpoint для получения текущей фазы
 func (pm *PhaseManager) callCurrentPhaseAPI(gameID string) {
 	log.Printf("🔗 callCurrentPhaseAPI called for game %s (apiBaseURL=%s)", gameID, pm.apiBaseURL)
-	
+
 	if pm.apiBaseURL == "" {
 		log.Printf("⚠️ apiBaseURL is empty, skipping API call")
 		return
 	}
-	
+
 	if pm.httpClient == nil {
 		log.Printf("⚠️ httpClient is nil, skipping API call")
 		return

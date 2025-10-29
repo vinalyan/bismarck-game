@@ -60,6 +60,20 @@ const Game: React.FC = () => {
     return null;
   };
 
+  // Определяем сторону игрока для API вызовов (строка 1077 уже определяет playerSide)
+  const getPlayerSideString = (): string => {
+    if (!currentGame || !user) return 'unknown';
+    
+    if (currentGame.player1_id === user.id) {
+      return 'german'; // Player1 всегда немцы
+    }
+    if (currentGame.player2_id === user.id) {
+      return 'allied'; // Player2 всегда союзники
+    }
+    
+    return 'unknown';
+  };
+
   const [loadingShips] = useState(false);
   const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
   const [taskForces, setTaskForces] = useState<TaskForce[]>([]);
@@ -330,19 +344,24 @@ const Game: React.FC = () => {
 
       console.log('🔔 WebSocket game event received:', eventData);
 
+      // Получаем сторону игрока для API вызовов
+      const currentPlayerSide = getPlayerSideString();
+
       // Обрабатываем разные типы событий фаз
       switch (eventData.event) {
         case 'phase_changed':
           // Обновляем текущую фазу и события игры
           try {
-            await Promise.all([
-              phaseAPI.getCurrentPhase(currentGame.id).then(updatedTurn => {
-                if (updatedTurn) {
-                  setCurrentTurn(updatedTurn);
-                }
-              }),
-              gameEventAPI.getGameEvents(currentGame.id, playerSide || 'german', 15)
+            const results = await Promise.all([
+              phaseAPI.getCurrentPhase(currentGame.id),
+              gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15)
             ]);
+            
+            const updatedTurn = results[0];
+            if (updatedTurn) {
+              console.log('✅ Updated turn from phase_changed event:', updatedTurn);
+              setCurrentTurn(updatedTurn);
+            }
             
             // Показываем уведомление
             const phaseName = eventData.data?.phase ? PHASE_NAMES[eventData.data.phase as GamePhase] : 'Неизвестная фаза';
@@ -360,14 +379,16 @@ const Game: React.FC = () => {
         case 'phase_advanced':
           // Обновляем текущую фазу и события игры
           try {
-            await Promise.all([
-              phaseAPI.getCurrentPhase(currentGame.id).then(updatedTurn => {
-                if (updatedTurn) {
-                  setCurrentTurn(updatedTurn);
-                }
-              }),
-              gameEventAPI.getGameEvents(currentGame.id, playerSide || 'german', 15)
+            const results = await Promise.all([
+              phaseAPI.getCurrentPhase(currentGame.id),
+              gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15)
             ]);
+            
+            const updatedTurn = results[0];
+            if (updatedTurn) {
+              console.log('✅ Updated turn from phase_advanced event:', updatedTurn);
+              setCurrentTurn(updatedTurn);
+            }
             
             // Показываем уведомление
             const fromPhase = eventData.data?.from_phase ? PHASE_NAMES[eventData.data.from_phase as GamePhase] : 'Неизвестная фаза';
@@ -397,6 +418,7 @@ const Game: React.FC = () => {
           try {
             const updatedTurn = await phaseAPI.getCurrentPhase(currentGame.id);
             if (updatedTurn) {
+              console.log('✅ Updated turn from turn_completed event:', updatedTurn);
               setCurrentTurn(updatedTurn);
             }
           } catch (error) {
@@ -415,7 +437,7 @@ const Game: React.FC = () => {
     return () => {
       window.removeEventListener('gameEventReceived', handleGameEventReceived as unknown as EventListener);
     };
-  }, [currentGame?.id, addNotification]);
+  }, [currentGame?.id, user?.id, addNotification, getPlayerSideString]);
 
   // Обработчик обновления игры
   useEffect(() => {
