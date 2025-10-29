@@ -25,10 +25,7 @@ function App() {
         setAuthenticated(true);
         setCurrentView(ViewType.Lobby);
         
-        // Подключаемся к WebSocket
-        wsClient.connect(savedToken).catch((error) => {
-          console.error('Failed to connect to WebSocket:', error);
-        });
+        // WebSocket будет подключен когда пользователь выберет игру
       } catch (error) {
         console.error('Error parsing saved user data:', error);
         localStorage.removeItem('authToken');

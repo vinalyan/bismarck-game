@@ -298,15 +298,22 @@ const Game: React.FC = () => {
     };
   }, []);
 
-  // Переподключение WebSocket при смене игры
+  // Подключение WebSocket при входе в игру
   useEffect(() => {
     if (currentGame?.id && authToken) {
-      console.log('🔄 Reconnecting WebSocket with game_id:', currentGame.id);
-      wsClient.disconnect();
+      console.log('🔄 Connecting WebSocket with game_id:', currentGame.id);
       wsClient.connect(authToken, currentGame.id).catch((error) => {
-        console.error('Failed to reconnect WebSocket with game_id:', error);
+        console.error('Failed to connect WebSocket with game_id:', error);
       });
     }
+    
+    // Отключение WebSocket при выходе из игры
+    return () => {
+      if (currentGame?.id) {
+        console.log('🔄 Disconnecting WebSocket for game_id:', currentGame.id);
+        wsClient.disconnect();
+      }
+    };
   }, [currentGame?.id, authToken]);
 
   // Обработчик WebSocket событий смены фаз
