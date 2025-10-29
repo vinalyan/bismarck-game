@@ -1,0 +1,1308 @@
+Running tests...
+go test ./...
+ok  	bismarck-game/backend	(cached)
+?   	bismarck-game/backend/cmd/migrate	[no test files]
+?   	bismarck-game/backend/cmd/server	[no test files]
+?   	bismarck-game/backend/docs	[no test files]
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestRegister (0.03s)
+    auth_handler_test.go:23: 
+        	Error Trace:	auth_handler_test.go:23
+        	            				auth_handler_test.go:54
+        	Error:      	Received unexpected error:
+        	            	failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+        	Test:       	TestRegister
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestLogin (0.12s)
+    auth_handler_test.go:283: 
+        	Error Trace:	auth_handler_test.go:283
+        	Error:      	Not equal: 
+        	            	expected: 201
+        	            	actual  : 500
+        	Test:       	TestLogin
+    --- FAIL: TestLogin/successful_login (0.00s)
+        auth_handler_test.go:298: 
+            	Error Trace:	auth_handler_test.go:298
+            	Error:      	Not equal: 
+            	            	expected: 200
+            	            	actual  : 500
+            	Test:       	TestLogin/successful_login
+        auth_handler_test.go:303: 
+            	Error Trace:	auth_handler_test.go:303
+            	Error:      	Not equal: 
+            	            	expected: string("Login successful")
+            	            	actual  : <nil>(<nil>)
+            	Test:       	TestLogin/successful_login
+        auth_handler_test.go:304: 
+            	Error Trace:	auth_handler_test.go:304
+            	Error:      	Should NOT be empty, but was <nil>
+            	Test:       	TestLogin/successful_login
+        auth_handler_test.go:305: 
+            	Error Trace:	auth_handler_test.go:305
+            	Error:      	Should NOT be empty, but was <nil>
+            	Test:       	TestLogin/successful_login
+    --- FAIL: TestLogin/invalid_credentials (0.00s)
+        auth_handler_test.go:321: 
+            	Error Trace:	auth_handler_test.go:321
+            	Error:      	Not equal: 
+            	            	expected: 401
+            	            	actual  : 500
+            	Test:       	TestLogin/invalid_credentials
+        auth_handler_test.go:326: 
+            	Error Trace:	auth_handler_test.go:326
+            	Error:      	"Login failed" does not contain "invalid credentials"
+            	Test:       	TestLogin/invalid_credentials
+    --- FAIL: TestLogin/missing_username (0.00s)
+        auth_handler_test.go:346: 
+            	Error Trace:	auth_handler_test.go:346
+            	Error:      	"Username is required" does not contain "username is required"
+            	Test:       	TestLogin/missing_username
+    --- FAIL: TestLogin/missing_password (0.00s)
+        auth_handler_test.go:366: 
+            	Error Trace:	auth_handler_test.go:366
+            	Error:      	"Password is required" does not contain "password is required"
+            	Test:       	TestLogin/missing_password
+    --- FAIL: TestLogin/invalid_JSON (0.00s)
+        auth_handler_test.go:381: 
+            	Error Trace:	auth_handler_test.go:381
+            	Error:      	"Invalid request format" does not contain "invalid JSON"
+            	Test:       	TestLogin/invalid_JSON
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestLogout (0.01s)
+    auth_handler_test.go:23: 
+        	Error Trace:	auth_handler_test.go:23
+        	            				auth_handler_test.go:386
+        	Error:      	Received unexpected error:
+        	            	failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+        	Test:       	TestLogout
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestGetProfile (0.04s)
+    auth_handler_test.go:23: 
+        	Error Trace:	auth_handler_test.go:23
+        	            				auth_handler_test.go:422
+        	Error:      	Received unexpected error:
+        	            	failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+        	Test:       	TestGetProfile
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestUpdateProfile (0.13s)
+    auth_handler_test.go:511: 
+        	Error Trace:	auth_handler_test.go:511
+        	Error:      	Not equal: 
+        	            	expected: 201
+        	            	actual  : 500
+        	Test:       	TestUpdateProfile
+panic: interface conversion: interface {} is nil, not string [recovered]
+	panic: interface conversion: interface {} is nil, not string
+
+goroutine 26 [running]:
+testing.tRunner.func1.2({0x102a3d820, 0x140001b8ab0})
+	/opt/homebrew/Cellar/go/1.19/libexec/src/testing/testing.go:1396 +0x1c8
+testing.tRunner.func1()
+	/opt/homebrew/Cellar/go/1.19/libexec/src/testing/testing.go:1399 +0x378
+panic({0x102a3d820, 0x140001b8ab0})
+	/opt/homebrew/Cellar/go/1.19/libexec/src/runtime/panic.go:884 +0x204
+bismarck-game/backend/internal/api/handlers.TestUpdateProfile(0x0?)
+	/Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/auth_handler_test.go:516 +0x55c
+testing.tRunner(0x140001d0000, 0x102aa6b20)
+	/opt/homebrew/Cellar/go/1.19/libexec/src/testing/testing.go:1446 +0x10c
+created by testing.(*T).Run
+	/opt/homebrew/Cellar/go/1.19/libexec/src/testing/testing.go:1493 +0x300
+FAIL	bismarck-game/backend/internal/api/handlers	0.849s
+?   	bismarck-game/backend/internal/api/middleware	[no test files]
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestGenerateToken (0.05s)
+    auth_service_test.go:132: Failed to setup test database: failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestHashPassword (0.04s)
+    auth_service_test.go:183: Failed to setup test database: failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestGetUserByID (0.12s)
+    auth_service_test.go:260: Failed to register user: failed to create user: pq: relation "users" does not exist
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestUpdateUser (0.03s)
+    auth_service_test.go:290: Failed to setup test database: failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestChangePassword (0.11s)
+    auth_service_test.go:393: Failed to register user: failed to create user: pq: relation "users" does not exist
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestCleanupExpiredSessions (0.01s)
+    auth_service_test.go:427: Failed to setup test database: failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+FAIL
+FAIL	bismarck-game/backend/internal/auth	0.989s
+ok  	bismarck-game/backend/internal/config	(cached)
+ok  	bismarck-game/backend/internal/game/models	(cached)
+?   	bismarck-game/backend/internal/game/restrictions	[no test files]
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestLogMovementEvent (0.05s)
+    --- FAIL: TestLogMovementEvent/successful_movement_event_log (0.00s)
+        game_event_service_test.go:43: 
+            	Error Trace:	game_event_service_test.go:43
+            	Error:      	Received unexpected error:
+            	            	failed to save game event: pq: column "target_id" of relation "game_events" does not exist
+            	Test:       	TestLogMovementEvent/successful_movement_event_log
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestLogPhaseChangeEvent (0.04s)
+    game_event_service_test.go:54: 
+        	Error Trace:	game_event_service_test.go:54
+        	Error:      	Received unexpected error:
+        	            	failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+        	Test:       	TestLogPhaseChangeEvent
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestLogTurnChangeEvent (0.04s)
+    --- FAIL: TestLogTurnChangeEvent/successful_turn_change_event_log (0.00s)
+        game_event_service_test.go:91: 
+            	Error Trace:	game_event_service_test.go:91
+            	Error:      	Received unexpected error:
+            	            	failed to save game event: pq: column "target_id" of relation "game_events" does not exist
+            	Test:       	TestLogTurnChangeEvent/successful_turn_change_event_log
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestGetGameEvents (0.04s)
+    game_event_service_test.go:115: 
+        	Error Trace:	game_event_service_test.go:115
+        	Error:      	Received unexpected error:
+        	            	failed to save game event: pq: column "target_id" of relation "game_events" does not exist
+        	Test:       	TestGetGameEvents
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestSaveEvent (0.04s)
+    game_event_service_test.go:159: 
+        	Error Trace:	game_event_service_test.go:159
+        	Error:      	Received unexpected error:
+        	            	failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+        	Test:       	TestSaveEvent
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestGetGameEventsWithPagination (0.04s)
+    game_event_service_test.go:223: 
+        	Error Trace:	game_event_service_test.go:223
+        	Error:      	Received unexpected error:
+        	            	failed to save game event: pq: column "target_id" of relation "game_events" does not exist
+        	Test:       	TestGetGameEventsWithPagination
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:12 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:12 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:25 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:25 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:50 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:50 Конфигурация структур карты успешно загружена {hasRestrictedDD=true, landAreas=1, nonGameHexes=1}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:74 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:74 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:98 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:98 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:122 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:122 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:165 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-10-29 12:53:08 [INFO] map_structure_service_test.go:165 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-10-29 12:53:08 [INFO] ship_config_service_test.go:14 Загрузка конфигурации кораблей {path=../../../config/ships.json}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=bismarck, shipName=BISMARCK, rulesCount=1}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=prince_of_wales, shipName=P. OF WALES, rulesCount=1}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=king_george_v, shipName=KING GEORGE V, rulesCount=1}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=rodney, shipName=RODNEY, rulesCount=1}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipName=NELSON, rulesCount=1, shipID=nelson}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=new_york, shipName=NEW YORK, rulesCount=1}
+2025-10-29 12:53:08 [INFO] ship_config_service_test.go:14 Конфигурация кораблей и специальные правила успешно загружены {shipsCount=50}
+2025-10-29 12:53:08 [INFO] ship_config_service_test.go:153 Загрузка конфигурации кораблей {path=../../../config/ships.json}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {rulesCount=1, shipID=bismarck, shipName=BISMARCK}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=prince_of_wales, shipName=P. OF WALES, rulesCount=1}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=king_george_v, shipName=KING GEORGE V, rulesCount=1}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=rodney, shipName=RODNEY, rulesCount=1}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {rulesCount=1, shipID=nelson, shipName=NELSON}
+2025-10-29 12:53:08 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=new_york, shipName=NEW YORK, rulesCount=1}
+2025-10-29 12:53:08 [INFO] ship_config_service_test.go:153 Конфигурация кораблей и специальные правила успешно загружены {shipsCount=50}
+2025-10-29 12:53:08 [INFO] ship_config_service_test.go:159 Создан морской юнит из конфигурации {unitID=7a72bef4-e955-4920-90dd-06f0349d77f5, name=BISMARCK, type=BB}
+2025-10-29 12:53:08 [INFO] special_rules_service_test.go:224 Обработаны специальные правила для фазы боя {phase=initial, round=1, unitsCount=2}
+2025-10-29 12:53:08 [INFO] special_rules_service_test.go:232 Обработаны специальные правила для фазы боя {phase=main, round=2, unitsCount=2}
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestCreateTaskForce (0.04s)
+    taskforce_service_test.go:35: 
+        	Error Trace:	taskforce_service_test.go:35
+        	Error:      	Received unexpected error:
+        	            	failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+        	Test:       	TestCreateTaskForce
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestGetTaskForcesByGameID (0.04s)
+    taskforce_service_test.go:81: 
+        	Error Trace:	taskforce_service_test.go:81
+        	Error:      	Received unexpected error:
+        	            	failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+        	Test:       	TestGetTaskForcesByGameID
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestGetTaskForceByID (0.06s)
+    taskforce_service_test.go:174: 
+        	Error Trace:	taskforce_service_test.go:174
+        	Error:      	Received unexpected error:
+        	            	task force must contain at least 2 units
+        	Test:       	TestGetTaskForceByID
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestAddUnitToTaskForce (0.04s)
+    taskforce_service_test.go:192: 
+        	Error Trace:	taskforce_service_test.go:192
+        	Error:      	Received unexpected error:
+        	            	failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+        	Test:       	TestAddUnitToTaskForce
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:08 [INFO] taskforce_service_test.go:316 Created naval unit {name=Test Ship, unit_id=9c7dc8f0-14f6-4a75-bc6d-b5a0b2d52801}
+--- FAIL: TestRemoveUnitFromTaskForce (0.04s)
+    taskforce_service_test.go:329: 
+        	Error Trace:	taskforce_service_test.go:329
+        	Error:      	Received unexpected error:
+        	            	task force must contain at least 2 units
+        	Test:       	TestRemoveUnitFromTaskForce
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestMoveTaskForce (0.04s)
+    taskforce_service_test.go:375: 
+        	Error Trace:	taskforce_service_test.go:375
+        	Error:      	Received unexpected error:
+        	            	task force must contain at least 2 units
+        	Test:       	TestMoveTaskForce
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestDeleteTaskForce (0.04s)
+    taskforce_service_test.go:421: 
+        	Error Trace:	taskforce_service_test.go:421
+        	Error:      	Received unexpected error:
+        	            	task force must contain at least 2 units
+        	Test:       	TestDeleteTaskForce
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:08 [INFO] taskforce_service_test.go:483 Created naval unit {unit_id=0b01c9f7-e90b-459c-bff7-6de21e6f0707, name=Ship 1}
+2025-10-29 12:53:08 [INFO] taskforce_service_test.go:505 Created naval unit {unit_id=7a42ad0c-df5f-4492-9bd4-e27a74e569a6, name=Ship 2}
+2025-10-29 12:53:08 [INFO] taskforce_service.go:127 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=0b01c9f7-e90b-459c-bff7-6de21e6f0707}
+2025-10-29 12:53:08 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=0b01c9f7-e90b-459c-bff7-6de21e6f0707}
+2025-10-29 12:53:08 [INFO] taskforce_service_test.go:517 Unit added to task force and position cleared {unit_id=0b01c9f7-e90b-459c-bff7-6de21e6f0707, unit_name=Ship 1, task_force_id=3fe00490-b458-40bc-947a-58cc4ea786fb}
+2025-10-29 12:53:08 [INFO] taskforce_service.go:127 Updating naval unit in database {speed_rating=F, old_status=active, new_status=active, unit_id=7a42ad0c-df5f-4492-9bd4-e27a74e569a6, position=, no_movement_turns_left=0}
+2025-10-29 12:53:08 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=7a42ad0c-df5f-4492-9bd4-e27a74e569a6}
+2025-10-29 12:53:08 [INFO] taskforce_service_test.go:517 Unit added to task force and position cleared {unit_id=7a42ad0c-df5f-4492-9bd4-e27a74e569a6, unit_name=Ship 2, task_force_id=3fe00490-b458-40bc-947a-58cc4ea786fb}
+2025-10-29 12:53:08 [INFO] taskforce_service_test.go:517 Created task force {task_force_id=3fe00490-b458-40bc-947a-58cc4ea786fb, name=Test Task Force, nationality=german}
+2025-10-29 12:53:08 [ERROR] taskforce_service.go:445 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:585 Created naval unit {name=Fast Ship, unit_id=6cf6c642-0dd7-4a87-a803-3848be01426a}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:607 Created naval unit {name=Slow Ship, unit_id=c8f73f8c-36ba-4680-b622-76d544f7d6a6}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=6cf6c642-0dd7-4a87-a803-3848be01426a, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=6cf6c642-0dd7-4a87-a803-3848be01426a}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:619 Unit added to task force and position cleared {unit_id=6cf6c642-0dd7-4a87-a803-3848be01426a, unit_name=Fast Ship, task_force_id=cee505eb-19f2-478a-aa57-71683af0b7e4}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {speed_rating=M, old_status=active, new_status=active, unit_id=c8f73f8c-36ba-4680-b622-76d544f7d6a6, position=, no_movement_turns_left=0}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=c8f73f8c-36ba-4680-b622-76d544f7d6a6}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:619 Unit added to task force and position cleared {unit_name=Slow Ship, task_force_id=cee505eb-19f2-478a-aa57-71683af0b7e4, unit_id=c8f73f8c-36ba-4680-b622-76d544f7d6a6}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:619 Created task force {name=Test Task Force, nationality=german, task_force_id=cee505eb-19f2-478a-aa57-71683af0b7e4}
+2025-10-29 12:53:09 [ERROR] taskforce_service.go:445 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+--- FAIL: TestGetTaskForceEffectiveSpeed (0.05s)
+    --- FAIL: TestGetTaskForceEffectiveSpeed/calculate_effective_speed (0.00s)
+        taskforce_service_test.go:627: 
+            	Error Trace:	taskforce_service_test.go:627
+            	Error:      	Not equal: 
+            	            	expected: 2
+            	            	actual  : 3
+            	Test:       	TestGetTaskForceEffectiveSpeed/calculate_effective_speed
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:682 Created naval unit {unit_id=57e4d004-f63c-4cf3-9fcf-4f70ba122750, name=Search Ship 1}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:705 Created naval unit {unit_id=53e7cd94-df6a-42b3-9809-5cfab5cede16, name=Search Ship 2}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=57e4d004-f63c-4cf3-9fcf-4f70ba122750, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=57e4d004-f63c-4cf3-9fcf-4f70ba122750}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:717 Unit added to task force and position cleared {unit_id=57e4d004-f63c-4cf3-9fcf-4f70ba122750, unit_name=Search Ship 1, task_force_id=1ac57405-b276-4cc2-a98d-0ed5da1792e2}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=53e7cd94-df6a-42b3-9809-5cfab5cede16, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=53e7cd94-df6a-42b3-9809-5cfab5cede16}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:717 Unit added to task force and position cleared {unit_id=53e7cd94-df6a-42b3-9809-5cfab5cede16, unit_name=Search Ship 2, task_force_id=1ac57405-b276-4cc2-a98d-0ed5da1792e2}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:717 Created task force {task_force_id=1ac57405-b276-4cc2-a98d-0ed5da1792e2, name=Test Task Force, nationality=german}
+2025-10-29 12:53:09 [ERROR] taskforce_service.go:445 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+--- FAIL: TestGetTaskForceTotalSearchFactors (0.05s)
+    --- FAIL: TestGetTaskForceTotalSearchFactors/calculate_total_search_factors (0.00s)
+        taskforce_service_test.go:725: 
+            	Error Trace:	taskforce_service_test.go:725
+            	Error:      	Not equal: 
+            	            	expected: 3
+            	            	actual  : 2
+            	Test:       	TestGetTaskForceTotalSearchFactors/calculate_total_search_factors
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:786 Created naval unit {unit_id=37fd9b56-19a5-4ad3-81b5-bc06aabf6a9c, name=Fast Ship}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:810 Created naval unit {unit_id=98cd27b6-eb77-4da7-b8ac-9a2d9e8570e3, name=Restricted Ship}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=37fd9b56-19a5-4ad3-81b5-bc06aabf6a9c, position=, no_movement_turns_left=0, speed_rating=F}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=37fd9b56-19a5-4ad3-81b5-bc06aabf6a9c}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:822 Unit added to task force and position cleared {unit_name=Fast Ship, task_force_id=ccb23445-4931-4eec-a577-39424bf5fe9e, unit_id=37fd9b56-19a5-4ad3-81b5-bc06aabf6a9c}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=98cd27b6-eb77-4da7-b8ac-9a2d9e8570e3, position=}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=98cd27b6-eb77-4da7-b8ac-9a2d9e8570e3}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:822 Unit added to task force and position cleared {unit_id=98cd27b6-eb77-4da7-b8ac-9a2d9e8570e3, unit_name=Restricted Ship, task_force_id=ccb23445-4931-4eec-a577-39424bf5fe9e}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:822 Created task force {task_force_id=ccb23445-4931-4eec-a577-39424bf5fe9e, name=Mixed Speed TF, nationality=german}
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:902 Created naval unit {unit_id=016edb1d-aba5-41dc-be67-1f3e4e7251c6, name=Free Unit}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:926 Created naval unit {unit_id=fff3d1fb-fc17-4af6-9d0c-d5d6c7a4053e, name=Restricted Unit}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=016edb1d-aba5-41dc-be67-1f3e4e7251c6, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=016edb1d-aba5-41dc-be67-1f3e4e7251c6}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:938 Unit added to task force and position cleared {task_force_id=08a363f5-13ca-493b-b91b-0d9839f14d5c, unit_id=016edb1d-aba5-41dc-be67-1f3e4e7251c6, unit_name=Free Unit}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=S, old_status=active, new_status=active, unit_id=fff3d1fb-fc17-4af6-9d0c-d5d6c7a4053e}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=fff3d1fb-fc17-4af6-9d0c-d5d6c7a4053e}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:938 Unit added to task force and position cleared {unit_name=Restricted Unit, task_force_id=08a363f5-13ca-493b-b91b-0d9839f14d5c, unit_id=fff3d1fb-fc17-4af6-9d0c-d5d6c7a4053e}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:938 Created task force {task_force_id=08a363f5-13ca-493b-b91b-0d9839f14d5c, name=Restricted TF, nationality=german}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:951 Updating naval unit in database {unit_id=016edb1d-aba5-41dc-be67-1f3e4e7251c6, position=A1, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:951 Updated naval unit {unit_id=016edb1d-aba5-41dc-be67-1f3e4e7251c6}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:953 Updating naval unit in database {old_status=active, new_status=active, unit_id=fff3d1fb-fc17-4af6-9d0c-d5d6c7a4053e, position=A1, no_movement_turns_left=0, speed_rating=S}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:953 Updated naval unit {unit_id=fff3d1fb-fc17-4af6-9d0c-d5d6c7a4053e}
+--- FAIL: TestTaskForceMovement_NoMovementTurnsLeft (0.07s)
+    --- FAIL: TestTaskForceMovement_NoMovementTurnsLeft/task_force_cannot_move_when_unit_has_movement_restrictions (0.00s)
+        taskforce_service_test.go:943: 
+            	Error Trace:	taskforce_service_test.go:943
+            	Error:      	Should be false
+            	Test:       	TestTaskForceMovement_NoMovementTurnsLeft/task_force_cannot_move_when_unit_has_movement_restrictions
+            	Messages:   	Task Force should not be able to move when any unit has movement restrictions
+        taskforce_service_test.go:944: 
+            	Error Trace:	taskforce_service_test.go:944
+            	Error:      	"" does not contain "movement restriction"
+            	Test:       	TestTaskForceMovement_NoMovementTurnsLeft/task_force_cannot_move_when_unit_has_movement_restrictions
+            	Messages:   	Reason should mention movement restrictions
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1007 Created naval unit {unit_id=1eb08af6-bb91-4956-b2f7-6d721e5d6f12, name=Fueled Ship}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1030 Created naval unit {unit_id=2e3bac80-afe6-4fe3-96a1-9fc7b9462920, name=No Fuel Ship}
+2025-10-29 12:53:09 [ERROR] unit_service.go:166 Failed to get current turn {game_id=01f6ad96-0295-4be1-827c-962f8d031084, error=pq: column "turn_number" does not exist}
+2025-10-29 12:53:09 [WARN] taskforce_service.go:38 Emergency fuel auto-activated {current_fuel=0, emergency_turn=11, unit_id=2e3bac80-afe6-4fe3-96a1-9fc7b9462920, unit_name=No Fuel Ship}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=1eb08af6-bb91-4956-b2f7-6d721e5d6f12, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=1eb08af6-bb91-4956-b2f7-6d721e5d6f12}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1042 Unit added to task force and position cleared {unit_id=1eb08af6-bb91-4956-b2f7-6d721e5d6f12, unit_name=Fueled Ship, task_force_id=c1011697-df67-4c45-9fbe-33242235784d}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=2e3bac80-afe6-4fe3-96a1-9fc7b9462920, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=2e3bac80-afe6-4fe3-96a1-9fc7b9462920}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1042 Unit added to task force and position cleared {unit_id=2e3bac80-afe6-4fe3-96a1-9fc7b9462920, unit_name=No Fuel Ship, task_force_id=c1011697-df67-4c45-9fbe-33242235784d}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1042 Created task force {name=Fuel Restricted TF, nationality=german, task_force_id=c1011697-df67-4c45-9fbe-33242235784d}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1067 Updating naval unit in database {position=B1, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=2e3bac80-afe6-4fe3-96a1-9fc7b9462920}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1067 Updated naval unit {unit_id=2e3bac80-afe6-4fe3-96a1-9fc7b9462920}
+--- FAIL: TestTaskForceMovement_FuelRestrictions (0.05s)
+    --- FAIL: TestTaskForceMovement_FuelRestrictions/task_force_movement_limited_by_fuel_restrictions (0.00s)
+        taskforce_service_test.go:1050: 
+            	Error Trace:	taskforce_service_test.go:1050
+            	Error:      	"unit No Fuel Ship (2e3bac80-afe6-4fe3-96a1-9fc7b9462920) cannot move" does not contain "fuel"
+            	Test:       	TestTaskForceMovement_FuelRestrictions/task_force_movement_limited_by_fuel_restrictions
+            	Messages:   	Reason should mention fuel restrictions
+        taskforce_service_test.go:1051: Task Force correctly restricted by fuel: unit No Fuel Ship (2e3bac80-afe6-4fe3-96a1-9fc7b9462920) cannot move
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1126 Created naval unit {name=Ship 1, unit_id=0b686e0a-a668-44a6-905f-a7166f87feae}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1148 Created naval unit {unit_id=bfacbccb-2bb1-49b6-b813-6a9ae6f1aedc, name=Ship 2}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=0b686e0a-a668-44a6-905f-a7166f87feae, position=, no_movement_turns_left=0, speed_rating=F}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=0b686e0a-a668-44a6-905f-a7166f87feae}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1160 Unit added to task force and position cleared {task_force_id=26e176c0-6b7b-4621-840d-47331680edc6, unit_id=0b686e0a-a668-44a6-905f-a7166f87feae, unit_name=Ship 1}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=bfacbccb-2bb1-49b6-b813-6a9ae6f1aedc, position=, no_movement_turns_left=0, speed_rating=M, old_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=bfacbccb-2bb1-49b6-b813-6a9ae6f1aedc}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1160 Unit added to task force and position cleared {task_force_id=26e176c0-6b7b-4621-840d-47331680edc6, unit_id=bfacbccb-2bb1-49b6-b813-6a9ae6f1aedc, unit_name=Ship 2}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1160 Created task force {task_force_id=26e176c0-6b7b-4621-840d-47331680edc6, name=Integration Test TF, nationality=german}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=0b686e0a-a668-44a6-905f-a7166f87feae}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updated naval unit {unit_id=0b686e0a-a668-44a6-905f-a7166f87feae}
+2025-10-29 12:53:09 [INFO] movement_service.go:802 Movement saved {movement_id=83837321-f0db-41f9-8981-140625191d0b, unit_id=0b686e0a-a668-44a6-905f-a7166f87feae}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updating naval unit in database {speed_rating=M, old_status=active, new_status=active, unit_id=bfacbccb-2bb1-49b6-b813-6a9ae6f1aedc, position=, no_movement_turns_left=0}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updated naval unit {unit_id=bfacbccb-2bb1-49b6-b813-6a9ae6f1aedc}
+2025-10-29 12:53:09 [INFO] movement_service.go:802 Movement saved {movement_id=52d8fe75-6453-4781-af58-dd3b958c5692, unit_id=bfacbccb-2bb1-49b6-b813-6a9ae6f1aedc}
+2025-10-29 12:53:09 [INFO] movement_service.go:683 Task Force position and last_move_turn updated {task_force_id=26e176c0-6b7b-4621-840d-47331680edc6, new_position=D1, last_move_turn=1}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1177 Task Force movement executed {task_force_id=26e176c0-6b7b-4621-840d-47331680edc6, from=C1, to=D1, units_moved=2}
+--- FAIL: TestExecuteTaskForceMovement_Integration (0.06s)
+    --- FAIL: TestExecuteTaskForceMovement_Integration/task_force_movement_updates_last_move_turn (0.00s)
+        assertion_compare.go:313: 
+            	Error Trace:	taskforce_service_test.go:1208
+            	Error:      	"0" is not greater than "0"
+            	Test:       	TestExecuteTaskForceMovement_Integration/task_force_movement_updates_last_move_turn
+            	Messages:   	[Task Force should still have available moves]
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1269 Created naval unit {unit_id=057e062c-bcfd-4b36-88b4-4bee576eaef9, name=Fast Consumer}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1292 Created naval unit {unit_id=0b03aaf1-736a-4f88-bbb0-a32f774e23bb, name=Slow Non-Consumer}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=057e062c-bcfd-4b36-88b4-4bee576eaef9, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=057e062c-bcfd-4b36-88b4-4bee576eaef9}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1304 Unit added to task force and position cleared {unit_id=057e062c-bcfd-4b36-88b4-4bee576eaef9, unit_name=Fast Consumer, task_force_id=70aca896-ad29-4f11-8c12-dee3ca5cb992}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=0b03aaf1-736a-4f88-bbb0-a32f774e23bb, position=, no_movement_turns_left=0, speed_rating=S, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=0b03aaf1-736a-4f88-bbb0-a32f774e23bb}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1304 Unit added to task force and position cleared {unit_id=0b03aaf1-736a-4f88-bbb0-a32f774e23bb, unit_name=Slow Non-Consumer, task_force_id=70aca896-ad29-4f11-8c12-dee3ca5cb992}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1304 Created task force {task_force_id=70aca896-ad29-4f11-8c12-dee3ca5cb992, name=Fuel Test TF, nationality=german}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=057e062c-bcfd-4b36-88b4-4bee576eaef9, position=}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updated naval unit {unit_id=057e062c-bcfd-4b36-88b4-4bee576eaef9}
+2025-10-29 12:53:09 [INFO] movement_service.go:802 Movement saved {movement_id=6fa641b8-231f-4125-9c0c-5477e20631d7, unit_id=057e062c-bcfd-4b36-88b4-4bee576eaef9}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updating naval unit in database {position=, no_movement_turns_left=2, speed_rating=S, old_status=active, new_status=active, unit_id=0b03aaf1-736a-4f88-bbb0-a32f774e23bb}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updated naval unit {unit_id=0b03aaf1-736a-4f88-bbb0-a32f774e23bb}
+2025-10-29 12:53:09 [INFO] movement_service.go:802 Movement saved {movement_id=9b0190e5-c597-49f7-a4ec-5b6fdbf623db, unit_id=0b03aaf1-736a-4f88-bbb0-a32f774e23bb}
+2025-10-29 12:53:09 [INFO] movement_service.go:683 Task Force position and last_move_turn updated {task_force_id=70aca896-ad29-4f11-8c12-dee3ca5cb992, new_position=E1, last_move_turn=1}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1319 Task Force movement executed {task_force_id=70aca896-ad29-4f11-8c12-dee3ca5cb992, from=D1, to=E1, units_moved=2}
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1394 Created naval unit {unit_id=408626c9-6c33-42b3-beaa-d299cb1277e7, name=Unit 1}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1394 Created naval unit {unit_id=42d7e1a8-44fa-43c2-a07b-216a111b4ec8, name=Unit 2}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1394 Created naval unit {unit_id=2c6b806a-860a-43a7-9dd7-fca7f625d1f9, name=Unit 3}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=408626c9-6c33-42b3-beaa-d299cb1277e7, position=}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=408626c9-6c33-42b3-beaa-d299cb1277e7}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1408 Unit added to task force and position cleared {task_force_id=4d8d5af6-2510-442a-88d3-444446658f4a, unit_id=408626c9-6c33-42b3-beaa-d299cb1277e7, unit_name=Unit 1}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=42d7e1a8-44fa-43c2-a07b-216a111b4ec8, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=42d7e1a8-44fa-43c2-a07b-216a111b4ec8}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1408 Unit added to task force and position cleared {task_force_id=4d8d5af6-2510-442a-88d3-444446658f4a, unit_id=42d7e1a8-44fa-43c2-a07b-216a111b4ec8, unit_name=Unit 2}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=2c6b806a-860a-43a7-9dd7-fca7f625d1f9, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=2c6b806a-860a-43a7-9dd7-fca7f625d1f9}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1408 Unit added to task force and position cleared {unit_id=2c6b806a-860a-43a7-9dd7-fca7f625d1f9, unit_name=Unit 3, task_force_id=4d8d5af6-2510-442a-88d3-444446658f4a}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1408 Created task force {task_force_id=4d8d5af6-2510-442a-88d3-444446658f4a, name=Multi-Unit TF, nationality=german}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=408626c9-6c33-42b3-beaa-d299cb1277e7}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updated naval unit {unit_id=408626c9-6c33-42b3-beaa-d299cb1277e7}
+2025-10-29 12:53:09 [INFO] movement_service.go:802 Movement saved {movement_id=514e0a6a-1eb1-4561-b350-53785ce49357, unit_id=408626c9-6c33-42b3-beaa-d299cb1277e7}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=42d7e1a8-44fa-43c2-a07b-216a111b4ec8}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updated naval unit {unit_id=42d7e1a8-44fa-43c2-a07b-216a111b4ec8}
+2025-10-29 12:53:09 [INFO] movement_service.go:802 Movement saved {unit_id=42d7e1a8-44fa-43c2-a07b-216a111b4ec8, movement_id=cc2d402d-3833-4a99-8c5a-6645d7ed1a26}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updating naval unit in database {speed_rating=M, old_status=active, new_status=active, unit_id=2c6b806a-860a-43a7-9dd7-fca7f625d1f9, position=, no_movement_turns_left=0}
+2025-10-29 12:53:09 [INFO] movement_service.go:780 Updated naval unit {unit_id=2c6b806a-860a-43a7-9dd7-fca7f625d1f9}
+2025-10-29 12:53:09 [INFO] movement_service.go:802 Movement saved {movement_id=7eaee13c-ded1-4d7b-995a-34e4fc2cfb2b, unit_id=2c6b806a-860a-43a7-9dd7-fca7f625d1f9}
+2025-10-29 12:53:09 [INFO] movement_service.go:683 Task Force position and last_move_turn updated {task_force_id=4d8d5af6-2510-442a-88d3-444446658f4a, new_position=F1, last_move_turn=1}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1425 Task Force movement executed {from=E1, to=F1, units_moved=3, task_force_id=4d8d5af6-2510-442a-88d3-444446658f4a}
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1502 Created naval unit {unit_id=ef899443-10b2-4ce9-8226-a1997c1fa856, name=Hidden Ship}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1526 Created naval unit {unit_id=33dd1ce1-ff77-4598-ac9a-0dfc33263f52, name=Sighted Ship}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1568 Created naval unit {unit_id=a7164880-e531-45fb-b753-99cff6b6e2ec, name=Another Hidden Ship}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=ef899443-10b2-4ce9-8226-a1997c1fa856, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=ef899443-10b2-4ce9-8226-a1997c1fa856}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1581 Unit added to task force and position cleared {unit_id=ef899443-10b2-4ce9-8226-a1997c1fa856, unit_name=Hidden Ship, task_force_id=533f26a2-931c-439c-b76a-6e2c802b53e3}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=a7164880-e531-45fb-b753-99cff6b6e2ec}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=a7164880-e531-45fb-b753-99cff6b6e2ec}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1581 Unit added to task force and position cleared {unit_id=a7164880-e531-45fb-b753-99cff6b6e2ec, unit_name=Another Hidden Ship, task_force_id=533f26a2-931c-439c-b76a-6e2c802b53e3}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1581 Created task force {name=Hidden Units TF, nationality=german, task_force_id=533f26a2-931c-439c-b76a-6e2c802b53e3}
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1634 Created naval unit {unit_id=b5d90989-7a04-44ed-9234-8d3cb095e1d9, name=TF Unit 1}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1657 Created naval unit {name=TF Unit 2, unit_id=a6e0495c-eff0-4927-b6ba-18c29cc7bd03}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=b5d90989-7a04-44ed-9234-8d3cb095e1d9}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=b5d90989-7a04-44ed-9234-8d3cb095e1d9}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1669 Unit added to task force and position cleared {task_force_id=9c1efd7f-3ecf-4c24-81c4-d6212c9be24e, unit_id=b5d90989-7a04-44ed-9234-8d3cb095e1d9, unit_name=TF Unit 1}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {speed_rating=M, old_status=active, new_status=active, unit_id=a6e0495c-eff0-4927-b6ba-18c29cc7bd03, position=, no_movement_turns_left=0}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=a6e0495c-eff0-4927-b6ba-18c29cc7bd03}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1669 Unit added to task force and position cleared {unit_id=a6e0495c-eff0-4927-b6ba-18c29cc7bd03, unit_name=TF Unit 2, task_force_id=9c1efd7f-3ecf-4c24-81c4-d6212c9be24e}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1669 Created task force {task_force_id=9c1efd7f-3ecf-4c24-81c4-d6212c9be24e, name=Add Unit Test TF, nationality=german}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1693 Created naval unit {unit_id=21f7bb58-a300-4e24-a04f-9bd20e6d334b, name=Sighted Unit}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1725 Created naval unit {unit_id=c35d017f-80f3-4a24-9125-0401f5c6fd0f, name=Hidden Unit}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:285 Updating naval unit in database {unit_id=c35d017f-80f3-4a24-9125-0401f5c6fd0f, position=G1, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:285 Updated naval unit {unit_id=c35d017f-80f3-4a24-9125-0401f5c6fd0f}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1728 Added unit to task force {task_force_id=9c1efd7f-3ecf-4c24-81c4-d6212c9be24e, unit_id=c35d017f-80f3-4a24-9125-0401f5c6fd0f}
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1781 Created naval unit {name=TF Ship 1, unit_id=56a7774b-3509-4bee-b22d-1c741f6b7789}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1804 Created naval unit {unit_id=a40b1425-de86-44c9-9b6e-74aaef5e7f03, name=TF Ship 2}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=56a7774b-3509-4bee-b22d-1c741f6b7789, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=56a7774b-3509-4bee-b22d-1c741f6b7789}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1817 Unit added to task force and position cleared {unit_id=56a7774b-3509-4bee-b22d-1c741f6b7789, unit_name=TF Ship 1, task_force_id=c0e2e010-075b-4cf9-b44b-409cbface80b}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=a40b1425-de86-44c9-9b6e-74aaef5e7f03, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=a40b1425-de86-44c9-9b6e-74aaef5e7f03}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1817 Unit added to task force and position cleared {unit_id=a40b1425-de86-44c9-9b6e-74aaef5e7f03, unit_name=TF Ship 2, task_force_id=c0e2e010-075b-4cf9-b44b-409cbface80b}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1817 Created task force {task_force_id=c0e2e010-075b-4cf9-b44b-409cbface80b, name=Detection Test TF, nationality=german}
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1888 Created naval unit {unit_id=c08d2156-6822-4821-b7a1-17bddc793e92, name=Base Unit 1}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1911 Created naval unit {unit_id=cadb111c-377b-40c2-a823-f57b5bf043b8, name=Base Unit 2}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=c08d2156-6822-4821-b7a1-17bddc793e92, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=c08d2156-6822-4821-b7a1-17bddc793e92}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1923 Unit added to task force and position cleared {unit_id=c08d2156-6822-4821-b7a1-17bddc793e92, unit_name=Base Unit 1, task_force_id=e9e56ae3-5338-4965-9b9e-12a958fbbfa2}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=cadb111c-377b-40c2-a823-f57b5bf043b8, position=, no_movement_turns_left=0, speed_rating=M}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=cadb111c-377b-40c2-a823-f57b5bf043b8}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1923 Unit added to task force and position cleared {unit_id=cadb111c-377b-40c2-a823-f57b5bf043b8, unit_name=Base Unit 2, task_force_id=e9e56ae3-5338-4965-9b9e-12a958fbbfa2}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1923 Created task force {task_force_id=e9e56ae3-5338-4965-9b9e-12a958fbbfa2, name=Can Add Test TF, nationality=german}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1947 Created naval unit {unit_id=096b825b-4b01-4cac-8fa4-bb00c47e2fb1, name=Hidden Test Unit}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1970 Created naval unit {unit_id=f420a2cf-8e17-4286-9a8b-eabb92073091, name=Sighted Test Unit}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:285 Updating naval unit in database {unit_id=096b825b-4b01-4cac-8fa4-bb00c47e2fb1, position=I1, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-10-29 12:53:09 [INFO] taskforce_service.go:285 Updated naval unit {unit_id=096b825b-4b01-4cac-8fa4-bb00c47e2fb1}
+2025-10-29 12:53:09 [INFO] taskforce_service_test.go:1983 Added unit to task force {task_force_id=e9e56ae3-5338-4965-9b9e-12a958fbbfa2, unit_id=096b825b-4b01-4cac-8fa4-bb00c47e2fb1}
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [INFO] unit_service_test.go:78 Created naval unit {name=Test Ship, unit_id=4bcf68e6-9c1d-4da1-9ded-8fb10bbc3112}
+2025-10-29 12:53:09 [ERROR] unit_service_test.go:91 Failed to create naval unit {error=pq: invalid input syntax for type uuid: ""}
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [ERROR] unit_service_test.go:121 Failed to create air unit {error=pq: null value in column "name" of relation "air_units" violates not-null constraint}
+2025-10-29 12:53:09 [ERROR] unit_service_test.go:134 Failed to create air unit {error=pq: invalid input syntax for type uuid: ""}
+--- FAIL: TestCreateAirUnit (0.04s)
+    --- FAIL: TestCreateAirUnit/successful_creation (0.00s)
+        unit_service_test.go:122: 
+            	Error Trace:	unit_service_test.go:122
+            	Error:      	Received unexpected error:
+            	            	failed to create air unit: pq: null value in column "name" of relation "air_units" violates not-null constraint
+            	Test:       	TestCreateAirUnit/successful_creation
+        unit_service_test.go:123: 
+            	Error Trace:	unit_service_test.go:123
+            	Error:      	Should NOT be empty, but was 
+            	Test:       	TestCreateAirUnit/successful_creation
+        unit_service_test.go:124: 
+            	Error Trace:	unit_service_test.go:124
+            	Error:      	Should not be zero, but was 0001-01-01 00:00:00 +0000 UTC
+            	Test:       	TestCreateAirUnit/successful_creation
+        unit_service_test.go:125: 
+            	Error Trace:	unit_service_test.go:125
+            	Error:      	Should not be zero, but was 0001-01-01 00:00:00 +0000 UTC
+            	Test:       	TestCreateAirUnit/successful_creation
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [ERROR] unit_service_test.go:172 Failed to create naval unit {error=pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"}
+--- FAIL: TestGetNavalUnitsByGameID (0.04s)
+    unit_service_test.go:173: 
+        	Error Trace:	unit_service_test.go:173
+        	Error:      	Received unexpected error:
+        	            	failed to create naval unit: pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"
+        	Test:       	TestGetNavalUnitsByGameID
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [ERROR] unit_service_test.go:250 Failed to create naval unit {error=pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"}
+--- FAIL: TestGetNavalUnitByID (0.04s)
+    unit_service_test.go:251: 
+        	Error Trace:	unit_service_test.go:251
+        	Error:      	Received unexpected error:
+        	            	failed to create naval unit: pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"
+        	Test:       	TestGetNavalUnitByID
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [ERROR] unit_service_test.go:288 Failed to create air unit {error=pq: null value in column "name" of relation "air_units" violates not-null constraint}
+--- FAIL: TestGetAirUnitsByGameID (0.04s)
+    unit_service_test.go:289: 
+        	Error Trace:	unit_service_test.go:289
+        	Error:      	Received unexpected error:
+        	            	failed to create air unit: pq: null value in column "name" of relation "air_units" violates not-null constraint
+        	Test:       	TestGetAirUnitsByGameID
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [ERROR] unit_service_test.go:354 Failed to create naval unit {error=pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"}
+--- FAIL: TestUpdateNavalUnit (0.04s)
+    unit_service_test.go:355: 
+        	Error Trace:	unit_service_test.go:355
+        	Error:      	Received unexpected error:
+        	            	failed to create naval unit: pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"
+        	Test:       	TestUpdateNavalUnit
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [ERROR] unit_service_test.go:407 Failed to create air unit {error=pq: null value in column "name" of relation "air_units" violates not-null constraint}
+--- FAIL: TestUpdateAirUnit (0.04s)
+    unit_service_test.go:408: 
+        	Error Trace:	unit_service_test.go:408
+        	Error:      	Received unexpected error:
+        	            	failed to create air unit: pq: null value in column "name" of relation "air_units" violates not-null constraint
+        	Test:       	TestUpdateAirUnit
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:09 [ERROR] unit_service_test.go:470 Failed to create naval unit {error=pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"}
+--- FAIL: TestSearchUnit (0.04s)
+    unit_service_test.go:471: 
+        	Error Trace:	unit_service_test.go:471
+        	Error:      	Received unexpected error:
+        	            	failed to create naval unit: pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"
+        	Test:       	TestSearchUnit
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [ERROR] unit_service_test.go:522 Failed to record search {error=pq: column "units_found" of relation "unit_searches" does not exist}
+2025-10-29 12:53:10 [ERROR] unit_service_test.go:533 Failed to record search {error=pq: column "units_found" of relation "unit_searches" does not exist}
+--- FAIL: TestRecordSearch (0.04s)
+    --- FAIL: TestRecordSearch/successful_record (0.00s)
+        unit_service_test.go:523: 
+            	Error Trace:	unit_service_test.go:523
+            	Error:      	Received unexpected error:
+            	            	failed to record search: pq: column "units_found" of relation "unit_searches" does not exist
+            	Test:       	TestRecordSearch/successful_record
+        unit_service_test.go:524: 
+            	Error Trace:	unit_service_test.go:524
+            	Error:      	Should NOT be empty, but was 
+            	Test:       	TestRecordSearch/successful_record
+        unit_service_test.go:525: 
+            	Error Trace:	unit_service_test.go:525
+            	Error:      	Should not be zero, but was 0001-01-01 00:00:00 +0000 UTC
+            	Test:       	TestRecordSearch/successful_record
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] unit_service_test.go:577 Created naval unit {unit_id=1c844749-a6ca-4e7d-a91b-a39b1dd08536, name=Naval Ship}
+2025-10-29 12:53:10 [ERROR] unit_service_test.go:587 Failed to create air unit {error=pq: null value in column "name" of relation "air_units" violates not-null constraint}
+--- FAIL: TestGetUnitsByPosition (0.04s)
+    unit_service_test.go:588: 
+        	Error Trace:	unit_service_test.go:588
+        	Error:      	Received unexpected error:
+        	            	failed to create air unit: pq: null value in column "name" of relation "air_units" violates not-null constraint
+        	Test:       	TestGetUnitsByPosition
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] unit_service_test.go:644 Created naval unit {unit_id=33a7b390-c7c7-4696-9f93-0a51a347a117, name=Test Ship}
+2025-10-29 12:53:10 [INFO] unit_service_test.go:648 Naval unit deleted {unit_id=33a7b390-c7c7-4696-9f93-0a51a347a117}
+2025-10-29 12:53:10 [ERROR] unit_service_test.go:657 Failed to delete naval unit {error=pq: invalid input syntax for type uuid: "non-existing-id", unit_id=non-existing-id}
+--- FAIL: TestDeleteNavalUnit (0.04s)
+    --- FAIL: TestDeleteNavalUnit/successful_deletion (0.00s)
+        unit_service_test.go:653: 
+            	Error Trace:	unit_service_test.go:653
+            	Error:      	An error is expected but got nil.
+            	Test:       	TestDeleteNavalUnit/successful_deletion
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] unit_service_test.go:699 Created naval unit {unit_id=5bdd831b-a5d2-4df4-a7f4-9e5ae3cb03e6, name=Test Ship}
+2025-10-29 12:53:10 [ERROR] unit_service_test.go:703 Failed to award VP for sunk ship {error=pq: column "victory_points" does not exist, unit_id=5bdd831b-a5d2-4df4-a7f4-9e5ae3cb03e6}
+2025-10-29 12:53:10 [ERROR] unit_service_test.go:709 Failed to award VP for sunk ship {error=pq: column "victory_points" does not exist, unit_id=non-existing-id}
+--- FAIL: TestAwardVPForSunkShip (0.04s)
+    --- FAIL: TestAwardVPForSunkShip/award_VP_for_sunk_ship (0.00s)
+        unit_service_test.go:704: 
+            	Error Trace:	unit_service_test.go:704
+            	Error:      	Received unexpected error:
+            	            	failed to award VP: pq: column "victory_points" does not exist
+            	Test:       	TestAwardVPForSunkShip/award_VP_for_sunk_ship
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:69 Created naval unit {unit_id=cae1d845-2171-431c-bcf9-318d4b19425f, name=Visible Ship}
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:91 Created naval unit {unit_id=7ff2bea6-1ed0-4ae6-ae7b-1f6acc3cf960, name=Hidden Ship}
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:103 Unit visibility updated {unit_id=cae1d845-2171-431c-bcf9-318d4b19425f, player_id=testuser2, visibility=sighted}
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:114 Unit visibility updated {unit_id=7ff2bea6-1ed0-4ae6-ae7b-1f6acc3cf960, player_id=testuser1, visibility=unknown}
+--- FAIL: TestGetVisibleUnitsForPlayer (0.04s)
+    --- FAIL: TestGetVisibleUnitsForPlayer/get_visible_units_for_player (0.00s)
+        visibility_service_test.go:121: 
+            	Error Trace:	visibility_service_test.go:121
+            	Error:      	Not equal: 
+            	            	expected: "cae1d845-2171-431c-bcf9-318d4b19425f"
+            	            	actual  : "unit2"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-cae1d845-2171-431c-bcf9-318d4b19425f
+            	            	+unit2
+            	Test:       	TestGetVisibleUnitsForPlayer/get_visible_units_for_player
+    --- FAIL: TestGetVisibleUnitsForPlayer/get_visible_units_for_non-existing_game (0.00s)
+        visibility_service_test.go:128: 
+            	Error Trace:	visibility_service_test.go:128
+            	Error:      	"[%!s(*models.VisibleUnit=&{unit2 CA allied L16 sighted {13995101737561929968 1978633834 0x104d41b20}})]" should have 0 item(s), but has 1
+            	Test:       	TestGetVisibleUnitsForPlayer/get_visible_units_for_non-existing_game
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:154 Unit visibility updated {player_id=testuser1, visibility=unknown, unit_id=unit-1}
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:165 Unit visibility updated {unit_id=unit-2, player_id=testuser1, visibility=unknown}
+--- FAIL: TestGetLastKnownPositions (0.04s)
+    --- FAIL: TestGetLastKnownPositions/get_last_known_positions (0.00s)
+        visibility_service_test.go:171: 
+            	Error Trace:	visibility_service_test.go:171
+            	Error:      	"[]" should have 2 item(s), but has 0
+            	Test:       	TestGetLastKnownPositions/get_last_known_positions
+        visibility_service_test.go:178: 
+            	Error Trace:	visibility_service_test.go:178
+            	Error:      	[]string{} does not contain "A1"
+            	Test:       	TestGetLastKnownPositions/get_last_known_positions
+        visibility_service_test.go:179: 
+            	Error Trace:	visibility_service_test.go:179
+            	Error:      	[]string{} does not contain "B1"
+            	Test:       	TestGetLastKnownPositions/get_last_known_positions
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:212 Unit visibility updated {unit_id=unit-1, player_id=testuser1, visibility=sighted}
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:224 Unit visibility updated {unit_id=, player_id=, visibility=}
+--- FAIL: TestUpdateUnitVisibility (0.04s)
+    --- FAIL: TestUpdateUnitVisibility/successful_update (0.00s)
+        visibility_service_test.go:214: 
+            	Error Trace:	visibility_service_test.go:214
+            	Error:      	Should NOT be empty, but was 
+            	Test:       	TestUpdateUnitVisibility/successful_update
+        visibility_service_test.go:215: 
+            	Error Trace:	visibility_service_test.go:215
+            	Error:      	Should not be zero, but was 0001-01-01 00:00:00 +0000 UTC
+            	Test:       	TestUpdateUnitVisibility/successful_update
+        visibility_service_test.go:216: 
+            	Error Trace:	visibility_service_test.go:216
+            	Error:      	Should not be zero, but was 0001-01-01 00:00:00 +0000 UTC
+            	Test:       	TestUpdateUnitVisibility/successful_update
+    --- FAIL: TestUpdateUnitVisibility/database_error (0.00s)
+        visibility_service_test.go:225: 
+            	Error Trace:	visibility_service_test.go:225
+            	Error:      	An error is expected but got nil.
+            	Test:       	TestUpdateUnitVisibility/database_error
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:269 Created naval unit {unit_id=b149ef77-45a0-4d3e-a39d-c4e0d066492a, name=Test Ship}
+--- FAIL: TestProcessMovementVisibility (0.04s)
+    --- FAIL: TestProcessMovementVisibility/process_movement_visibility (0.00s)
+        visibility_service_test.go:280: 
+            	Error Trace:	visibility_service_test.go:280
+            	Error:      	Not equal: 
+            	            	expected: "b149ef77-45a0-4d3e-a39d-c4e0d066492a"
+            	            	actual  : "unit2"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-b149ef77-45a0-4d3e-a39d-c4e0d066492a
+            	            	+unit2
+            	Test:       	TestProcessMovementVisibility/process_movement_visibility
+        visibility_service_test.go:281: 
+            	Error Trace:	visibility_service_test.go:281
+            	Error:      	Not equal: 
+            	            	expected: "B1"
+            	            	actual  : "L16"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1 +1 @@
+            	            	-B1
+            	            	+L16
+            	Test:       	TestProcessMovementVisibility/process_movement_visibility
+    --- FAIL: TestProcessMovementVisibility/process_movement_visibility_for_non-existing_unit (0.00s)
+        visibility_service_test.go:286: 
+            	Error Trace:	visibility_service_test.go:286
+            	Error:      	An error is expected but got nil.
+            	Test:       	TestProcessMovementVisibility/process_movement_visibility_for_non-existing_unit
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:312 Unit visibility updated {visibility=sighted, unit_id=unit-1, player_id=testuser1}
+--- FAIL: TestGetUnitVisibility (0.04s)
+    --- FAIL: TestGetUnitVisibility/get_existing_unit_visibility (0.00s)
+        visibility_service_test.go:318: 
+            	Error Trace:	visibility_service_test.go:318
+            	Error:      	Not equal: 
+            	            	expected: "sighted"
+            	            	actual  : "unknown"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,2 +1,2 @@
+            	            	-(models.UnitVisibility) (len=7) "sighted"
+            	            	+(models.UnitVisibility) (len=7) "unknown"
+            	            	 
+            	Test:       	TestGetUnitVisibility/get_existing_unit_visibility
+    --- FAIL: TestGetUnitVisibility/get_non-existing_unit_visibility (0.00s)
+        visibility_service_test.go:323: 
+            	Error Trace:	visibility_service_test.go:323
+            	Error:      	An error is expected but got nil.
+            	Test:       	TestGetUnitVisibility/get_non-existing_unit_visibility
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] visibility_service.go:234 Unit visibility updated {unit_id=unit-1, player_id=testuser1, visibility=sighted}
+2025-10-29 12:53:10 [INFO] visibility_service.go:234 Unit visibility updated {unit_id=unit-2, player_id=testuser1, visibility=sighted}
+2025-10-29 12:53:10 [INFO] visibility_service.go:234 Unit visibility updated {unit_id=unit-2, player_id=testuser1, visibility=sighted}
+--- FAIL: TestSetUnitSighted (0.04s)
+    --- FAIL: TestSetUnitSighted/set_unit_as_sighted (0.00s)
+        visibility_service_test.go:347: 
+            	Error Trace:	visibility_service_test.go:347
+            	Error:      	Not equal: 
+            	            	expected: "sighted"
+            	            	actual  : "unknown"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,2 +1,2 @@
+            	            	-(models.UnitVisibility) (len=7) "sighted"
+            	            	+(models.UnitVisibility) (len=7) "unknown"
+            	            	 
+            	Test:       	TestSetUnitSighted/set_unit_as_sighted
+    --- FAIL: TestSetUnitSighted/update_existing_sighted_unit (0.00s)
+        visibility_service_test.go:362: 
+            	Error Trace:	visibility_service_test.go:362
+            	Error:      	Not equal: 
+            	            	expected: "sighted"
+            	            	actual  : "unknown"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,2 +1,2 @@
+            	            	-(models.UnitVisibility) (len=7) "sighted"
+            	            	+(models.UnitVisibility) (len=7) "unknown"
+            	            	 
+            	Test:       	TestSetUnitSighted/update_existing_sighted_unit
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] visibility_service.go:239 Unit visibility updated {visibility=shadowed, unit_id=unit-1, player_id=testuser1}
+2025-10-29 12:53:10 [INFO] visibility_service.go:239 Unit visibility updated {visibility=shadowed, unit_id=unit-2, player_id=testuser1}
+2025-10-29 12:53:10 [INFO] visibility_service.go:239 Unit visibility updated {unit_id=unit-2, player_id=testuser1, visibility=shadowed}
+--- FAIL: TestSetUnitShadowed (0.04s)
+    --- FAIL: TestSetUnitShadowed/set_unit_as_shadowed (0.00s)
+        visibility_service_test.go:386: 
+            	Error Trace:	visibility_service_test.go:386
+            	Error:      	Not equal: 
+            	            	expected: "shadowed"
+            	            	actual  : "unknown"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,2 +1,2 @@
+            	            	-(models.UnitVisibility) (len=8) "shadowed"
+            	            	+(models.UnitVisibility) (len=7) "unknown"
+            	            	 
+            	Test:       	TestSetUnitShadowed/set_unit_as_shadowed
+    --- FAIL: TestSetUnitShadowed/update_existing_shadowed_unit (0.00s)
+        visibility_service_test.go:401: 
+            	Error Trace:	visibility_service_test.go:401
+            	Error:      	Not equal: 
+            	            	expected: "shadowed"
+            	            	actual  : "unknown"
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,2 +1,2 @@
+            	            	-(models.UnitVisibility) (len=8) "shadowed"
+            	            	+(models.UnitVisibility) (len=7) "unknown"
+            	            	 
+            	Test:       	TestSetUnitShadowed/update_existing_shadowed_unit
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+2025-10-29 12:53:10 [INFO] visibility_service_test.go:427 Unit visibility updated {player_id=testuser1, visibility=sighted, unit_id=unit-1}
+2025-10-29 12:53:10 [INFO] visibility_service.go:244 Unit visibility updated {visibility=unknown, unit_id=unit-1, player_id=testuser1}
+2025-10-29 12:53:10 [INFO] visibility_service.go:244 Unit visibility updated {unit_id=non-existing-unit, player_id=testuser1, visibility=unknown}
+--- FAIL: TestClearUnitVisibility (0.04s)
+    --- FAIL: TestClearUnitVisibility/clear_unit_visibility (0.00s)
+        visibility_service_test.go:436: 
+            	Error Trace:	visibility_service_test.go:436
+            	Error:      	An error is expected but got nil.
+            	Test:       	TestClearUnitVisibility/clear_unit_visibility
+FAIL
+FAIL	bismarck-game/backend/internal/game/services	2.621s
+ok  	bismarck-game/backend/internal/game/services/validation	(cached)
+?   	bismarck-game/backend/internal/server	[no test files]
+?   	bismarck-game/backend/internal/testutil	[no test files]
+?   	bismarck-game/backend/internal/websocket	[no test files]
+?   	bismarck-game/backend/pkg/database	[no test files]
+ok  	bismarck-game/backend/pkg/hexgrid	(cached)
+?   	bismarck-game/backend/pkg/logger	[no test files]
+?   	bismarck-game/backend/pkg/redis	[no test files]
+ok  	bismarck-game/backend/pkg/testutil	(cached)
+?   	bismarck-game/backend/pkg/utils	[no test files]
+?   	bismarck-game/backend/test	[no test files]
+FAIL
+make: *** [test] Error 1

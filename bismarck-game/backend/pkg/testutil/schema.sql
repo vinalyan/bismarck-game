@@ -18,8 +18,10 @@ CREATE TABLE IF NOT EXISTS games (
     player1_id UUID REFERENCES users(id),
     player2_id UUID REFERENCES users(id),
     current_turn INTEGER DEFAULT 0,
+    turn_number INTEGER DEFAULT 0,
     current_phase VARCHAR(20) DEFAULT 'setup',
     status VARCHAR(20) DEFAULT 'waiting',
+    victory_points JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -136,7 +138,10 @@ CREATE TABLE IF NOT EXISTS game_events (
     event_type VARCHAR(50) NOT NULL,
     actor_id VARCHAR(255),
     actor_name VARCHAR(255),
+    target_id VARCHAR(255),
+    target_name VARCHAR(255),
     description TEXT NOT NULL,
+    visibility JSONB,
     data JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -145,10 +150,13 @@ CREATE TABLE IF NOT EXISTS game_events (
 CREATE TABLE IF NOT EXISTS unit_searches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     game_id UUID NOT NULL REFERENCES games(id),
+    turn INTEGER NOT NULL,
+    phase VARCHAR(20) NOT NULL,
     unit_id UUID NOT NULL,
     target_hex VARCHAR(10) NOT NULL,
     search_type VARCHAR(20) NOT NULL,
     search_factors INTEGER DEFAULT 0,
+    units_found INTEGER DEFAULT 0,
     result VARCHAR(20) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

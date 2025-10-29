@@ -145,6 +145,10 @@ func TestGetNavalUnitsByGameID(t *testing.T) {
 	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
 	require.NoError(t, err)
 
+	// Create test game first
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
+	require.NoError(t, err)
+
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
 	service := NewUnitService(db, logger)
@@ -223,6 +227,10 @@ func TestGetNavalUnitByID(t *testing.T) {
 	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
 	require.NoError(t, err)
 
+	// Create test game first
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
+	require.NoError(t, err)
+
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
 	service := NewUnitService(db, logger)
@@ -271,6 +279,10 @@ func TestGetAirUnitsByGameID(t *testing.T) {
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM air_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
+	require.NoError(t, err)
+
+	// Create test game first
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -325,6 +337,10 @@ func TestUpdateNavalUnit(t *testing.T) {
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
+	require.NoError(t, err)
+
+	// Create test game first
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -389,6 +405,10 @@ func TestUpdateAirUnit(t *testing.T) {
 	_, err = db.GetConnection().Exec("DELETE FROM air_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
 	require.NoError(t, err)
 
+	// Create test game first
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
+	require.NoError(t, err)
+
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
 	service := NewUnitService(db, logger)
@@ -441,6 +461,10 @@ func TestSearchUnit(t *testing.T) {
 	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
 	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM unit_searches WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
+	require.NoError(t, err)
+
+	// Create test game first
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -500,6 +524,10 @@ func TestRecordSearch(t *testing.T) {
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM unit_searches WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
+	require.NoError(t, err)
+
+	// Create test game first
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")

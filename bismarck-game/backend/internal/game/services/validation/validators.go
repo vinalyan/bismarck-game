@@ -163,6 +163,15 @@ func (v *FuelValidator) Validate(ctx *ValidationContext) error {
 			// Аварийное топливо позволяет движение
 		} else if ctx.Unit.Fuel <= 0 {
 			return errors.New("ship has no fuel and cannot move")
+		} else {
+			// Проверяем достаточность топлива для конкретного движения
+			distance := ctx.Distance
+			strategy := GetStrategyForSpeedType(ctx.Unit.SpeedRating)
+			requiredFuel := strategy.CalculateFuelCost(distance, ctx.FuelTracking.PreviousTurnMoved)
+
+			if ctx.Unit.Fuel < requiredFuel {
+				return fmt.Errorf("insufficient fuel for movement - needs %d but has %d", requiredFuel, ctx.Unit.Fuel)
+			}
 		}
 	}
 
