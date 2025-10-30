@@ -13,6 +13,7 @@
 
 .dialog-content {
   background: white;
+  color: #000000; /* Black text */
   border-radius: 8px;
   padding: 24px;
   max-width: 500px;
@@ -25,8 +26,15 @@
   margin-bottom: 20px;
 }
 
+.dialog-content h3 {
+  color: #000000; /* Black text for main title */
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
 .dialog-section h4 {
   margin-bottom: 10px;
+  color: #000000; /* Black text for headings */
 }
 
 .units-list {
@@ -43,6 +51,7 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   cursor: pointer;
+  color: #000000; /* Black text for unit names */
 }
 
 .unit-checkbox:hover {
@@ -81,4 +90,23 @@
 .dialog-actions button:last-child {
   background-color: #6c757d;
   color: white;
+}
+
+/* Стили для существующих Task Force */
+.existing-tfs {
+  background-color: #f8f9fa; /* Light gray background */
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #dee2e6;
+}
+
+.tf-info {
+  color: #000000; /* Black text for TF info */
+  margin-bottom: 5px;
+  font-size: 0.95em;
+}
+
+.tf-info:last-child {
+  margin-bottom: 0;
 }

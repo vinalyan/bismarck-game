@@ -144,11 +144,12 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Функция для определения гексов-кандидатов для создания TF
   const findTFCandidateHexes = (): string[] => {
+    console.log('🔍 findTFCandidateHexes called with playerSide:', playerSide, 'gameUnits:', gameUnits.length, 'taskForces:', taskForces.length);
     const hexUnitsMap = new Map<string, any[]>();
     
     // Собираем юниты по гексам
     gameUnits.forEach(unit => {
-      if (unit.position && unit.owner === playerSide && !unit.task_force_id) {
+      if (unit.position && unit.nationality === playerSide && !unit.task_force_id) {
         const hexId = unit.position;
         if (!hexUnitsMap.has(hexId)) {
           hexUnitsMap.set(hexId, []);
@@ -159,7 +160,7 @@ const HexMap: React.FC<HexMapProps> = ({
     
     // Добавляем TF в те же гексы
     taskForces.forEach(tf => {
-      if (tf.position && tf.owner === playerSide) {
+      if (tf.position && tf.nationality === playerSide) {
         const hexId = tf.position;
         if (!hexUnitsMap.has(hexId)) {
           hexUnitsMap.set(hexId, []);
@@ -168,20 +169,29 @@ const HexMap: React.FC<HexMapProps> = ({
       }
     });
     
-    // Выбираем гексы с более чем 1 объектом
+    // Выбираем гексы-кандидаты:
+    // 1) гекс с более чем 1 объектом (юниты/TF) своей стороны
+    // 2) гекс, где есть хотя бы один свой TF (даже если он один)
     const candidates: string[] = [];
     hexUnitsMap.forEach((units, hexId) => {
-      if (units.length > 1) {
+      const hasMultipleObjects = units.length > 1;
+      const hasAtLeastOneTF = units.some(obj => Array.isArray((obj as any).units));
+
+      if (hasMultipleObjects || hasAtLeastOneTF) {
         candidates.push(hexId);
+        console.log('✅ Added hex as candidate:', hexId, 'with', units.length, 'objects, hasAtLeastOneTF:', hasAtLeastOneTF);
       }
     });
     
+    console.log('🎯 Final candidates:', candidates);
     return candidates;
   };
 
   // Обработчик кнопки создания TF
   const handleCreateTFClick = () => {
+    console.log('🚢 handleCreateTFClick called');
     const candidates = findTFCandidateHexes();
+    console.log('🎯 TF candidates found:', candidates);
     setTfCandidateHexes(candidates);
     setIsCreateTFMode(true);
   };
@@ -194,36 +204,129 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Обработчик клика по гексу в режиме TF
   const handleHexClickInTFMode = (hexId: string) => {
+    console.log('🎯 handleHexClickInTFMode called with:', { hexId, isCreateTFMode, isCandidate: tfCandidateHexes.includes(hexId) });
     if (isCreateTFMode && tfCandidateHexes.includes(hexId)) {
+      console.log('✅ Opening TF dialog for hex:', hexId);
       setSelectedTFHex(hexId);
       setShowTFDialog(true);
+    } else {
+      console.log('❌ Not opening dialog - not in TF mode or hex not a candidate');
     }
   };
 
   // Обработчик создания TF
-  const handleCreateTF = async (selectedUnitIds: string[], formation: string) => {
-    if (!gameId || !authToken) return;
+  const handleCreateTF = async (selectedUnitIds: string[]) => {
+    console.log('🚢 handleCreateTF called with:', { selectedUnitIds, gameId: !!gameId, authToken: !!authToken });
+    console.log('🔍 Current state:', { gameId, authToken: !!authToken, gameUnits: gameUnits.length, taskForces: taskForces.length });
+    
+    if (!gameId || !authToken) {
+      console.error('❌ Missing gameId or authToken');
+      return;
+    }
     
     try {
+      console.log('📡 Calling gameAPI.createTaskForce...');
       const response = await gameAPI.createTaskForce(gameId, {
         unitIds: selectedUnitIds,
-        formation: formation,
+        formation: 'line', // Используем стандартную формацию 'line'
+        nationality: playerSide, // Передаем сторону игрока для правильного именования
+        existingTaskForces: taskForces, // Передаем существующие TF для правильной нумерации
       });
       
+      console.log('📡 createTaskForce response:', response);
+      
       if (response.success) {
+        console.log('✅ Task Force создан успешно');
         // Обновить данные
         if (onRefreshData) {
           onRefreshData();
         }
-        // Уведомление
-        console.log('Task Force создан успешно');
+      } else {
+        console.error('❌ Task Force creation failed:', response);
       }
-    } catch (error) {
-      console.error('Ошибка создания Task Force:', error);
+    } catch (error: any) {
+      console.error('❌ Ошибка создания Task Force:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      console.error('❌ Full error response:', error.response?.data);
     } finally {
       setShowTFDialog(false);
       setSelectedTFHex(null);
       handleCancelCreateTF();
+    }
+  };
+
+  // Обработчик добавления юнита к существующему TF
+  const handleAddToExistingTF = async (taskForceId: string, unitId: string) => {
+    console.log('🚢 handleAddToExistingTF called with:', { taskForceId, unitId, gameId: !!gameId, authToken: !!authToken });
+    
+    if (!gameId || !authToken) {
+      console.error('❌ Missing gameId or authToken');
+      return;
+    }
+    
+    try {
+      console.log('📡 Calling gameAPI.addUnitToTaskForce...');
+      const response = await gameAPI.addUnitToTaskForce(gameId, {
+        taskForceId: taskForceId,
+        unitId: unitId,
+      });
+      
+      console.log('📡 addUnitToTaskForce response:', response);
+      
+      if (response.success) {
+        console.log('✅ Юнит добавлен к Task Force успешно');
+        // Обновить данные
+        if (onRefreshData) {
+          onRefreshData();
+        }
+      } else {
+        console.error('❌ Add unit to Task Force failed:', response);
+      }
+    } catch (error: any) {
+      console.error('❌ Ошибка добавления юнита к Task Force:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+    } finally {
+      setShowTFDialog(false);
+      setSelectedTFHex(null);
+      handleCancelCreateTF();
+    }
+  };
+
+  // Обработчик удаления юнита из существующего TF
+  const handleRemoveFromExistingTF = async (taskForceId: string, unitId: string) => {
+    console.log('🚢 handleRemoveFromExistingTF called with:', { taskForceId, unitId, gameId: !!gameId, authToken: !!authToken });
+    if (!gameId || !authToken) {
+      console.error('❌ Missing gameId or authToken');
+      return;
+    }
+    try {
+      console.log('📡 Calling gameAPI.removeUnitFromTaskForce...');
+      const response = await gameAPI.removeUnitFromTaskForce(gameId, {
+        taskForceId,
+        unitId,
+      });
+      console.log('📡 removeUnitFromTaskForce response:', response);
+      if (response.success) {
+        console.log('✅ Юнит удален из Task Force успешно');
+        if (onRefreshData) onRefreshData();
+      } else {
+        console.error('❌ Remove unit from Task Force failed:', response);
+      }
+    } catch (error: any) {
+      console.error('❌ Ошибка удаления юнита из Task Force:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
     }
   };
 
@@ -367,7 +470,7 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Обработчики событий
   const handleHexClick = (coordinate: HexCoordinate) => {
-    const hexId = `${coordinate.row}-${coordinate.col}`;
+    const hexId = `${coordinate.letter}${coordinate.number}`;
     
     // Если в режиме создания TF, проверяем клик по кандидату
     if (isCreateTFMode) {
@@ -554,12 +657,24 @@ const HexMap: React.FC<HexMapProps> = ({
         
         {/* Кнопки Task Force */}
         {currentPhase === 'movement' && !isCreateTFMode && (
-          <button onClick={handleCreateTFClick} title="Создать Task Force">
+          <button 
+            onClick={() => {
+              console.log('🚢 Create TF button clicked');
+              handleCreateTFClick();
+            }} 
+            title="Создать Task Force"
+          >
             🚢 Создать TF
           </button>
         )}
         {isCreateTFMode && (
-          <button onClick={handleCancelCreateTF} title="Отменить создание TF">
+          <button 
+            onClick={() => {
+              console.log('❌ Cancel TF button clicked');
+              handleCancelCreateTF();
+            }} 
+            title="Отменить создание TF"
+          >
             ❌ Отмена
           </button>
         )}
@@ -695,8 +810,12 @@ const HexMap: React.FC<HexMapProps> = ({
           hexId={selectedTFHex}
           units={gameUnits.filter(u => u.position === selectedTFHex)}
           taskForces={taskForces.filter(tf => tf.position === selectedTFHex)}
+          allUnits={gameUnits}
           onConfirm={handleCreateTF}
+          onAddToExisting={handleAddToExistingTF}
+          onRemoveFromTF={handleRemoveFromExistingTF}
           onCancel={() => {
+            console.log('❌ Dialog cancelled');
             setShowTFDialog(false);
             setSelectedTFHex(null);
           }}
