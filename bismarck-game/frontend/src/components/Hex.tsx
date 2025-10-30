@@ -292,7 +292,8 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
         {/* Имя Task Force */}
         <text
           x={center.x}
-          y={center.y + size * 0.7}
+          y={center.y + size*0.85
+          }
           className="task-force-name"
           textAnchor="middle"
           fontSize="10"
@@ -300,18 +301,6 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
           fontWeight="bold"
         >
           {tfName}
-        </text>
-        
-        {/* Количество кораблей */}
-        <text
-          x={center.x}
-          y={center.y + size * 0.85}
-          className="task-force-count"
-          textAnchor="middle"
-          fontSize="8"
-          fill={nationality === 'german' ? '#1D3A43' : '#CA6649'}
-        >
-          ({unitCount})
         </text>
       </g>
     );
