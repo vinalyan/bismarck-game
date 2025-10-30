@@ -214,17 +214,11 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 	// НЕ обновляем PreviousTurnMoved здесь - это должно происходить только при завершении фазы движения
 	fuelTracking.UpdatedAt = time.Now()
 
-	// Проверяем активацию аварийного топлива
-	if fuelTracking.CurrentFuel <= 0 && !fuelTracking.IsEmergencyFuel {
-		fuelTracking.IsEmergencyFuel = true
-		fuelTracking.EmergencyTurn = currentTurn + 10
-
-		s.logger.Warn("Emergency fuel activated - ship must reach port or refuel within 10 turns",
-			"unit_id", unit.ID,
-			"unit_name", unit.Name,
-			"current_turn", currentTurn,
-			"emergency_turn", fuelTracking.EmergencyTurn,
-			"turns_remaining", 10)
+	// Проверяем активацию аварийного топлива (унифицированная логика)
+	s.activateEmergencyFuelIfNeeded(unit, fuelTracking.CurrentFuel)
+	if unit.IsEmergencyFuel {
+		fuelTracking.IsEmergencyFuel = unit.IsEmergencyFuel
+		fuelTracking.EmergencyTurn = unit.EmergencyTurn
 	}
 
 	// Устанавливаем ограничения движения для медленных кораблей
@@ -366,6 +360,22 @@ func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) 
 		"is_emergency_fuel", fuelTracking.IsEmergencyFuel,
 		"emergency_turn", fuelTracking.EmergencyTurn)
 	return nil
+}
+
+// activateEmergencyFuelIfNeeded проверяет и активирует аварийное топливо при необходимости
+func (s *MovementService) activateEmergencyFuelIfNeeded(unit *models.NavalUnit, currentFuel int) {
+	if currentFuel <= 0 && !unit.IsEmergencyFuel {
+		currentTurn := s.getCurrentTurn(unit.GameID)
+		unit.IsEmergencyFuel = true
+		unit.EmergencyTurn = currentTurn + 10
+
+		s.logger.Warn("Emergency fuel activated - ship must reach port or refuel within 10 turns",
+			"unit_id", unit.ID,
+			"unit_name", unit.Name,
+			"current_turn", currentTurn,
+			"emergency_turn", unit.EmergencyTurn,
+			"turns_remaining", 10)
+	}
 }
 
 func (s *MovementService) saveMovement(movement *models.Movement) error {
@@ -762,6 +772,9 @@ func (s *MovementService) executeTaskForceUnitMovement(unit *models.NavalUnit, f
 
 	// Списываем топливо
 	unit.Fuel -= fuelCost
+
+	// Проверяем активацию аварийного топлива (унифицированная логика)
+	s.activateEmergencyFuelIfNeeded(unit, unit.Fuel)
 
 	// Обновляем статистику движения
 	unit.PreviousTurnMovedHexes = s.hexCalculator.CalculateDistance(fromHex, toHex)
