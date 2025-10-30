@@ -166,6 +166,8 @@ func (s *Server) setupRoutes() {
 	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService)
 	mapHandler := handlers.NewMapHandler(mapStructureService)
 	gameEventHandler := handlers.NewGameEventHandler(eventService)
+	unitHandlerLogger, _ := logger.New(logger.INFO, "unit-handler", "stdout")
+	unitHandler := handlers.NewUnitHandler(unitService, movementService, taskForceService, unitHandlerLogger)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
@@ -173,6 +175,7 @@ func (s *Server) setupRoutes() {
 	shipConfigHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	phaseHandler.RegisterRoutes(s.router)
 	movementHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
+	unitHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 
 	// Маршруты для аварийного топлива
 	s.router.HandleFunc("/api/emergency-fuel/check", emergencyFuelHandler.CheckEmergencyFuel).Methods("POST")

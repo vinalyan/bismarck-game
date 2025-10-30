@@ -106,7 +106,13 @@ export const unitsAPI = {
           'Content-Type': 'application/json'
         }
       });
-      return response.data;
+      const raw = response.data;
+      // Нормализуем: task_forces может прийти null → приводим к []
+      if (raw && raw.data) {
+        raw.data.task_forces = raw.data.task_forces || [];
+        raw.data.units = raw.data.units || [];
+      }
+      return raw;
     } catch (error: any) {
       console.error('Error fetching game units:', error);
       return {

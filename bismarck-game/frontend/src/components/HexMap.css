@@ -216,3 +216,10 @@
 .hex-map-wrapper::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
 }
+
+/* Стили для гексов-кандидатов Task Force */
+.hex.tf-candidate {
+  stroke: #ffcc00;
+  stroke-width: 3;
+  filter: brightness(1.2);
+}

@@ -1150,6 +1150,98 @@ const Game: React.FC = () => {
           {/* Информация о юнитах игрока */}
           <div className="units-info">
             <h3>Ваши юниты</h3>
+            {/* Раздел Task Force */}
+            {taskForces && taskForces.filter(tf => tf.position && tf.position.trim() !== '').length > 0 && (
+              <div className="unit-list" style={{ marginBottom: 16 }}>
+                {taskForces
+                  .filter(tf => tf.position && tf.position.trim() !== '')
+                  .map(tf => {
+                    const memberUnits = (tf.units || [])
+                      .map(uid => gameUnits.find(u => u.id === uid))
+                      .filter(Boolean);
+                    return (
+                      <div key={tf.id} className={`unit-item ${selectedUnit === tf.id ? 'unit-selected' : ''}`}
+                           onClick={() => {
+                             // Клик по TF ведёт себя как по юниту
+                             setSelectedUnit(tf.id);
+                             setSelectedUnitData({ id: tf.id, name: tf.name, type: 'taskforce', position: tf.position, isTaskForce: true });
+                           }}
+                           style={{ cursor: 'pointer' }}
+                      >
+                        <div className="unit-header">
+                          <span className="unit-name">{tf.name}</span>
+                          <span className="unit-type">TF</span>
+                        </div>
+                        <div className="unit-status">
+
+                        </div>
+
+                        {memberUnits.length > 0 && (
+                          <div style={{ marginTop: 8 }}>
+                            {memberUnits.map((mu: any) => (
+                              <div
+                                key={mu!.id}
+                                className={`unit-item ${selectedUnit === mu!.id ? 'unit-selected' : ''}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedUnit(mu!.id);
+                                  // парсим позицию для совместимости с существующей логикой
+                                  const pos = (mu!.position || '').toString();
+                                  let coordinate: any = null;
+                                  const match = pos.match(/^([A-Z]+)(\d+)$/);
+                                  if (match) {
+                                    const letter = match[1];
+                                    const number = parseInt(match[2]);
+                                    const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
+                                    const col = number - 1;
+                                    coordinate = { letter, number, col, row };
+                                  }
+                                  setSelectedUnitData({
+                                    id: mu!.id,
+                                    type: mu!.type,
+                                    side: mu!.owner || 'german',
+                                    position: coordinate,
+                                    name: mu!.name,
+                                    maxFuel: mu!.max_fuel || 10,
+                                    currentFuel: mu!.fuel || 0
+                                  });
+                                }}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <div className="unit-header">
+                                  <span className="unit-name">{mu!.name}</span>
+                                  <span className="unit-type">{mu!.type}</span>
+                                </div>
+                                <div className="unit-status">
+                                  <span>F: {mu!.fuel ?? 0}/{mu!.max_fuel ?? 0}</span>
+                                  {(mu!.speed_rating === 'S' || mu!.speed_rating === 'VS') && mu!.no_movement_turns_left > 0 && (
+                                    <span style={{ color: '#fbbf24' }}>
+                                      ⏸️ Ожидание: {mu!.no_movement_turns_left} ход(ов)
+                                    </span>
+                                  )}
+                                  {mu!.is_emergency_fuel && (
+                                    <div className="emergency-fuel-indicator">
+                                      <span className="emergency-fuel-warning">⚠️ Аварийное топливо</span>
+                                      <span className="emergency-fuel-turns">
+                                        Осталось ходов: {mu!.emergency_turn - (getTurnData(currentTurn)?.turn_number || 0)}
+                                      </span>
+                                      {(mu!.speed_rating === 'F' || mu!.speed_rating === 'M') && mu!.emergency_turn && (
+                                        <span className="emergency-fuel-turn-info">
+                                          Ход удаления: {mu!.emergency_turn}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
             {loadingUnits ? (
               <div className="loading">Загрузка юнитов...</div>
             ) : gameUnits.filter(unit => unit.position && unit.position.trim() !== '').length > 0 ? (
@@ -1203,16 +1295,15 @@ const Game: React.FC = () => {
                         <span className="unit-type">{unit.type}</span>
                       </div>
                       <div className="unit-status">
-                        <span>Позиция: {unit.position}</span>
                         {/* Показываем топливо только для быстрых и средних юнитов */}
                         {(unit.speed_rating === 'F' || unit.speed_rating === 'M') && (
-                          <span>Топливо: {unit.fuel || 0}/{unit.max_fuel || 0}</span>
+                          <span>F: {unit.fuel || 0}/{unit.max_fuel || 0}</span>
                         )}
-                        <span>Скорость: {
-                          unit.speed_rating === 'F' ? 'Быстрый' :
-                          unit.speed_rating === 'M' ? 'Средний' :
-                          unit.speed_rating === 'S' ? 'Медленный' :
-                          unit.speed_rating === 'VS' ? 'Очень медленный' :
+                        <span>SR: {
+                          unit.speed_rating === 'F' ? 'F' :
+                          unit.speed_rating === 'M' ? 'M' :
+                          unit.speed_rating === 'S' ? 'S' :
+                          unit.speed_rating === 'VS' ? 'VS' :
                           unit.speed_rating || 'Неизвестно'
                         }</span>
                         {/* Информация о ограничениях движения для медленных юнитов */}
@@ -1337,6 +1428,7 @@ const Game: React.FC = () => {
               const isSetupTurn = turnData && turnData.turn_number === 0 && turnData.current_phase === 'setup';
               return !!(isGermanPlayer && isGameReady && isSetupTurn);
             })()}
+            currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
           />
         </div>
 
@@ -1425,6 +1517,7 @@ const Game: React.FC = () => {
             }}
             onUnitStackClick={handleUnitStackClick}
             onStackedUnitSelect={handleStackedUnitSelect}
+            currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
           />
         </div>
       </div>

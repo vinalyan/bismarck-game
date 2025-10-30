@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"bismarck-game/backend/internal/api/middleware"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/logger"
@@ -29,6 +30,21 @@ func NewUnitHandler(unitService *services.UnitService, movementService *services
 		taskForceService: taskForceService,
 		logger:           logger,
 	}
+}
+
+// RegisterRoutes регистрирует маршруты для юнитов и Task Forces
+func (h *UnitHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
+	unitRouter := router.PathPrefix("/api/games").Subrouter()
+	unitRouter.Use(middleware.AuthMiddleware(jwtSecret))
+
+	// Task Force routes
+	unitRouter.HandleFunc("/{gameId}/task-forces", h.GetTaskForces).Methods("GET")
+	unitRouter.HandleFunc("/{gameId}/task-forces", h.CreateTaskForce).Methods("POST")
+	unitRouter.HandleFunc("/{gameId}/task-forces/{taskForceId}", h.GetTaskForce).Methods("GET")
+	unitRouter.HandleFunc("/{gameId}/task-forces/{taskForceId}", h.DeleteTaskForce).Methods("DELETE")
+	unitRouter.HandleFunc("/{gameId}/task-forces/{taskForceId}/move", h.MoveTaskForce).Methods("POST")
+	unitRouter.HandleFunc("/{gameId}/task-forces/add-unit", h.AddUnitToTaskForce).Methods("POST")
+	unitRouter.HandleFunc("/{gameId}/task-forces/remove-unit", h.RemoveUnitFromTaskForce).Methods("POST")
 }
 
 // MoveUnitRequest представляет запрос на движение юнита

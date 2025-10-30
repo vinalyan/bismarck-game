@@ -167,12 +167,35 @@ export const gameAPI = {
     name?: string;
     unitIds: string[];
     formation: string;
+    nationality?: string; // Добавляем nationality для правильного именования
+    existingTaskForces?: any[]; // Передаем существующие TF для правильной нумерации
   }): Promise<APIResponse<TaskForce>> => {
-    const response = await apiClient.post(`/games/${gameId}/task-forces`, {
-      name: data.name,
+    // Генерируем правильное имя по правилам: TF-1, TF-2... для союзников, KG-1, KG-2... для немцев
+    const generateTFName = (nationality: string, existingTFs: any[] = []) => {
+      const prefix = nationality === 'german' ? 'KG' : 'TF';
+      const existingNumbers = existingTFs
+        .filter(tf => tf.name && tf.name.startsWith(prefix))
+        .map(tf => {
+          const match = tf.name.match(new RegExp(`${prefix}-(\\d+)`));
+          return match ? parseInt(match[1]) : 0;
+        })
+        .filter(num => !isNaN(num));
+      
+      let nextNumber = 1;
+      while (existingNumbers.includes(nextNumber)) {
+        nextNumber++;
+      }
+      
+      return `${prefix}-${nextNumber}`;
+    };
+
+    const requestData = {
+      name: data.name || generateTFName(data.nationality || 'allied', data.existingTaskForces || []),
       unit_ids: data.unitIds,
       formation: data.formation,
-    });
+    };
+    console.log('📡 Sending createTaskForce request:', requestData);
+    const response = await apiClient.post(`/games/${gameId}/task-forces`, requestData);
     return response.data;
   },
 

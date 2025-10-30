@@ -304,7 +304,18 @@ func (s *TaskForceService) RemoveUnitFromTaskForce(taskForceID string, unitID st
 		return fmt.Errorf("cannot remove unit from task force - it is sighted")
 	}
 
-	// Удаляем юнит из Task Force
+	// 1) Назначаем позицию юниту равной позиции TF и снимаем привязку к TF ДО изменения состава TF
+	unit, err := s.unitService.GetNavalUnitByID(unitID)
+	if err != nil {
+		return fmt.Errorf("failed to get unit: %w", err)
+	}
+	unit.Position = taskForce.Position
+	unit.TaskForceID = nil
+	if err := s.unitService.UpdateNavalUnit(unit); err != nil {
+		return fmt.Errorf("failed to update unit: %w", err)
+	}
+
+	// 2) Удаляем юнит из Task Force (обновляем состав в модели)
 	taskForce.RemoveUnit(unitID)
 
 	// Проверяем минимальное количество кораблей (после удаления должно остаться >= 2)
@@ -330,18 +341,6 @@ func (s *TaskForceService) RemoveUnitFromTaskForce(taskForceID string, unitID st
 		if err != nil {
 			return fmt.Errorf("failed to update task force: %w", err)
 		}
-	}
-
-	// Обновляем юнит
-	unit, err := s.unitService.GetNavalUnitByID(unitID)
-	if err != nil {
-		return fmt.Errorf("failed to get unit: %w", err)
-	}
-
-	unit.TaskForceID = nil
-	err = s.unitService.UpdateNavalUnit(unit)
-	if err != nil {
-		return fmt.Errorf("failed to update unit: %w", err)
 	}
 
 	s.logger.Info("Removed unit from task force", "task_force_id", taskForceID, "unit_id", unitID)
@@ -374,13 +373,14 @@ func (s *TaskForceService) DeleteTaskForce(taskForceID string) error {
 		return fmt.Errorf("failed to get task force: %w", err)
 	}
 
-	// Удаляем связь с юнитами
+	// Удаляем связь с юнитами И назначаем им позицию TF
 	for _, unitID := range taskForce.Units {
 		unit, err := s.unitService.GetNavalUnitByID(unitID)
 		if err != nil {
 			continue
 		}
 		unit.TaskForceID = nil
+		unit.Position = taskForce.Position
 		s.unitService.UpdateNavalUnit(unit)
 	}
 
