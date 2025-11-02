@@ -51,7 +51,9 @@ func setupUnitHandler(t *testing.T) (*UnitHandler, func()) {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
+	// Создаем временный taskForceService для phaseManager (movementService будет nil)
+	taskForceServiceForPM := services.NewTaskForceService(db, logger, unitService, nil)
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceServiceForPM, eventService, wsHub, "http://localhost:8080")
 
 	movementService := services.NewMovementService(db, logger, nil, phaseManager, unitService, nil, eventService)
 	taskForceService := services.NewTaskForceService(db, logger, unitService, movementService)

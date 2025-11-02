@@ -51,10 +51,9 @@ func setupGameHandler(t *testing.T) (*GameHandler, func()) {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
-
 	shipConfigService := services.NewShipConfigService()
 	taskForceService := services.NewTaskForceService(db, logger, unitService, nil)
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, eventService, wsHub, "http://localhost:8080")
 	handler := NewGameHandler(db, unitService, shipConfigService, phaseManager, taskForceService)
 
 	cleanup := func() {

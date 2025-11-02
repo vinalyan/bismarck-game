@@ -35,7 +35,10 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
+	// Создаем logger для taskForceService
+	log, _ := logger.New(logger.INFO, "test", "")
+	taskForceService := services.NewTaskForceService(db, log, unitService, nil)
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
@@ -234,7 +237,10 @@ func TestPhaseSequenceAPI(t *testing.T) {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
+	// Создаем logger для taskForceService
+	log, _ := logger.New(logger.INFO, "test", "")
+	taskForceService := services.NewTaskForceService(db, log, unitService, nil)
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Создаем тестовую игру
@@ -366,7 +372,10 @@ func TestPhaseValidationAPI(t *testing.T) {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
+	// Создаем logger для taskForceService
+	log, _ := logger.New(logger.INFO, "test", "")
+	taskForceService := services.NewTaskForceService(db, log, unitService, nil)
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
 	// Тест 1: Отсутствующий game_id

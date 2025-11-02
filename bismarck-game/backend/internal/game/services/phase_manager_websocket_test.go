@@ -54,8 +54,12 @@ func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 	unitService := createTestUnitService(db)
 	eventService := createTestEventService(db)
 
+	// Создаем logger для taskForceService
+	log, _ := logger.New(logger.INFO, "test", "")
+	taskForceService := NewTaskForceService(db, log, unitService, nil)
+
 	// Создаем PhaseManager с WebSocket Hub
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, testServer.URL)
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, eventService, wsHub, testServer.URL)
 
 	// Создаем тестовую игру
 	gameID := "550e8400-e29b-41d4-a716-446655440002"
@@ -105,8 +109,12 @@ func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 	unitService := createTestUnitService(db)
 	eventService := createTestEventService(db)
 
+	// Создаем logger для taskForceService
+	log, _ := logger.New(logger.INFO, "test", "")
+	taskForceService := NewTaskForceService(db, log, unitService, nil)
+
 	// Создаем PhaseManager с WebSocket Hub
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, testServer.URL)
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, eventService, wsHub, testServer.URL)
 
 	// Создаем тестовую игру
 	gameID := "550e8400-e29b-41d4-a716-446655440003"
@@ -171,8 +179,12 @@ func TestPhaseManager_StartPhase_CallsCurrentPhaseAPI(t *testing.T) {
 	unitService := createTestUnitService(db)
 	eventService := createTestEventService(db)
 
+	// Создаем logger для taskForceService
+	log, _ := logger.New(logger.INFO, "test", "")
+	taskForceService := NewTaskForceService(db, log, unitService, nil)
+
 	// Создаем PhaseManager с WebSocket Hub
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, testServer.URL)
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, eventService, wsHub, testServer.URL)
 
 	// Создаем тестовую игру
 	gameID := "550e8400-e29b-41d4-a716-446655440004"
