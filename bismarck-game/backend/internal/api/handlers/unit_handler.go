@@ -45,6 +45,9 @@ func (h *UnitHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	unitRouter.HandleFunc("/{gameId}/task-forces/{taskForceId}/move", h.MoveTaskForce).Methods("POST")
 	unitRouter.HandleFunc("/{gameId}/task-forces/add-unit", h.AddUnitToTaskForce).Methods("POST")
 	unitRouter.HandleFunc("/{gameId}/task-forces/remove-unit", h.RemoveUnitFromTaskForce).Methods("POST")
+
+	// Unit routes
+	unitRouter.HandleFunc("/{gameId}/units/{unitId}/patrol", h.SetPatrol).Methods("PUT")
 }
 
 // MoveUnitRequest представляет запрос на движение юнита
@@ -700,4 +703,57 @@ func (h *UnitHandler) moveTaskForce(taskForceID, toHex, gameID, userID string) e
 		"owner", userID)
 
 	return nil
+}
+
+// SetPatrolRequest представляет запрос на установку/снятие патруля
+type SetPatrolRequest struct {
+	IsPatrolling bool `json:"is_patrolling" validate:"required"`
+}
+
+// SetPatrol устанавливает или снимает патруль с морского юнита
+func (h *UnitHandler) SetPatrol(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["gameId"]
+	unitID := vars["unitId"]
+
+	var req SetPatrolRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Получаем юнит для проверки принадлежности игре
+	unit, err := h.unitService.GetNavalUnitByID(unitID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
+		return
+	}
+
+	// Проверяем, что юнит принадлежит игре
+	if unit.GameID != gameID {
+		utils.WriteErrorResponse(w, http.StatusForbidden, "Unit does not belong to this game")
+		return
+	}
+
+	// Устанавливаем патруль
+	err = h.unitService.SetPatrol(unitID, req.IsPatrolling)
+	if err != nil {
+		h.logger.Error("Failed to set patrol", "unit_id", unitID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Получаем обновленный юнит
+	updatedUnit, err := h.unitService.GetNavalUnitByID(unitID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get updated unit")
+		return
+	}
+
+	response := map[string]interface{}{
+		"unit":    updatedUnit,
+		"message": "Patrol status updated successfully",
+	}
+
+	utils.WriteSuccessResponse(w, response)
 }

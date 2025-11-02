@@ -77,7 +77,7 @@
         --- PASS: TestMain/ButtonFunctionality/AutoTransitionToNextPhase (0.00s)
         --- PASS: TestMain/ButtonFunctionality/CompleteTurnAfterLastPhase (0.00s)
 PASS
-ok  	bismarck-game/backend	0.277s
+ok  	bismarck-game/backend	(cached)
 ?   	bismarck-game/backend/cmd/migrate	[no test files]
 ?   	bismarck-game/backend/cmd/server	[no test files]
 ?   	bismarck-game/backend/docs	[no test files]
@@ -99,8 +99,8 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
 === RUN   TestRegister/username_already_exists
 === RUN   TestRegister/email_already_exists
 === RUN   TestRegister/invalid_JSON
---- PASS: TestRegister (0.24s)
-    --- PASS: TestRegister/successful_registration (0.07s)
+--- PASS: TestRegister (0.19s)
+    --- PASS: TestRegister/successful_registration (0.05s)
     --- PASS: TestRegister/missing_username (0.00s)
     --- PASS: TestRegister/missing_email (0.00s)
     --- PASS: TestRegister/missing_password (0.00s)
@@ -165,7 +165,7 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
         	Error Trace:	auth_handler_test.go:381
         	Error:      	"Invalid request format" does not contain "invalid JSON"
         	Test:       	TestLogin/invalid_JSON
---- FAIL: TestLogin (0.09s)
+--- FAIL: TestLogin (0.08s)
     --- FAIL: TestLogin/successful_login (0.00s)
     --- FAIL: TestLogin/invalid_credentials (0.00s)
     --- FAIL: TestLogin/missing_username (0.00s)
@@ -212,40 +212,23 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-    auth_handler_test.go:23: 
-        	Error Trace:	auth_handler_test.go:23
-        	            				auth_handler_test.go:422
-        	Error:      	Received unexpected error:
-        	            	failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
-        	Test:       	TestGetProfile
---- FAIL: TestGetProfile (0.02s)
-=== RUN   TestUpdateProfile
-Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql
-Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: no such file or directory
-Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
-Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
-Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql
-Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: no such file or directory
-Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
---- FAIL: TestUpdateProfile (0.08s)
+--- FAIL: TestGetProfile (0.08s)
 panic: interface conversion: interface {} is nil, not string [recovered, repanicked]
 
-goroutine 70 [running]:
-testing.tRunner.func1.2({0x104c7f7e0, 0x1400021dd70})
+goroutine 24 [running]:
+testing.tRunner.func1.2({0x1051238a0, 0x140001b72c0})
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1872 +0x190
 testing.tRunner.func1()
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1875 +0x31c
-panic({0x104c7f7e0?, 0x1400021dd70?})
+panic({0x1051238a0?, 0x140001b72c0?})
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/runtime/panic.go:783 +0x120
-bismarck-game/backend/internal/api/handlers.TestUpdateProfile(0x14000139dc0)
-	/Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/auth_handler_test.go:516 +0x4fc
-testing.tRunner(0x14000139dc0, 0x104d07f88)
+bismarck-game/backend/internal/api/handlers.TestGetProfile(0x14000092c40)
+	/Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/auth_handler_test.go:443 +0x4e8
+testing.tRunner(0x14000092c40, 0x1051abfa8)
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1934 +0xc8
 created by testing.(*T).Run in goroutine 1
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1997 +0x364
-FAIL	bismarck-game/backend/internal/api/handlers	0.790s
+FAIL	bismarck-game/backend/internal/api/handlers	1.288s
 ?   	bismarck-game/backend/internal/api/middleware	[no test files]
 === RUN   TestNew
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
@@ -253,8 +236,7 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-    auth_service_test.go:17: Failed to setup test database: failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
---- FAIL: TestNew (0.03s)
+--- PASS: TestNew (0.05s)
 === RUN   TestRegister
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
 Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
@@ -262,15 +244,12 @@ Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismar
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 === RUN   TestRegister/successful_registration
-    auth_service_test.go:67: Unexpected error: failed to create user: pq: relation "users" does not exist
 === RUN   TestRegister/username_already_exists
-    auth_service_test.go:93: Expected error message 'username already exists', got 'failed to check username: pq: relation "users" does not exist'
 === RUN   TestRegister/email_already_exists
-    auth_service_test.go:109: Expected error message 'email already exists', got 'failed to check username: pq: relation "users" does not exist'
---- FAIL: TestRegister (0.08s)
-    --- FAIL: TestRegister/successful_registration (0.05s)
-    --- FAIL: TestRegister/username_already_exists (0.00s)
-    --- FAIL: TestRegister/email_already_exists (0.00s)
+--- PASS: TestRegister (0.10s)
+    --- PASS: TestRegister/successful_registration (0.07s)
+    --- PASS: TestRegister/username_already_exists (0.00s)
+    --- PASS: TestRegister/email_already_exists (0.00s)
 === RUN   TestLogin
     auth_service_test.go:116: Skipping login test due to Redis dependency
 --- SKIP: TestLogin (0.00s)
@@ -293,15 +272,14 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-    auth_service_test.go:183: Failed to setup test database: failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
---- FAIL: TestHashPassword (0.03s)
+--- PASS: TestHashPassword (0.08s)
 === RUN   TestCheckPassword
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
 Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
---- PASS: TestCheckPassword (0.16s)
+--- PASS: TestCheckPassword (0.18s)
 === RUN   TestGetUserByID
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
 Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
@@ -311,25 +289,25 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
 === RUN   TestGetUserByID/user_found
     auth_service_test.go:266: Unexpected error: failed to get user: pq: column "last_login" does not exist
     auth_service_test.go:269: Expected user to be returned
---- FAIL: TestGetUserByID (0.09s)
+--- FAIL: TestGetUserByID (0.08s)
     --- FAIL: TestGetUserByID/user_found (0.00s)
 panic: runtime error: invalid memory address or nil pointer dereference [recovered, repanicked]
-[signal SIGSEGV: segmentation violation code=0x2 addr=0x0 pc=0x10244d890]
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x0 pc=0x1049a9890]
 
-goroutine 70 [running]:
-testing.tRunner.func1.2({0x1025568a0, 0x1027b5470})
+goroutine 73 [running]:
+testing.tRunner.func1.2({0x104ab28a0, 0x104d11470})
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1872 +0x190
 testing.tRunner.func1()
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1875 +0x31c
-panic({0x1025568a0?, 0x1027b5470?})
+panic({0x104ab28a0?, 0x104d11470?})
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/runtime/panic.go:783 +0x120
-bismarck-game/backend/internal/auth.TestGetUserByID.func1(0x140000836c0)
+bismarck-game/backend/internal/auth.TestGetUserByID.func1(0x14000083a40)
 	/Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/auth_service_test.go:271 +0xa0
-testing.tRunner(0x140000836c0, 0x1400009a9c0)
+testing.tRunner(0x14000083a40, 0x140000989f0)
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1934 +0xc8
-created by testing.(*T).Run in goroutine 36
+created by testing.(*T).Run in goroutine 4
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1997 +0x364
-FAIL	bismarck-game/backend/internal/auth	0.971s
+FAIL	bismarck-game/backend/internal/auth	1.025s
 === RUN   TestLoadConfig
 --- PASS: TestLoadConfig (0.00s)
 === RUN   TestEnvOverride
@@ -406,7 +384,7 @@ FAIL	bismarck-game/backend/internal/auth	0.971s
 === RUN   TestGetTestConfig
 --- PASS: TestGetTestConfig (0.00s)
 PASS
-ok  	bismarck-game/backend/internal/config	0.804s
+ok  	bismarck-game/backend/internal/config	(cached)
 === RUN   TestSpeedTypeCalculateFuelCost
 === RUN   TestSpeedTypeCalculateFuelCost/F:_Движение_на_1_гекс_=_0_FP
     units_test.go:103: ✅ Бесплатное движение на 1 гекс: 0 FP
@@ -497,7 +475,7 @@ ok  	bismarck-game/backend/internal/config	0.804s
     --- PASS: TestSpeedTypeGetMovementRestrictionAfterMove/S:_2_хода_без_движения_после_движения (0.00s)
     --- PASS: TestSpeedTypeGetMovementRestrictionAfterMove/VS:_4_хода_без_движения_после_движения (0.00s)
 PASS
-ok  	bismarck-game/backend/internal/game/models	1.034s
+ok  	bismarck-game/backend/internal/game/models	1.707s
 ?   	bismarck-game/backend/internal/game/restrictions	[no test files]
 === RUN   TestAdminPhaseMovementReset
 === RUN   TestAdminPhaseMovementReset/S_ship_restriction_decreases_by_1
@@ -593,7 +571,7 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
---- PASS: TestNewGameEventService (0.06s)
+--- PASS: TestNewGameEventService (0.05s)
 === RUN   TestLogMovementEvent
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
 Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
@@ -715,32 +693,32 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
         	Test:       	TestGetGameEventsWithPagination
 --- FAIL: TestGetGameEventsWithPagination (0.03s)
 === RUN   TestMapStructureService_LoadConfig
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:12 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:12 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:12 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:12 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
 --- PASS: TestMapStructureService_LoadConfig (0.00s)
 === RUN   TestMapStructureService_GetHexType
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:25 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:25 Конфигурация структур карты успешно загружена {hasRestrictedDD=true, landAreas=1, nonGameHexes=1}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:25 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:25 Конфигурация структур карты успешно загружена {hasRestrictedDD=true, landAreas=1, nonGameHexes=1}
 --- PASS: TestMapStructureService_GetHexType (0.00s)
 === RUN   TestMapStructureService_IsLandHex
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:50 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:50 Конфигурация структур карты успешно загружена {hasRestrictedDD=true, landAreas=1, nonGameHexes=1}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:50 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:50 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
 --- PASS: TestMapStructureService_IsLandHex (0.00s)
 === RUN   TestMapStructureService_IsNonGameHex
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:74 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:74 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:74 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:74 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
 --- PASS: TestMapStructureService_IsNonGameHex (0.00s)
 === RUN   TestMapStructureService_IsRestrictedDDHex
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:98 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:98 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:98 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:98 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
 --- PASS: TestMapStructureService_IsRestrictedDDHex (0.00s)
 === RUN   TestMapStructureService_CanUnitMoveTo
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:122 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:122 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:122 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:122 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
 --- PASS: TestMapStructureService_CanUnitMoveTo (0.00s)
 === RUN   TestMapStructureService_ClassifyHex
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:165 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
-2025-11-02 18:33:39 [INFO] map_structure_service_test.go:165 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:165 Загрузка конфигурации структур карты {path=../../../config/map-structures.json}
+2025-11-02 18:48:15 [INFO] map_structure_service_test.go:165 Конфигурация структур карты успешно загружена {landAreas=1, nonGameHexes=1, hasRestrictedDD=true}
 --- PASS: TestMapStructureService_ClassifyHex (0.00s)
 === RUN   TestCompleteMovementCycle
 === RUN   TestCompleteMovementCycle/Complete_movement_cycle_for_F_type_ship
@@ -860,7 +838,7 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
     movement_service_test.go:137:    ToHex: B1
     movement_service_test.go:138:    HexesMoved: 1
     movement_service_test.go:139:    MovementType: normal
-    movement_service_test.go:140:    UpdatedAt: 2025-11-02T18:33:39+03:00
+    movement_service_test.go:140:    UpdatedAt: 2025-11-02T18:48:15+03:00
 --- PASS: TestSaveMovementToNewTable (0.00s)
 === RUN   TestMovementServiceIntegration
     movement_service_test.go:188: ✅ Movement integration test passed
@@ -959,9 +937,9 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
     --- PASS: TestMovementServiceNewTableIntegration/NoOldTableFields (0.00s)
 === RUN   TestMovementServicePerformance
 === RUN   TestMovementServicePerformance/DistanceCalculationPerformance
-    movement_service_test.go:752: ✅ Расчет 3000 расстояний выполнен за 33.375µs
+    movement_service_test.go:752: ✅ Расчет 3000 расстояний выполнен за 48.916µs
 === RUN   TestMovementServicePerformance/AdjacentHexesPerformance
-    movement_service_test.go:771: ✅ Проверка 3000 пар гексов выполнена за 36.292µs
+    movement_service_test.go:771: ✅ Проверка 3000 пар гексов выполнена за 52.583µs
 --- PASS: TestMovementServicePerformance (0.00s)
     --- PASS: TestMovementServicePerformance/DistanceCalculationPerformance (0.00s)
     --- PASS: TestMovementServicePerformance/AdjacentHexesPerformance (0.00s)
@@ -975,25 +953,15 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:39 [INFO] game_event_service.go:123 Game event logged {description=Начался ход 1, event_id=14e436cc-1d1d-4860-8e5f-8ae732e9586f, game_id=550e8400-e29b-41d4-a716-446655440002, event_type=turn_change}
-2025/11/02 18:33:39 🔄 BEFORE RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440002 turn 1:
-2025/11/02 18:33:39 Movement restrictions reset for all units in game 550e8400-e29b-41d4-a716-446655440002 turn 1
-2025/11/02 18:33:39 🔄 AFTER RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440002 turn 1:
-2025/11/02 18:33:39 Setup phase completed for game 550e8400-e29b-41d4-a716-446655440002
-2025/11/02 18:33:39 Movement phase started for game 550e8400-e29b-41d4-a716-446655440002 turn 1
-2025/11/02 18:33:39 🔄 Starting movement phase for game 550e8400-e29b-41d4-a716-446655440002 turn 1
-2025/11/02 18:33:39 Started phase movement for game 550e8400-e29b-41d4-a716-446655440002 turn 1
-2025/11/02 18:33:39 🔄 PHASE CHANGE: Game 550e8400-e29b-41d4-a716-446655440002 turn 1 - Phase changed to: movement
-2025/11/02 18:33:39 📡 WebSocket: Sent phase_changed event for game 550e8400-e29b-41d4-a716-446655440002
-2025/11/02 18:33:39 Started turn 1 for game 550e8400-e29b-41d4-a716-446655440002 with phase movement
-2025/11/02 18:33:39 🔗 callCurrentPhaseAPI called for game 550e8400-e29b-41d4-a716-446655440002 (apiBaseURL=http://127.0.0.1:54622)
-2025/11/02 18:33:39 🔗 callCurrentPhaseAPI called for game 550e8400-e29b-41d4-a716-446655440002 (apiBaseURL=http://127.0.0.1:54622)
-2025/11/02 18:33:39 🔗 Calling API: GET http://127.0.0.1:54622/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440002
-2025/11/02 18:33:39 🔗 Calling API: GET http://127.0.0.1:54622/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440002
---- PASS: TestPhaseManager_StartPhase_SendsWebSocketNotification (0.04s)
+2025-11-02 18:48:15 [INFO] game_event_service.go:123 Game event logged {game_id=550e8400-e29b-41d4-a716-446655440002, event_type=turn_change, description=Начался ход 3, event_id=9f171e83-849d-4080-b0ab-402300cd74cf}
+2025/11/02 18:48:15 🔄 BEFORE RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440002 turn 3:
+2025/11/02 18:48:15 Movement restrictions reset for all units in game 550e8400-e29b-41d4-a716-446655440002 turn 3
+2025/11/02 18:48:15 🔄 AFTER RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440002 turn 3:
+2025/11/02 18:48:15 Visibility phase started for game 550e8400-e29b-41d4-a716-446655440002 turn 3
+2025/11/02 18:48:15 Failed to update visibility: pq: column "visibility_level" of relation "games" does not exist
+    phase_manager_websocket_test.go:70: Failed to start turn: failed to start initial phase: failed to start phase handler: failed to update visibility: pq: column "visibility_level" of relation "games" does not exist
+--- FAIL: TestPhaseManager_StartPhase_SendsWebSocketNotification (0.04s)
 === RUN   TestPhaseManager_NextPhase_SendsWebSocketNotification
-2025/11/02 18:33:39 ❌ Failed to call API: Get "http://127.0.0.1:54622/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440002": dial tcp 127.0.0.1:54622: connect: connection refused
-2025/11/02 18:33:39 ❌ Failed to call API: Get "http://127.0.0.1:54622/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440002": dial tcp 127.0.0.1:54622: connect: connection refused
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
 Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
@@ -1003,43 +971,15 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:39 [INFO] game_event_service.go:123 Game event logged {event_id=91c7e519-087d-4c96-83c8-3e6ea254c571, game_id=550e8400-e29b-41d4-a716-446655440003, event_type=turn_change, description=Начался ход 1}
-2025/11/02 18:33:39 🔄 BEFORE RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440003 turn 1:
-2025/11/02 18:33:39 Movement restrictions reset for all units in game 550e8400-e29b-41d4-a716-446655440003 turn 1
-2025/11/02 18:33:39 🔄 AFTER RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440003 turn 1:
-2025/11/02 18:33:39 Setup phase completed for game 550e8400-e29b-41d4-a716-446655440003
-2025/11/02 18:33:39 Movement phase started for game 550e8400-e29b-41d4-a716-446655440003 turn 1
-2025/11/02 18:33:39 🔄 Starting movement phase for game 550e8400-e29b-41d4-a716-446655440003 turn 1
-2025/11/02 18:33:39 Started phase movement for game 550e8400-e29b-41d4-a716-446655440003 turn 1
-2025/11/02 18:33:39 🔄 PHASE CHANGE: Game 550e8400-e29b-41d4-a716-446655440003 turn 1 - Phase changed to: movement
-2025/11/02 18:33:39 📡 WebSocket: Sent phase_changed event for game 550e8400-e29b-41d4-a716-446655440003
-2025/11/02 18:33:39 Started turn 1 for game 550e8400-e29b-41d4-a716-446655440003 with phase movement
-2025/11/02 18:33:39 🔗 callCurrentPhaseAPI called for game 550e8400-e29b-41d4-a716-446655440003 (apiBaseURL=http://127.0.0.1:54626)
-2025/11/02 18:33:39 🔗 Calling API: GET http://127.0.0.1:54626/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440003
-2025/11/02 18:33:39 🔗 callCurrentPhaseAPI called for game 550e8400-e29b-41d4-a716-446655440003 (apiBaseURL=http://127.0.0.1:54626)
-2025/11/02 18:33:39 🔗 Calling API: GET http://127.0.0.1:54626/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440003
-2025/11/02 18:33:39 🔄 NextPhase: Current phase is movement for game 550e8400-e29b-41d4-a716-446655440003 turn 1
-2025/11/02 18:33:39 🔄 RESET: Completing movement phase for game 550e8400-e29b-41d4-a716-446655440003 turn 1
-2025/11/02 18:33:39 ✅ API call completed: GET http://127.0.0.1:54626/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440003 - Status: 200
-2025/11/02 18:33:39 ✅ API call completed: GET http://127.0.0.1:54626/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440003 - Status: 200
-2025/11/02 18:33:39 🔄 RESET: Before reset - units movement data:
-2025/11/02 18:33:39 ✅ RESET: Movement data reset after movement phase for game 550e8400-e29b-41d4-a716-446655440003 turn 1 (rows affected: 0)
-2025/11/02 18:33:39 🔄 RESET: After reset - units movement data:
-2025/11/02 18:33:39 Completed phase movement for game 550e8400-e29b-41d4-a716-446655440003 turn 1
-2025/11/02 18:33:39 Сработал переход в фазу search ход 1
-2025/11/02 18:33:39 Started phase search for game 550e8400-e29b-41d4-a716-446655440003 turn 1
-2025/11/02 18:33:39 🔄 PHASE CHANGE: Game 550e8400-e29b-41d4-a716-446655440003 turn 1 - Phase changed to: search
-2025/11/02 18:33:39 📡 WebSocket: Sent phase_changed event for game 550e8400-e29b-41d4-a716-446655440003
-2025/11/02 18:33:39 Advanced to next phase search for game 550e8400-e29b-41d4-a716-446655440003 turn 1
-2025/11/02 18:33:39 🔗 callCurrentPhaseAPI called for game 550e8400-e29b-41d4-a716-446655440003 (apiBaseURL=http://127.0.0.1:54626)
-2025/11/02 18:33:39 🔗 Calling API: GET http://127.0.0.1:54626/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440003
-2025/11/02 18:33:39 ✅ API call completed: GET http://127.0.0.1:54626/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440003 - Status: 200
-2025-11-02 18:33:39 [INFO] game_event_service.go:102 Game event logged {event_id=74de4b2f-3143-4407-86b9-463f049f9665, game_id=550e8400-e29b-41d4-a716-446655440003, event_type=phase_change, description=Фаза изменена: movement → search (ход 1)}
-2025/11/02 18:33:39 🔗 callCurrentPhaseAPI called for game 550e8400-e29b-41d4-a716-446655440003 (apiBaseURL=http://127.0.0.1:54626)
-2025/11/02 18:33:39 🔗 Calling API: GET http://127.0.0.1:54626/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440003
---- PASS: TestPhaseManager_NextPhase_SendsWebSocketNotification (0.04s)
+2025-11-02 18:48:15 [INFO] game_event_service.go:123 Game event logged {description=Начался ход 3, event_id=0ee5c828-d579-4332-9a15-ac7a2abaf9e7, game_id=550e8400-e29b-41d4-a716-446655440003, event_type=turn_change}
+2025/11/02 18:48:15 🔄 BEFORE RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440003 turn 3:
+2025/11/02 18:48:15 Movement restrictions reset for all units in game 550e8400-e29b-41d4-a716-446655440003 turn 3
+2025/11/02 18:48:15 🔄 AFTER RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440003 turn 3:
+2025/11/02 18:48:15 Visibility phase started for game 550e8400-e29b-41d4-a716-446655440003 turn 3
+2025/11/02 18:48:15 Failed to update visibility: pq: column "visibility_level" of relation "games" does not exist
+    phase_manager_websocket_test.go:121: Failed to start turn: failed to start initial phase: failed to start phase handler: failed to update visibility: pq: column "visibility_level" of relation "games" does not exist
+--- FAIL: TestPhaseManager_NextPhase_SendsWebSocketNotification (0.04s)
 === RUN   TestPhaseManager_StartPhase_CallsCurrentPhaseAPI
-2025/11/02 18:33:39 ❌ Failed to call API: Get "http://127.0.0.1:54626/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440003": dial tcp 127.0.0.1:54626: connect: connection refused
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
 Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
@@ -1049,24 +989,14 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:39 [INFO] game_event_service.go:123 Game event logged {event_type=turn_change, description=Начался ход 1, event_id=7fba15e7-c9b8-43a0-8ce1-f447023ec63c, game_id=550e8400-e29b-41d4-a716-446655440004}
-2025/11/02 18:33:39 🔄 BEFORE RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440004 turn 1:
-2025/11/02 18:33:39 Movement restrictions reset for all units in game 550e8400-e29b-41d4-a716-446655440004 turn 1
-2025/11/02 18:33:39 🔄 AFTER RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440004 turn 1:
-2025/11/02 18:33:39 Setup phase completed for game 550e8400-e29b-41d4-a716-446655440004
-2025/11/02 18:33:39 Movement phase started for game 550e8400-e29b-41d4-a716-446655440004 turn 1
-2025/11/02 18:33:39 🔄 Starting movement phase for game 550e8400-e29b-41d4-a716-446655440004 turn 1
-2025/11/02 18:33:39 Started phase movement for game 550e8400-e29b-41d4-a716-446655440004 turn 1
-2025/11/02 18:33:39 🔄 PHASE CHANGE: Game 550e8400-e29b-41d4-a716-446655440004 turn 1 - Phase changed to: movement
-2025/11/02 18:33:39 📡 WebSocket: Sent phase_changed event for game 550e8400-e29b-41d4-a716-446655440004
-2025/11/02 18:33:39 Started turn 1 for game 550e8400-e29b-41d4-a716-446655440004 with phase movement
-2025/11/02 18:33:39 🔗 callCurrentPhaseAPI called for game 550e8400-e29b-41d4-a716-446655440004 (apiBaseURL=http://127.0.0.1:54632)
-2025/11/02 18:33:39 🔗 Calling API: GET http://127.0.0.1:54632/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440004
-2025/11/02 18:33:39 🔗 callCurrentPhaseAPI called for game 550e8400-e29b-41d4-a716-446655440004 (apiBaseURL=http://127.0.0.1:54632)
-2025/11/02 18:33:39 🔗 Calling API: GET http://127.0.0.1:54632/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440004
-2025/11/02 18:33:39 ✅ API call completed: GET http://127.0.0.1:54632/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440004 - Status: 200
-2025/11/02 18:33:39 ✅ API call completed: GET http://127.0.0.1:54632/api/phases/current?game_id=550e8400-e29b-41d4-a716-446655440004 - Status: 200
---- PASS: TestPhaseManager_StartPhase_CallsCurrentPhaseAPI (0.13s)
+2025-11-02 18:48:15 [INFO] game_event_service.go:123 Game event logged {event_id=94648d17-6e81-4682-bbaf-13e985d97751, game_id=550e8400-e29b-41d4-a716-446655440004, event_type=turn_change, description=Начался ход 3}
+2025/11/02 18:48:15 🔄 BEFORE RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440004 turn 3:
+2025/11/02 18:48:15 Movement restrictions reset for all units in game 550e8400-e29b-41d4-a716-446655440004 turn 3
+2025/11/02 18:48:15 🔄 AFTER RESET - no_movement_turns_left for slow units in game 550e8400-e29b-41d4-a716-446655440004 turn 3:
+2025/11/02 18:48:15 Visibility phase started for game 550e8400-e29b-41d4-a716-446655440004 turn 3
+2025/11/02 18:48:15 Failed to update visibility: pq: column "visibility_level" of relation "games" does not exist
+    phase_manager_websocket_test.go:187: Failed to start turn: failed to start initial phase: failed to start phase handler: failed to update visibility: pq: column "visibility_level" of relation "games" does not exist
+--- FAIL: TestPhaseManager_StartPhase_CallsCurrentPhaseAPI (0.03s)
 === RUN   TestRefuelUnit
 === RUN   TestRefuelUnit/Refuel_from_0_to_5
 === RUN   TestRefuelUnit/Refuel_from_0_to_max
@@ -1112,14 +1042,14 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
     --- PASS: TestRefuelUnitIntegration/Complete_refuel_scenario (0.00s)
     --- PASS: TestRefuelUnitIntegration/Partial_refuel_scenario (0.00s)
 === RUN   TestShipConfigService
-2025-11-02 18:33:39 [INFO] ship_config_service_test.go:14 Загрузка конфигурации кораблей {path=../../../config/ships.json}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=bismarck, shipName=BISMARCK, rulesCount=1}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipName=P. OF WALES, rulesCount=1, shipID=prince_of_wales}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=king_george_v, shipName=KING GEORGE V, rulesCount=1}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=rodney, shipName=RODNEY, rulesCount=1}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {rulesCount=1, shipID=nelson, shipName=NELSON}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {rulesCount=1, shipID=new_york, shipName=NEW YORK}
-2025-11-02 18:33:39 [INFO] ship_config_service_test.go:14 Конфигурация кораблей и специальные правила успешно загружены {shipsCount=50}
+2025-11-02 18:48:15 [INFO] ship_config_service_test.go:14 Загрузка конфигурации кораблей {path=../../../config/ships.json}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=bismarck, shipName=BISMARCK, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=prince_of_wales, shipName=P. OF WALES, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {rulesCount=1, shipID=king_george_v, shipName=KING GEORGE V}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=rodney, shipName=RODNEY, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=nelson, shipName=NELSON, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=new_york, shipName=NEW YORK, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service_test.go:14 Конфигурация кораблей и специальные правила успешно загружены {shipsCount=50}
     ship_config_service_test.go:35: Всего кораблей: 50
     ship_config_service_test.go:36: Корабли по сторонам: map[allied:39 german:11]
     ship_config_service_test.go:37: Корабли по типам: map[BB:8 BC:3 CA:9 CG:1 CL:10 CV:2 DD:11 TK:6]
@@ -1130,15 +1060,15 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
 === RUN   TestShipConfigValidation
 --- PASS: TestShipConfigValidation (0.00s)
 === RUN   TestCreateNavalUnitFromConfig
-2025-11-02 18:33:39 [INFO] ship_config_service_test.go:153 Загрузка конфигурации кораблей {path=../../../config/ships.json}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipName=BISMARCK, rulesCount=1, shipID=bismarck}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=prince_of_wales, shipName=P. OF WALES, rulesCount=1}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=king_george_v, shipName=KING GEORGE V, rulesCount=1}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=rodney, shipName=RODNEY, rulesCount=1}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipName=NELSON, rulesCount=1, shipID=nelson}
-2025-11-02 18:33:39 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=new_york, shipName=NEW YORK, rulesCount=1}
-2025-11-02 18:33:39 [INFO] ship_config_service_test.go:153 Конфигурация кораблей и специальные правила успешно загружены {shipsCount=50}
-2025-11-02 18:33:39 [INFO] ship_config_service_test.go:159 Создан морской юнит из конфигурации {unitID=bc158d20-13b0-4539-931d-4a2338b56692, name=BISMARCK, type=BB}
+2025-11-02 18:48:15 [INFO] ship_config_service_test.go:153 Загрузка конфигурации кораблей {path=../../../config/ships.json}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=bismarck, shipName=BISMARCK, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=prince_of_wales, shipName=P. OF WALES, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=king_george_v, shipName=KING GEORGE V, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=rodney, shipName=RODNEY, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=nelson, shipName=NELSON, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service.go:46 Зарегистрированы специальные правила для корабля {shipID=new_york, shipName=NEW YORK, rulesCount=1}
+2025-11-02 18:48:15 [INFO] ship_config_service_test.go:153 Конфигурация кораблей и специальные правила успешно загружены {shipsCount=50}
+2025-11-02 18:48:15 [INFO] ship_config_service_test.go:159 Создан морской юнит из конфигурации {unitID=d0937e6b-eae4-4dde-a258-6f0e7c2c0838, name=BISMARCK, type=BB}
     ship_config_service_test.go:216: Создан юнит: BISMARCK (BB) в позиции K15
 --- PASS: TestCreateNavalUnitFromConfig (0.00s)
 === RUN   TestSpecialRulesService
@@ -1161,8 +1091,8 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
     --- PASS: TestSpecialRulesService_NoMainGunsExtremeRange/NormalRange (0.00s)
 === RUN   TestSpecialRulesService_ProcessBattlePhase
 === RUN   TestSpecialRulesService_ProcessBattlePhase/ProcessBattlePhase
-2025-11-02 18:33:39 [INFO] special_rules_service_test.go:224 Обработаны специальные правила для фазы боя {phase=initial, round=1, unitsCount=2}
-2025-11-02 18:33:39 [INFO] special_rules_service_test.go:232 Обработаны специальные правила для фазы боя {phase=main, round=2, unitsCount=2}
+2025-11-02 18:48:15 [INFO] special_rules_service_test.go:224 Обработаны специальные правила для фазы боя {phase=initial, round=1, unitsCount=2}
+2025-11-02 18:48:15 [INFO] special_rules_service_test.go:232 Обработаны специальные правила для фазы боя {phase=main, round=2, unitsCount=2}
 --- PASS: TestSpecialRulesService_ProcessBattlePhase (0.00s)
     --- PASS: TestSpecialRulesService_ProcessBattlePhase/ProcessBattlePhase (0.00s)
 === RUN   TestNewTaskForceService
@@ -1175,7 +1105,7 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
---- PASS: TestNewTaskForceService (0.03s)
+--- PASS: TestNewTaskForceService (0.02s)
 === RUN   TestCreateTaskForce
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
 Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
@@ -1187,18 +1117,18 @@ Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismar
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 === RUN   TestCreateTaskForce/successful_creation
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:56 Created naval unit {unit_id=f55ebe72-bd2d-4322-a12c-cd1b69dc40f9, name=Ship 1}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:57 Created naval unit {unit_id=1f4df2de-2255-4772-bc5d-587b5b26f1ac, name=Ship 2}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=f55ebe72-bd2d-4322-a12c-cd1b69dc40f9, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=f55ebe72-bd2d-4322-a12c-cd1b69dc40f9}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:68 Unit added to task force and position cleared {unit_id=f55ebe72-bd2d-4322-a12c-cd1b69dc40f9, unit_name=Ship 1, task_force_id=34d44117-eb6a-41a4-9d15-69fb07c5d46f}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=1f4df2de-2255-4772-bc5d-587b5b26f1ac, position=}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=1f4df2de-2255-4772-bc5d-587b5b26f1ac}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:68 Unit added to task force and position cleared {unit_id=1f4df2de-2255-4772-bc5d-587b5b26f1ac, unit_name=Ship 2, task_force_id=34d44117-eb6a-41a4-9d15-69fb07c5d46f}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:68 Created task force {task_force_id=34d44117-eb6a-41a4-9d15-69fb07c5d46f, name=Test Task Force, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:56 Created naval unit {unit_id=b1e9f5fb-b867-4468-80c0-67a4e4a29f66, name=Ship 1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:57 Created naval unit {unit_id=5c7c64a9-88cb-4d00-be46-2393e0193471, name=Ship 2}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=b1e9f5fb-b867-4468-80c0-67a4e4a29f66, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=b1e9f5fb-b867-4468-80c0-67a4e4a29f66}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:68 Unit added to task force and position cleared {task_force_id=9a2a2345-dfb8-4848-9f06-7cba2df859ba, unit_id=b1e9f5fb-b867-4468-80c0-67a4e4a29f66, unit_name=Ship 1}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {speed_rating=M, old_status=active, new_status=active, unit_id=5c7c64a9-88cb-4d00-be46-2393e0193471, position=, no_movement_turns_left=0}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=5c7c64a9-88cb-4d00-be46-2393e0193471}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:68 Unit added to task force and position cleared {unit_id=5c7c64a9-88cb-4d00-be46-2393e0193471, unit_name=Ship 2, task_force_id=9a2a2345-dfb8-4848-9f06-7cba2df859ba}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:68 Created task force {nationality=german, task_force_id=9a2a2345-dfb8-4848-9f06-7cba2df859ba, name=Test Task Force}
 === RUN   TestCreateTaskForce/database_error
---- PASS: TestCreateTaskForce (0.04s)
-    --- PASS: TestCreateTaskForce/successful_creation (0.00s)
+--- PASS: TestCreateTaskForce (0.03s)
+    --- PASS: TestCreateTaskForce/successful_creation (0.01s)
     --- PASS: TestCreateTaskForce/database_error (0.00s)
 === RUN   TestGetTaskForcesByGameID
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
@@ -1210,27 +1140,27 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:112 Created naval unit {unit_id=84b7a9d8-1688-4d9f-88a3-ca0ba807a639, name=A1-1}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:112 Created naval unit {unit_id=3d65be7a-f22a-45b4-940c-65f90f79dcb6, name=A1-2}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:112 Created naval unit {unit_id=d284cf90-7a4b-4fd2-9224-815e0d4cbe40, name=A2-1}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:112 Created naval unit {unit_id=971a0abd-882d-4b43-97f1-055f95c82346, name=A2-2}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=84b7a9d8-1688-4d9f-88a3-ca0ba807a639, position=}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=84b7a9d8-1688-4d9f-88a3-ca0ba807a639}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:129 Unit added to task force and position cleared {unit_name=A1-1, task_force_id=1c992b13-b79a-4035-b795-55696344649d, unit_id=84b7a9d8-1688-4d9f-88a3-ca0ba807a639}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=3d65be7a-f22a-45b4-940c-65f90f79dcb6, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=3d65be7a-f22a-45b4-940c-65f90f79dcb6}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:129 Unit added to task force and position cleared {unit_id=3d65be7a-f22a-45b4-940c-65f90f79dcb6, unit_name=A1-2, task_force_id=1c992b13-b79a-4035-b795-55696344649d}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:129 Created task force {task_force_id=1c992b13-b79a-4035-b795-55696344649d, name=Task Force 1, nationality=german}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=d284cf90-7a4b-4fd2-9224-815e0d4cbe40, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=d284cf90-7a4b-4fd2-9224-815e0d4cbe40}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:140 Unit added to task force and position cleared {unit_id=d284cf90-7a4b-4fd2-9224-815e0d4cbe40, unit_name=A2-1, task_force_id=3de3e996-5747-4e14-9eea-a9daa760f742}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=971a0abd-882d-4b43-97f1-055f95c82346, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:39 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=971a0abd-882d-4b43-97f1-055f95c82346}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:140 Unit added to task force and position cleared {unit_id=971a0abd-882d-4b43-97f1-055f95c82346, unit_name=A2-2, task_force_id=3de3e996-5747-4e14-9eea-a9daa760f742}
-2025-11-02 18:33:39 [INFO] taskforce_service_test.go:140 Created task force {task_force_id=3de3e996-5747-4e14-9eea-a9daa760f742, name=Task Force 2, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:112 Created naval unit {unit_id=c380fd07-456b-4d7d-944c-f54996a249a8, name=A1-1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:112 Created naval unit {unit_id=f6de5815-bc6f-411d-a1bd-01af3f3905b9, name=A1-2}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:112 Created naval unit {unit_id=e7cc1236-0141-4df4-a8de-c6431980c136, name=A2-1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:112 Created naval unit {unit_id=aff9b9ae-f6c0-47e0-82a0-9e01a4bdc934, name=A2-2}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=c380fd07-456b-4d7d-944c-f54996a249a8, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=c380fd07-456b-4d7d-944c-f54996a249a8}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:129 Unit added to task force and position cleared {unit_name=A1-1, task_force_id=3e90ef26-f94a-4cd8-ad81-ff1decd26af4, unit_id=c380fd07-456b-4d7d-944c-f54996a249a8}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {speed_rating=F, old_status=active, new_status=active, unit_id=f6de5815-bc6f-411d-a1bd-01af3f3905b9, position=, no_movement_turns_left=0}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=f6de5815-bc6f-411d-a1bd-01af3f3905b9}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:129 Unit added to task force and position cleared {unit_id=f6de5815-bc6f-411d-a1bd-01af3f3905b9, unit_name=A1-2, task_force_id=3e90ef26-f94a-4cd8-ad81-ff1decd26af4}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:129 Created task force {task_force_id=3e90ef26-f94a-4cd8-ad81-ff1decd26af4, name=Task Force 1, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=e7cc1236-0141-4df4-a8de-c6431980c136, position=}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=e7cc1236-0141-4df4-a8de-c6431980c136}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:140 Unit added to task force and position cleared {task_force_id=71b88fa7-4e49-4d94-96bb-4c37550774df, unit_id=e7cc1236-0141-4df4-a8de-c6431980c136, unit_name=A2-1}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=aff9b9ae-f6c0-47e0-82a0-9e01a4bdc934, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=aff9b9ae-f6c0-47e0-82a0-9e01a4bdc934}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:140 Unit added to task force and position cleared {unit_id=aff9b9ae-f6c0-47e0-82a0-9e01a4bdc934, unit_name=A2-2, task_force_id=71b88fa7-4e49-4d94-96bb-4c37550774df}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:140 Created task force {task_force_id=71b88fa7-4e49-4d94-96bb-4c37550774df, name=Task Force 2, nationality=german}
 === RUN   TestGetTaskForcesByGameID/get_task_forces_for_existing_game
 === RUN   TestGetTaskForcesByGameID/get_task_forces_for_non-existing_game
---- PASS: TestGetTaskForcesByGameID (0.03s)
+--- PASS: TestGetTaskForcesByGameID (0.04s)
     --- PASS: TestGetTaskForcesByGameID/get_task_forces_for_existing_game (0.00s)
     --- PASS: TestGetTaskForcesByGameID/get_task_forces_for_non-existing_game (0.00s)
 === RUN   TestGetTaskForceByID
@@ -1243,18 +1173,18 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:186 Created naval unit {unit_id=92d6f212-b4c8-4597-b75e-1843cff07aab, name=Ship 1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:187 Created naval unit {unit_id=5f99abc0-f572-4986-8b8a-483afe9706f9, name=Ship 2}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=92d6f212-b4c8-4597-b75e-1843cff07aab, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=92d6f212-b4c8-4597-b75e-1843cff07aab}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:196 Unit added to task force and position cleared {unit_name=Ship 1, task_force_id=932c0ec1-7266-43d4-96cd-6d74c93a2875, unit_id=92d6f212-b4c8-4597-b75e-1843cff07aab}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=5f99abc0-f572-4986-8b8a-483afe9706f9, position=, no_movement_turns_left=0, speed_rating=M, old_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=5f99abc0-f572-4986-8b8a-483afe9706f9}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:196 Unit added to task force and position cleared {unit_id=5f99abc0-f572-4986-8b8a-483afe9706f9, unit_name=Ship 2, task_force_id=932c0ec1-7266-43d4-96cd-6d74c93a2875}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:196 Created task force {task_force_id=932c0ec1-7266-43d4-96cd-6d74c93a2875, name=Test Task Force, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:186 Created naval unit {unit_id=f50c43ed-76b8-4950-b1ee-03c35c70d850, name=Ship 1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:187 Created naval unit {unit_id=f85f9bf7-7b20-4390-b642-eb3bfecf2d28, name=Ship 2}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=f50c43ed-76b8-4950-b1ee-03c35c70d850, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=f50c43ed-76b8-4950-b1ee-03c35c70d850}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:196 Unit added to task force and position cleared {unit_id=f50c43ed-76b8-4950-b1ee-03c35c70d850, unit_name=Ship 1, task_force_id=858b3947-7955-47a5-98d1-9ddcbe88c0ac}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=f85f9bf7-7b20-4390-b642-eb3bfecf2d28, position=}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=f85f9bf7-7b20-4390-b642-eb3bfecf2d28}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:196 Unit added to task force and position cleared {unit_id=f85f9bf7-7b20-4390-b642-eb3bfecf2d28, unit_name=Ship 2, task_force_id=858b3947-7955-47a5-98d1-9ddcbe88c0ac}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:196 Created task force {task_force_id=858b3947-7955-47a5-98d1-9ddcbe88c0ac, name=Test Task Force, nationality=german}
 === RUN   TestGetTaskForceByID/get_existing_task_force
 === RUN   TestGetTaskForceByID/get_non-existing_task_force
-2025-11-02 18:33:40 [ERROR] taskforce_service_test.go:208 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+2025-11-02 18:48:15 [ERROR] taskforce_service_test.go:208 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
 --- PASS: TestGetTaskForceByID (0.03s)
     --- PASS: TestGetTaskForceByID/get_existing_task_force (0.00s)
     --- PASS: TestGetTaskForceByID/get_non-existing_task_force (0.00s)
@@ -1268,25 +1198,25 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:241 Created naval unit {unit_id=6bb99ec6-1a74-4332-9e0a-cc6c25f0c6d7, name=Ship 1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:242 Created naval unit {unit_id=af791951-1a80-4586-a652-9658f896f200, name=Ship 2}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=6bb99ec6-1a74-4332-9e0a-cc6c25f0c6d7, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=6bb99ec6-1a74-4332-9e0a-cc6c25f0c6d7}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:251 Unit added to task force and position cleared {unit_id=6bb99ec6-1a74-4332-9e0a-cc6c25f0c6d7, unit_name=Ship 1, task_force_id=131ac5f3-a932-4d3c-9aae-0c7ba6a4d2ef}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=af791951-1a80-4586-a652-9658f896f200, position=, no_movement_turns_left=0, speed_rating=M}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=af791951-1a80-4586-a652-9658f896f200}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:251 Unit added to task force and position cleared {unit_id=af791951-1a80-4586-a652-9658f896f200, unit_name=Ship 2, task_force_id=131ac5f3-a932-4d3c-9aae-0c7ba6a4d2ef}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:251 Created task force {name=Test Task Force, nationality=german, task_force_id=131ac5f3-a932-4d3c-9aae-0c7ba6a4d2ef}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:274 Created naval unit {unit_id=efd39017-3ddd-43b9-b740-eb93f91aa162, name=Test Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:241 Created naval unit {unit_id=64d1bb99-9129-43c8-b01d-229a7f9264f8, name=Ship 1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:242 Created naval unit {unit_id=519577f3-1f84-4521-b93e-dcf85999d662, name=Ship 2}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=64d1bb99-9129-43c8-b01d-229a7f9264f8, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=64d1bb99-9129-43c8-b01d-229a7f9264f8}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:251 Unit added to task force and position cleared {unit_id=64d1bb99-9129-43c8-b01d-229a7f9264f8, unit_name=Ship 1, task_force_id=14be29f8-8e57-4376-a385-f1efca0c437c}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=519577f3-1f84-4521-b93e-dcf85999d662, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=519577f3-1f84-4521-b93e-dcf85999d662}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:251 Unit added to task force and position cleared {unit_name=Ship 2, task_force_id=14be29f8-8e57-4376-a385-f1efca0c437c, unit_id=519577f3-1f84-4521-b93e-dcf85999d662}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:251 Created task force {task_force_id=14be29f8-8e57-4376-a385-f1efca0c437c, name=Test Task Force, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:274 Created naval unit {unit_id=3acdf33d-be81-4227-aa9c-756cfdebd8ef, name=Test Ship}
 === RUN   TestAddUnitToTaskForce/successful_add_unit
-2025-11-02 18:33:40 [INFO] taskforce_service.go:285 Updating naval unit in database {unit_id=efd39017-3ddd-43b9-b740-eb93f91aa162, position=A1, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:285 Updated naval unit {unit_id=efd39017-3ddd-43b9-b740-eb93f91aa162}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:278 Added unit to task force {task_force_id=131ac5f3-a932-4d3c-9aae-0c7ba6a4d2ef, unit_id=efd39017-3ddd-43b9-b740-eb93f91aa162}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:285 Updating naval unit in database {unit_id=3acdf33d-be81-4227-aa9c-756cfdebd8ef, position=A1, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:285 Updated naval unit {unit_id=3acdf33d-be81-4227-aa9c-756cfdebd8ef}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:278 Added unit to task force {task_force_id=14be29f8-8e57-4376-a385-f1efca0c437c, unit_id=3acdf33d-be81-4227-aa9c-756cfdebd8ef}
 === RUN   TestAddUnitToTaskForce/add_unit_to_non-existing_task_force
-2025-11-02 18:33:40 [ERROR] taskforce_service.go:228 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+2025-11-02 18:48:15 [ERROR] taskforce_service.go:228 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
 === RUN   TestAddUnitToTaskForce/add_non-existing_unit
-2025-11-02 18:33:40 [ERROR] taskforce_service.go:239 Failed to get naval unit {unit_id=non-existing-unit-id, error=pq: invalid input syntax for type uuid: "non-existing-unit-id"}
---- PASS: TestAddUnitToTaskForce (0.03s)
+2025-11-02 18:48:15 [ERROR] taskforce_service.go:239 Failed to get naval unit {unit_id=non-existing-unit-id, error=pq: invalid input syntax for type uuid: "non-existing-unit-id"}
+--- PASS: TestAddUnitToTaskForce (0.04s)
     --- PASS: TestAddUnitToTaskForce/successful_add_unit (0.00s)
     --- PASS: TestAddUnitToTaskForce/add_unit_to_non-existing_task_force (0.00s)
     --- PASS: TestAddUnitToTaskForce/add_non-existing_unit (0.00s)
@@ -1316,22 +1246,22 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:359 Created naval unit {unit_id=c6dae4fc-44b3-4681-9dd5-e84380a4d107, name=U1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:359 Created naval unit {unit_id=9f3898d1-b3b7-450c-9c8d-7b4e2a160f64, name=U2}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:359 Created naval unit {unit_id=dc1ac225-13f2-49cc-ab06-1aeea2c74789, name=U3}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=c6dae4fc-44b3-4681-9dd5-e84380a4d107, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=c6dae4fc-44b3-4681-9dd5-e84380a4d107}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:367 Unit added to task force and position cleared {unit_id=c6dae4fc-44b3-4681-9dd5-e84380a4d107, unit_name=U1, task_force_id=410d24c5-c931-486d-bd03-5605f1562ece}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=9f3898d1-b3b7-450c-9c8d-7b4e2a160f64, position=}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=9f3898d1-b3b7-450c-9c8d-7b4e2a160f64}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:367 Unit added to task force and position cleared {unit_id=9f3898d1-b3b7-450c-9c8d-7b4e2a160f64, unit_name=U2, task_force_id=410d24c5-c931-486d-bd03-5605f1562ece}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=dc1ac225-13f2-49cc-ab06-1aeea2c74789, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=dc1ac225-13f2-49cc-ab06-1aeea2c74789}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:367 Unit added to task force and position cleared {unit_name=U3, task_force_id=410d24c5-c931-486d-bd03-5605f1562ece, unit_id=dc1ac225-13f2-49cc-ab06-1aeea2c74789}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:367 Created task force {task_force_id=410d24c5-c931-486d-bd03-5605f1562ece, name=TF-Pos-Remove, nationality=german}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:314 Updating naval unit in database {old_status=active, new_status=active, unit_id=c6dae4fc-44b3-4681-9dd5-e84380a4d107, position=K20, no_movement_turns_left=0, speed_rating=F}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:314 Updated naval unit {unit_id=c6dae4fc-44b3-4681-9dd5-e84380a4d107}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:370 Removed unit from task force {task_force_id=410d24c5-c931-486d-bd03-5605f1562ece, unit_id=c6dae4fc-44b3-4681-9dd5-e84380a4d107}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:359 Created naval unit {unit_id=3f400cc4-63e0-4540-934f-410f0373f321, name=U1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:359 Created naval unit {unit_id=47e6e442-eb18-4261-b03a-b42df9d6c97f, name=U2}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:359 Created naval unit {unit_id=309c0816-d40e-4a36-b7a4-810c661cb7eb, name=U3}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=3f400cc4-63e0-4540-934f-410f0373f321, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=3f400cc4-63e0-4540-934f-410f0373f321}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:367 Unit added to task force and position cleared {unit_name=U1, task_force_id=6238734a-2e95-456e-98a0-4eb9a0734e57, unit_id=3f400cc4-63e0-4540-934f-410f0373f321}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=47e6e442-eb18-4261-b03a-b42df9d6c97f, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=47e6e442-eb18-4261-b03a-b42df9d6c97f}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:367 Unit added to task force and position cleared {unit_id=47e6e442-eb18-4261-b03a-b42df9d6c97f, unit_name=U2, task_force_id=6238734a-2e95-456e-98a0-4eb9a0734e57}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=309c0816-d40e-4a36-b7a4-810c661cb7eb, position=}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=309c0816-d40e-4a36-b7a4-810c661cb7eb}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:367 Unit added to task force and position cleared {task_force_id=6238734a-2e95-456e-98a0-4eb9a0734e57, unit_id=309c0816-d40e-4a36-b7a4-810c661cb7eb, unit_name=U3}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:367 Created task force {task_force_id=6238734a-2e95-456e-98a0-4eb9a0734e57, name=TF-Pos-Remove, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:314 Updating naval unit in database {new_status=active, unit_id=3f400cc4-63e0-4540-934f-410f0373f321, position=K20, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:314 Updated naval unit {unit_id=3f400cc4-63e0-4540-934f-410f0373f321}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:370 Removed unit from task force {task_force_id=6238734a-2e95-456e-98a0-4eb9a0734e57, unit_id=3f400cc4-63e0-4540-934f-410f0373f321}
 --- PASS: TestRemoveUnitFromTaskForce_SetsUnitPositionToTF (0.04s)
 === RUN   TestRemoveUnitFromTaskForce_Disband_AssignsPositionsToAll
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
@@ -1343,24 +1273,24 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:408 Created naval unit {unit_id=947a2412-8ca6-4942-8c4b-3a34913b619f, name=A}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:409 Created naval unit {unit_id=7fa28b4a-edab-488e-acf8-2c1fd66baa6e, name=B}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=947a2412-8ca6-4942-8c4b-3a34913b619f, position=}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=947a2412-8ca6-4942-8c4b-3a34913b619f}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:412 Unit added to task force and position cleared {unit_id=947a2412-8ca6-4942-8c4b-3a34913b619f, unit_name=A, task_force_id=7f3615e1-fcac-453a-ad04-ee2e2e0fc393}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {speed_rating=F, old_status=active, new_status=active, unit_id=7fa28b4a-edab-488e-acf8-2c1fd66baa6e, position=, no_movement_turns_left=0}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=7fa28b4a-edab-488e-acf8-2c1fd66baa6e}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:412 Unit added to task force and position cleared {unit_id=7fa28b4a-edab-488e-acf8-2c1fd66baa6e, unit_name=B, task_force_id=7f3615e1-fcac-453a-ad04-ee2e2e0fc393}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:412 Created task force {task_force_id=7f3615e1-fcac-453a-ad04-ee2e2e0fc393, name=TF-Pos-Disband, nationality=german}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:314 Updating naval unit in database {unit_id=947a2412-8ca6-4942-8c4b-3a34913b619f, position=M30, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:314 Updated naval unit {unit_id=947a2412-8ca6-4942-8c4b-3a34913b619f}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:384 Updating naval unit in database {unit_id=947a2412-8ca6-4942-8c4b-3a34913b619f, position=M30, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:384 Updated naval unit {unit_id=947a2412-8ca6-4942-8c4b-3a34913b619f}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:384 Updating naval unit in database {unit_id=7fa28b4a-edab-488e-acf8-2c1fd66baa6e, position=M30, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:384 Updated naval unit {unit_id=7fa28b4a-edab-488e-acf8-2c1fd66baa6e}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:324 Deleted task force {task_force_id=7f3615e1-fcac-453a-ad04-ee2e2e0fc393}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:415 Removed unit from task force {task_force_id=7f3615e1-fcac-453a-ad04-ee2e2e0fc393, unit_id=947a2412-8ca6-4942-8c4b-3a34913b619f}
-2025-11-02 18:33:40 [ERROR] taskforce_service_test.go:419 Failed to get task force {task_force_id=7f3615e1-fcac-453a-ad04-ee2e2e0fc393, error=sql: no rows in result set}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:408 Created naval unit {unit_id=19b07751-a545-41b4-9b41-7a3f7d893ac8, name=A}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:409 Created naval unit {name=B, unit_id=0a985d62-52b8-41c9-8179-f206f9d53e5a}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=19b07751-a545-41b4-9b41-7a3f7d893ac8, position=, no_movement_turns_left=0, speed_rating=M, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=19b07751-a545-41b4-9b41-7a3f7d893ac8}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:412 Unit added to task force and position cleared {unit_id=19b07751-a545-41b4-9b41-7a3f7d893ac8, unit_name=A, task_force_id=bd7c9269-0c40-4ced-8373-45a99522dacb}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=0a985d62-52b8-41c9-8179-f206f9d53e5a, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=0a985d62-52b8-41c9-8179-f206f9d53e5a}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:412 Unit added to task force and position cleared {unit_id=0a985d62-52b8-41c9-8179-f206f9d53e5a, unit_name=B, task_force_id=bd7c9269-0c40-4ced-8373-45a99522dacb}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:412 Created task force {task_force_id=bd7c9269-0c40-4ced-8373-45a99522dacb, name=TF-Pos-Disband, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:314 Updating naval unit in database {old_status=active, new_status=active, unit_id=19b07751-a545-41b4-9b41-7a3f7d893ac8, position=M30, no_movement_turns_left=0, speed_rating=M}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:314 Updated naval unit {unit_id=19b07751-a545-41b4-9b41-7a3f7d893ac8}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:384 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=19b07751-a545-41b4-9b41-7a3f7d893ac8, position=M30}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:384 Updated naval unit {unit_id=19b07751-a545-41b4-9b41-7a3f7d893ac8}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:384 Updating naval unit in database {unit_id=0a985d62-52b8-41c9-8179-f206f9d53e5a, position=M30, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:384 Updated naval unit {unit_id=0a985d62-52b8-41c9-8179-f206f9d53e5a}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:324 Deleted task force {task_force_id=bd7c9269-0c40-4ced-8373-45a99522dacb}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:415 Removed unit from task force {task_force_id=bd7c9269-0c40-4ced-8373-45a99522dacb, unit_id=19b07751-a545-41b4-9b41-7a3f7d893ac8}
+2025-11-02 18:48:15 [ERROR] taskforce_service_test.go:419 Failed to get task force {task_force_id=bd7c9269-0c40-4ced-8373-45a99522dacb, error=sql: no rows in result set}
 --- PASS: TestRemoveUnitFromTaskForce_Disband_AssignsPositionsToAll (0.04s)
 === RUN   TestRemoveUnitFromTaskForce
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
@@ -1372,25 +1302,25 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:476 Created naval unit {unit_id=fd14045f-00e8-40c6-858b-50e4e601101e, name=Test Ship}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:498 Created naval unit {name=Test Ship 2, unit_id=95f37ea9-2ca1-4172-a785-bb010465df9d}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:519 Created naval unit {unit_id=44bde9dd-1b48-4da9-a511-bce4a0e8641f, name=Test Ship 3}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=fd14045f-00e8-40c6-858b-50e4e601101e, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=fd14045f-00e8-40c6-858b-50e4e601101e}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:529 Unit added to task force and position cleared {unit_id=fd14045f-00e8-40c6-858b-50e4e601101e, unit_name=Test Ship, task_force_id=9768c0a8-c676-4b24-9154-c5af676437e7}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=95f37ea9-2ca1-4172-a785-bb010465df9d, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=95f37ea9-2ca1-4172-a785-bb010465df9d}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:529 Unit added to task force and position cleared {task_force_id=9768c0a8-c676-4b24-9154-c5af676437e7, unit_id=95f37ea9-2ca1-4172-a785-bb010465df9d, unit_name=Test Ship 2}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=44bde9dd-1b48-4da9-a511-bce4a0e8641f, position=, no_movement_turns_left=0, speed_rating=F}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=44bde9dd-1b48-4da9-a511-bce4a0e8641f}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:529 Unit added to task force and position cleared {unit_id=44bde9dd-1b48-4da9-a511-bce4a0e8641f, unit_name=Test Ship 3, task_force_id=9768c0a8-c676-4b24-9154-c5af676437e7}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:529 Created task force {task_force_id=9768c0a8-c676-4b24-9154-c5af676437e7, name=Test Task Force, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:476 Created naval unit {unit_id=d118a841-2c8d-4fa0-ade0-3fc8c6308d0d, name=Test Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:498 Created naval unit {unit_id=f76da304-e2ac-4d2e-bd30-e09679e3a17c, name=Test Ship 2}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:519 Created naval unit {unit_id=9c546814-4850-4fe1-8379-684e4bd06c32, name=Test Ship 3}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=d118a841-2c8d-4fa0-ade0-3fc8c6308d0d, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=d118a841-2c8d-4fa0-ade0-3fc8c6308d0d}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:529 Unit added to task force and position cleared {unit_id=d118a841-2c8d-4fa0-ade0-3fc8c6308d0d, unit_name=Test Ship, task_force_id=cf1fbdd8-f905-4545-a202-201b434b600c}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=f76da304-e2ac-4d2e-bd30-e09679e3a17c, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=f76da304-e2ac-4d2e-bd30-e09679e3a17c}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:529 Unit added to task force and position cleared {task_force_id=cf1fbdd8-f905-4545-a202-201b434b600c, unit_id=f76da304-e2ac-4d2e-bd30-e09679e3a17c, unit_name=Test Ship 2}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=9c546814-4850-4fe1-8379-684e4bd06c32, position=, no_movement_turns_left=0, speed_rating=F}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=9c546814-4850-4fe1-8379-684e4bd06c32}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:529 Unit added to task force and position cleared {unit_id=9c546814-4850-4fe1-8379-684e4bd06c32, unit_name=Test Ship 3, task_force_id=cf1fbdd8-f905-4545-a202-201b434b600c}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:529 Created task force {task_force_id=cf1fbdd8-f905-4545-a202-201b434b600c, name=Test Task Force, nationality=german}
 === RUN   TestRemoveUnitFromTaskForce/successful_remove_unit
-2025-11-02 18:33:40 [INFO] taskforce_service.go:314 Updating naval unit in database {old_status=active, new_status=active, unit_id=fd14045f-00e8-40c6-858b-50e4e601101e, position=A1, no_movement_turns_left=0, speed_rating=M}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:314 Updated naval unit {unit_id=fd14045f-00e8-40c6-858b-50e4e601101e}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:533 Removed unit from task force {task_force_id=9768c0a8-c676-4b24-9154-c5af676437e7, unit_id=fd14045f-00e8-40c6-858b-50e4e601101e}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:314 Updating naval unit in database {unit_id=d118a841-2c8d-4fa0-ade0-3fc8c6308d0d, position=A1, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:314 Updated naval unit {unit_id=d118a841-2c8d-4fa0-ade0-3fc8c6308d0d}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:533 Removed unit from task force {unit_id=d118a841-2c8d-4fa0-ade0-3fc8c6308d0d, task_force_id=cf1fbdd8-f905-4545-a202-201b434b600c}
 === RUN   TestRemoveUnitFromTaskForce/remove_unit_from_non-existing_task_force
-2025-11-02 18:33:40 [ERROR] taskforce_service.go:297 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+2025-11-02 18:48:15 [ERROR] taskforce_service.go:297 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
 --- PASS: TestRemoveUnitFromTaskForce (0.03s)
     --- PASS: TestRemoveUnitFromTaskForce/successful_remove_unit (0.00s)
     --- PASS: TestRemoveUnitFromTaskForce/remove_unit_from_non-existing_task_force (0.00s)
@@ -1404,28 +1334,28 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:570 Created naval unit {unit_id=8c13f217-6f27-4b16-9bff-030df0cfdb54, name=Ship 1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:571 Created naval unit {unit_id=62ff801e-2acb-4056-b6c9-a70a88409f5f, name=Ship 2}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=8c13f217-6f27-4b16-9bff-030df0cfdb54, position=, no_movement_turns_left=0, speed_rating=F}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=8c13f217-6f27-4b16-9bff-030df0cfdb54}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:580 Unit added to task force and position cleared {unit_id=8c13f217-6f27-4b16-9bff-030df0cfdb54, unit_name=Ship 1, task_force_id=b135722d-2ff4-489f-8fe8-6428b23f4fc4}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {speed_rating=M, old_status=active, new_status=active, unit_id=62ff801e-2acb-4056-b6c9-a70a88409f5f, position=, no_movement_turns_left=0}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=62ff801e-2acb-4056-b6c9-a70a88409f5f}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:580 Unit added to task force and position cleared {unit_id=62ff801e-2acb-4056-b6c9-a70a88409f5f, unit_name=Ship 2, task_force_id=b135722d-2ff4-489f-8fe8-6428b23f4fc4}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:580 Created task force {nationality=german, task_force_id=b135722d-2ff4-489f-8fe8-6428b23f4fc4, name=Test Task Force}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:570 Created naval unit {unit_id=70849ca0-368d-44e5-82cd-2f594c934f99, name=Ship 1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:571 Created naval unit {unit_id=12e95d57-2be4-48d1-8809-f252ddb8bb61, name=Ship 2}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=70849ca0-368d-44e5-82cd-2f594c934f99, position=}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=70849ca0-368d-44e5-82cd-2f594c934f99}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:580 Unit added to task force and position cleared {unit_id=70849ca0-368d-44e5-82cd-2f594c934f99, unit_name=Ship 1, task_force_id=89eaa576-d7b2-42dd-82fc-a915d4e0c648}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=12e95d57-2be4-48d1-8809-f252ddb8bb61, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=12e95d57-2be4-48d1-8809-f252ddb8bb61}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:580 Unit added to task force and position cleared {unit_id=12e95d57-2be4-48d1-8809-f252ddb8bb61, unit_name=Ship 2, task_force_id=89eaa576-d7b2-42dd-82fc-a915d4e0c648}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:580 Created task force {task_force_id=89eaa576-d7b2-42dd-82fc-a915d4e0c648, name=Test Task Force, nationality=german}
 === RUN   TestMoveTaskForce/successful_move
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=8c13f217-6f27-4b16-9bff-030df0cfdb54, position=}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updated naval unit {unit_id=8c13f217-6f27-4b16-9bff-030df0cfdb54}
-2025-11-02 18:33:40 [INFO] movement_service.go:815 Movement saved {unit_id=8c13f217-6f27-4b16-9bff-030df0cfdb54, movement_id=c50fef40-d3f8-4402-8dea-e7ce9889365d}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=62ff801e-2acb-4056-b6c9-a70a88409f5f}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updated naval unit {unit_id=62ff801e-2acb-4056-b6c9-a70a88409f5f}
-2025-11-02 18:33:40 [INFO] movement_service.go:815 Movement saved {movement_id=9abcc5a0-9e57-4c99-a800-5f3816dff414, unit_id=62ff801e-2acb-4056-b6c9-a70a88409f5f}
-2025-11-02 18:33:40 [INFO] movement_service.go:693 Task Force position and last_move_turn updated {task_force_id=b135722d-2ff4-489f-8fe8-6428b23f4fc4, new_position=B1, last_move_turn=1}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:359 Task Force movement executed {task_force_id=b135722d-2ff4-489f-8fe8-6428b23f4fc4, from=A1, to=B1, units_moved=2}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:584 Task force movement completed {task_force_id=b135722d-2ff4-489f-8fe8-6428b23f4fc4, to=B1}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updating naval unit in database {new_status=active, unit_id=70849ca0-368d-44e5-82cd-2f594c934f99, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updated naval unit {unit_id=70849ca0-368d-44e5-82cd-2f594c934f99}
+2025-11-02 18:48:15 [INFO] movement_service.go:815 Movement saved {movement_id=82ea8d1b-98d7-456b-b85a-f548d0a829cf, unit_id=70849ca0-368d-44e5-82cd-2f594c934f99}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=12e95d57-2be4-48d1-8809-f252ddb8bb61}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updated naval unit {unit_id=12e95d57-2be4-48d1-8809-f252ddb8bb61}
+2025-11-02 18:48:15 [INFO] movement_service.go:815 Movement saved {movement_id=f80f0cb2-eaee-4e88-a5cb-e58a70be1ccc, unit_id=12e95d57-2be4-48d1-8809-f252ddb8bb61}
+2025-11-02 18:48:15 [INFO] movement_service.go:693 Task Force position and last_move_turn updated {new_position=B1, last_move_turn=1, task_force_id=89eaa576-d7b2-42dd-82fc-a915d4e0c648}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:359 Task Force movement executed {task_force_id=89eaa576-d7b2-42dd-82fc-a915d4e0c648, from=A1, to=B1, units_moved=2}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:584 Task force movement completed {task_force_id=89eaa576-d7b2-42dd-82fc-a915d4e0c648, to=B1}
 === RUN   TestMoveTaskForce/move_non-existing_task_force
-2025-11-02 18:33:40 [ERROR] taskforce_service.go:504 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
---- PASS: TestMoveTaskForce (0.03s)
+2025-11-02 18:48:15 [ERROR] taskforce_service.go:504 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+--- PASS: TestMoveTaskForce (0.04s)
     --- PASS: TestMoveTaskForce/successful_move (0.01s)
     --- PASS: TestMoveTaskForce/move_non-existing_task_force (0.00s)
 === RUN   TestDeleteTaskForce
@@ -1438,13 +1368,13 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [ERROR] taskforce_service_test.go:620 Failed to create naval unit {error=pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"}
+2025-11-02 18:48:15 [ERROR] taskforce_service_test.go:620 Failed to create naval unit {error=pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"}
     taskforce_service_test.go:620: 
         	Error Trace:	taskforce_service_test.go:620
         	Error:      	Received unexpected error:
         	            	failed to create naval unit: pq: insert or update on table "naval_units" violates foreign key constraint "naval_units_game_id_fkey"
         	Test:       	TestDeleteTaskForce
---- FAIL: TestDeleteTaskForce (0.02s)
+--- FAIL: TestDeleteTaskForce (0.03s)
 === RUN   TestGetTaskForceUnits
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
 Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
@@ -1455,18 +1385,18 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:693 Created naval unit {unit_id=0baf7a45-89c2-4859-9394-648d2fe267d0, name=Ship 1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:715 Created naval unit {unit_id=c5ad9528-86e8-440c-9d2f-68660d2d57ce, name=Ship 2}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=0baf7a45-89c2-4859-9394-648d2fe267d0, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=0baf7a45-89c2-4859-9394-648d2fe267d0}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:727 Unit added to task force and position cleared {unit_id=0baf7a45-89c2-4859-9394-648d2fe267d0, unit_name=Ship 1, task_force_id=f07aee34-6abe-4ca7-864a-e8ea169770e1}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=c5ad9528-86e8-440c-9d2f-68660d2d57ce, position=}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=c5ad9528-86e8-440c-9d2f-68660d2d57ce}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:727 Unit added to task force and position cleared {unit_id=c5ad9528-86e8-440c-9d2f-68660d2d57ce, unit_name=Ship 2, task_force_id=f07aee34-6abe-4ca7-864a-e8ea169770e1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:727 Created task force {name=Test Task Force, nationality=german, task_force_id=f07aee34-6abe-4ca7-864a-e8ea169770e1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:693 Created naval unit {unit_id=46376076-4b37-4b92-9ecc-9e817babb1df, name=Ship 1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:715 Created naval unit {unit_id=3ef54c1e-d4d3-4ee0-a84e-b02cce99a54c, name=Ship 2}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=46376076-4b37-4b92-9ecc-9e817babb1df, position=, no_movement_turns_left=0, speed_rating=M}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=46376076-4b37-4b92-9ecc-9e817babb1df}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:727 Unit added to task force and position cleared {unit_name=Ship 1, task_force_id=a6afbc7f-5ac7-4f7e-a991-25f40b222643, unit_id=46376076-4b37-4b92-9ecc-9e817babb1df}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=3ef54c1e-d4d3-4ee0-a84e-b02cce99a54c, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=3ef54c1e-d4d3-4ee0-a84e-b02cce99a54c}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:727 Unit added to task force and position cleared {task_force_id=a6afbc7f-5ac7-4f7e-a991-25f40b222643, unit_id=3ef54c1e-d4d3-4ee0-a84e-b02cce99a54c, unit_name=Ship 2}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:727 Created task force {task_force_id=a6afbc7f-5ac7-4f7e-a991-25f40b222643, name=Test Task Force, nationality=german}
 === RUN   TestGetTaskForceUnits/get_task_force_units
 === RUN   TestGetTaskForceUnits/get_units_for_non-existing_task_force
-2025-11-02 18:33:40 [ERROR] taskforce_service.go:445 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+2025-11-02 18:48:15 [ERROR] taskforce_service.go:445 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
 --- PASS: TestGetTaskForceUnits (0.03s)
     --- PASS: TestGetTaskForceUnits/get_task_force_units (0.00s)
     --- PASS: TestGetTaskForceUnits/get_units_for_non-existing_task_force (0.00s)
@@ -1480,15 +1410,15 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:795 Created naval unit {unit_id=db73397c-dd09-46dc-8b6c-8fca9986a815, name=Fast Ship}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:817 Created naval unit {unit_id=78a9d0cc-439b-45e7-81cc-8dfdde151d56, name=Slow Ship}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=db73397c-dd09-46dc-8b6c-8fca9986a815, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=db73397c-dd09-46dc-8b6c-8fca9986a815}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:829 Unit added to task force and position cleared {unit_id=db73397c-dd09-46dc-8b6c-8fca9986a815, unit_name=Fast Ship, task_force_id=17e0e75a-bddc-4e80-a634-defe6fd091b3}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=78a9d0cc-439b-45e7-81cc-8dfdde151d56, position=}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=78a9d0cc-439b-45e7-81cc-8dfdde151d56}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:829 Unit added to task force and position cleared {unit_id=78a9d0cc-439b-45e7-81cc-8dfdde151d56, unit_name=Slow Ship, task_force_id=17e0e75a-bddc-4e80-a634-defe6fd091b3}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:829 Created task force {task_force_id=17e0e75a-bddc-4e80-a634-defe6fd091b3, name=Test Task Force, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:795 Created naval unit {unit_id=ee4e24ef-55f4-4eae-b34f-d0f0504589b6, name=Fast Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:817 Created naval unit {unit_id=ec1ae829-0741-4e63-bbfc-23a87bc33252, name=Slow Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=ee4e24ef-55f4-4eae-b34f-d0f0504589b6, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=ee4e24ef-55f4-4eae-b34f-d0f0504589b6}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:829 Unit added to task force and position cleared {unit_id=ee4e24ef-55f4-4eae-b34f-d0f0504589b6, unit_name=Fast Ship, task_force_id=9615a485-2a20-4e74-9041-fb3efa0b0f4e}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=ec1ae829-0741-4e63-bbfc-23a87bc33252, position=, no_movement_turns_left=0, speed_rating=M, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=ec1ae829-0741-4e63-bbfc-23a87bc33252}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:829 Unit added to task force and position cleared {unit_id=ec1ae829-0741-4e63-bbfc-23a87bc33252, unit_name=Slow Ship, task_force_id=9615a485-2a20-4e74-9041-fb3efa0b0f4e}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:829 Created task force {name=Test Task Force, nationality=german, task_force_id=9615a485-2a20-4e74-9041-fb3efa0b0f4e}
 === RUN   TestGetTaskForceEffectiveSpeed/calculate_effective_speed
     taskforce_service_test.go:837: 
         	Error Trace:	taskforce_service_test.go:837
@@ -1497,7 +1427,7 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
         	            	actual  : 3
         	Test:       	TestGetTaskForceEffectiveSpeed/calculate_effective_speed
 === RUN   TestGetTaskForceEffectiveSpeed/get_effective_speed_for_non-existing_task_force
-2025-11-02 18:33:40 [ERROR] taskforce_service.go:445 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+2025-11-02 18:48:15 [ERROR] taskforce_service.go:445 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
 --- FAIL: TestGetTaskForceEffectiveSpeed (0.03s)
     --- FAIL: TestGetTaskForceEffectiveSpeed/calculate_effective_speed (0.00s)
     --- PASS: TestGetTaskForceEffectiveSpeed/get_effective_speed_for_non-existing_task_force (0.00s)
@@ -1511,15 +1441,15 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:892 Created naval unit {unit_id=04de53dd-52f1-4c5e-9782-4b2e2b21d448, name=Search Ship 1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:915 Created naval unit {unit_id=96be6983-154c-40cd-9192-88696a837704, name=Search Ship 2}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=04de53dd-52f1-4c5e-9782-4b2e2b21d448, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=04de53dd-52f1-4c5e-9782-4b2e2b21d448}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:927 Unit added to task force and position cleared {task_force_id=8fc90038-4a9e-4a8e-b6a1-83b464499fda, unit_id=04de53dd-52f1-4c5e-9782-4b2e2b21d448, unit_name=Search Ship 1}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {speed_rating=F, old_status=active, new_status=active, unit_id=96be6983-154c-40cd-9192-88696a837704, position=, no_movement_turns_left=0}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=96be6983-154c-40cd-9192-88696a837704}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:927 Unit added to task force and position cleared {unit_id=96be6983-154c-40cd-9192-88696a837704, unit_name=Search Ship 2, task_force_id=8fc90038-4a9e-4a8e-b6a1-83b464499fda}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:927 Created task force {task_force_id=8fc90038-4a9e-4a8e-b6a1-83b464499fda, name=Test Task Force, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:892 Created naval unit {unit_id=babbb270-7f9d-4c7e-9d5b-d9bf551e5f9b, name=Search Ship 1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:915 Created naval unit {unit_id=b3cfcb23-167e-4a78-a6b0-fffadf8e1f03, name=Search Ship 2}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=babbb270-7f9d-4c7e-9d5b-d9bf551e5f9b, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=babbb270-7f9d-4c7e-9d5b-d9bf551e5f9b}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:927 Unit added to task force and position cleared {unit_id=babbb270-7f9d-4c7e-9d5b-d9bf551e5f9b, unit_name=Search Ship 1, task_force_id=a10014fb-92a0-4c3e-8d01-6102bd3a2efd}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=b3cfcb23-167e-4a78-a6b0-fffadf8e1f03, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=b3cfcb23-167e-4a78-a6b0-fffadf8e1f03}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:927 Unit added to task force and position cleared {unit_id=b3cfcb23-167e-4a78-a6b0-fffadf8e1f03, unit_name=Search Ship 2, task_force_id=a10014fb-92a0-4c3e-8d01-6102bd3a2efd}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:927 Created task force {name=Test Task Force, nationality=german, task_force_id=a10014fb-92a0-4c3e-8d01-6102bd3a2efd}
 === RUN   TestGetTaskForceTotalSearchFactors/calculate_total_search_factors
     taskforce_service_test.go:935: 
         	Error Trace:	taskforce_service_test.go:935
@@ -1528,7 +1458,7 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
         	            	actual  : 2
         	Test:       	TestGetTaskForceTotalSearchFactors/calculate_total_search_factors
 === RUN   TestGetTaskForceTotalSearchFactors/get_total_search_factors_for_non-existing_task_force
-2025-11-02 18:33:40 [ERROR] taskforce_service.go:445 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+2025-11-02 18:48:15 [ERROR] taskforce_service.go:445 Failed to get task force {task_force_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
 --- FAIL: TestGetTaskForceTotalSearchFactors (0.03s)
     --- FAIL: TestGetTaskForceTotalSearchFactors/calculate_total_search_factors (0.00s)
     --- PASS: TestGetTaskForceTotalSearchFactors/get_total_search_factors_for_non-existing_task_force (0.00s)
@@ -1542,15 +1472,15 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:996 Created naval unit {name=Fast Ship, unit_id=e199a2de-e929-4914-9161-81edaa19bb45}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1020 Created naval unit {unit_id=1845dd9a-813a-4614-a530-cf7925c5f560, name=Restricted Ship}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=e199a2de-e929-4914-9161-81edaa19bb45, position=, no_movement_turns_left=0, speed_rating=F}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=e199a2de-e929-4914-9161-81edaa19bb45}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1032 Unit added to task force and position cleared {unit_id=e199a2de-e929-4914-9161-81edaa19bb45, unit_name=Fast Ship, task_force_id=5fb5fc21-0c7f-4d30-9cac-d2df5b84c319}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=1845dd9a-813a-4614-a530-cf7925c5f560, position=, no_movement_turns_left=0, speed_rating=M, old_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=1845dd9a-813a-4614-a530-cf7925c5f560}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1032 Unit added to task force and position cleared {unit_id=1845dd9a-813a-4614-a530-cf7925c5f560, unit_name=Restricted Ship, task_force_id=5fb5fc21-0c7f-4d30-9cac-d2df5b84c319}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1032 Created task force {task_force_id=5fb5fc21-0c7f-4d30-9cac-d2df5b84c319, name=Mixed Speed TF, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:996 Created naval unit {name=Fast Ship, unit_id=db15da69-fe1f-46fa-8417-14b5b863bcdd}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1020 Created naval unit {unit_id=dec84556-6d08-4fc9-b906-1b7f4a7d61ab, name=Restricted Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {speed_rating=F, old_status=active, new_status=active, unit_id=db15da69-fe1f-46fa-8417-14b5b863bcdd, position=, no_movement_turns_left=0}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=db15da69-fe1f-46fa-8417-14b5b863bcdd}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1032 Unit added to task force and position cleared {unit_id=db15da69-fe1f-46fa-8417-14b5b863bcdd, unit_name=Fast Ship, task_force_id=119713a6-d066-4618-a833-5f3e68a03295}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=dec84556-6d08-4fc9-b906-1b7f4a7d61ab, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=dec84556-6d08-4fc9-b906-1b7f4a7d61ab}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1032 Unit added to task force and position cleared {task_force_id=119713a6-d066-4618-a833-5f3e68a03295, unit_id=dec84556-6d08-4fc9-b906-1b7f4a7d61ab, unit_name=Restricted Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1032 Created task force {task_force_id=119713a6-d066-4618-a833-5f3e68a03295, name=Mixed Speed TF, nationality=german}
 === RUN   TestGetTaskForceAvailableMoves_WorstCaseScenario/worst_case_scenario_-_intersection_of_unit_moves
     taskforce_service_test.go:1047: Task Force can move to: K14
     taskforce_service_test.go:1047: Task Force can move to: L15
@@ -1573,15 +1503,15 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1112 Created naval unit {unit_id=e13aa94f-a21d-41b3-aac8-ad2868327494, name=Free Unit}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1136 Created naval unit {unit_id=59ff7b6c-90a9-48b4-be45-94b0ecdb24a2, name=Restricted Unit}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=e13aa94f-a21d-41b3-aac8-ad2868327494}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=e13aa94f-a21d-41b3-aac8-ad2868327494}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1148 Unit added to task force and position cleared {unit_name=Free Unit, task_force_id=f87eda7d-b903-4054-acf1-5117a60a1b5e, unit_id=e13aa94f-a21d-41b3-aac8-ad2868327494}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=59ff7b6c-90a9-48b4-be45-94b0ecdb24a2, position=, no_movement_turns_left=0, speed_rating=S}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=59ff7b6c-90a9-48b4-be45-94b0ecdb24a2}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1148 Unit added to task force and position cleared {unit_id=59ff7b6c-90a9-48b4-be45-94b0ecdb24a2, unit_name=Restricted Unit, task_force_id=f87eda7d-b903-4054-acf1-5117a60a1b5e}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1148 Created task force {task_force_id=f87eda7d-b903-4054-acf1-5117a60a1b5e, name=Restricted TF, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1112 Created naval unit {unit_id=450e3091-3d69-4c4a-8b95-6daa6bae32c5, name=Free Unit}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1136 Created naval unit {unit_id=0e78b57e-5028-41bc-853e-a6b9a9982142, name=Restricted Unit}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=450e3091-3d69-4c4a-8b95-6daa6bae32c5, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=450e3091-3d69-4c4a-8b95-6daa6bae32c5}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1148 Unit added to task force and position cleared {unit_id=450e3091-3d69-4c4a-8b95-6daa6bae32c5, unit_name=Free Unit, task_force_id=0d2241d1-9d2c-4b23-8d25-b27c06950666}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=0e78b57e-5028-41bc-853e-a6b9a9982142, position=, no_movement_turns_left=0, speed_rating=S, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=0e78b57e-5028-41bc-853e-a6b9a9982142}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1148 Unit added to task force and position cleared {unit_id=0e78b57e-5028-41bc-853e-a6b9a9982142, unit_name=Restricted Unit, task_force_id=0d2241d1-9d2c-4b23-8d25-b27c06950666}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1148 Created task force {name=Restricted TF, nationality=german, task_force_id=0d2241d1-9d2c-4b23-8d25-b27c06950666}
 === RUN   TestTaskForceMovement_NoMovementTurnsLeft/task_force_cannot_move_when_unit_has_movement_restrictions
     taskforce_service_test.go:1153: 
         	Error Trace:	taskforce_service_test.go:1153
@@ -1594,10 +1524,10 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
         	Test:       	TestTaskForceMovement_NoMovementTurnsLeft/task_force_cannot_move_when_unit_has_movement_restrictions
         	Messages:   	Reason should mention movement restrictions
 === RUN   TestTaskForceMovement_NoMovementTurnsLeft/task_force_can_move_when_restrictions_expire
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1161 Updating naval unit in database {position=A1, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=e13aa94f-a21d-41b3-aac8-ad2868327494}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1161 Updated naval unit {unit_id=e13aa94f-a21d-41b3-aac8-ad2868327494}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1163 Updating naval unit in database {unit_id=59ff7b6c-90a9-48b4-be45-94b0ecdb24a2, position=A1, no_movement_turns_left=0, speed_rating=S, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1163 Updated naval unit {unit_id=59ff7b6c-90a9-48b4-be45-94b0ecdb24a2}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1161 Updating naval unit in database {new_status=active, unit_id=450e3091-3d69-4c4a-8b95-6daa6bae32c5, position=A1, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1161 Updated naval unit {unit_id=450e3091-3d69-4c4a-8b95-6daa6bae32c5}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1163 Updating naval unit in database {no_movement_turns_left=0, speed_rating=S, old_status=active, new_status=active, unit_id=0e78b57e-5028-41bc-853e-a6b9a9982142, position=A1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1163 Updated naval unit {unit_id=0e78b57e-5028-41bc-853e-a6b9a9982142}
 --- FAIL: TestTaskForceMovement_NoMovementTurnsLeft (0.03s)
     --- FAIL: TestTaskForceMovement_NoMovementTurnsLeft/task_force_cannot_move_when_unit_has_movement_restrictions (0.00s)
     --- PASS: TestTaskForceMovement_NoMovementTurnsLeft/task_force_can_move_when_restrictions_expire (0.00s)
@@ -1611,27 +1541,27 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1217 Created naval unit {unit_id=cf0b4e03-9815-49f6-b02a-f43f01ad8acc, name=Fueled Ship}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1240 Created naval unit {unit_id=798b4355-7380-4a90-9072-6246918c8e45, name=No Fuel Ship}
-2025-11-02 18:33:40 [WARN] taskforce_service.go:38 Emergency fuel auto-activated {emergency_turn=10, unit_id=798b4355-7380-4a90-9072-6246918c8e45, unit_name=No Fuel Ship, current_fuel=0}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=cf0b4e03-9815-49f6-b02a-f43f01ad8acc, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=cf0b4e03-9815-49f6-b02a-f43f01ad8acc}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1252 Unit added to task force and position cleared {unit_id=cf0b4e03-9815-49f6-b02a-f43f01ad8acc, unit_name=Fueled Ship, task_force_id=6d8e744b-0cd5-450a-b5e2-c65709832ef7}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=798b4355-7380-4a90-9072-6246918c8e45, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=798b4355-7380-4a90-9072-6246918c8e45}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1252 Unit added to task force and position cleared {task_force_id=6d8e744b-0cd5-450a-b5e2-c65709832ef7, unit_id=798b4355-7380-4a90-9072-6246918c8e45, unit_name=No Fuel Ship}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1252 Created task force {nationality=german, task_force_id=6d8e744b-0cd5-450a-b5e2-c65709832ef7, name=Fuel Restricted TF}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1217 Created naval unit {unit_id=f0f9f84f-d336-49fd-9267-5ed7fa0c135f, name=Fueled Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1240 Created naval unit {unit_id=9c496e7d-e278-4c26-915a-1d078341bf0b, name=No Fuel Ship}
+2025-11-02 18:48:15 [WARN] taskforce_service.go:38 Emergency fuel auto-activated {unit_id=9c496e7d-e278-4c26-915a-1d078341bf0b, unit_name=No Fuel Ship, current_fuel=0, emergency_turn=10}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=f0f9f84f-d336-49fd-9267-5ed7fa0c135f, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=f0f9f84f-d336-49fd-9267-5ed7fa0c135f}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1252 Unit added to task force and position cleared {unit_id=f0f9f84f-d336-49fd-9267-5ed7fa0c135f, unit_name=Fueled Ship, task_force_id=be62ce1d-ded5-4218-bf0d-d3d0e5a1357a}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=9c496e7d-e278-4c26-915a-1d078341bf0b, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=9c496e7d-e278-4c26-915a-1d078341bf0b}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1252 Unit added to task force and position cleared {task_force_id=be62ce1d-ded5-4218-bf0d-d3d0e5a1357a, unit_id=9c496e7d-e278-4c26-915a-1d078341bf0b, unit_name=No Fuel Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1252 Created task force {task_force_id=be62ce1d-ded5-4218-bf0d-d3d0e5a1357a, name=Fuel Restricted TF, nationality=german}
 === RUN   TestTaskForceMovement_FuelRestrictions/task_force_movement_limited_by_fuel_restrictions
     taskforce_service_test.go:1260: 
         	Error Trace:	taskforce_service_test.go:1260
-        	Error:      	"unit No Fuel Ship (798b4355-7380-4a90-9072-6246918c8e45) cannot move" does not contain "fuel"
+        	Error:      	"unit No Fuel Ship (9c496e7d-e278-4c26-915a-1d078341bf0b) cannot move" does not contain "fuel"
         	Test:       	TestTaskForceMovement_FuelRestrictions/task_force_movement_limited_by_fuel_restrictions
         	Messages:   	Reason should mention fuel restrictions
-    taskforce_service_test.go:1261: Task Force correctly restricted by fuel: unit No Fuel Ship (798b4355-7380-4a90-9072-6246918c8e45) cannot move
+    taskforce_service_test.go:1261: Task Force correctly restricted by fuel: unit No Fuel Ship (9c496e7d-e278-4c26-915a-1d078341bf0b) cannot move
 === RUN   TestTaskForceMovement_FuelRestrictions/task_force_can_move_when_all_units_have_fuel
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1277 Updating naval unit in database {speed_rating=M, old_status=active, new_status=active, unit_id=798b4355-7380-4a90-9072-6246918c8e45, position=B1, no_movement_turns_left=0}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1277 Updated naval unit {unit_id=798b4355-7380-4a90-9072-6246918c8e45}
---- FAIL: TestTaskForceMovement_FuelRestrictions (0.04s)
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1277 Updating naval unit in database {unit_id=9c496e7d-e278-4c26-915a-1d078341bf0b, position=B1, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1277 Updated naval unit {unit_id=9c496e7d-e278-4c26-915a-1d078341bf0b}
+--- FAIL: TestTaskForceMovement_FuelRestrictions (0.03s)
     --- FAIL: TestTaskForceMovement_FuelRestrictions/task_force_movement_limited_by_fuel_restrictions (0.00s)
     --- PASS: TestTaskForceMovement_FuelRestrictions/task_force_can_move_when_all_units_have_fuel (0.00s)
 === RUN   TestExecuteTaskForceMovement_Integration
@@ -1644,24 +1574,24 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1336 Created naval unit {unit_id=60678294-05b6-4736-b669-2918f54b5074, name=Ship 1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1358 Created naval unit {unit_id=35a5af01-aea9-4394-a2da-fbd6e3d8a359, name=Ship 2}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=60678294-05b6-4736-b669-2918f54b5074, position=, no_movement_turns_left=0, speed_rating=F}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=60678294-05b6-4736-b669-2918f54b5074}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1370 Unit added to task force and position cleared {unit_id=60678294-05b6-4736-b669-2918f54b5074, unit_name=Ship 1, task_force_id=232c6d65-e247-47ea-a23b-b9a36293457f}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=35a5af01-aea9-4394-a2da-fbd6e3d8a359}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=35a5af01-aea9-4394-a2da-fbd6e3d8a359}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1370 Unit added to task force and position cleared {unit_id=35a5af01-aea9-4394-a2da-fbd6e3d8a359, unit_name=Ship 2, task_force_id=232c6d65-e247-47ea-a23b-b9a36293457f}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1370 Created task force {task_force_id=232c6d65-e247-47ea-a23b-b9a36293457f, name=Integration Test TF, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1336 Created naval unit {unit_id=42837dd8-a764-496e-899e-4fb0d8ff8f16, name=Ship 1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1358 Created naval unit {unit_id=349f94b0-fd59-4b49-9e90-cd2d97508a25, name=Ship 2}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=42837dd8-a764-496e-899e-4fb0d8ff8f16, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=42837dd8-a764-496e-899e-4fb0d8ff8f16}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1370 Unit added to task force and position cleared {unit_id=42837dd8-a764-496e-899e-4fb0d8ff8f16, unit_name=Ship 1, task_force_id=5f4a3efd-cffe-4dc2-b665-b5e5a955839b}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=349f94b0-fd59-4b49-9e90-cd2d97508a25, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=349f94b0-fd59-4b49-9e90-cd2d97508a25}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1370 Unit added to task force and position cleared {unit_id=349f94b0-fd59-4b49-9e90-cd2d97508a25, unit_name=Ship 2, task_force_id=5f4a3efd-cffe-4dc2-b665-b5e5a955839b}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1370 Created task force {task_force_id=5f4a3efd-cffe-4dc2-b665-b5e5a955839b, name=Integration Test TF, nationality=german}
 === RUN   TestExecuteTaskForceMovement_Integration/full_task_force_movement_cycle
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updating naval unit in database {new_status=active, unit_id=60678294-05b6-4736-b669-2918f54b5074, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updated naval unit {unit_id=60678294-05b6-4736-b669-2918f54b5074}
-2025-11-02 18:33:40 [INFO] movement_service.go:815 Movement saved {movement_id=ea976277-3377-4590-ae07-a1f9a3ab8542, unit_id=60678294-05b6-4736-b669-2918f54b5074}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=35a5af01-aea9-4394-a2da-fbd6e3d8a359}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updated naval unit {unit_id=35a5af01-aea9-4394-a2da-fbd6e3d8a359}
-2025-11-02 18:33:40 [INFO] movement_service.go:815 Movement saved {movement_id=ae42e61c-2605-4186-a059-0c4922e9d15c, unit_id=35a5af01-aea9-4394-a2da-fbd6e3d8a359}
-2025-11-02 18:33:40 [INFO] movement_service.go:693 Task Force position and last_move_turn updated {task_force_id=232c6d65-e247-47ea-a23b-b9a36293457f, new_position=D1, last_move_turn=1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1387 Task Force movement executed {from=C1, to=D1, units_moved=2, task_force_id=232c6d65-e247-47ea-a23b-b9a36293457f}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updating naval unit in database {unit_id=42837dd8-a764-496e-899e-4fb0d8ff8f16, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updated naval unit {unit_id=42837dd8-a764-496e-899e-4fb0d8ff8f16}
+2025-11-02 18:48:15 [INFO] movement_service.go:815 Movement saved {movement_id=c8162644-6cb2-403e-ae6c-33631a3b2b14, unit_id=42837dd8-a764-496e-899e-4fb0d8ff8f16}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updating naval unit in database {unit_id=349f94b0-fd59-4b49-9e90-cd2d97508a25, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updated naval unit {unit_id=349f94b0-fd59-4b49-9e90-cd2d97508a25}
+2025-11-02 18:48:15 [INFO] movement_service.go:815 Movement saved {movement_id=7749ece3-a65c-4f68-983d-d13cb6558a42, unit_id=349f94b0-fd59-4b49-9e90-cd2d97508a25}
+2025-11-02 18:48:15 [INFO] movement_service.go:693 Task Force position and last_move_turn updated {new_position=D1, last_move_turn=1, task_force_id=5f4a3efd-cffe-4dc2-b665-b5e5a955839b}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1387 Task Force movement executed {task_force_id=5f4a3efd-cffe-4dc2-b665-b5e5a955839b, from=C1, to=D1, units_moved=2}
     taskforce_service_test.go:1406: Task Force successfully moved from C1 to D1
 === RUN   TestExecuteTaskForceMovement_Integration/task_force_movement_updates_last_move_turn
     assertion_compare.go:313: 
@@ -1682,24 +1612,24 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1479 Created naval unit {unit_id=dcfd7628-b3e0-4fb5-89f7-45b3872ed5d2, name=Fast Consumer}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1502 Created naval unit {name=Slow Non-Consumer, unit_id=39a14cc6-8a98-4c35-bdc4-b2b19df4b82a}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=dcfd7628-b3e0-4fb5-89f7-45b3872ed5d2, position=, no_movement_turns_left=0, speed_rating=F}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=dcfd7628-b3e0-4fb5-89f7-45b3872ed5d2}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1514 Unit added to task force and position cleared {unit_id=dcfd7628-b3e0-4fb5-89f7-45b3872ed5d2, unit_name=Fast Consumer, task_force_id=8e8ad2ce-096e-4a8e-a39c-323882bc2989}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=39a14cc6-8a98-4c35-bdc4-b2b19df4b82a, position=, no_movement_turns_left=0, speed_rating=S, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=39a14cc6-8a98-4c35-bdc4-b2b19df4b82a}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1514 Unit added to task force and position cleared {unit_id=39a14cc6-8a98-4c35-bdc4-b2b19df4b82a, unit_name=Slow Non-Consumer, task_force_id=8e8ad2ce-096e-4a8e-a39c-323882bc2989}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1514 Created task force {nationality=german, task_force_id=8e8ad2ce-096e-4a8e-a39c-323882bc2989, name=Fuel Test TF}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1479 Created naval unit {unit_id=ce168589-442e-47f4-bc2f-41e73a48f121, name=Fast Consumer}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1502 Created naval unit {unit_id=8688ef6e-a0bf-4f65-88c0-cead66b43820, name=Slow Non-Consumer}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=ce168589-442e-47f4-bc2f-41e73a48f121, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=ce168589-442e-47f4-bc2f-41e73a48f121}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1514 Unit added to task force and position cleared {unit_name=Fast Consumer, task_force_id=ce5f465a-5717-4e8c-ad8f-83ea5aeba6ec, unit_id=ce168589-442e-47f4-bc2f-41e73a48f121}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=S, old_status=active, new_status=active, unit_id=8688ef6e-a0bf-4f65-88c0-cead66b43820, position=}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=8688ef6e-a0bf-4f65-88c0-cead66b43820}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1514 Unit added to task force and position cleared {unit_id=8688ef6e-a0bf-4f65-88c0-cead66b43820, unit_name=Slow Non-Consumer, task_force_id=ce5f465a-5717-4e8c-ad8f-83ea5aeba6ec}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1514 Created task force {task_force_id=ce5f465a-5717-4e8c-ad8f-83ea5aeba6ec, name=Fuel Test TF, nationality=german}
 === RUN   TestTaskForceFuelConsumption_Individual/individual_fuel_consumption_during_task_force_movement
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=dcfd7628-b3e0-4fb5-89f7-45b3872ed5d2, position=}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updated naval unit {unit_id=dcfd7628-b3e0-4fb5-89f7-45b3872ed5d2}
-2025-11-02 18:33:40 [INFO] movement_service.go:815 Movement saved {movement_id=206199f1-bece-4550-b8c7-f22a1c70910a, unit_id=dcfd7628-b3e0-4fb5-89f7-45b3872ed5d2}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updating naval unit in database {no_movement_turns_left=2, speed_rating=S, old_status=active, new_status=active, unit_id=39a14cc6-8a98-4c35-bdc4-b2b19df4b82a, position=}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updated naval unit {unit_id=39a14cc6-8a98-4c35-bdc4-b2b19df4b82a}
-2025-11-02 18:33:40 [INFO] movement_service.go:815 Movement saved {movement_id=7d71ba43-83cf-46d6-a49d-ae515843b121, unit_id=39a14cc6-8a98-4c35-bdc4-b2b19df4b82a}
-2025-11-02 18:33:40 [INFO] movement_service.go:693 Task Force position and last_move_turn updated {task_force_id=8e8ad2ce-096e-4a8e-a39c-323882bc2989, new_position=E1, last_move_turn=1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1529 Task Force movement executed {task_force_id=8e8ad2ce-096e-4a8e-a39c-323882bc2989, from=D1, to=E1, units_moved=2}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updating naval unit in database {speed_rating=F, old_status=active, new_status=active, unit_id=ce168589-442e-47f4-bc2f-41e73a48f121, position=, no_movement_turns_left=0}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updated naval unit {unit_id=ce168589-442e-47f4-bc2f-41e73a48f121}
+2025-11-02 18:48:15 [INFO] movement_service.go:815 Movement saved {movement_id=54b673f3-de15-4cfa-b1b7-c542e0731b5a, unit_id=ce168589-442e-47f4-bc2f-41e73a48f121}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updating naval unit in database {no_movement_turns_left=2, speed_rating=S, old_status=active, new_status=active, unit_id=8688ef6e-a0bf-4f65-88c0-cead66b43820, position=}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updated naval unit {unit_id=8688ef6e-a0bf-4f65-88c0-cead66b43820}
+2025-11-02 18:48:15 [INFO] movement_service.go:815 Movement saved {movement_id=ff394789-fc84-45b3-8a02-56238e93b700, unit_id=8688ef6e-a0bf-4f65-88c0-cead66b43820}
+2025-11-02 18:48:15 [INFO] movement_service.go:693 Task Force position and last_move_turn updated {last_move_turn=1, task_force_id=ce5f465a-5717-4e8c-ad8f-83ea5aeba6ec, new_position=E1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1529 Task Force movement executed {task_force_id=ce5f465a-5717-4e8c-ad8f-83ea5aeba6ec, from=D1, to=E1, units_moved=2}
     taskforce_service_test.go:1540: Fast unit fuel: 50 -> 50 (consumed: 0)
     taskforce_service_test.go:1547: Slow unit fuel: 100 -> 100 (consumed: 0)
 --- PASS: TestTaskForceFuelConsumption_Individual (0.04s)
@@ -1714,34 +1644,34 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1604 Created naval unit {unit_id=18c97586-8003-497c-9d9b-51d25e39180a, name=Unit 1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1604 Created naval unit {unit_id=83c5e826-f622-4896-bfca-2055db9f4d50, name=Unit 2}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1604 Created naval unit {unit_id=aaab7b15-4489-47ec-bd40-78b653699379, name=Unit 3}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=18c97586-8003-497c-9d9b-51d25e39180a, position=, no_movement_turns_left=0, speed_rating=M, old_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=18c97586-8003-497c-9d9b-51d25e39180a}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1618 Unit added to task force and position cleared {unit_id=18c97586-8003-497c-9d9b-51d25e39180a, unit_name=Unit 1, task_force_id=ffb35042-fc40-431d-be6f-f54cc07bfa08}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=83c5e826-f622-4896-bfca-2055db9f4d50, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=83c5e826-f622-4896-bfca-2055db9f4d50}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1618 Unit added to task force and position cleared {unit_id=83c5e826-f622-4896-bfca-2055db9f4d50, unit_name=Unit 2, task_force_id=ffb35042-fc40-431d-be6f-f54cc07bfa08}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=aaab7b15-4489-47ec-bd40-78b653699379, position=}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=aaab7b15-4489-47ec-bd40-78b653699379}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1618 Unit added to task force and position cleared {unit_id=aaab7b15-4489-47ec-bd40-78b653699379, unit_name=Unit 3, task_force_id=ffb35042-fc40-431d-be6f-f54cc07bfa08}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1618 Created task force {nationality=german, task_force_id=ffb35042-fc40-431d-be6f-f54cc07bfa08, name=Multi-Unit TF}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1604 Created naval unit {unit_id=63315064-e3ea-43cf-950a-38c49ded33dc, name=Unit 1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1604 Created naval unit {unit_id=b28736b1-eb96-4ef9-b5df-315af38222f8, name=Unit 2}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1604 Created naval unit {unit_id=6d5ebdf0-29fc-4d84-b2d0-01b82f9bd4fb, name=Unit 3}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=63315064-e3ea-43cf-950a-38c49ded33dc, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=63315064-e3ea-43cf-950a-38c49ded33dc}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1618 Unit added to task force and position cleared {unit_name=Unit 1, task_force_id=1ed7e37b-d471-46e5-a88c-856d3e159bd9, unit_id=63315064-e3ea-43cf-950a-38c49ded33dc}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=b28736b1-eb96-4ef9-b5df-315af38222f8, position=}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=b28736b1-eb96-4ef9-b5df-315af38222f8}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1618 Unit added to task force and position cleared {unit_name=Unit 2, task_force_id=1ed7e37b-d471-46e5-a88c-856d3e159bd9, unit_id=b28736b1-eb96-4ef9-b5df-315af38222f8}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=6d5ebdf0-29fc-4d84-b2d0-01b82f9bd4fb, position=, no_movement_turns_left=0, speed_rating=M, old_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=6d5ebdf0-29fc-4d84-b2d0-01b82f9bd4fb}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1618 Unit added to task force and position cleared {task_force_id=1ed7e37b-d471-46e5-a88c-856d3e159bd9, unit_id=6d5ebdf0-29fc-4d84-b2d0-01b82f9bd4fb, unit_name=Unit 3}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1618 Created task force {task_force_id=1ed7e37b-d471-46e5-a88c-856d3e159bd9, name=Multi-Unit TF, nationality=german}
 === RUN   TestTaskForceMovement_UpdateAllUnits/all_units_updated_when_task_force_moves
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updating naval unit in database {new_status=active, unit_id=18c97586-8003-497c-9d9b-51d25e39180a, position=, no_movement_turns_left=0, speed_rating=M, old_status=active}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updated naval unit {unit_id=18c97586-8003-497c-9d9b-51d25e39180a}
-2025-11-02 18:33:40 [INFO] movement_service.go:815 Movement saved {movement_id=46689115-32dd-4632-a604-b1e8f29f43d3, unit_id=18c97586-8003-497c-9d9b-51d25e39180a}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=83c5e826-f622-4896-bfca-2055db9f4d50, position=}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updated naval unit {unit_id=83c5e826-f622-4896-bfca-2055db9f4d50}
-2025-11-02 18:33:40 [INFO] movement_service.go:815 Movement saved {movement_id=a322d625-1aa7-4243-95d5-00d738d4547d, unit_id=83c5e826-f622-4896-bfca-2055db9f4d50}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=aaab7b15-4489-47ec-bd40-78b653699379, position=}
-2025-11-02 18:33:40 [INFO] movement_service.go:793 Updated naval unit {unit_id=aaab7b15-4489-47ec-bd40-78b653699379}
-2025-11-02 18:33:40 [INFO] movement_service.go:815 Movement saved {movement_id=4d1aa7cf-0477-48fc-a569-e9a562c309fc, unit_id=aaab7b15-4489-47ec-bd40-78b653699379}
-2025-11-02 18:33:40 [INFO] movement_service.go:693 Task Force position and last_move_turn updated {task_force_id=ffb35042-fc40-431d-be6f-f54cc07bfa08, new_position=F1, last_move_turn=1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1635 Task Force movement executed {task_force_id=ffb35042-fc40-431d-be6f-f54cc07bfa08, from=E1, to=F1, units_moved=3}
-    taskforce_service_test.go:1655: Unit 1 (Unit 1): position='', taskForceID=ffb35042-fc40-431d-be6f-f54cc07bfa08
-    taskforce_service_test.go:1655: Unit 2 (Unit 2): position='', taskForceID=ffb35042-fc40-431d-be6f-f54cc07bfa08
-    taskforce_service_test.go:1655: Unit 3 (Unit 3): position='', taskForceID=ffb35042-fc40-431d-be6f-f54cc07bfa08
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updating naval unit in database {old_status=active, new_status=active, unit_id=63315064-e3ea-43cf-950a-38c49ded33dc, position=, no_movement_turns_left=0, speed_rating=M}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updated naval unit {unit_id=63315064-e3ea-43cf-950a-38c49ded33dc}
+2025-11-02 18:48:15 [INFO] movement_service.go:815 Movement saved {unit_id=63315064-e3ea-43cf-950a-38c49ded33dc, movement_id=217e2efb-a7ab-4837-986b-eb0dfd13763c}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updating naval unit in database {old_status=active, new_status=active, unit_id=b28736b1-eb96-4ef9-b5df-315af38222f8, position=, no_movement_turns_left=0, speed_rating=M}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updated naval unit {unit_id=b28736b1-eb96-4ef9-b5df-315af38222f8}
+2025-11-02 18:48:15 [INFO] movement_service.go:815 Movement saved {movement_id=53aa5b52-0325-4467-80d9-72ee9a18a575, unit_id=b28736b1-eb96-4ef9-b5df-315af38222f8}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updating naval unit in database {unit_id=6d5ebdf0-29fc-4d84-b2d0-01b82f9bd4fb, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] movement_service.go:793 Updated naval unit {unit_id=6d5ebdf0-29fc-4d84-b2d0-01b82f9bd4fb}
+2025-11-02 18:48:15 [INFO] movement_service.go:815 Movement saved {movement_id=01f08a05-a3be-41ea-bdd6-c8c894ffb62a, unit_id=6d5ebdf0-29fc-4d84-b2d0-01b82f9bd4fb}
+2025-11-02 18:48:15 [INFO] movement_service.go:693 Task Force position and last_move_turn updated {task_force_id=1ed7e37b-d471-46e5-a88c-856d3e159bd9, new_position=F1, last_move_turn=1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1635 Task Force movement executed {task_force_id=1ed7e37b-d471-46e5-a88c-856d3e159bd9, from=E1, to=F1, units_moved=3}
+    taskforce_service_test.go:1655: Unit 1 (Unit 1): position='', taskForceID=1ed7e37b-d471-46e5-a88c-856d3e159bd9
+    taskforce_service_test.go:1655: Unit 2 (Unit 2): position='', taskForceID=1ed7e37b-d471-46e5-a88c-856d3e159bd9
+    taskforce_service_test.go:1655: Unit 3 (Unit 3): position='', taskForceID=1ed7e37b-d471-46e5-a88c-856d3e159bd9
 --- PASS: TestTaskForceMovement_UpdateAllUnits (0.04s)
     --- PASS: TestTaskForceMovement_UpdateAllUnits/all_units_updated_when_task_force_moves (0.01s)
 === RUN   TestCreateTaskForce_SightedUnitsRejected
@@ -1754,20 +1684,20 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1712 Created naval unit {unit_id=8fbd3312-fd93-4d4b-8d60-2abecc2a4269, name=Hidden Ship}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1736 Created naval unit {unit_id=0e4359ca-b4ee-438f-941d-1615459a5b69, name=Sighted Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1712 Created naval unit {unit_id=92886c7f-1753-4fc4-a43b-cd66c3f88b16, name=Hidden Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1736 Created naval unit {name=Sighted Ship, unit_id=22ad340a-baab-44fb-ba5e-cadbc2395ff2}
 === RUN   TestCreateTaskForce_SightedUnitsRejected/cannot_create_task_force_with_sighted_units
-    taskforce_service_test.go:1753: Correctly rejected Task Force creation: cannot form task force - unit 0e4359ca-b4ee-438f-941d-1615459a5b69 is sighted
+    taskforce_service_test.go:1753: Correctly rejected Task Force creation: cannot form task force - unit 22ad340a-baab-44fb-ba5e-cadbc2395ff2 is sighted
 === RUN   TestCreateTaskForce_SightedUnitsRejected/can_create_task_force_with_only_hidden_units
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1778 Created naval unit {unit_id=37ffd4e1-942c-4b54-96ee-9927868c6609, name=Another Hidden Ship}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=8fbd3312-fd93-4d4b-8d60-2abecc2a4269, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=8fbd3312-fd93-4d4b-8d60-2abecc2a4269}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1791 Unit added to task force and position cleared {unit_name=Hidden Ship, task_force_id=5bbb7665-14bf-4ca7-b43a-b5fd209271b3, unit_id=8fbd3312-fd93-4d4b-8d60-2abecc2a4269}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=37ffd4e1-942c-4b54-96ee-9927868c6609, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=37ffd4e1-942c-4b54-96ee-9927868c6609}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1791 Unit added to task force and position cleared {unit_id=37ffd4e1-942c-4b54-96ee-9927868c6609, unit_name=Another Hidden Ship, task_force_id=5bbb7665-14bf-4ca7-b43a-b5fd209271b3}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1791 Created task force {task_force_id=5bbb7665-14bf-4ca7-b43a-b5fd209271b3, name=Hidden Units TF, nationality=german}
-    taskforce_service_test.go:1793: Successfully created Task Force with hidden units: 5bbb7665-14bf-4ca7-b43a-b5fd209271b3
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1778 Created naval unit {unit_id=05827458-f358-4302-adf3-7ef86cb2d3a1, name=Another Hidden Ship}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=92886c7f-1753-4fc4-a43b-cd66c3f88b16, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=92886c7f-1753-4fc4-a43b-cd66c3f88b16}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1791 Unit added to task force and position cleared {unit_id=92886c7f-1753-4fc4-a43b-cd66c3f88b16, unit_name=Hidden Ship, task_force_id=f1147c98-3355-48ae-9f7b-ee633d1b0f6b}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=05827458-f358-4302-adf3-7ef86cb2d3a1, position=}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=05827458-f358-4302-adf3-7ef86cb2d3a1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1791 Unit added to task force and position cleared {unit_id=05827458-f358-4302-adf3-7ef86cb2d3a1, unit_name=Another Hidden Ship, task_force_id=f1147c98-3355-48ae-9f7b-ee633d1b0f6b}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1791 Created task force {task_force_id=f1147c98-3355-48ae-9f7b-ee633d1b0f6b, name=Hidden Units TF, nationality=german}
+    taskforce_service_test.go:1793: Successfully created Task Force with hidden units: f1147c98-3355-48ae-9f7b-ee633d1b0f6b
 --- PASS: TestCreateTaskForce_SightedUnitsRejected (0.03s)
     --- PASS: TestCreateTaskForce_SightedUnitsRejected/cannot_create_task_force_with_sighted_units (0.00s)
     --- PASS: TestCreateTaskForce_SightedUnitsRejected/can_create_task_force_with_only_hidden_units (0.00s)
@@ -1781,25 +1711,25 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1844 Created naval unit {unit_id=9f833f56-af4a-416e-8dde-1f4390cd8c62, name=TF Unit 1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1867 Created naval unit {unit_id=563b520a-f5bd-4cd2-9072-aac087a41562, name=TF Unit 2}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=9f833f56-af4a-416e-8dde-1f4390cd8c62, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=9f833f56-af4a-416e-8dde-1f4390cd8c62}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1879 Unit added to task force and position cleared {unit_id=9f833f56-af4a-416e-8dde-1f4390cd8c62, unit_name=TF Unit 1, task_force_id=86cc70df-b8fe-414f-bbe8-bd08d4ecca2a}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=563b520a-f5bd-4cd2-9072-aac087a41562, position=}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=563b520a-f5bd-4cd2-9072-aac087a41562}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1879 Unit added to task force and position cleared {unit_id=563b520a-f5bd-4cd2-9072-aac087a41562, unit_name=TF Unit 2, task_force_id=86cc70df-b8fe-414f-bbe8-bd08d4ecca2a}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1879 Created task force {task_force_id=86cc70df-b8fe-414f-bbe8-bd08d4ecca2a, name=Add Unit Test TF, nationality=german}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1903 Created naval unit {unit_id=b9604cee-1bd0-498e-979f-6ab61096ce80, name=Sighted Unit}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1844 Created naval unit {unit_id=92812b82-6e49-487b-b455-23bb5e93a2d8, name=TF Unit 1}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1867 Created naval unit {unit_id=feaf3d4a-fcab-4565-8c94-0d31424470b6, name=TF Unit 2}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {speed_rating=F, old_status=active, new_status=active, unit_id=92812b82-6e49-487b-b455-23bb5e93a2d8, position=, no_movement_turns_left=0}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=92812b82-6e49-487b-b455-23bb5e93a2d8}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1879 Unit added to task force and position cleared {unit_id=92812b82-6e49-487b-b455-23bb5e93a2d8, unit_name=TF Unit 1, task_force_id=a9b95050-1d6d-46ed-af2c-837e854e9c70}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=feaf3d4a-fcab-4565-8c94-0d31424470b6, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
+2025-11-02 18:48:15 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=feaf3d4a-fcab-4565-8c94-0d31424470b6}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1879 Unit added to task force and position cleared {unit_id=feaf3d4a-fcab-4565-8c94-0d31424470b6, unit_name=TF Unit 2, task_force_id=a9b95050-1d6d-46ed-af2c-837e854e9c70}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1879 Created task force {task_force_id=a9b95050-1d6d-46ed-af2c-837e854e9c70, name=Add Unit Test TF, nationality=german}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1903 Created naval unit {unit_id=6f18d58b-713d-400f-9cbc-c234e01da46a, name=Sighted Unit}
 === RUN   TestAddUnitToTaskForce_SightedUnitRejected/cannot_add_sighted_unit_to_task_force
     taskforce_service_test.go:1910: Correctly rejected adding sighted unit: cannot add sighted unit to task force
 === RUN   TestAddUnitToTaskForce_SightedUnitRejected/can_add_hidden_unit_to_task_force
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1935 Created naval unit {name=Hidden Unit, unit_id=1c1ba924-ab73-4306-b20a-87d374dc9a00}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:285 Updating naval unit in database {unit_id=1c1ba924-ab73-4306-b20a-87d374dc9a00, position=G1, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:285 Updated naval unit {unit_id=1c1ba924-ab73-4306-b20a-87d374dc9a00}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1938 Added unit to task force {task_force_id=86cc70df-b8fe-414f-bbe8-bd08d4ecca2a, unit_id=1c1ba924-ab73-4306-b20a-87d374dc9a00}
+2025-11-02 18:48:15 [INFO] taskforce_service_test.go:1935 Created naval unit {unit_id=327ee5b9-9655-43fe-8cf1-9f23bd1df3de, name=Hidden Unit}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:285 Updating naval unit in database {unit_id=327ee5b9-9655-43fe-8cf1-9f23bd1df3de, position=G1, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:285 Updated naval unit {unit_id=327ee5b9-9655-43fe-8cf1-9f23bd1df3de}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:1938 Added unit to task force {task_force_id=a9b95050-1d6d-46ed-af2c-837e854e9c70, unit_id=327ee5b9-9655-43fe-8cf1-9f23bd1df3de}
     taskforce_service_test.go:1940: Successfully added hidden unit to Task Force
---- PASS: TestAddUnitToTaskForce_SightedUnitRejected (0.03s)
+--- PASS: TestAddUnitToTaskForce_SightedUnitRejected (0.04s)
     --- PASS: TestAddUnitToTaskForce_SightedUnitRejected/cannot_add_sighted_unit_to_task_force (0.00s)
     --- PASS: TestAddUnitToTaskForce_SightedUnitRejected/can_add_hidden_unit_to_task_force (0.00s)
 === RUN   TestCanTaskForceMove_SightedTaskForce
@@ -1812,15 +1742,15 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:1991 Created naval unit {unit_id=168ac27d-79f7-45a2-92f0-c5e442609ac8, name=TF Ship 1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2014 Created naval unit {unit_id=13bfc85a-c874-46d6-9306-e1615c6960b7, name=TF Ship 2}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {new_status=active, unit_id=168ac27d-79f7-45a2-92f0-c5e442609ac8, position=, no_movement_turns_left=0, speed_rating=F, old_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=168ac27d-79f7-45a2-92f0-c5e442609ac8}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2027 Unit added to task force and position cleared {unit_id=168ac27d-79f7-45a2-92f0-c5e442609ac8, unit_name=TF Ship 1, task_force_id=51eb382a-a58e-4186-bb3a-86bdccd0b0e8}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=13bfc85a-c874-46d6-9306-e1615c6960b7, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=13bfc85a-c874-46d6-9306-e1615c6960b7}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2027 Unit added to task force and position cleared {unit_name=TF Ship 2, task_force_id=51eb382a-a58e-4186-bb3a-86bdccd0b0e8, unit_id=13bfc85a-c874-46d6-9306-e1615c6960b7}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2027 Created task force {task_force_id=51eb382a-a58e-4186-bb3a-86bdccd0b0e8, name=Detection Test TF, nationality=german}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:1991 Created naval unit {unit_id=488cf065-00e1-4668-9d78-235dffa4cf08, name=TF Ship 1}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2014 Created naval unit {name=TF Ship 2, unit_id=4f0fdf23-7873-4198-9b41-302cf13cfd66}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:127 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=488cf065-00e1-4668-9d78-235dffa4cf08}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=488cf065-00e1-4668-9d78-235dffa4cf08}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2027 Unit added to task force and position cleared {task_force_id=f5c57026-0d26-4a9c-a72a-577e6a056827, unit_id=488cf065-00e1-4668-9d78-235dffa4cf08, unit_name=TF Ship 1}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:127 Updating naval unit in database {position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active, unit_id=4f0fdf23-7873-4198-9b41-302cf13cfd66}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=4f0fdf23-7873-4198-9b41-302cf13cfd66}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2027 Unit added to task force and position cleared {task_force_id=f5c57026-0d26-4a9c-a72a-577e6a056827, unit_id=4f0fdf23-7873-4198-9b41-302cf13cfd66, unit_name=TF Ship 2}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2027 Created task force {name=Detection Test TF, nationality=german, task_force_id=f5c57026-0d26-4a9c-a72a-577e6a056827}
 === RUN   TestCanTaskForceMove_SightedTaskForce/hidden_task_force_can_move
     taskforce_service_test.go:2033: Hidden Task Force can move: 
 === RUN   TestCanTaskForceMove_SightedTaskForce/sighted_task_force_can_move
@@ -1838,22 +1768,22 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2098 Created naval unit {unit_id=f0a6599a-4140-4ab0-9766-079a85d47e13, name=Base Unit 1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2121 Created naval unit {unit_id=aaadc2f0-71cb-42fa-ae93-72ee781523e1, name=Base Unit 2}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active, unit_id=f0a6599a-4140-4ab0-9766-079a85d47e13, position=}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=f0a6599a-4140-4ab0-9766-079a85d47e13}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2133 Unit added to task force and position cleared {unit_id=f0a6599a-4140-4ab0-9766-079a85d47e13, unit_name=Base Unit 1, task_force_id=12ae760e-2bf9-4fc9-b62e-f519dd52c44f}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=aaadc2f0-71cb-42fa-ae93-72ee781523e1, position=, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=aaadc2f0-71cb-42fa-ae93-72ee781523e1}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2133 Unit added to task force and position cleared {unit_id=aaadc2f0-71cb-42fa-ae93-72ee781523e1, unit_name=Base Unit 2, task_force_id=12ae760e-2bf9-4fc9-b62e-f519dd52c44f}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2133 Created task force {task_force_id=12ae760e-2bf9-4fc9-b62e-f519dd52c44f, name=Can Add Test TF, nationality=german}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2157 Created naval unit {unit_id=0375d8a5-1d00-4ae9-9b1c-f4c79985c381, name=Hidden Test Unit}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2180 Created naval unit {unit_id=40f76129-57e3-4763-913c-502aeb2bc6f2, name=Sighted Test Unit}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2098 Created naval unit {unit_id=38adbfc5-2617-473a-ba80-3eebf340ccf8, name=Base Unit 1}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2121 Created naval unit {unit_id=e565c741-6eb6-4829-8707-592c6ba5316e, name=Base Unit 2}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:127 Updating naval unit in database {unit_id=38adbfc5-2617-473a-ba80-3eebf340ccf8, position=, no_movement_turns_left=0, speed_rating=F, old_status=active, new_status=active}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=38adbfc5-2617-473a-ba80-3eebf340ccf8}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2133 Unit added to task force and position cleared {unit_id=38adbfc5-2617-473a-ba80-3eebf340ccf8, unit_name=Base Unit 1, task_force_id=59e7f4c1-9e88-4a18-ae51-b6b2c7a23b44}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:127 Updating naval unit in database {old_status=active, new_status=active, unit_id=e565c741-6eb6-4829-8707-592c6ba5316e, position=, no_movement_turns_left=0, speed_rating=M}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:127 Updated naval unit {unit_id=e565c741-6eb6-4829-8707-592c6ba5316e}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2133 Unit added to task force and position cleared {unit_id=e565c741-6eb6-4829-8707-592c6ba5316e, unit_name=Base Unit 2, task_force_id=59e7f4c1-9e88-4a18-ae51-b6b2c7a23b44}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2133 Created task force {task_force_id=59e7f4c1-9e88-4a18-ae51-b6b2c7a23b44, name=Can Add Test TF, nationality=german}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2157 Created naval unit {name=Hidden Test Unit, unit_id=0fea8688-3cd9-4f40-af7e-d80a70754def}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2180 Created naval unit {unit_id=62c20d04-2aa2-4af8-af86-4fb2f91cca6a, name=Sighted Test Unit}
 === RUN   TestCanAddUnit_DetectionLevelCheck/hidden_task_force_can_accept_new_units
     taskforce_service_test.go:2190: Hidden Task Force can accept units: true
-2025-11-02 18:33:40 [INFO] taskforce_service.go:285 Updating naval unit in database {speed_rating=F, old_status=active, new_status=active, unit_id=0375d8a5-1d00-4ae9-9b1c-f4c79985c381, position=I1, no_movement_turns_left=0}
-2025-11-02 18:33:40 [INFO] taskforce_service.go:285 Updated naval unit {unit_id=0375d8a5-1d00-4ae9-9b1c-f4c79985c381}
-2025-11-02 18:33:40 [INFO] taskforce_service_test.go:2193 Added unit to task force {unit_id=0375d8a5-1d00-4ae9-9b1c-f4c79985c381, task_force_id=12ae760e-2bf9-4fc9-b62e-f519dd52c44f}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:285 Updating naval unit in database {new_status=active, unit_id=0fea8688-3cd9-4f40-af7e-d80a70754def, position=I1, no_movement_turns_left=0, speed_rating=F, old_status=active}
+2025-11-02 18:48:16 [INFO] taskforce_service.go:285 Updated naval unit {unit_id=0fea8688-3cd9-4f40-af7e-d80a70754def}
+2025-11-02 18:48:16 [INFO] taskforce_service_test.go:2193 Added unit to task force {task_force_id=59e7f4c1-9e88-4a18-ae51-b6b2c7a23b44, unit_id=0fea8688-3cd9-4f40-af7e-d80a70754def}
     taskforce_service_test.go:2195: Successfully added hidden unit to Task Force
 === RUN   TestCanAddUnit_DetectionLevelCheck/sighted_task_force_cannot_accept_new_units
     taskforce_service_test.go:2211: Sighted Task Force cannot accept units: false
@@ -1871,7 +1801,7 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
---- PASS: TestNewUnitService (0.02s)
+--- PASS: TestNewUnitService (0.03s)
 === RUN   TestCreateNavalUnit
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
 Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
@@ -1883,9 +1813,9 @@ Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismar
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 === RUN   TestCreateNavalUnit/successful_creation
-2025-11-02 18:33:40 [INFO] unit_service_test.go:78 Created naval unit {unit_id=2f12e3ac-a3f8-45fc-b1bd-71d41febe902, name=Test Ship}
+2025-11-02 18:48:16 [INFO] unit_service_test.go:78 Created naval unit {unit_id=12f3d65a-8fea-4a98-a328-2958c167e4f6, name=Test Ship}
 === RUN   TestCreateNavalUnit/database_error
-2025-11-02 18:33:40 [ERROR] unit_service_test.go:91 Failed to create naval unit {error=pq: invalid input syntax for type uuid: ""}
+2025-11-02 18:48:16 [ERROR] unit_service_test.go:91 Failed to create naval unit {error=pq: invalid input syntax for type uuid: ""}
 --- PASS: TestCreateNavalUnit (0.03s)
     --- PASS: TestCreateNavalUnit/successful_creation (0.00s)
     --- PASS: TestCreateNavalUnit/database_error (0.00s)
@@ -1899,9 +1829,8 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025/11/02 18:33:40 Failed to advance to next phase after search: failed to get current phase: failed to get current phase: sql: database is closed
 === RUN   TestCreateAirUnit/successful_creation
-2025-11-02 18:33:40 [ERROR] unit_service_test.go:121 Failed to create air unit {error=pq: null value in column "name" of relation "air_units" violates not-null constraint}
+2025-11-02 18:48:16 [ERROR] unit_service_test.go:121 Failed to create air unit {error=pq: null value in column "name" of relation "air_units" violates not-null constraint}
     unit_service_test.go:122: 
         	Error Trace:	unit_service_test.go:122
         	Error:      	Received unexpected error:
@@ -1920,7 +1849,7 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
         	Error:      	Should not be zero, but was 0001-01-01 00:00:00 +0000 UTC
         	Test:       	TestCreateAirUnit/successful_creation
 === RUN   TestCreateAirUnit/database_error
-2025-11-02 18:33:40 [ERROR] unit_service_test.go:134 Failed to create air unit {error=pq: invalid input syntax for type uuid: ""}
+2025-11-02 18:48:16 [ERROR] unit_service_test.go:134 Failed to create air unit {error=pq: invalid input syntax for type uuid: ""}
 --- FAIL: TestCreateAirUnit (0.03s)
     --- FAIL: TestCreateAirUnit/successful_creation (0.00s)
     --- PASS: TestCreateAirUnit/database_error (0.00s)
@@ -1934,11 +1863,11 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] unit_service_test.go:176 Created naval unit {unit_id=71a24e1d-8755-4cf2-bf4b-933abb348235, name=Ship 1}
-2025-11-02 18:33:40 [INFO] unit_service_test.go:198 Created naval unit {unit_id=337c55c2-4a21-4e5b-900d-92cbd34eef40, name=Ship 2}
+2025-11-02 18:48:16 [INFO] unit_service_test.go:176 Created naval unit {unit_id=e116aacf-a5c0-4a11-a7c8-67f4ded5bc1f, name=Ship 1}
+2025-11-02 18:48:16 [INFO] unit_service_test.go:198 Created naval unit {unit_id=558da01b-fa5d-4011-967d-87401463c14e, name=Ship 2}
 === RUN   TestGetNavalUnitsByGameID/get_units_for_existing_game
 === RUN   TestGetNavalUnitsByGameID/get_units_for_non-existing_game
-2025-11-02 18:33:40 [ERROR] unit_service_test.go:215 Failed to get naval units {game_id=non-existing-game, error=pq: invalid input syntax for type uuid: "non-existing-game"}
+2025-11-02 18:48:16 [ERROR] unit_service_test.go:215 Failed to get naval units {game_id=non-existing-game, error=pq: invalid input syntax for type uuid: "non-existing-game"}
     unit_service_test.go:216: 
         	Error Trace:	unit_service_test.go:216
         	Error:      	Received unexpected error:
@@ -1957,10 +1886,10 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] unit_service_test.go:258 Created naval unit {unit_id=e09dac79-a35f-44cc-9319-c9db74030e31, name=Test Ship}
+2025-11-02 18:48:16 [INFO] unit_service_test.go:258 Created naval unit {unit_id=f6de14b8-a2df-46be-821a-2fa27c4fb81e, name=Test Ship}
 === RUN   TestGetNavalUnitByID/get_existing_unit
 === RUN   TestGetNavalUnitByID/get_non-existing_unit
-2025-11-02 18:33:40 [ERROR] unit_service_test.go:270 Failed to get naval unit {unit_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+2025-11-02 18:48:16 [ERROR] unit_service_test.go:270 Failed to get naval unit {error=pq: invalid input syntax for type uuid: "non-existing-id", unit_id=non-existing-id}
 --- PASS: TestGetNavalUnitByID (0.03s)
     --- PASS: TestGetNavalUnitByID/get_existing_unit (0.00s)
     --- PASS: TestGetNavalUnitByID/get_non-existing_unit (0.00s)
@@ -1974,7 +1903,7 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [ERROR] unit_service_test.go:300 Failed to create air unit {error=pq: null value in column "name" of relation "air_units" violates not-null constraint}
+2025-11-02 18:48:16 [ERROR] unit_service_test.go:300 Failed to create air unit {error=pq: null value in column "name" of relation "air_units" violates not-null constraint}
     unit_service_test.go:301: 
         	Error Trace:	unit_service_test.go:301
         	Error:      	Received unexpected error:
@@ -1991,14 +1920,14 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] unit_service_test.go:370 Created naval unit {unit_id=19299181-d0d9-4156-83d1-68d26cd9904e, name=Test Ship}
+2025-11-02 18:48:16 [INFO] unit_service_test.go:370 Created naval unit {unit_id=7ac671cb-2402-44c8-8d6e-7fbb315503db, name=Test Ship}
 === RUN   TestUpdateNavalUnit/successful_update
-2025-11-02 18:33:40 [INFO] unit_service_test.go:378 Updating naval unit in database {unit_id=19299181-d0d9-4156-83d1-68d26cd9904e, position=B1, no_movement_turns_left=0, speed_rating=M, old_status=active, new_status=active}
-2025-11-02 18:33:40 [INFO] unit_service_test.go:378 Updated naval unit {unit_id=19299181-d0d9-4156-83d1-68d26cd9904e}
+2025-11-02 18:48:16 [INFO] unit_service_test.go:378 Updating naval unit in database {old_status=active, new_status=active, unit_id=7ac671cb-2402-44c8-8d6e-7fbb315503db, position=B1, no_movement_turns_left=0, speed_rating=M}
+2025-11-02 18:48:16 [INFO] unit_service_test.go:378 Updated naval unit {unit_id=7ac671cb-2402-44c8-8d6e-7fbb315503db}
 === RUN   TestUpdateNavalUnit/update_non-existing_unit
-2025-11-02 18:33:40 [ERROR] unit_service_test.go:394 Failed to get current unit status {unit_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
-2025-11-02 18:33:40 [INFO] unit_service_test.go:394 Updating naval unit in database {old_status=, new_status=, unit_id=non-existing-id, position=, no_movement_turns_left=0, speed_rating=}
-2025-11-02 18:33:40 [ERROR] unit_service_test.go:394 Failed to update naval unit {error=pq: invalid input syntax for type uuid: "non-existing-id", unit_id=non-existing-id}
+2025-11-02 18:48:16 [ERROR] unit_service_test.go:394 Failed to get current unit status {unit_id=non-existing-id, error=pq: invalid input syntax for type uuid: "non-existing-id"}
+2025-11-02 18:48:16 [INFO] unit_service_test.go:394 Updating naval unit in database {no_movement_turns_left=0, speed_rating=, old_status=, new_status=, unit_id=non-existing-id, position=}
+2025-11-02 18:48:16 [ERROR] unit_service_test.go:394 Failed to update naval unit {error=pq: invalid input syntax for type uuid: "non-existing-id", unit_id=non-existing-id}
 --- PASS: TestUpdateNavalUnit (0.03s)
     --- PASS: TestUpdateNavalUnit/successful_update (0.00s)
     --- PASS: TestUpdateNavalUnit/update_non-existing_unit (0.00s)
@@ -2012,13 +1941,13 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [ERROR] unit_service_test.go:427 Failed to create air unit {error=pq: null value in column "name" of relation "air_units" violates not-null constraint}
+2025-11-02 18:48:16 [ERROR] unit_service_test.go:427 Failed to create air unit {error=pq: null value in column "name" of relation "air_units" violates not-null constraint}
     unit_service_test.go:428: 
         	Error Trace:	unit_service_test.go:428
         	Error:      	Received unexpected error:
         	            	failed to create air unit: pq: null value in column "name" of relation "air_units" violates not-null constraint
         	Test:       	TestUpdateAirUnit
---- FAIL: TestUpdateAirUnit (0.02s)
+--- FAIL: TestUpdateAirUnit (0.03s)
 === RUN   TestSearchUnit
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql
 Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/pkg/testutil/schema.sql: no such file or directory
@@ -2029,9 +1958,9 @@ Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-ga
 Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
 Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
-2025-11-02 18:33:40 [INFO] unit_service_test.go:494 Created naval unit {unit_id=99336c6f-a9e1-4a69-b1a8-70a7ad9dca84, name=Test Ship}
+2025-11-02 18:48:16 [INFO] unit_service_test.go:494 Created naval unit {unit_id=66251ccf-b384-4a16-be79-38a7c995bfb2, name=Test Ship}
 === RUN   TestSearchUnit/successful_search
-2025-11-02 18:33:40 [ERROR] unit_service.go:389 Failed to record search {error=pq: invalid input syntax for type integer: "[]"}
+2025-11-02 18:48:16 [ERROR] unit_service.go:389 Failed to record search {error=pq: invalid input syntax for type integer: "[]"}
     unit_service_test.go:499: 
         	Error Trace:	unit_service_test.go:499
         	Error:      	Received unexpected error:
@@ -2044,22 +1973,22 @@ Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarc
 --- FAIL: TestSearchUnit (0.03s)
     --- FAIL: TestSearchUnit/successful_search (0.00s)
 panic: runtime error: invalid memory address or nil pointer dereference [recovered, repanicked]
-[signal SIGSEGV: segmentation violation code=0x2 addr=0x10 pc=0x10501a0e8]
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x10 pc=0x1023a8198]
 
-goroutine 326 [running]:
-testing.tRunner.func1.2({0x105173e40, 0x1054a2c30})
+goroutine 580 [running]:
+testing.tRunner.func1.2({0x1024ffe80, 0x10282ec30})
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1872 +0x190
 testing.tRunner.func1()
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1875 +0x31c
-panic({0x105173e40?, 0x1054a2c30?})
+panic({0x1024ffe80?, 0x10282ec30?})
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/runtime/panic.go:783 +0x120
-bismarck-game/backend/internal/game/services.TestSearchUnit.func1(0x1400048e1c0)
+bismarck-game/backend/internal/game/services.TestSearchUnit.func1(0x14000003880)
 	/Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/game/services/unit_service_test.go:501 +0xb8
-testing.tRunner(0x1400048e1c0, 0x140001c82a0)
+testing.tRunner(0x14000003880, 0x14000491608)
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1934 +0xc8
-created by testing.(*T).Run in goroutine 657
+created by testing.(*T).Run in goroutine 522
 	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1997 +0x364
-FAIL	bismarck-game/backend/internal/game/services	2.785s
+FAIL	bismarck-game/backend/internal/game/services	2.821s
 === RUN   TestValidatorFactory_CreateValidationChain
 --- PASS: TestValidatorFactory_CreateValidationChain (0.00s)
 === RUN   TestValidatorFactory_GetStrategyForSpeed
@@ -2167,7 +2096,7 @@ FAIL	bismarck-game/backend/internal/game/services	2.785s
     --- PASS: TestDamagedShipValidator/undamaged_fast_ship_2_hexes_-_allowed (0.00s)
     --- PASS: TestDamagedShipValidator/damaged_medium_ship_-_not_affected (0.00s)
 PASS
-ok  	bismarck-game/backend/internal/game/services/validation	1.783s
+ok  	bismarck-game/backend/internal/game/services/validation	(cached)
 ?   	bismarck-game/backend/internal/server	[no test files]
 ?   	bismarck-game/backend/internal/testutil	[no test files]
 ?   	bismarck-game/backend/internal/websocket	[no test files]
@@ -2227,7 +2156,7 @@ ok  	bismarck-game/backend/internal/game/services/validation	1.783s
     --- PASS: TestStandardHexCalculator_IsValidHex/out_of_bounds_letter (0.00s)
     --- PASS: TestStandardHexCalculator_IsValidHex/out_of_bounds_number (0.00s)
 PASS
-ok  	bismarck-game/backend/pkg/hexgrid	1.541s
+ok  	bismarck-game/backend/pkg/hexgrid	(cached)
 ?   	bismarck-game/backend/pkg/logger	[no test files]
 ?   	bismarck-game/backend/pkg/redis	[no test files]
 === RUN   TestLoadTestConfig
@@ -2237,7 +2166,7 @@ ok  	bismarck-game/backend/pkg/hexgrid	1.541s
     database_test.go:32: Found config file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/config.json
 --- PASS: TestFindConfigFile (0.00s)
 PASS
-ok  	bismarck-game/backend/pkg/testutil	2.031s
+ok  	bismarck-game/backend/pkg/testutil	(cached)
 ?   	bismarck-game/backend/pkg/utils	[no test files]
 ?   	bismarck-game/backend/test	[no test files]
 FAIL

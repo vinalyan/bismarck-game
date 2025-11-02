@@ -191,7 +191,7 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
 			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_turn, created_at, updated_at
+			   is_emergency_fuel, emergency_turn, is_patrolling, created_at, updated_at
 		FROM naval_units
 		WHERE id = $1`
 
@@ -208,7 +208,7 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 		&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 		&unit.Status, &detectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
 		&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
-		&unit.IsEmergencyFuel, &emergencyRemovalTurn, &unit.CreatedAt, &unit.UpdatedAt,
+		&unit.IsEmergencyFuel, &emergencyRemovalTurn, &unit.IsPatrolling, &unit.CreatedAt, &unit.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -303,7 +303,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 			detection_level = $8, last_known_pos = $9,
 			task_force_id = $10, damage = $11,
 			no_movement_turns_left = $12, is_emergency_fuel = $13, emergency_turn = $14,
-			movement_used = $15, last_move_turn = $16,
+			movement_used = $15, last_move_turn = $16, is_patrolling = $17,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1`
 
@@ -323,7 +323,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 		unit.DetectionLevel, unit.LastKnownPos,
 		unit.TaskForceID, damageJSON, unit.NoMovementTurnsLeft,
 		unit.IsEmergencyFuel, unit.EmergencyTurn,
-		unit.MovementUsed, unit.LastMoveTurn,
+		unit.MovementUsed, unit.LastMoveTurn, unit.IsPatrolling,
 	)
 	if err != nil {
 		s.logger.Error("Failed to update naval unit", "unit_id", unit.ID, "error", err)
@@ -988,6 +988,68 @@ func (s *UnitService) UpdateUnitDetectionLevel(unitID string, level models.Detec
 	}
 
 	s.logger.Info("Updated unit detection level", "unit_id", unitID, "level", level)
+	return nil
+}
+
+// SetPatrol устанавливает или снимает патруль с морского юнита
+// Валидирует условия патруля согласно правилам игры
+func (s *UnitService) SetPatrol(unitID string, isPatrolling bool) error {
+	// Получаем юнит
+	unit, err := s.GetNavalUnitByID(unitID)
+	if err != nil {
+		return fmt.Errorf("unit not found: %w", err)
+	}
+
+	// Если устанавливаем патруль - проверяем условия
+	if isPatrolling {
+		// Проверка: корабль не должен быть в ТФ
+		if unit.TaskForceID != nil {
+			return fmt.Errorf("cannot set patrol on unit in task force")
+		}
+
+		// Проверка: корабль не должен быть на ремонте или заправке
+		if unit.Status == models.UnitStatusRepairing || unit.Status == models.UnitStatusRefueling {
+			return fmt.Errorf("cannot set patrol on unit that is repairing or refueling")
+		}
+
+		// Проверка: корабль не должен быть потоплен
+		if unit.Status == models.UnitStatusSunk {
+			return fmt.Errorf("cannot set patrol on sunk unit")
+		}
+
+		// Проверка видимости и тумана через таблицу games
+		var visibilityLevel int
+		var isFog bool
+		err := s.db.QueryRow("SELECT visibility_level, is_fog FROM games WHERE id = $1", unit.GameID).Scan(&visibilityLevel, &isFog)
+		if err != nil {
+			s.logger.Warn("Failed to get game visibility, continuing anyway", "game_id", unit.GameID, "error", err)
+		} else {
+			// Проверка: видимость не должна быть X (>= 10)
+			if visibilityLevel >= 10 {
+				return fmt.Errorf("cannot set patrol when visibility level is X")
+			}
+
+			// Проверка: не должно быть тумана (туманные гексы нельзя патрулировать, но проверяем глобально)
+			// Примечание: более точная проверка туманных гексов требует информации о структурах карты
+			if isFog {
+				s.logger.Warn("Fog detected, patrol may not be allowed in fog hexes", "game_id", unit.GameID)
+			}
+		}
+	}
+
+	// Обновляем патруль
+	query := `
+		UPDATE naval_units 
+		SET is_patrolling = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+	_, err = s.db.Exec(query, isPatrolling, unitID)
+	if err != nil {
+		s.logger.Error("Failed to set patrol", "unit_id", unitID, "is_patrolling", isPatrolling, "error", err)
+		return fmt.Errorf("failed to set patrol: %w", err)
+	}
+
+	s.logger.Info("Set patrol", "unit_id", unitID, "is_patrolling", isPatrolling)
 	return nil
 }
 

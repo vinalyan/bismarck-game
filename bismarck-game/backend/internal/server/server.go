@@ -150,6 +150,10 @@ func (s *Server) setupRoutes() {
 	// Настраиваем автоматическое удаление затонувших кораблей из Task Forces
 	unitService.SetUnitSunkHandler(taskForceService.HandleUnitSunk)
 
+	// Создаем сервис поиска
+	searchLogger, _ := logger.New(logger.INFO, "search-service", "stdout")
+	searchService := services.NewSearchService(s.db, searchLogger, unitService)
+
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
 		logger.Error("Failed to load ship config", "error", err)
@@ -168,6 +172,8 @@ func (s *Server) setupRoutes() {
 	gameEventHandler := handlers.NewGameEventHandler(eventService)
 	unitHandlerLogger, _ := logger.New(logger.INFO, "unit-handler", "stdout")
 	unitHandler := handlers.NewUnitHandler(unitService, movementService, taskForceService, unitHandlerLogger)
+	searchHandlerLogger, _ := logger.New(logger.INFO, "search-handler", "stdout")
+	searchHandler := handlers.NewSearchHandler(searchService, searchHandlerLogger)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
@@ -176,6 +182,7 @@ func (s *Server) setupRoutes() {
 	phaseHandler.RegisterRoutes(s.router)
 	movementHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	unitHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
+	searchHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 
 	// Маршруты для аварийного топлива
 	s.router.HandleFunc("/api/emergency-fuel/check", emergencyFuelHandler.CheckEmergencyFuel).Methods("POST")

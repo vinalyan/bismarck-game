@@ -48,6 +48,7 @@ export interface GameUnit {
   no_movement_turns_left: number;
   is_emergency_fuel: boolean;
   emergency_turn: number;
+  is_patrolling: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -119,6 +120,29 @@ export const unitsAPI = {
         success: false,
         data: { units: [] },
         error: error.response?.data?.error || 'Failed to fetch game units'
+      };
+    }
+  },
+
+  // Установить патруль для морского юнита
+  setPatrol: async (gameId: string, unitId: string, isPatrolling: boolean, token: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+    try {
+      const response = await axios.put(
+        `${API_BASE_URL}/api/games/${gameId}/units/${unitId}/patrol`,
+        { is_patrolling: isPatrolling },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error setting patrol:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to set patrol'
       };
     }
   },
