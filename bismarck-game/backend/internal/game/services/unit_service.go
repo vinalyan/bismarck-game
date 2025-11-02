@@ -765,3 +765,302 @@ func (s *UnitService) AwardVPForSunkShip(gameID string, unit *models.NavalUnit) 
 
 	return nil
 }
+
+// ResetDetectionInFog сбрасывает DetectionLevel у юнитов в туманных гексах
+func (s *UnitService) ResetDetectionInFog(gameID string) error {
+	// Получаем список туманных гексов (пока используем пустой список, так как нет таблицы туманных гексов)
+	// В будущем это можно получать из конфигурации карты или отдельной таблицы
+	// Пока сбрасываем все обнаружения, если игра в тумане
+	query := `
+		UPDATE naval_units 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $2 
+		AND detection_level IN ($3, $4)
+	`
+	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted), string(models.DetectionLevelShadowed))
+	if err != nil {
+		s.logger.Error("Failed to reset detection in fog", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to reset detection in fog: %w", err)
+	}
+
+	s.logger.Info("Reset detection in fog", "game_id", gameID)
+	return nil
+}
+
+// ResetAllDetection сбрасывает все обнаружения при видимости X
+func (s *UnitService) ResetAllDetection(gameID string) error {
+	query := `
+		UPDATE naval_units 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $2 
+		AND detection_level IN ($3, $4)
+	`
+	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted), string(models.DetectionLevelShadowed))
+	if err != nil {
+		s.logger.Error("Failed to reset all detection", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to reset all detection: %w", err)
+	}
+
+	s.logger.Info("Reset all detection", "game_id", gameID)
+	return nil
+}
+
+// RemoveRemainingSighted убирает DetectionLevelSighted у тех, кто не стал Shadowed
+func (s *UnitService) RemoveRemainingSighted(gameID string) error {
+	// Этот метод вызывается после фазы преследования
+	// Убираем только Sighted, оставляя Shadowed
+	query := `
+		UPDATE naval_units 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $2 
+		AND detection_level = $3
+	`
+	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted))
+	if err != nil {
+		s.logger.Error("Failed to remove remaining sighted", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to remove remaining sighted: %w", err)
+	}
+
+	s.logger.Info("Removed remaining sighted", "game_id", gameID)
+	return nil
+}
+
+// ConvertShadowedToSighted переводит все DetectionLevelShadowed в DetectionLevelSighted
+func (s *UnitService) ConvertShadowedToSighted(gameID string) error {
+	query := `
+		UPDATE naval_units 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $2 
+		AND detection_level = $3
+	`
+	_, err := s.db.Exec(query, string(models.DetectionLevelSighted), gameID, string(models.DetectionLevelShadowed))
+	if err != nil {
+		s.logger.Error("Failed to convert shadowed to sighted", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to convert shadowed to sighted: %w", err)
+	}
+
+	s.logger.Info("Converted shadowed to sighted", "game_id", gameID)
+	return nil
+}
+
+// ResetDetectionForUnitsInFog сбрасывает обнаружение у shadowed юнитов в туманных гексах
+func (s *UnitService) ResetDetectionForUnitsInFog(gameID string) error {
+	// Получаем информацию об игре, чтобы проверить туман
+	var isFog bool
+	err := s.db.QueryRow("SELECT is_fog FROM games WHERE id = $1", gameID).Scan(&isFog)
+	if err != nil {
+		s.logger.Error("Failed to get fog status", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to get fog status: %w", err)
+	}
+
+	if !isFog {
+		// Нет тумана, ничего не делаем
+		return nil
+	}
+
+	// Если туман, сбрасываем обнаружение у shadowed юнитов
+	// В будущем можно проверить конкретные туманные гексы
+	query := `
+		UPDATE naval_units 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $2 
+		AND detection_level = $3
+	`
+	_, err = s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelShadowed))
+	if err != nil {
+		s.logger.Error("Failed to reset detection for units in fog", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to reset detection for units in fog: %w", err)
+	}
+
+	s.logger.Info("Reset detection for units in fog", "game_id", gameID)
+	return nil
+}
+
+// GetShadowedUnits возвращает все преследуемые юниты противника для игрока
+func (s *UnitService) GetShadowedUnits(gameID, playerID string) ([]*models.NavalUnit, error) {
+	// Определяем сторону игрока через таблицу games
+	var player1ID, player2ID string
+	err := s.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game players: %w", err)
+	}
+
+	// Определяем сторону игрока
+	var playerSide string
+	if player1ID == playerID {
+		playerSide = "german"
+	} else if player2ID == playerID {
+		playerSide = "allied"
+	} else {
+		return nil, fmt.Errorf("player %s is not part of game %s", playerID, gameID)
+	}
+
+	// Определяем сторону противника
+	var opponentSide string
+	if playerSide == "german" {
+		opponentSide = "allied"
+	} else {
+		opponentSide = "german"
+	}
+
+	query := `
+		SELECT id, game_id, name, type, category, class, owner, nationality, position, setup_hex,
+			   evasion, base_evasion, speed_rating, fuel, max_fuel,
+			   hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
+			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
+			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
+			   status, detection_level, last_known_pos, task_force_id, damage,
+			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
+			   is_emergency_fuel, emergency_turn, created_at, updated_at
+		FROM naval_units
+		WHERE game_id = $1 
+		AND owner = $2
+		AND detection_level = $3
+		AND status != 'sunk'
+		ORDER BY position
+	`
+
+	rows, err := s.db.Query(query, gameID, opponentSide, string(models.DetectionLevelShadowed))
+	if err != nil {
+		s.logger.Error("Failed to get shadowed units", "game_id", gameID, "player_id", playerID, "error", err)
+		return nil, fmt.Errorf("failed to get shadowed units: %w", err)
+	}
+	defer rows.Close()
+
+	var units []*models.NavalUnit
+	for rows.Next() {
+		var unit models.NavalUnit
+		var damageJSON []byte
+		var lastKnownPos, taskForceID sql.NullString
+
+		err := rows.Scan(
+			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Category, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
+			&unit.Evasion, &unit.BaseEvasion, &unit.SpeedRating, &unit.Fuel, &unit.MaxFuel,
+			&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
+			&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
+			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
+			&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
+			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
+			&unit.IsEmergencyFuel, &unit.EmergencyTurn, &unit.CreatedAt, &unit.UpdatedAt,
+		)
+		if err != nil {
+			s.logger.Error("Failed to scan shadowed unit", "error", err)
+			continue
+		}
+
+		json.Unmarshal(damageJSON, &unit.Damage)
+
+		if lastKnownPos.Valid {
+			unit.LastKnownPos = &lastKnownPos.String
+		}
+		if taskForceID.Valid {
+			unit.TaskForceID = &taskForceID.String
+		}
+
+		units = append(units, &unit)
+	}
+
+	return units, nil
+}
+
+// UpdateUnitDetectionLevel обновляет уровень обнаружения юнита
+func (s *UnitService) UpdateUnitDetectionLevel(unitID string, level models.DetectionLevel) error {
+	query := `
+		UPDATE naval_units 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+	_, err := s.db.Exec(query, string(level), unitID)
+	if err != nil {
+		s.logger.Error("Failed to update unit detection level", "unit_id", unitID, "level", level, "error", err)
+		return fmt.Errorf("failed to update unit detection level: %w", err)
+	}
+
+	s.logger.Info("Updated unit detection level", "unit_id", unitID, "level", level)
+	return nil
+}
+
+// DetectUnitsInHex обнаруживает юниты противника в указанном гексе и обновляет их DetectionLevel
+// hasFlightPath указывает, есть ли в гексе маркеры Пути полета Поиска
+func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlightPath bool) error {
+	// Определяем сторону игрока через таблицу games
+	var player1ID, player2ID string
+	err := s.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	if err != nil {
+		return fmt.Errorf("failed to get game players: %w", err)
+	}
+
+	// Определяем сторону игрока
+	var playerSide string
+	if player1ID == playerID {
+		playerSide = "german"
+	} else if player2ID == playerID {
+		playerSide = "allied"
+	} else {
+		return fmt.Errorf("player %s is not part of game %s", playerID, gameID)
+	}
+
+	// Определяем сторону противника
+	var opponentSide string
+	if playerSide == "german" {
+		opponentSide = "allied"
+	} else {
+		opponentSide = "german"
+	}
+
+	// Получаем юниты противника в гексе
+	query := `
+		SELECT id, detection_level
+		FROM naval_units
+		WHERE game_id = $1 
+		AND position = $2
+		AND owner = $3
+		AND status != 'sunk'
+	`
+
+	rows, err := s.db.Query(query, gameID, hexID, opponentSide)
+	if err != nil {
+		s.logger.Error("Failed to get opponent units in hex", "game_id", gameID, "hex_id", hexID, "error", err)
+		return fmt.Errorf("failed to get opponent units in hex: %w", err)
+	}
+	defer rows.Close()
+
+	var detectedUnits []string
+	var newDetectionLevel models.DetectionLevel
+
+	// Определяем тип обнаружения
+	if hasFlightPath {
+		newDetectionLevel = models.DetectionLevelShadowed
+	} else {
+		newDetectionLevel = models.DetectionLevelSighted
+	}
+
+	for rows.Next() {
+		var unitID string
+		var currentDetectionLevel sql.NullString
+
+		err := rows.Scan(&unitID, &currentDetectionLevel)
+		if err != nil {
+			s.logger.Error("Failed to scan unit", "error", err)
+			continue
+		}
+
+		// Обновляем DetectionLevel юнита
+		err = s.UpdateUnitDetectionLevel(unitID, newDetectionLevel)
+		if err != nil {
+			s.logger.Error("Failed to update unit detection level", "unit_id", unitID, "error", err)
+			continue
+		}
+
+		detectedUnits = append(detectedUnits, unitID)
+	}
+
+	s.logger.Info("Detected units in hex",
+		"game_id", gameID,
+		"hex_id", hexID,
+		"player_id", playerID,
+		"detection_level", newDetectionLevel,
+		"units_count", len(detectedUnits))
+
+	return nil
+}

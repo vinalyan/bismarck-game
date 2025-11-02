@@ -89,8 +89,22 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
       setLoading(true);
       await phaseAPI.nextPhase({ game_id: gameId });
       
+      // Обновляем информацию о текущем ходе
+      const updatedTurn = await phaseAPI.getCurrentPhase(gameId);
+      
+      if (updatedTurn && onPhaseChange) {
+        onPhaseChange(updatedTurn.current_phase);
+      }
+      
+      // Уведомляем родительский компонент об обновлении хода
+      if (updatedTurn) {
+        window.dispatchEvent(new CustomEvent('turnUpdated', { detail: updatedTurn }));
+      }
+      
       // Перезагружаем записи о фазах
-      if (currentTurn) {
+      if (updatedTurn && updatedTurn.turn_number) {
+        await loadPhaseRecords(updatedTurn.turn_number);
+      } else if (currentTurn) {
         await loadPhaseRecords(currentTurn.turn_number);
       }
     } catch (err) {

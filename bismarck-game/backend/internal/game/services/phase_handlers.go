@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -50,10 +51,56 @@ func (h *VisibilityPhaseHandler) CanStart(gameID string, turn int) (bool, error)
 }
 
 func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
-	// Заглушка - определение видимости юнитов
-	log.Printf("Сработал переход в фазу visibility ход %d", turn)
+	log.Printf("Visibility phase started for game %s turn %d", gameID, turn)
 
-	// TODO: логика фазы будет реализована здесь
+	// Получаем доступ к PhaseManager для доступа к db и unitService
+	if h.phaseManager == nil {
+		log.Printf("Warning: phase manager is nil, skipping visibility update")
+		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
+	}
+
+	pm, ok := h.phaseManager.(*PhaseManager)
+	if !ok || pm == nil {
+		log.Printf("Warning: phase manager type assertion failed, skipping visibility update")
+		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
+	}
+
+	// Хардкод: установка видимости (этап 3 из плана)
+	visibilityLevel := 3
+	isFog := true
+
+	// Обновляем видимость в БД
+	query := `
+		UPDATE games 
+		SET visibility_level = $1, is_fog = $2, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $3
+	`
+	_, err := pm.db.Exec(query, visibilityLevel, isFog, gameID)
+	if err != nil {
+		log.Printf("Failed to update visibility: %v", err)
+		return fmt.Errorf("failed to update visibility: %w", err)
+	}
+
+	log.Printf("Visibility updated: level=%d, fog=%v", visibilityLevel, isFog)
+
+	// Если туман - сбросить обнаружение в туманных гексах
+	// Примечание: для TaskForce нужен доступ к TaskForceService, пока работаем только с юнитами
+	if isFog {
+		err = pm.unitService.ResetDetectionInFog(gameID)
+		if err != nil {
+			log.Printf("Failed to reset detection in fog: %v", err)
+			// Не возвращаем ошибку, продолжаем выполнение
+		}
+	}
+
+	// Если видимость X (>= 10) - сбросить все обнаружения
+	if visibilityLevel >= 10 {
+		err = pm.unitService.ResetAllDetection(gameID)
+		if err != nil {
+			log.Printf("Failed to reset all detection: %v", err)
+			// Не возвращаем ошибку, продолжаем выполнение
+		}
+	}
 
 	// Автоматически переходим к следующей фазе через 1 секунду
 	go func() {
@@ -92,6 +139,7 @@ func (h *VisibilityPhaseHandler) GetDescription() string {
 
 func (h *VisibilityPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
 	h.phaseManager = pm
+	log.Printf("VisibilityPhaseHandler: phaseManager set (nil=%v)", pm == nil)
 }
 
 // ShadowPhaseHandler обрабатывает фазу слежения
@@ -99,15 +147,20 @@ type ShadowPhaseHandler struct {
 	phaseManager models.PhaseManagerInterface
 }
 
+func (h *ShadowPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
+	h.phaseManager = pm
+	log.Printf("ShadowPhaseHandler: phaseManager set (nil=%v)", pm == nil)
+}
+
 func (h *ShadowPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 	return true, nil
 }
 
 func (h *ShadowPhaseHandler) Start(gameID string, turn int) error {
-	// Заглушка - слежение за кораблями
-	log.Printf("Сработал переход в фазу shadow ход %d", turn)
+	log.Printf("Shadow phase started for game %s turn %d", gameID, turn)
 
 	// TODO: логика фазы будет реализована здесь
+	// Фаза слежения - игроки могут пытаться преследовать обнаруженные корабли
 
 	// Автоматически переходим к следующей фазе через 1 секунду
 	go func() {
@@ -132,7 +185,27 @@ func (h *ShadowPhaseHandler) CanComplete(gameID string, turn int) (bool, error) 
 }
 
 func (h *ShadowPhaseHandler) Complete(gameID string, turn int) error {
-	// Заглушка - завершение слежения
+	log.Printf("Shadow phase completed for game %s turn %d", gameID, turn)
+
+	// Получаем доступ к PhaseManager
+	if h.phaseManager == nil {
+		log.Printf("Warning: phase manager is nil in ShadowPhaseHandler.Complete, skipping")
+		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
+	}
+
+	pm, ok := h.phaseManager.(*PhaseManager)
+	if !ok || pm == nil {
+		log.Printf("Warning: phase manager type assertion failed in ShadowPhaseHandler.Complete, skipping")
+		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
+	}
+
+	// После всех попыток преследования убираем оставшиеся Sighted
+	err := pm.unitService.RemoveRemainingSighted(gameID)
+	if err != nil {
+		log.Printf("Failed to remove remaining sighted: %v", err)
+		// Не возвращаем ошибку, продолжаем выполнение
+	}
+
 	return nil
 }
 
@@ -142,10 +215,6 @@ func (h *ShadowPhaseHandler) GetName() string {
 
 func (h *ShadowPhaseHandler) GetDescription() string {
 	return "Попытки слежения за обнаруженными кораблями"
-}
-
-func (h *ShadowPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
-	h.phaseManager = pm
 }
 
 // MovementPhaseHandler обрабатывает фазу движения
@@ -158,8 +227,59 @@ func (h *MovementPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 }
 
 func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
-	// Заглушка - движение кораблей
 	log.Printf("Movement phase started for game %s turn %d", gameID, turn)
+
+	// Получаем доступ к PhaseManager
+	if h.phaseManager == nil {
+		log.Printf("Warning: phase manager is nil in MovementPhaseHandler.Start, skipping shadowed units check")
+		return nil
+	}
+
+	pm, ok := h.phaseManager.(*PhaseManager)
+	if !ok || pm == nil {
+		log.Printf("Warning: phase manager type assertion failed in MovementPhaseHandler.Start, skipping shadowed units check")
+		return nil
+	}
+
+	// Получаем информацию об игре для определения игроков
+	var player1ID, player2ID string
+	err := pm.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	if err != nil {
+		log.Printf("Failed to get game players: %v", err)
+		// Не критично, продолжаем
+		return nil
+	}
+
+	// Получаем преследуемые юниты для обоих игроков
+	shadowedUnits1, err := pm.unitService.GetShadowedUnits(gameID, player1ID)
+	if err != nil {
+		log.Printf("Failed to get shadowed units for player1: %v", err)
+		shadowedUnits1 = []*models.NavalUnit{}
+	}
+
+	shadowedUnits2, err := pm.unitService.GetShadowedUnits(gameID, player2ID)
+	if err != nil {
+		log.Printf("Failed to get shadowed units for player2: %v", err)
+		shadowedUnits2 = []*models.NavalUnit{}
+	}
+
+	log.Printf("Movement phase - shadowed units: player1=%d, player2=%d", len(shadowedUnits1), len(shadowedUnits2))
+
+	// Приоритет движения:
+	// - Преследуемые юниты должны двигаться первыми
+	// - Если у обеих сторон есть преследуемые → немецкий игрок (player1) двигает первым
+	// - Реальное движение обрабатывается через API, здесь только логирование
+
+	if len(shadowedUnits1) > 0 {
+		log.Printf("German player has %d shadowed units that must move first", len(shadowedUnits1))
+	}
+	if len(shadowedUnits2) > 0 {
+		log.Printf("Allied player has %d shadowed units that must move first", len(shadowedUnits2))
+	}
+
+	// Примечание: Реальное движение преследуемых обрабатывается через movement API
+	// API должен проверять DetectionLevel и требовать объявления местоположения противнику
+
 	return nil
 }
 
@@ -168,7 +288,34 @@ func (h *MovementPhaseHandler) CanComplete(gameID string, turn int) (bool, error
 }
 
 func (h *MovementPhaseHandler) Complete(gameID string, turn int) error {
-	// Заглушка - завершение движения
+	log.Printf("Movement phase completed for game %s turn %d", gameID, turn)
+
+	// Получаем доступ к PhaseManager
+	if h.phaseManager == nil {
+		log.Printf("Warning: phase manager is nil in MovementPhaseHandler.Complete, skipping")
+		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
+	}
+
+	pm, ok := h.phaseManager.(*PhaseManager)
+	if !ok || pm == nil {
+		log.Printf("Warning: phase manager type assertion failed in MovementPhaseHandler.Complete, skipping")
+		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
+	}
+
+	// В конце фазы движения: Shadowed -> Sighted
+	err := pm.unitService.ConvertShadowedToSighted(gameID)
+	if err != nil {
+		log.Printf("Failed to convert shadowed to sighted: %v", err)
+		// Не возвращаем ошибку, продолжаем выполнение
+	}
+
+	// Проверка туманных гексов: сбросить обнаружение у shadowed юнитов в туманных гексах
+	err = pm.unitService.ResetDetectionForUnitsInFog(gameID)
+	if err != nil {
+		log.Printf("Failed to reset detection for units in fog: %v", err)
+		// Не возвращаем ошибку, продолжаем выполнение
+	}
+
 	return nil
 }
 
@@ -181,7 +328,8 @@ func (h *MovementPhaseHandler) GetDescription() string {
 }
 
 func (h *MovementPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
-	// MovementPhaseHandler не использует автоматический переход
+	h.phaseManager = pm
+	log.Printf("MovementPhaseHandler: phaseManager set (nil=%v)", pm == nil)
 }
 
 // SearchPhaseHandler обрабатывает фазу поиска
@@ -194,10 +342,43 @@ func (h *SearchPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 }
 
 func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
-	// Заглушка - поиск противника
-	log.Printf("Сработал переход в фазу search ход %d", turn)
+	log.Printf("Search phase started for game %s turn %d", gameID, turn)
 
-	// TODO: логика фазы будет реализована здесь
+	// Фаза поиска обрабатывается через API - игроки объявляют гексы для поиска
+	// Базовая логика проверки условий поиска будет в API handler
+	// Здесь только инициализация фазы
+
+	// Получаем доступ к PhaseManager для доступа к сервисам
+	if h.phaseManager == nil {
+		log.Printf("Warning: phase manager is nil in SearchPhaseHandler.Start, skipping visibility check")
+		return nil
+	}
+
+	pm, ok := h.phaseManager.(*PhaseManager)
+	if !ok || pm == nil {
+		log.Printf("Warning: phase manager type assertion failed in SearchPhaseHandler.Start, skipping visibility check")
+		return nil
+	}
+
+	// Получаем уровень видимости из игры
+	var visibilityLevel int
+	var isFog bool
+	err := pm.db.QueryRow("SELECT visibility_level, is_fog FROM games WHERE id = $1", gameID).Scan(&visibilityLevel, &isFog)
+	if err != nil {
+		log.Printf("Failed to get visibility level: %v", err)
+		// Не критично, продолжаем
+	} else {
+		log.Printf("Search phase - visibility level: %d, fog: %v", visibilityLevel, isFog)
+	}
+
+	// Проверка условий поиска
+	// Поиск запрещен при видимости X или в туманных гексах
+	if visibilityLevel >= 10 {
+		log.Printf("Search phase - visibility X, search is blocked")
+	}
+	if isFog {
+		log.Printf("Search phase - fog detected, search in fog hexes is blocked")
+	}
 
 	// Автоматически переходим к следующей фазе через 1 секунду
 	go func() {

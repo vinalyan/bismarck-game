@@ -631,3 +631,106 @@ func (s *TaskForceService) HandleUnitSunk(unitID string) error {
 	s.logger.Info("Sunk unit successfully removed from task force", "unit_id", unitID, "task_force_id", taskForceID)
 	return nil
 }
+
+// ResetDetectionInFog сбрасывает DetectionLevel у Task Forces в туманных гексах
+func (s *TaskForceService) ResetDetectionInFog(gameID string) error {
+	query := `
+		UPDATE task_forces 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $2 
+		AND detection_level IN ($3, $4)
+	`
+	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted), string(models.DetectionLevelShadowed))
+	if err != nil {
+		s.logger.Error("Failed to reset detection in fog for task forces", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to reset detection in fog for task forces: %w", err)
+	}
+
+	s.logger.Info("Reset detection in fog for task forces", "game_id", gameID)
+	return nil
+}
+
+// ResetAllDetection сбрасывает все обнаружения Task Forces при видимости X
+func (s *TaskForceService) ResetAllDetection(gameID string) error {
+	query := `
+		UPDATE task_forces 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $2 
+		AND detection_level IN ($3, $4)
+	`
+	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted), string(models.DetectionLevelShadowed))
+	if err != nil {
+		s.logger.Error("Failed to reset all detection for task forces", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to reset all detection for task forces: %w", err)
+	}
+
+	s.logger.Info("Reset all detection for task forces", "game_id", gameID)
+	return nil
+}
+
+// RemoveRemainingSighted убирает DetectionLevelSighted у Task Forces, которые не стали Shadowed
+func (s *TaskForceService) RemoveRemainingSighted(gameID string) error {
+	query := `
+		UPDATE task_forces 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $2 
+		AND detection_level = $3
+	`
+	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted))
+	if err != nil {
+		s.logger.Error("Failed to remove remaining sighted for task forces", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to remove remaining sighted for task forces: %w", err)
+	}
+
+	s.logger.Info("Removed remaining sighted for task forces", "game_id", gameID)
+	return nil
+}
+
+// ConvertShadowedToSighted переводит все DetectionLevelShadowed в DetectionLevelSighted для Task Forces
+func (s *TaskForceService) ConvertShadowedToSighted(gameID string) error {
+	query := `
+		UPDATE task_forces 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $2 
+		AND detection_level = $3
+	`
+	_, err := s.db.Exec(query, string(models.DetectionLevelSighted), gameID, string(models.DetectionLevelShadowed))
+	if err != nil {
+		s.logger.Error("Failed to convert shadowed to sighted for task forces", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to convert shadowed to sighted for task forces: %w", err)
+	}
+
+	s.logger.Info("Converted shadowed to sighted for task forces", "game_id", gameID)
+	return nil
+}
+
+// ResetDetectionForUnitsInFog сбрасывает обнаружение у shadowed Task Forces в туманных гексах
+func (s *TaskForceService) ResetDetectionForUnitsInFog(gameID string) error {
+	// Получаем информацию об игре, чтобы проверить туман
+	var isFog bool
+	err := s.db.QueryRow("SELECT is_fog FROM games WHERE id = $1", gameID).Scan(&isFog)
+	if err != nil {
+		s.logger.Error("Failed to get fog status", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to get fog status: %w", err)
+	}
+
+	if !isFog {
+		// Нет тумана, ничего не делаем
+		return nil
+	}
+
+	query := `
+		UPDATE task_forces 
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $2 
+		AND detection_level = $3
+	`
+	_, err = s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelShadowed))
+	if err != nil {
+		s.logger.Error("Failed to reset detection for task forces in fog", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to reset detection for task forces in fog: %w", err)
+	}
+
+	s.logger.Info("Reset detection for task forces in fog", "game_id", gameID)
+	return nil
+}

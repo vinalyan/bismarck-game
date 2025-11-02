@@ -54,9 +54,12 @@ type Game struct {
 	UpdatedAt    time.Time    `json:"updated_at" db:"updated_at"`
 	CompletedAt  *time.Time   `json:"completed_at" db:"completed_at"`
 	Winner       *string      `json:"winner" db:"winner"`
-	VictoryType  VictoryType  `json:"victory_type" db:"victory_type"`
-	StartedAt    *time.Time   `json:"started_at" db:"started_at"`
-	LastActionAt *time.Time   `json:"last_action_at" db:"last_action_at"`
+	VictoryType    VictoryType  `json:"victory_type" db:"victory_type"`
+	StartedAt      *time.Time   `json:"started_at" db:"started_at"`
+	LastActionAt   *time.Time   `json:"last_action_at" db:"last_action_at"`
+	VisibilityLevel int         `json:"visibility_level" db:"visibility_level"`
+	IsFog          bool         `json:"is_fog" db:"is_fog"`
+	WeatherTrack   int          `json:"weather_track" db:"weather_track"`
 }
 
 // GameSettings представляет настройки игры
