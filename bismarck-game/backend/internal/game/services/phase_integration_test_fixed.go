@@ -30,7 +30,7 @@ func TestPhaseSequenceIntegration(t *testing.T) {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, nil, eventService, wsHub, "http://localhost:8080")
 
 	// Тест 1: Первый ход - последовательность фаз
 	t.Run("FirstTurnPhaseSequence", func(t *testing.T) {
@@ -198,7 +198,7 @@ func TestPhaseRecordsIntegration(t *testing.T) {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, nil, eventService, wsHub, "http://localhost:8080")
 	gameID := "test-game-records"
 	turnNumber := 1
 
@@ -316,7 +316,7 @@ func TestPhaseHandlersIntegration(t *testing.T) {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, nil, eventService, wsHub, "http://localhost:8080")
 	gameID := "test-game-handlers"
 	turnNumber := 1
 
@@ -380,7 +380,7 @@ func TestCompleteTurnTransition(t *testing.T) {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, eventService, wsHub, "http://localhost:8080")
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, nil, eventService, wsHub, "http://localhost:8080")
 	gameID := "test-game-transition"
 
 	// Создаем игру

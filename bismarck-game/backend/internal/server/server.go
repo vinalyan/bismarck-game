@@ -128,7 +128,11 @@ func (s *Server) setupRoutes() {
 		}
 	}
 
-	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, eventService, s.wsHub, apiBaseURL)
+	// Создаем сервис Task Forces (нужен для PhaseManager)
+	taskForceLogger, _ := logger.New(logger.INFO, "taskforce-service", "stdout")
+	taskForceService := services.NewTaskForceService(s.db, taskForceLogger, unitService, nil)
+	
+	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, taskForceService, eventService, s.wsHub, apiBaseURL)
 
 	// Создаем сервисы для движения
 	visibilityLogger, _ := logger.New(logger.INFO, "visibility-service", "stdout")
@@ -143,9 +147,8 @@ func (s *Server) setupRoutes() {
 	movementLogger, _ := logger.New(logger.INFO, "movement-service", "stdout")
 	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService, mapStructureService, eventService)
 
-	// Создаем сервис Task Forces
-	taskForceLogger, _ := logger.New(logger.INFO, "taskforce-service", "stdout")
-	taskForceService := services.NewTaskForceService(s.db, taskForceLogger, unitService, movementService)
+	// Обновляем TaskForceService с MovementService
+	taskForceService = services.NewTaskForceService(s.db, taskForceLogger, unitService, movementService)
 
 	// Настраиваем автоматическое удаление затонувших кораблей из Task Forces
 	unitService.SetUnitSunkHandler(taskForceService.HandleUnitSunk)

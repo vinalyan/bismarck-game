@@ -239,7 +239,14 @@ const HexMap: React.FC<HexMapProps> = ({
         unit.status !== 'sunk'
     );
 
-    if (unitsInHex.length > 0) {
+    // Найти Task Forces в гексе (своей стороны)
+    const taskForcesInHex = taskForces.filter(
+      (tf) =>
+        tf.position === hexId &&
+        tf.nationality === playerSide
+    );
+
+    if (unitsInHex.length > 0 || taskForcesInHex.length > 0) {
       setSelectedPatrolHex(hexId);
       setShowPatrolDialog(true);
     }
@@ -283,13 +290,18 @@ const HexMap: React.FC<HexMapProps> = ({
   };
 
   // Обработчик установки/снятия патруля
-  const handlePatrolConfirm = async (unitId: string, isPatrolling: boolean) => {
+  const handlePatrolConfirm = async (unitId: string, isPatrolling: boolean, isTaskForce: boolean = false) => {
     if (!gameId || !authToken) {
       return;
     }
     
     try {
-      const response = await unitsAPI.setPatrol(gameId, unitId, isPatrolling, authToken);
+      let response;
+      if (isTaskForce) {
+        response = await unitsAPI.setTaskForcePatrol(gameId, unitId, isPatrolling, authToken);
+      } else {
+        response = await unitsAPI.setPatrol(gameId, unitId, isPatrolling, authToken);
+      }
       
       if (response.success) {
         // Обновить данные
@@ -914,6 +926,11 @@ const HexMap: React.FC<HexMapProps> = ({
               u.status !== 'repairing' &&
               u.status !== 'refueling' &&
               u.status !== 'sunk'
+          )}
+          taskForces={taskForces.filter(
+            (tf) =>
+              tf.position === selectedPatrolHex &&
+              tf.nationality === playerSide
           )}
           onConfirm={handlePatrolConfirm}
           onCancel={() => {

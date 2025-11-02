@@ -64,6 +64,7 @@ export interface TaskForce {
   detection_level: string;
   last_move_turn: number;
   is_activated: boolean;
+  is_patrolling: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -143,6 +144,29 @@ export const unitsAPI = {
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to set patrol'
+      };
+    }
+  },
+
+  // Установить патруль на Task Force
+  setTaskForcePatrol: async (gameId: string, taskForceId: string, isPatrolling: boolean, token: string) => {
+    try {
+      const response = await axios.put(
+        `${API_BASE_URL}/api/games/${gameId}/task-forces/${taskForceId}/patrol`,
+        { is_patrolling: isPatrolling },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error setting task force patrol:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to set task force patrol'
       };
     }
   },

@@ -45,6 +45,7 @@ func (h *UnitHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	unitRouter.HandleFunc("/{gameId}/task-forces/{taskForceId}/move", h.MoveTaskForce).Methods("POST")
 	unitRouter.HandleFunc("/{gameId}/task-forces/add-unit", h.AddUnitToTaskForce).Methods("POST")
 	unitRouter.HandleFunc("/{gameId}/task-forces/remove-unit", h.RemoveUnitFromTaskForce).Methods("POST")
+	unitRouter.HandleFunc("/{gameId}/task-forces/{taskForceId}/patrol", h.SetTaskForcePatrol).Methods("PUT")
 
 	// Unit routes
 	unitRouter.HandleFunc("/{gameId}/units/{unitId}/patrol", h.SetPatrol).Methods("PUT")
@@ -753,6 +754,54 @@ func (h *UnitHandler) SetPatrol(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"unit":    updatedUnit,
 		"message": "Patrol status updated successfully",
+	}
+
+	utils.WriteSuccessResponse(w, response)
+}
+
+// SetTaskForcePatrol устанавливает или снимает патруль с Task Force
+func (h *UnitHandler) SetTaskForcePatrol(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["gameId"]
+	taskForceID := vars["taskForceId"]
+
+	var req SetPatrolRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Получаем Task Force для проверки принадлежности игре
+	taskForce, err := h.taskForceService.GetTaskForceByID(taskForceID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusNotFound, "Task Force not found")
+		return
+	}
+
+	// Проверяем, что Task Force принадлежит игре
+	if taskForce.GameID != gameID {
+		utils.WriteErrorResponse(w, http.StatusForbidden, "Task Force does not belong to this game")
+		return
+	}
+
+	// Устанавливаем патруль
+	err = h.taskForceService.SetPatrol(taskForceID, req.IsPatrolling)
+	if err != nil {
+		h.logger.Error("Failed to set task force patrol", "task_force_id", taskForceID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Получаем обновленный Task Force
+	updatedTaskForce, err := h.taskForceService.GetTaskForceByID(taskForceID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get updated task force")
+		return
+	}
+
+	response := map[string]interface{}{
+		"task_force": updatedTaskForce,
+		"message":    "Task Force patrol status updated successfully",
 	}
 
 	utils.WriteSuccessResponse(w, response)

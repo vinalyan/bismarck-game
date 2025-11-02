@@ -583,14 +583,16 @@ func (h *ChancePhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
 
 // AdminPhaseHandler обрабатывает административную фазу
 type AdminPhaseHandler struct {
-	phaseManager models.PhaseManagerInterface
-	unitService  *UnitService
+	phaseManager     models.PhaseManagerInterface
+	unitService      *UnitService
+	taskForceService *TaskForceService
 }
 
 // NewAdminPhaseHandler создает новый обработчик админской фазы
-func NewAdminPhaseHandler(unitService *UnitService) *AdminPhaseHandler {
+func NewAdminPhaseHandler(unitService *UnitService, taskForceService *TaskForceService) *AdminPhaseHandler {
 	return &AdminPhaseHandler{
-		unitService: unitService,
+		unitService:      unitService,
+		taskForceService: taskForceService,
 	}
 }
 
@@ -606,6 +608,14 @@ func (h *AdminPhaseHandler) Start(gameID string, turn int) error {
 		err := h.unitService.RemoveAllPatrolMarkers(gameID)
 		if err != nil {
 			log.Printf("Failed to remove patrol markers: %v", err)
+		}
+	}
+	
+	// Удаляем все маркеры патруля с Task Forces
+	if h.taskForceService != nil {
+		err := h.taskForceService.RemoveAllPatrolMarkers(gameID)
+		if err != nil {
+			log.Printf("Failed to remove task force patrol markers: %v", err)
 		}
 	}
 

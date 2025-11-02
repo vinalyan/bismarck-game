@@ -323,13 +323,18 @@ const Game: React.FC = () => {
       }
     };
 
-    calculateSearchFactors();
+    // Добавляем небольшую задержку для debounce, чтобы избежать множественных вызовов
+    const timeoutId = setTimeout(() => {
+      calculateSearchFactors();
+    }, 200);
+
+    return () => clearTimeout(timeoutId);
   }, [
     currentGame?.id,
     currentGame?.visibility_level,
     currentTurn,
-    gameUnits,
-    taskForces,
+    // Убираем gameUnits и taskForces из зависимостей, чтобы избежать двойных вызовов
+    // Факторы поиска пересчитываются только при смене фазы/видимости
     mapStructures,
     authToken
   ]);

@@ -265,6 +265,7 @@ type TaskForce struct {
 	DetectionLevel string    `json:"detection_level" db:"detection_level"` // 'none', 'sighted', 'shadowed', 'lost'
 	LastMoveTurn   int       `json:"last_move_turn" db:"last_move_turn"`
 	IsActivated    bool      `json:"is_activated" db:"is_activated"`
+	IsPatrolling   bool      `json:"is_patrolling" db:"is_patrolling"` // Флаг патрулирования (+3 фактора поиска)
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 }

@@ -99,9 +99,9 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 
 	query := `
 		INSERT INTO task_forces (
-			game_id, name, owner, nationality, position, speed, units, is_visible, detection_level, last_move_turn, is_activated
+			game_id, name, owner, nationality, position, speed, units, is_visible, detection_level, last_move_turn, is_activated, is_patrolling
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 		) RETURNING id, created_at, updated_at`
 
 	unitsJSON, _ := json.Marshal(taskForce.Units)
@@ -109,7 +109,7 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 	err = s.db.QueryRow(query,
 		taskForce.GameID, taskForce.Name, taskForce.Owner, taskForce.Nationality,
 		taskForce.Position, taskForce.Speed, unitsJSON, taskForce.IsVisible,
-		taskForce.DetectionLevel, taskForce.LastMoveTurn, taskForce.IsActivated,
+		taskForce.DetectionLevel, taskForce.LastMoveTurn, taskForce.IsActivated, taskForce.IsPatrolling,
 	).Scan(&taskForce.ID, &taskForce.CreatedAt, &taskForce.UpdatedAt)
 
 	if err != nil {
@@ -138,7 +138,7 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 func (s *TaskForceService) GetTaskForcesByGameID(gameID string) ([]models.TaskForce, error) {
 	query := `
 		SELECT id, game_id, name, owner, nationality, position, speed, units, is_visible, 
-		       detection_level, last_move_turn, is_activated, created_at, updated_at
+		       detection_level, last_move_turn, is_activated, is_patrolling, created_at, updated_at
 		FROM task_forces
 		WHERE game_id = $1
 		ORDER BY created_at`
@@ -159,7 +159,7 @@ func (s *TaskForceService) GetTaskForcesByGameID(gameID string) ([]models.TaskFo
 			&taskForce.ID, &taskForce.GameID, &taskForce.Name, &taskForce.Owner,
 			&taskForce.Nationality, &taskForce.Position, &taskForce.Speed,
 			&unitsJSON, &taskForce.IsVisible, &taskForce.DetectionLevel,
-			&taskForce.LastMoveTurn, &taskForce.IsActivated,
+			&taskForce.LastMoveTurn, &taskForce.IsActivated, &taskForce.IsPatrolling,
 			&taskForce.CreatedAt, &taskForce.UpdatedAt,
 		)
 		if err != nil {
@@ -199,7 +199,7 @@ func (s *TaskForceService) GetVisibleTaskForcesByGameID(gameID string, playerID 
 func (s *TaskForceService) GetTaskForceByID(taskForceID string) (*models.TaskForce, error) {
 	query := `
 		SELECT id, game_id, name, owner, nationality, position, speed, units, is_visible,
-		       detection_level, last_move_turn, is_activated, created_at, updated_at
+		       detection_level, last_move_turn, is_activated, is_patrolling, created_at, updated_at
 		FROM task_forces
 		WHERE id = $1`
 
@@ -210,7 +210,7 @@ func (s *TaskForceService) GetTaskForceByID(taskForceID string) (*models.TaskFor
 		&taskForce.ID, &taskForce.GameID, &taskForce.Name, &taskForce.Owner,
 		&taskForce.Nationality, &taskForce.Position, &taskForce.Speed,
 		&unitsJSON, &taskForce.IsVisible, &taskForce.DetectionLevel,
-		&taskForce.LastMoveTurn, &taskForce.IsActivated,
+		&taskForce.LastMoveTurn, &taskForce.IsActivated, &taskForce.IsPatrolling,
 		&taskForce.CreatedAt, &taskForce.UpdatedAt,
 	)
 	if err != nil {
@@ -401,7 +401,7 @@ func (s *TaskForceService) updateTaskForce(taskForce *models.TaskForce) error {
 	query := `
 		UPDATE task_forces SET
 			position = $2, speed = $3, units = $4, is_visible = $5,
-			detection_level = $6, last_move_turn = $7, is_activated = $8,
+			detection_level = $6, last_move_turn = $7, is_activated = $8, is_patrolling = $9,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1`
 
@@ -410,7 +410,7 @@ func (s *TaskForceService) updateTaskForce(taskForce *models.TaskForce) error {
 	_, err := s.db.Exec(query,
 		taskForce.ID, taskForce.Position, taskForce.Speed, unitsJSON,
 		taskForce.IsVisible, taskForce.DetectionLevel, taskForce.LastMoveTurn,
-		taskForce.IsActivated,
+		taskForce.IsActivated, taskForce.IsPatrolling,
 	)
 	if err != nil {
 		s.logger.Error("Failed to update task force", "task_force_id", taskForce.ID, "error", err)
@@ -732,5 +732,87 @@ func (s *TaskForceService) ResetDetectionForUnitsInFog(gameID string) error {
 	}
 
 	s.logger.Info("Reset detection for task forces in fog", "game_id", gameID)
+	return nil
+}
+
+// SetPatrol устанавливает или снимает патруль с Task Force
+// Валидирует условия патруля согласно правилам игры
+func (s *TaskForceService) SetPatrol(taskForceID string, isPatrolling bool) error {
+	// Получаем Task Force
+	taskForce, err := s.GetTaskForceByID(taskForceID)
+	if err != nil {
+		return fmt.Errorf("task force not found: %w", err)
+	}
+
+	// Если устанавливаем патруль - проверяем условия
+	if isPatrolling {
+		// Проверка: Task Force не должен быть обнаружен (sighted)
+		if taskForce.DetectionLevel == "sighted" {
+			return fmt.Errorf("cannot set patrol on sighted task force")
+		}
+
+		// Проверка видимости и тумана через таблицу games
+		var visibilityLevel int
+		var isFog bool
+		err := s.db.QueryRow("SELECT visibility_level, is_fog FROM games WHERE id = $1", taskForce.GameID).Scan(&visibilityLevel, &isFog)
+		if err != nil {
+			s.logger.Warn("Failed to get game visibility, continuing anyway", "game_id", taskForce.GameID, "error", err)
+		} else {
+			// Проверка: видимость не должна быть X (>= 10)
+			if visibilityLevel >= 10 {
+				return fmt.Errorf("cannot set patrol when visibility level is X")
+			}
+
+			// Проверка: не должно быть тумана (туманные гексы нельзя патрулировать, но проверяем глобально)
+			if isFog {
+				s.logger.Warn("Fog detected, patrol may not be allowed in fog hexes", "game_id", taskForce.GameID)
+			}
+		}
+
+		// Проверка: Task Force не может патрулировать, если хотя бы один корабль в нем на ремонте или заправке
+		// Получаем все корабли в Task Force
+		for _, unitID := range taskForce.Units {
+			unit, err := s.unitService.GetNavalUnitByID(unitID)
+			if err != nil {
+				continue
+			}
+			if unit.Status == models.UnitStatusRepairing || unit.Status == models.UnitStatusRefueling {
+				return fmt.Errorf("cannot set patrol on task force with units that are repairing or refueling")
+			}
+		}
+	}
+
+	// Обновляем патруль
+	query := `
+		UPDATE task_forces 
+		SET is_patrolling = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+	_, err = s.db.Exec(query, isPatrolling, taskForceID)
+	if err != nil {
+		s.logger.Error("Failed to set patrol", "task_force_id", taskForceID, "is_patrolling", isPatrolling, "error", err)
+		return fmt.Errorf("failed to set patrol: %w", err)
+	}
+
+	s.logger.Info("Set patrol", "task_force_id", taskForceID, "is_patrolling", isPatrolling)
+	return nil
+}
+
+// RemoveAllPatrolMarkers удаляет все маркеры патруля для всех Task Forces игры
+// Используется в фазе администрирования согласно правилам игры
+func (s *TaskForceService) RemoveAllPatrolMarkers(gameID string) error {
+	query := `
+		UPDATE task_forces 
+		SET is_patrolling = false, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $1 AND is_patrolling = true
+	`
+	result, err := s.db.Exec(query, gameID)
+	if err != nil {
+		s.logger.Error("Failed to remove patrol markers", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to remove patrol markers: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	s.logger.Info("Removed all patrol markers from task forces", "game_id", gameID, "task_forces_affected", rowsAffected)
 	return nil
 }

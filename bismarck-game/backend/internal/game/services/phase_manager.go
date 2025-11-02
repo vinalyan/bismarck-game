@@ -13,24 +13,26 @@ import (
 )
 
 type PhaseManager struct {
-	db            *sql.DB
-	unitService   *UnitService
-	phaseHandlers map[models.GamePhase]models.PhaseHandler
-	eventService  *GameEventService
-	wsHub         *websocket.Hub
-	httpClient    *http.Client
-	apiBaseURL    string
+	db              *sql.DB
+	unitService     *UnitService
+	taskForceService *TaskForceService
+	phaseHandlers   map[models.GamePhase]models.PhaseHandler
+	eventService    *GameEventService
+	wsHub           *websocket.Hub
+	httpClient      *http.Client
+	apiBaseURL      string
 }
 
-func NewPhaseManager(db *sql.DB, unitService *UnitService, eventService *GameEventService, wsHub *websocket.Hub, apiBaseURL string) *PhaseManager {
+func NewPhaseManager(db *sql.DB, unitService *UnitService, taskForceService *TaskForceService, eventService *GameEventService, wsHub *websocket.Hub, apiBaseURL string) *PhaseManager {
 	pm := &PhaseManager{
-		db:            db,
-		unitService:   unitService,
-		phaseHandlers: make(map[models.GamePhase]models.PhaseHandler),
-		eventService:  eventService,
-		wsHub:         wsHub,
-		httpClient:    &http.Client{Timeout: 5 * time.Second},
-		apiBaseURL:    apiBaseURL,
+		db:              db,
+		unitService:     unitService,
+		taskForceService: taskForceService,
+		phaseHandlers:   make(map[models.GamePhase]models.PhaseHandler),
+		eventService:    eventService,
+		wsHub:           wsHub,
+		httpClient:      &http.Client{Timeout: 5 * time.Second},
+		apiBaseURL:      apiBaseURL,
 	}
 
 	// Регистрируем обработчики фаз
@@ -50,7 +52,7 @@ func (pm *PhaseManager) registerPhaseHandlers() {
 	pm.phaseHandlers[models.PhaseAirAttack] = &AirAttackPhaseHandler{}
 	pm.phaseHandlers[models.PhaseNavalCombat] = &NavalCombatPhaseHandler{}
 	pm.phaseHandlers[models.PhaseChance] = &ChancePhaseHandler{}
-	pm.phaseHandlers[models.PhaseAdmin] = NewAdminPhaseHandler(pm.unitService)
+	pm.phaseHandlers[models.PhaseAdmin] = NewAdminPhaseHandler(pm.unitService, pm.taskForceService)
 
 	// Устанавливаем ссылку на PhaseManager в каждый обработчик
 	for _, handler := range pm.phaseHandlers {
