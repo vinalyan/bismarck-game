@@ -27,22 +27,28 @@ func NewSearchService(db *database.Database, logger *logger.Logger, unitService 
 }
 
 // CalculateSearchFactors рассчитывает факторы поиска для гекса
-// Возвращает общее количество факторов поиска
-func (s *SearchService) CalculateSearchFactors(gameID, hexID string) (int, error) {
+// searchingPlayerSide - сторона игрока, который проводит поиск ("german" или "allied")
+// Возвращает общее количество факторов поиска для этой стороны
+func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPlayerSide string) (int, error) {
 	totalFactors := 0
 
-	// +1 за каждый корабль или Оперативное соединение в гексе
+	// +1 за каждый корабль или Оперативное соединение в гексе (только своей стороны)
 	units, err := s.getUnitsInHex(gameID, hexID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get units in hex: %w", err)
 	}
 
-	// Подсчитываем отдельные корабли и Task Forces
+	// Подсчитываем отдельные корабли и Task Forces (только своей стороны)
 	unitCount := 0
 	tfCount := 0
 	tfUnits := make(map[string]bool) // Учитываем юниты в ТФ только один раз
 
 	for _, unit := range units {
+		// Учитываем только юниты той стороны, которая ищет
+		if unit.Owner != searchingPlayerSide {
+			continue
+		}
+
 		// Проверяем, может ли юнит давать факторы поиска
 		if !s.canUnitContributeSearchFactors(unit) {
 			continue
@@ -62,16 +68,16 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string) (int, error
 	// Каждый корабль вне ТФ дает +1, каждая ТФ дает +1 (независимо от количества кораблей)
 	totalFactors += unitCount + tfCount
 
-	// +3 за каждый маркер Морского патруля в гексе
-	patrolMarkers, err := s.getPatrolMarkersInHex(gameID, hexID)
+	// +3 за каждый маркер Морского патруля в гексе (только своей стороны)
+	patrolMarkers, err := s.getPatrolMarkersInHex(gameID, hexID, searchingPlayerSide)
 	if err != nil {
 		s.logger.Warn("Failed to get patrol markers", "game_id", gameID, "hex_id", hexID, "error", err)
 	} else {
 		totalFactors += len(patrolMarkers) * 3
 	}
 
-	// +2 за каждый маркер Пути полета Поиска в гексе
-	flightPathMarkers, err := s.getFlightPathMarkersInHex(gameID, hexID)
+	// +2 за каждый маркер Пути полета Поиска в гексе (только своей стороны)
+	flightPathMarkers, err := s.getFlightPathMarkersInHex(gameID, hexID, searchingPlayerSide)
 	if err != nil {
 		s.logger.Warn("Failed to get flight path markers", "game_id", gameID, "hex_id", hexID, "error", err)
 	} else {
@@ -81,6 +87,7 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string) (int, error
 	s.logger.Debug("Calculated search factors",
 		"game_id", gameID,
 		"hex_id", hexID,
+		"searching_player_side", searchingPlayerSide,
 		"total_factors", totalFactors,
 		"units", unitCount,
 		"task_forces", tfCount,
@@ -113,12 +120,12 @@ func (s *SearchService) getUnitsInHex(gameID, hexID string) ([]*models.NavalUnit
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
 			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_turn, created_at, updated_at
+			   is_emergency_fuel, emergency_turn, is_patrolling, created_at, updated_at
 		FROM naval_units
 		WHERE game_id = $1 AND position = $2 AND status != 'sunk'
 	`
 
-	rows, err := s.db.Query(query, gameID, hexID)
+	rows, err := s.db.GetConnection().Query(query, gameID, hexID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query units in hex: %w", err)
 	}
@@ -138,7 +145,7 @@ func (s *SearchService) getUnitsInHex(gameID, hexID string) ([]*models.NavalUnit
 			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 			&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
 			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
-			&unit.IsEmergencyFuel, &unit.EmergencyTurn, &unit.CreatedAt, &unit.UpdatedAt,
+			&unit.IsEmergencyFuel, &unit.EmergencyTurn, &unit.IsPatrolling, &unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {
 			s.logger.Error("Failed to scan unit", "error", err)
@@ -163,19 +170,82 @@ func (s *SearchService) getUnitsInHex(gameID, hexID string) ([]*models.NavalUnit
 	return units, nil
 }
 
-// getPatrolMarkersInHex возвращает маркеры патруля в гексе
-// Пока возвращаем пустой список - маркеры будут храниться в отдельной таблице или в GameState
-func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string) ([]string, error) {
-	// TODO: Реализовать получение маркеров патруля из БД или GameState
-	// Пока возвращаем пустой список
-	return []string{}, nil
+// getPatrolMarkersInHex возвращает маркеры патруля в гексе (только для указанной стороны)
+// Патрулирующие корабли дают +3 фактора поиска в своем гексе
+func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide string) ([]string, error) {
+	query := `
+		SELECT id
+		FROM naval_units
+		WHERE game_id = $1 
+		AND position = $2 
+		AND owner = $3
+		AND is_patrolling = true
+		AND status != 'sunk'
+	`
+	
+	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerSide)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get patrol markers: %w", err)
+	}
+	defer rows.Close()
+	
+	var markerIDs []string
+	for rows.Next() {
+		var unitID string
+		if err := rows.Scan(&unitID); err != nil {
+			s.logger.Warn("Failed to scan patrol marker", "error", err)
+			continue
+		}
+		markerIDs = append(markerIDs, unitID)
+	}
+	
+	return markerIDs, rows.Err()
 }
 
-// getFlightPathMarkersInHex возвращает маркеры Пути полета Поиска в гексе
-// Пока возвращаем пустой список - маркеры будут храниться в отдельной таблице или в GameState
-func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string) ([]string, error) {
-	// TODO: Реализовать получение маркеров Пути полета Поиска из БД или GameState
-	// Пока возвращаем пустой список
-	return []string{}, nil
+// getFlightPathMarkersInHex возвращает маркеры Пути полета Поиска в гексе (только для указанной стороны)
+// Маркеры хранятся в поле FlightPathSearchHexes у воздушных юнитов
+func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSide string) ([]string, error) {
+	// Получаем все воздушные юниты игры указанной стороны
+	query := `
+		SELECT id, flight_path_search_hexes
+		FROM air_units
+		WHERE game_id = $1 AND owner = $2
+	`
+	
+	rows, err := s.db.GetConnection().Query(query, gameID, playerSide)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query air units: %w", err)
+	}
+	defer rows.Close()
+	
+	var markerIDs []string
+	for rows.Next() {
+		var airUnitID string
+		var flightPathHexesJSON []byte
+		
+		if err := rows.Scan(&airUnitID, &flightPathHexesJSON); err != nil {
+			s.logger.Warn("Failed to scan air unit", "error", err)
+			continue
+		}
+		
+		// Парсим JSON массив гексов
+		var flightPathHexes []string
+		if len(flightPathHexesJSON) > 0 {
+			if err := json.Unmarshal(flightPathHexesJSON, &flightPathHexes); err != nil {
+				s.logger.Warn("Failed to unmarshal flight path hexes", "air_unit_id", airUnitID, "error", err)
+				continue
+			}
+			
+			// Проверяем, есть ли нужный гекс в массиве
+			for _, hex := range flightPathHexes {
+				if hex == hexID {
+					markerIDs = append(markerIDs, airUnitID)
+					break
+				}
+			}
+		}
+	}
+	
+	return markerIDs, rows.Err()
 }
 
