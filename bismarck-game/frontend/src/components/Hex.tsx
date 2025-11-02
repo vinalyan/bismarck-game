@@ -16,6 +16,7 @@ interface HexProps {
   size: number;
   isSelected: boolean;
   isAvailableForMovement?: boolean;
+  isSearchAvailable?: boolean;
   activeHex?: ActiveHex | null;
   mapStructures?: MapStructure | null;
   selectedUnit?: string | null;
@@ -41,6 +42,7 @@ const Hex: React.FC<HexProps> = ({
   size,
   isSelected,
   isAvailableForMovement = false,
+  isSearchAvailable = false,
   activeHex = null,
   mapStructures = null,
   selectedUnit = null,
@@ -632,6 +634,12 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
       stroke = '#22C55E'; // Зеленый для доступных гексов
       strokeWidth = 2;
       fillOpacity = 0.2; // Легкая подсветка
+    } else if (isSearchAvailable) {
+      // Подсветка гексов с достаточными факторами поиска (желтый)
+      stroke = '#FBBF24'; // Желтый для гексов с достаточными факторами поиска
+      strokeWidth = 2;
+      fillOpacity = 0.2; // Легкая подсветка
+      fill = '#FBBF24'; // Желтый фон
     } else if (activeHex) {
       // Подсветка активных гексов (альтернативный способ, только если нет доступных для движения)
       const config = ACTIVE_HEX_CONFIGS[activeHex.type];

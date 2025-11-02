@@ -14,6 +14,7 @@ import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
 import { mapService, MapStructure } from '../services/api/mapService';
 import { gameEventAPI } from '../services/api/gameEventAPI';
+import { searchAPI } from '../services/api/searchAPI';
 import { GameTurnResponse, PHASE_NAMES } from '../types/phaseTypes';
 import wsClient from '../services/websocket/websocketClient';
 import HexMap from './HexMap';
@@ -74,10 +75,64 @@ const Game: React.FC = () => {
     return 'unknown';
   };
 
+  // Генерация всех морских гексов (исключая сушу и неигровые)
+  const getAllSeaHexes = (): string[] => {
+    if (!mapStructures) {
+      return [];
+    }
+
+    const allHexes: string[] = [];
+    
+    // Генерируем все гексы на карте (A1-A35, B1-B35, ..., Z1-Z35, AA1-AA35, ..., AH1-AH35)
+    for (let row = 0; row < MAP_CONSTANTS.HEX_GRID_HEIGHT; row++) {
+      let rowLetter: string;
+      if (row < 26) {
+        // A-Z
+        rowLetter = String.fromCharCode(65 + row); // 65 = 'A'
+      } else {
+        // AA-AH
+        const firstLetter = 'A';
+        const secondLetter = String.fromCharCode(65 + (row - 26)); // A-H
+        rowLetter = firstLetter + secondLetter;
+      }
+      
+      for (let col = 1; col <= MAP_CONSTANTS.HEX_GRID_WIDTH; col++) {
+        const hexId = `${rowLetter}${col}`;
+        allHexes.push(hexId);
+      }
+    }
+
+    // Фильтруем: исключаем неигровые гексы и сушу
+    const seaHexes = allHexes.filter(hexId => {
+      // Проверяем неигровые гексы
+      if (mapStructures.nonGameHexes) {
+        for (const nonGame of mapStructures.nonGameHexes) {
+          if (nonGame.hexIds.includes(hexId)) {
+            return false;
+          }
+        }
+      }
+
+      // Проверяем сушу
+      if (mapStructures.landAreas) {
+        for (const landArea of mapStructures.landAreas) {
+          if (landArea.hexIds.includes(hexId)) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+
+    return seaHexes;
+  };
+
   const [loadingShips] = useState(false);
   const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
   const [taskForces, setTaskForces] = useState<TaskForce[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
+  const [searchFactorHexes, setSearchFactorHexes] = useState<Map<string, number>>(new Map());
 
   // Хук для управления активными гексами
   const {
@@ -210,6 +265,70 @@ const Game: React.FC = () => {
 
     loadCurrentTurn();
   }, [currentGame?.id]);
+
+  // Расчет факторов поиска для всех морских гексов
+  useEffect(() => {
+    const calculateSearchFactors = async () => {
+      if (!currentGame?.id || !authToken || !mapStructures) {
+        return;
+      }
+
+      const turnData = getTurnData(currentTurn);
+      const currentPhase = turnData?.current_phase;
+      
+      // Вычисляем факторы поиска только в фазах movement и search
+      if (currentPhase !== 'movement' && currentPhase !== 'search') {
+        setSearchFactorHexes(new Map());
+        return;
+      }
+
+      const visibilityLevel = turnData?.visibility_level ?? currentGame.visibility_level ?? 1;
+      
+      // Получаем все морские гексы
+      const seaHexes = getAllSeaHexes();
+      
+      if (seaHexes.length === 0) {
+        return;
+      }
+
+      const playerSide = getPlayerSideString();
+      if (playerSide === 'unknown') {
+        return;
+      }
+
+      try {
+        // Вызываем API для расчета факторов поиска
+        const factors = await searchAPI.getSearchFactors(
+          currentGame.id,
+          seaHexes,
+          playerSide as 'german' | 'allied',
+          authToken
+        );
+
+        // Сохраняем результаты в Map
+        const factorsMap = new Map<string, number>();
+        Object.entries(factors).forEach(([hexId, factorValue]) => {
+          factorsMap.set(hexId, factorValue);
+        });
+
+        setSearchFactorHexes(factorsMap);
+        
+        console.log('Search factors calculated:', factorsMap.size, 'hexes');
+      } catch (error) {
+        console.error('Error calculating search factors:', error);
+      }
+    };
+
+    calculateSearchFactors();
+  }, [
+    currentGame?.id,
+    currentGame?.visibility_level,
+    currentTurn,
+    gameUnits,
+    taskForces,
+    mapStructures,
+    authToken
+  ]);
 
   // Автоматическое обновление информации о текущей фазе каждые 10 секунд
   useEffect(() => {
@@ -1453,6 +1572,8 @@ const Game: React.FC = () => {
               return !!(isGermanPlayer && isGameReady && isSetupTurn);
             })()}
             currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
+            searchFactorHexes={searchFactorHexes}
+            visibilityLevel={getTurnData(currentTurn)?.visibility_level ?? currentGame?.visibility_level ?? 1}
           />
         </div>
 

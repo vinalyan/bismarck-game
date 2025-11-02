@@ -47,6 +47,8 @@ interface HexMapProps {
   isCompletePhaseDisabled?: boolean;
   isStartFirstTurnVisible?: boolean;
   currentPhase?: string;
+  searchFactorHexes?: Map<string, number>;
+  visibilityLevel?: number;
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -77,7 +79,9 @@ const HexMap: React.FC<HexMapProps> = ({
   isRefuelDisabled = false,
   isCompletePhaseDisabled = false,
   isStartFirstTurnVisible = false,
-  currentPhase = 'setup'
+  currentPhase = 'setup',
+  searchFactorHexes = new Map<string, number>(),
+  visibilityLevel = 1
 }) => {
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
@@ -670,6 +674,10 @@ const HexMap: React.FC<HexMapProps> = ({
           movementHex.coordinate.row === coordinate.row
       );
       
+      // Проверяем, достаточны ли факторы поиска для обнаружения в этом гексе
+      const hexSearchFactors = searchFactorHexes.get(hexId) || 0;
+      const isSearchAvailable = hexSearchFactors >= visibilityLevel;
+      
       // Убрали избыточные логи - они мешают отладке
 
       // Проверяем, является ли этот гекс активным
@@ -689,6 +697,7 @@ const HexMap: React.FC<HexMapProps> = ({
           size={hexRadius}
           isSelected={!!isSelected}
           isAvailableForMovement={isAvailableForMovement}
+          isSearchAvailable={isSearchAvailable}
           activeHex={activeHex}
           mapStructures={mapStructures}
           selectedUnit={selectedUnit}
