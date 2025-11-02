@@ -212,7 +212,6 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Обработчик кнопки патруля
   const handlePatrolClick = () => {
-    console.log('🛡️ handlePatrolClick called');
     setIsPatrolMode(true);
   };
 
@@ -225,8 +224,6 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Обработчик клика по гексу в режиме патруля
   const handleHexClickInPatrolMode = (hexId: string) => {
-    console.log('🛡️ handleHexClickInPatrolMode called with:', { hexId });
-    
     if (!isPatrolMode) {
       return;
     }
@@ -243,38 +240,26 @@ const HexMap: React.FC<HexMapProps> = ({
     );
 
     if (unitsInHex.length > 0) {
-      console.log('✅ Opening patrol dialog for hex:', hexId, 'with', unitsInHex.length, 'units');
       setSelectedPatrolHex(hexId);
       setShowPatrolDialog(true);
-    } else {
-      console.log('❌ No eligible units for patrol in hex:', hexId);
     }
   };
 
   // Обработчик клика по гексу в режиме TF
   const handleHexClickInTFMode = (hexId: string) => {
-    console.log('🎯 handleHexClickInTFMode called with:', { hexId, isCreateTFMode, isCandidate: tfCandidateHexes.includes(hexId) });
     if (isCreateTFMode && tfCandidateHexes.includes(hexId)) {
-      console.log('✅ Opening TF dialog for hex:', hexId);
       setSelectedTFHex(hexId);
       setShowTFDialog(true);
-    } else {
-      console.log('❌ Not opening dialog - not in TF mode or hex not a candidate');
     }
   };
 
   // Обработчик создания TF
   const handleCreateTF = async (selectedUnitIds: string[]) => {
-    console.log('🚢 handleCreateTF called with:', { selectedUnitIds, gameId: !!gameId, authToken: !!authToken });
-    console.log('🔍 Current state:', { gameId, authToken: !!authToken, gameUnits: gameUnits.length, taskForces: taskForces.length });
-    
     if (!gameId || !authToken) {
-      console.error('❌ Missing gameId or authToken');
       return;
     }
     
     try {
-      console.log('📡 Calling gameAPI.createTaskForce...');
       const response = await gameAPI.createTaskForce(gameId, {
         unitIds: selectedUnitIds,
         formation: 'line', // Используем стандартную формацию 'line'
@@ -282,25 +267,14 @@ const HexMap: React.FC<HexMapProps> = ({
         existingTaskForces: taskForces, // Передаем существующие TF для правильной нумерации
       });
       
-      console.log('📡 createTaskForce response:', response);
-      
       if (response.success) {
-        console.log('✅ Task Force создан успешно');
         // Обновить данные
         if (onRefreshData) {
           onRefreshData();
         }
-      } else {
-        console.error('❌ Task Force creation failed:', response);
       }
     } catch (error: any) {
-      console.error('❌ Ошибка создания Task Force:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
-      console.error('❌ Full error response:', error.response?.data);
+      // Ошибка создания TF - игнорируем
     } finally {
       setShowTFDialog(false);
       setSelectedTFHex(null);
@@ -310,31 +284,22 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Обработчик установки/снятия патруля
   const handlePatrolConfirm = async (unitId: string, isPatrolling: boolean) => {
-    console.log('🛡️ handlePatrolConfirm called with:', { unitId, isPatrolling, gameId: !!gameId, authToken: !!authToken });
-    
     if (!gameId || !authToken) {
-      console.error('❌ Missing gameId or authToken');
       return;
     }
     
     try {
-      console.log('📡 Calling unitsAPI.setPatrol...');
       const response = await unitsAPI.setPatrol(gameId, unitId, isPatrolling, authToken);
       
-      console.log('📡 setPatrol response:', response);
-      
       if (response.success) {
-        console.log('✅ Патруль установлен/снят успешно');
         // Обновить данные
         if (onRefreshData) {
           onRefreshData();
         }
       } else {
-        console.error('❌ Set patrol failed:', response.error);
         alert(`Ошибка: ${response.error || 'Не удалось установить патруль'}`);
       }
     } catch (error: any) {
-      console.error('❌ Ошибка установки патруля:', error);
       alert(`Ошибка: ${error.message || 'Не удалось установить патруль'}`);
     } finally {
       setShowPatrolDialog(false);
@@ -556,6 +521,12 @@ const HexMap: React.FC<HexMapProps> = ({
   const handleHexClick = (coordinate: HexCoordinate) => {
     const hexId = `${coordinate.letter}${coordinate.number}`;
     
+    // Если в режиме патруля, обрабатываем клик
+    if (isPatrolMode) {
+      handleHexClickInPatrolMode(hexId);
+      return;
+    }
+    
     // Если в режиме создания TF, проверяем клик по кандидату
     if (isCreateTFMode) {
       handleHexClickInTFMode(hexId);
@@ -677,8 +648,6 @@ const HexMap: React.FC<HexMapProps> = ({
       // Проверяем, достаточны ли факторы поиска для обнаружения в этом гексе
       const hexSearchFactors = searchFactorHexes.get(hexId) || 0;
       const isSearchAvailable = hexSearchFactors >= visibilityLevel;
-      
-      // Убрали избыточные логи - они мешают отладке
 
       // Проверяем, является ли этот гекс активным
       const activeHex = activeHexes.find(

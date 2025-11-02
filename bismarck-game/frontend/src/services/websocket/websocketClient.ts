@@ -39,7 +39,6 @@ class WebSocketClient {
       if (gameId) params.append('game_id', gameId);
       
       const wsUrl = params.toString() ? `${this.url}?${params.toString()}` : this.url;
-      console.log('🔗 WebSocket connecting to:', wsUrl);
 
       try {
         this.ws = new WebSocket(wsUrl);

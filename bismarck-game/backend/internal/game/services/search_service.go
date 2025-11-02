@@ -32,6 +32,20 @@ func NewSearchService(db *database.Database, logger *logger.Logger, unitService 
 func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPlayerSide string) (int, error) {
 	totalFactors := 0
 
+	// Конвертируем playerSide в UUID пользователя для сравнения
+	var searchingPlayerID string
+	if searchingPlayerSide == "german" {
+		err := s.db.GetConnection().QueryRow("SELECT player1_id FROM games WHERE id = $1", gameID).Scan(&searchingPlayerID)
+		if err != nil {
+			s.logger.Warn("Failed to get german player ID", "game_id", gameID, "error", err)
+		}
+	} else if searchingPlayerSide == "allied" {
+		err := s.db.GetConnection().QueryRow("SELECT player2_id FROM games WHERE id = $1", gameID).Scan(&searchingPlayerID)
+		if err != nil {
+			s.logger.Warn("Failed to get allied player ID", "game_id", gameID, "error", err)
+		}
+	}
+
 	// +1 за каждый корабль или Оперативное соединение в гексе (только своей стороны)
 	units, err := s.getUnitsInHex(gameID, hexID)
 	if err != nil {
@@ -44,8 +58,8 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 	tfUnits := make(map[string]bool) // Учитываем юниты в ТФ только один раз
 
 	for _, unit := range units {
-		// Учитываем только юниты той стороны, которая ищет
-		if unit.Owner != searchingPlayerSide {
+		// Учитываем только юниты той стороны, которая ищет (сравниваем по UUID пользователя)
+		if searchingPlayerID != "" && unit.Owner != searchingPlayerID {
 			continue
 		}
 
@@ -84,12 +98,13 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 		totalFactors += len(flightPathMarkers) * 2
 	}
 
-	s.logger.Debug("Calculated search factors",
+	s.logger.Info("Calculated search factors",
 		"game_id", gameID,
 		"hex_id", hexID,
 		"searching_player_side", searchingPlayerSide,
 		"total_factors", totalFactors,
-		"units", unitCount,
+		"units_in_hex", len(units),
+		"units_of_side", unitCount,
 		"task_forces", tfCount,
 		"patrol_markers", len(patrolMarkers),
 		"flight_path_markers", len(flightPathMarkers))
@@ -172,7 +187,31 @@ func (s *SearchService) getUnitsInHex(gameID, hexID string) ([]*models.NavalUnit
 
 // getPatrolMarkersInHex возвращает маркеры патруля в гексе (только для указанной стороны)
 // Патрулирующие корабли дают +3 фактора поиска в своем гексе
+// playerSide может быть "german" или "allied" - нужно конвертировать в UUID пользователя
 func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide string) ([]string, error) {
+	// Сначала определяем UUID пользователя для указанной стороны
+	var playerID string
+	var playerIDQuery string
+	
+	if playerSide == "german" {
+		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
+	} else if playerSide == "allied" {
+		playerIDQuery = "SELECT player2_id FROM games WHERE id = $1"
+	} else {
+		return nil, fmt.Errorf("invalid player side: %s", playerSide)
+	}
+	
+	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
+	if err != nil {
+		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
+		return nil, fmt.Errorf("failed to get player ID: %w", err)
+	}
+	
+	if playerID == "" {
+		s.logger.Warn("Player ID is empty", "game_id", gameID, "player_side", playerSide)
+		return []string{}, nil
+	}
+	
 	query := `
 		SELECT id
 		FROM naval_units
@@ -183,7 +222,7 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 		AND status != 'sunk'
 	`
 	
-	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerSide)
+	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get patrol markers: %w", err)
 	}
@@ -199,12 +238,41 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 		markerIDs = append(markerIDs, unitID)
 	}
 	
+	// Логируем для отладки патрулей
+	if len(markerIDs) > 0 {
+		s.logger.Info("🎯 Found patrol markers in hex", "hex_id", hexID, "player_side", playerSide, "player_id", playerID, "count", len(markerIDs), "unit_ids", markerIDs)
+	}
+	
 	return markerIDs, rows.Err()
 }
 
 // getFlightPathMarkersInHex возвращает маркеры Пути полета Поиска в гексе (только для указанной стороны)
 // Маркеры хранятся в поле FlightPathSearchHexes у воздушных юнитов
+// playerSide может быть "german" или "allied" - нужно конвертировать в UUID пользователя
 func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSide string) ([]string, error) {
+	// Сначала определяем UUID пользователя для указанной стороны
+	var playerID string
+	var playerIDQuery string
+	
+	if playerSide == "german" {
+		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
+	} else if playerSide == "allied" {
+		playerIDQuery = "SELECT player2_id FROM games WHERE id = $1"
+	} else {
+		return nil, fmt.Errorf("invalid player side: %s", playerSide)
+	}
+	
+	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
+	if err != nil {
+		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
+		return nil, fmt.Errorf("failed to get player ID: %w", err)
+	}
+	
+	if playerID == "" {
+		s.logger.Warn("Player ID is empty", "game_id", gameID, "player_side", playerSide)
+		return []string{}, nil
+	}
+	
 	// Получаем все воздушные юниты игры указанной стороны
 	query := `
 		SELECT id, flight_path_search_hexes
@@ -212,7 +280,7 @@ func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSi
 		WHERE game_id = $1 AND owner = $2
 	`
 	
-	rows, err := s.db.GetConnection().Query(query, gameID, playerSide)
+	rows, err := s.db.GetConnection().Query(query, gameID, playerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query air units: %w", err)
 	}

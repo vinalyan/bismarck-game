@@ -140,31 +140,12 @@ const Game: React.FC = () => {
     clearActiveHexes
   } = useActiveHexes();
 
-  // Загружаем данные кораблей и юнитов при монтировании компонента
+  // Загружаем структуры карты один раз при монтировании компонента (не зависит от игры)
   useEffect(() => {
-    // Загружаем конфигурацию кораблей с бэкенда
-    const loadShipsConfig = async () => {
-        try {
-          const ships = await shipsAPI.getAllShips();
-          setShipsConfig(ships);
-          console.log('Ships config loaded from backend:', ships.length, 'ships');
-        } catch (error) {
-          console.error('Error loading ships config:', error);
-          addNotification({
-            type: NotificationType.Error,
-            title: 'Ошибка загрузки конфигурации кораблей',
-            message: 'Не удалось загрузить конфигурацию кораблей с сервера',
-            read: false
-          });
-        }
-    };
-
-    // Загружаем структуры карты
     const loadMapStructures = async () => {
       try {
         const structures = await mapService.getMapStructures();
         setMapStructures(structures);
-        console.log('Map structures loaded:', structures);
       } catch (error) {
         console.error('Error loading map structures:', error);
         addNotification({
@@ -174,6 +155,28 @@ const Game: React.FC = () => {
           read: false
         });
       }
+    };
+
+    loadMapStructures();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Загружаем только один раз при монтировании
+
+  // Загружаем данные кораблей и юнитов при монтировании компонента
+  useEffect(() => {
+    // Загружаем конфигурацию кораблей с бэкенда
+    const loadShipsConfig = async () => {
+        try {
+          const ships = await shipsAPI.getAllShips();
+          setShipsConfig(ships);
+        } catch (error) {
+          console.error('Error loading ships config:', error);
+          addNotification({
+            type: NotificationType.Error,
+            title: 'Ошибка загрузки конфигурации кораблей',
+            message: 'Не удалось загрузить конфигурацию кораблей с сервера',
+            read: false
+          });
+        }
     };
 
     // Загружаем юниты игры из API
@@ -216,7 +219,6 @@ const Game: React.FC = () => {
     };
 
     loadShipsConfig();
-    loadMapStructures();
     loadGameUnits();
   }, [currentGame?.id, authToken, addNotification, setShipsConfig]);
 
@@ -269,7 +271,11 @@ const Game: React.FC = () => {
   // Расчет факторов поиска для всех морских гексов
   useEffect(() => {
     const calculateSearchFactors = async () => {
-      if (!currentGame?.id || !authToken || !mapStructures) {
+      if (!currentGame?.id || !authToken) {
+        return;
+      }
+
+      if (!mapStructures) {
         return;
       }
 
@@ -312,10 +318,8 @@ const Game: React.FC = () => {
         });
 
         setSearchFactorHexes(factorsMap);
-        
-        console.log('Search factors calculated:', factorsMap.size, 'hexes');
       } catch (error) {
-        console.error('Error calculating search factors:', error);
+        // Ошибка расчета факторов поиска - просто игнорируем
       }
     };
 
@@ -435,8 +439,6 @@ const Game: React.FC = () => {
   // Подключение WebSocket при входе в игру
   useEffect(() => {
     if (currentGame?.id && authToken) {
-      console.log('🔄 Connecting WebSocket with game_id:', currentGame.id);
-      
       // Небольшая задержка перед подключением
       const timer = setTimeout(() => {
         wsClient.connect(authToken, currentGame.id).catch((error) => {
@@ -446,7 +448,6 @@ const Game: React.FC = () => {
       
       return () => {
         clearTimeout(timer);
-        console.log('🔄 Disconnecting WebSocket for game_id:', currentGame.id);
         wsClient.disconnect();
       };
     }
@@ -468,17 +469,34 @@ const Game: React.FC = () => {
       // Обрабатываем разные типы событий фаз
       switch (eventData.event) {
         case 'phase_changed':
-          // Обновляем текущую фазу и события игры
+          // Обновляем текущую фазу, события игры и юниты
           try {
+            if (!authToken) {
+              console.error('Auth token missing, skipping units update');
+              return;
+            }
+            
             const results = await Promise.all([
               phaseAPI.getCurrentPhase(currentGame.id),
-              gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15)
+              gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15),
+              unitsAPI.getGameUnits(currentGame.id, authToken)
             ]);
             
             const updatedTurn = results[0];
+            const unitsResponse = results[2];
             
             if (updatedTurn) {
               setCurrentTurn(updatedTurn);
+            }
+            
+            // Обновляем юниты и TF, особенно важно после admin фазы (сброс патрулей)
+            if (unitsResponse.success && unitsResponse.data) {
+              if (unitsResponse.data.units) {
+                setGameUnits(unitsResponse.data.units);
+              }
+              if (unitsResponse.data.task_forces) {
+                setTaskForces(unitsResponse.data.task_forces);
+              }
             }
             
             // Показываем уведомление
@@ -495,17 +513,34 @@ const Game: React.FC = () => {
           break;
 
         case 'phase_advanced':
-          // Обновляем текущую фазу и события игры
+          // Обновляем текущую фазу, события игры и юниты
           try {
+            if (!authToken) {
+              console.error('Auth token missing, skipping units update');
+              return;
+            }
+            
             const results = await Promise.all([
               phaseAPI.getCurrentPhase(currentGame.id),
-              gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15)
+              gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15),
+              unitsAPI.getGameUnits(currentGame.id, authToken)
             ]);
             
             const updatedTurn = results[0];
+            const unitsResponse = results[2];
             
             if (updatedTurn) {
               setCurrentTurn(updatedTurn);
+            }
+            
+            // Обновляем юниты и TF, особенно важно после admin фазы (сброс патрулей)
+            if (unitsResponse.success && unitsResponse.data) {
+              if (unitsResponse.data.units) {
+                setGameUnits(unitsResponse.data.units);
+              }
+              if (unitsResponse.data.task_forces) {
+                setTaskForces(unitsResponse.data.task_forces);
+              }
             }
             
             // Показываем уведомление

@@ -601,6 +601,14 @@ func (h *AdminPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 func (h *AdminPhaseHandler) Start(gameID string, turn int) error {
 	log.Printf("Сработал переход в фазу admin ход %d", turn)
 
+	// Удаляем все маркеры патруля согласно правилам игры (фаза администрирования)
+	if h.unitService != nil {
+		err := h.unitService.RemoveAllPatrolMarkers(gameID)
+		if err != nil {
+			log.Printf("Failed to remove patrol markers: %v", err)
+		}
+	}
+
 	// Проверяем истечение аварийного топлива
 	if h.unitService != nil {
 		err := h.checkEmergencyFuelExpiration(gameID, turn)

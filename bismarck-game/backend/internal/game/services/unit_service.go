@@ -1053,6 +1053,25 @@ func (s *UnitService) SetPatrol(unitID string, isPatrolling bool) error {
 	return nil
 }
 
+// RemoveAllPatrolMarkers удаляет все маркеры патруля для всех юнитов игры
+// Используется в фазе администрирования согласно правилам игры
+func (s *UnitService) RemoveAllPatrolMarkers(gameID string) error {
+	query := `
+		UPDATE naval_units 
+		SET is_patrolling = false, updated_at = CURRENT_TIMESTAMP
+		WHERE game_id = $1 AND is_patrolling = true
+	`
+	result, err := s.db.Exec(query, gameID)
+	if err != nil {
+		s.logger.Error("Failed to remove patrol markers", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to remove patrol markers: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	s.logger.Info("Removed all patrol markers", "game_id", gameID, "units_affected", rowsAffected)
+	return nil
+}
+
 // DetectUnitsInHex обнаруживает юниты противника в указанном гексе и обновляет их DetectionLevel
 // hasFlightPath указывает, есть ли в гексе маркеры Пути полета Поиска
 func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlightPath bool) error {

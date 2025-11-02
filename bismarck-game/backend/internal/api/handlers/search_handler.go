@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -65,7 +66,10 @@ func (h *SearchHandler) GetSearchFactorsByHexes(w http.ResponseWriter, r *http.R
 
 	// Вычисляем факторы поиска для каждого гекса
 	hexFactors := make(map[string]int)
-	for _, hexID := range hexIDs {
+	totalHexes := len(hexIDs)
+	nonZeroCount := 0
+	
+	for i, hexID := range hexIDs {
 		if hexID == "" {
 			continue
 		}
@@ -78,7 +82,23 @@ func (h *SearchHandler) GetSearchFactorsByHexes(w http.ResponseWriter, r *http.R
 		}
 
 		hexFactors[hexID] = factors
+		
+		if factors > 0 {
+			nonZeroCount++
+			// Логируем гексы с ненулевыми факторами
+			h.logger.Info("🔍 Search factors", "hex_id", hexID, "factors", factors, "player_side", playerSide, "progress", fmt.Sprintf("%d/%d", i+1, totalHexes))
+		}
+		
+		// Логируем для первых нескольких гексов для отладки
+		if i < 5 {
+			h.logger.Info("📍 First hexes", "hex_id", hexID, "factors", factors, "player_side", playerSide)
+		}
 	}
+	
+	h.logger.Info("📊 Search factors calculation completed", 
+		"total_hexes", totalHexes, 
+		"non_zero_factors", nonZeroCount,
+		"player_side", playerSide)
 
 	response := map[string]interface{}{
 		"hex_factors": hexFactors,

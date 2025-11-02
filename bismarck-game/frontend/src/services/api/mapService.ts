@@ -30,7 +30,11 @@ export const mapService = {
     if (!response.ok) {
       throw new Error(`Failed to fetch map structures: ${response.statusText}`);
     }
-    const data = await response.json();
-    return data.mapStructures;
+    const result = await response.json();
+    // API возвращает {success: true, data: {mapStructures: {...}}}
+    if (result.success && result.data && result.data.mapStructures) {
+      return result.data.mapStructures;
+    }
+    throw new Error('Invalid map structures response format');
   }
 };
