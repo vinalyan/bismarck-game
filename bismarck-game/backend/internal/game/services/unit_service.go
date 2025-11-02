@@ -104,7 +104,7 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
 			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_turn,
+			   is_emergency_fuel, emergency_turn, is_patrolling,
 			   created_at, updated_at
 		FROM naval_units
 		WHERE game_id = $1 AND status != 'sunk'
@@ -132,7 +132,7 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 			&unit.Status, &detectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
 			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
-			&unit.IsEmergencyFuel, &emergencyRemovalTurn,
+			&unit.IsEmergencyFuel, &emergencyRemovalTurn, &unit.IsPatrolling,
 			&unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {
@@ -241,9 +241,8 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, error) {
 	query := `
 		SELECT id, game_id, name, type, owner, position, base_position,
-			   max_speed, endurance, current_fuel, search_factors,
-			   status, detection_level, is_visible, last_known_pos,
-			   markers, created_at, updated_at
+			   max_speed, endurance, status, flight_path_search_hexes,
+			   created_at, updated_at
 		FROM air_units
 		WHERE game_id = $1
 		ORDER BY created_at`
@@ -258,14 +257,26 @@ func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, erro
 	var units []models.AirUnit
 	for rows.Next() {
 		var unit models.AirUnit
+		var flightPathHexesJSON []byte
 
 		err := rows.Scan(
 			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Owner, &unit.Position, &unit.BasePosition,
-			&unit.MaxSpeed, &unit.Endurance, &unit.Status, &unit.CreatedAt, &unit.UpdatedAt,
+			&unit.MaxSpeed, &unit.Endurance, &unit.Status, &flightPathHexesJSON,
+			&unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {
 			s.logger.Error("Failed to scan air unit", "error", err)
 			continue
+		}
+
+		// Парсим JSON массив гексов
+		if len(flightPathHexesJSON) > 0 {
+			if err := json.Unmarshal(flightPathHexesJSON, &unit.FlightPathSearchHexes); err != nil {
+				s.logger.Warn("Failed to unmarshal flight path hexes", "air_unit_id", unit.ID, "error", err)
+				unit.FlightPathSearchHexes = []string{}
+			}
+		} else {
+			unit.FlightPathSearchHexes = []string{}
 		}
 
 		units = append(units, unit)
@@ -431,7 +442,7 @@ func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]mode
 			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
 			   status, detection_level, last_known_pos, task_force_id, damage,
 			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_turn,
+			   is_emergency_fuel, emergency_turn, is_patrolling,
 			   created_at, updated_at
 		FROM naval_units
 		WHERE game_id = $1 AND position = $2`
@@ -456,7 +467,7 @@ func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]mode
 			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 			&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
 			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
-			&unit.IsEmergencyFuel, &unit.EmergencyTurn,
+			&unit.IsEmergencyFuel, &unit.EmergencyTurn, &unit.IsPatrolling,
 			&unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {
@@ -766,7 +777,7 @@ func (s *UnitService) AwardVPForSunkShip(gameID string, unit *models.NavalUnit) 
 	return nil
 }
 
-// ResetDetectionInFog сбрасывает DetectionLevel у юнитов в туманных гексах
+ // ResetDetectionInFog сбрасывает DetectionLevel у юнитов в туманных гексах
 func (s *UnitService) ResetDetectionInFog(gameID string) error {
 	// Получаем список туманных гексов (пока используем пустой список, так как нет таблицы туманных гексов)
 	// В будущем это можно получать из конфигурации карты или отдельной таблицы

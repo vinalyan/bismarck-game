@@ -174,28 +174,34 @@ type GameResponse struct {
 	VictoryType     VictoryType  `json:"victory_type"`
 	StartedAt       *time.Time   `json:"started_at"`
 	LastActionAt    *time.Time   `json:"last_action_at"`
+	VisibilityLevel int          `json:"visibility_level"`
+	IsFog           bool         `json:"is_fog"`
+	WeatherTrack    int          `json:"weather_track"`
 }
 
 // ToResponse преобразует Game в GameResponse
 func (g *Game) ToResponse() GameResponse {
 	return GameResponse{
-		ID:           g.ID,
-		Name:         g.Name,
-		Player1ID:    g.Player1ID,
-		Player2ID:    g.Player2ID,
-		Player1Side:  PlayerSideGerman, // Player1 всегда немцы
-		Player2Side:  PlayerSideAllied, // Player2 всегда союзники
-		CurrentTurn:  g.CurrentTurn,
-		CurrentPhase: g.CurrentPhase,
-		Status:       g.Status,
-		Settings:     g.Settings,
-		CreatedAt:    g.CreatedAt,
-		UpdatedAt:    g.UpdatedAt,
-		CompletedAt:  g.CompletedAt,
-		Winner:       g.Winner,
-		VictoryType:  g.VictoryType,
-		StartedAt:    g.StartedAt,
-		LastActionAt: g.LastActionAt,
+		ID:             g.ID,
+		Name:           g.Name,
+		Player1ID:      g.Player1ID,
+		Player2ID:      g.Player2ID,
+		Player1Side:    PlayerSideGerman, // Player1 всегда немцы
+		Player2Side:    PlayerSideAllied,  // Player2 всегда союзники
+		CurrentTurn:    g.CurrentTurn,
+		CurrentPhase:   g.CurrentPhase,
+		Status:         g.Status,
+		Settings:       g.Settings,
+		CreatedAt:      g.CreatedAt,
+		UpdatedAt:      g.UpdatedAt,
+		CompletedAt:    g.CompletedAt,
+		Winner:         g.Winner,
+		VictoryType:    g.VictoryType,
+		StartedAt:      g.StartedAt,
+		LastActionAt:   g.LastActionAt,
+		VisibilityLevel: g.VisibilityLevel,
+		IsFog:          g.IsFog,
+		WeatherTrack:   g.WeatherTrack,
 	}
 }
 
@@ -218,6 +224,9 @@ func (g *Game) ToResponseWithUsernames(player1Username, player2Username string) 
 		UpdatedAt:       g.UpdatedAt,
 		CompletedAt:     g.CompletedAt,
 		Winner:          g.Winner,
+		VisibilityLevel: g.VisibilityLevel,
+		IsFog:          g.IsFog,
+		WeatherTrack:   g.WeatherTrack,
 		VictoryType:     g.VictoryType,
 		StartedAt:       g.StartedAt,
 		LastActionAt:    g.LastActionAt,

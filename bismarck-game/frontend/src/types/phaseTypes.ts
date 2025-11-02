@@ -37,6 +37,9 @@ export interface GameTurn {
   end_time?: string;
   created_at: string;
   updated_at: string;
+  visibility_level?: number;
+  is_fog?: boolean;
+  weather_track?: number;
 }
 
 // Тип для ответа API, который может содержать обернутые данные

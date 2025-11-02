@@ -472,6 +472,42 @@ func (pm *PhaseManager) GetCurrentPhase(gameID string) (*models.GameTurn, error)
 	return &turn, nil
 }
 
+// GameVisibility представляет информацию о видимости игры
+type GameVisibility struct {
+	VisibilityLevel int
+	IsFog           bool
+	WeatherTrack    int
+}
+
+// GetGameVisibility возвращает информацию о видимости игры
+func (pm *PhaseManager) GetGameVisibility(gameID string) (*GameVisibility, error) {
+	query := `
+		SELECT visibility_level, is_fog, weather_track
+		FROM games
+		WHERE id = $1
+	`
+
+	var visibility GameVisibility
+	err := pm.db.QueryRow(query, gameID).Scan(
+		&visibility.VisibilityLevel,
+		&visibility.IsFog,
+		&visibility.WeatherTrack,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Возвращаем значения по умолчанию, если игра не найдена
+			return &GameVisibility{
+				VisibilityLevel: 1,
+				IsFog:           false,
+				WeatherTrack:    0,
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to get game visibility: %v", err)
+	}
+
+	return &visibility, nil
+}
+
 // GetPhaseRecords возвращает записи о фазах для хода
 func (pm *PhaseManager) GetPhaseRecords(gameID string, turnNumber int) ([]models.PhaseRecord, error) {
 	query := `

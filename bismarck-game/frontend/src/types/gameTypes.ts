@@ -52,6 +52,9 @@ export interface Game {
   created_at: string;
   updated_at: string;
   completed_at?: string;
+  visibility_level?: number;
+  is_fog?: boolean;
+  weather_track?: number;
 }
 
 // Импортируем GamePhase из phaseTypes
@@ -132,6 +135,9 @@ export interface GameResponse {
   created_at: string;
   updated_at: string;
   completed_at?: string;
+  visibility_level?: number;
+  is_fog?: boolean;
+  weather_track?: number;
 }
 
 // Запрос на создание игры

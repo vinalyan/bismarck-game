@@ -31,7 +31,7 @@
   margin-top: 0.25rem;
 }
 
-.phase-display, .turn-display {
+.phase-display, .turn-display, .visibility-display, .fog-display {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -42,16 +42,15 @@
   font-size: 0.9rem;
 }
 
-.phase-label, .turn-label {
+.phase-label, .turn-label, .visibility-label, .fog-label {
   font-size: 0.8rem;
   opacity: 0.8;
   margin-bottom: 0.25rem;
 }
 
-.phase-value, .turn-value {
+.phase-value, .turn-value, .visibility-value, .fog-value {
   font-weight: 700;
   font-size: 1rem;
-  color: #4a90e2;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
@@ -61,6 +60,14 @@
 
 .turn-value {
   color: #00ff88; /* Зеленый цвет для хода */
+}
+
+.visibility-value {
+  color: #ff9500; /* Оранжевый цвет для видимости */
+}
+
+.fog-value {
+  color: #9ca3af; /* Серый цвет для тумана */
 }
 
 .phase-status {

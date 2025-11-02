@@ -1113,6 +1113,30 @@ const Game: React.FC = () => {
                 })()}
             </span>
             </div>
+            <div className="visibility-display">
+              <span className="visibility-label">Уровень видимости:</span>
+              <span className="visibility-value">
+                {(() => {
+                  const turnData = getTurnData(currentTurn);
+                  if (turnData && turnData.visibility_level !== undefined) {
+                    return turnData.visibility_level;
+                  }
+                  return currentGame.visibility_level !== undefined ? currentGame.visibility_level : '—';
+                })()}
+              </span>
+            </div>
+            <div className="fog-display">
+              <span className="fog-label">Туман:</span>
+              <span className="fog-value">
+                {(() => {
+                  const turnData = getTurnData(currentTurn);
+                  if (turnData && turnData.is_fog !== undefined) {
+                    return turnData.is_fog ? 'Да' : 'Нет';
+                  }
+                  return currentGame.is_fog !== undefined ? (currentGame.is_fog ? 'Да' : 'Нет') : '—';
+                })()}
+              </span>
+            </div>
             <div className="turn-display">
               <span className="turn-label">Ход:</span>
               <span className="turn-value">

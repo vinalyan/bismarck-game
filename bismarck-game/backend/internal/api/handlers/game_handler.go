@@ -359,6 +359,7 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 	query := `
 		SELECT g.id, g.name, g.player1_id, g.player2_id, g.current_turn, g.current_phase, g.status, 
 		       g.settings, g.created_at, g.updated_at, g.completed_at,
+		       g.visibility_level, g.is_fog, g.weather_track,
 		       p1.username as player1_username, p2.username as player2_username
 		FROM games g
 		LEFT JOIN users p1 ON g.player1_id = p1.id
@@ -387,7 +388,8 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 			&game.ID, &game.Name, &player1ID, &player2ID,
 			&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 			&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-			&completedAt, &player1Username, &player2Username,
+			&completedAt, &game.VisibilityLevel, &game.IsFog, &game.WeatherTrack,
+			&player1Username, &player2Username,
 		)
 		if err != nil {
 			log.Printf("Failed to scan game: %v", err)
@@ -465,7 +467,8 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 	var completedAt sql.NullTime
 	query := `
 		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
-		       settings, created_at, updated_at, completed_at
+		       settings, created_at, updated_at, completed_at,
+		       visibility_level, is_fog, weather_track
 		FROM games 
 		WHERE id = $1
 	`
@@ -474,7 +477,7 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 		&game.ID, &game.Name, &game.Player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-		&completedAt,
+		&completedAt, &game.VisibilityLevel, &game.IsFog, &game.WeatherTrack,
 	)
 
 	if err != nil {

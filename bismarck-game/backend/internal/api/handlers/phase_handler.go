@@ -43,9 +43,37 @@ func (h *PhaseHandler) GetCurrentPhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Получаем информацию о видимости из игры
+	visibilityInfo, err := h.phaseManager.GetGameVisibility(gameID)
+	if err != nil {
+		log.Printf("Failed to get game visibility: %v", err)
+		// Не критично, продолжаем без информации о видимости
+		visibilityInfo = &services.GameVisibility{
+			VisibilityLevel: 1,
+			IsFog:          false,
+			WeatherTrack:   0,
+		}
+	}
+
+	// Создаем расширенный ответ с информацией о видимости
+	responseData := map[string]interface{}{
+		"id":            turn.ID,
+		"game_id":       turn.GameID,
+		"turn_number":   turn.TurnNumber,
+		"current_phase": turn.CurrentPhase,
+		"status":        turn.Status,
+		"start_time":    turn.StartTime,
+		"end_time":      turn.EndTime,
+		"created_at":    turn.CreatedAt,
+		"updated_at":    turn.UpdatedAt,
+		"visibility_level": visibilityInfo.VisibilityLevel,
+		"is_fog":          visibilityInfo.IsFog,
+		"weather_track":  visibilityInfo.WeatherTrack,
+	}
+
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
-		"data":    turn,
+		"data":    responseData,
 	})
 }
 

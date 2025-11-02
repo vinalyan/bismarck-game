@@ -217,24 +217,28 @@ type NavalUnit struct {
 	IsEmergencyFuel bool `json:"is_emergency_fuel" db:"is_emergency_fuel"` // Флаг аварийного топлива - корабль может двигаться только на 1 гекс
 	EmergencyTurn   int  `json:"emergency_turn" db:"emergency_turn"`       // Ход, когда закончится аварийное топливо (текущий ход + 10)
 
+	// Поля для поиска
+	IsPatrolling bool `json:"is_patrolling" db:"is_patrolling"` // Флаг патрулирования (+3 фактора поиска в гексе корабля)
+
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // AirUnit представляет воздушный юнит
 type AirUnit struct {
-	ID           string        `json:"id" db:"id"`
-	GameID       string        `json:"game_id" db:"game_id"`
-	Name         string        `json:"name" db:"name"`
-	Type         UnitType      `json:"type" db:"type"` // B (боевой) или R (разведывательный)
-	Owner        string        `json:"owner" db:"owner"`
-	Position     string        `json:"position" db:"position"` // Hex coordinate
-	BasePosition string        `json:"base_position" db:"base_position"`
-	MaxSpeed     int           `json:"max_speed" db:"max_speed"` // Максимальная скорость
-	Endurance    int           `json:"endurance" db:"endurance"` // Дальность полета
-	Status       AirUnitStatus `json:"status" db:"status"`
-	CreatedAt    time.Time     `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time     `json:"updated_at" db:"updated_at"`
+	ID                    string        `json:"id" db:"id"`
+	GameID                string        `json:"game_id" db:"game_id"`
+	Name                  string        `json:"name" db:"name"`
+	Type                  UnitType      `json:"type" db:"type"` // B (боевой) или R (разведывательный)
+	Owner                 string        `json:"owner" db:"owner"`
+	Position              string        `json:"position" db:"position"` // Hex coordinate
+	BasePosition          string        `json:"base_position" db:"base_position"`
+	MaxSpeed              int           `json:"max_speed" db:"max_speed"` // Максимальная скорость
+	Endurance             int           `json:"endurance" db:"endurance"` // Дальность полета
+	Status                AirUnitStatus `json:"status" db:"status"`
+	FlightPathSearchHexes []string      `json:"flight_path_search_hexes" db:"flight_path_search_hexes"` // Гексы с маркерами Пути полета Поиска (+2 фактора поиска каждый)
+	CreatedAt             time.Time     `json:"created_at" db:"created_at"`
+	UpdatedAt             time.Time     `json:"updated_at" db:"updated_at"`
 }
 
 // Damage представляет повреждение
