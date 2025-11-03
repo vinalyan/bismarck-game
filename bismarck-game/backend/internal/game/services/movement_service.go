@@ -69,7 +69,15 @@ func (s *MovementService) ValidateMovement(unit *models.NavalUnit, fromHex, toHe
 		return fmt.Errorf("failed to get fuel tracking: %w", err)
 	}
 
-	currentTurn := s.getCurrentTurn(unit.GameID)
+	var currentTurn int = 1 // fallback
+	if s.phaseManager != nil {
+		turn, err := s.phaseManager.GetCurrentPhase(unit.GameID)
+		if err == nil && turn != nil {
+			currentTurn = turn.TurnNumber
+		} else if err != nil {
+			s.logger.Warn("Failed to get current turn, using fallback", "game_id", unit.GameID, "error", err)
+		}
+	}
 	return s.validatorFactory.ValidateMovement(unit, fromHex, toHex, fuelTracking, currentTurn)
 }
 
@@ -121,7 +129,14 @@ func (s *MovementService) GetAvailableMoves(unit *models.NavalUnit) ([]string, e
 		}
 
 		// Используем новую систему валидации
-		if err := s.validatorFactory.ValidateMovement(unit, unit.Position, hex, fuelTracking, s.getCurrentTurn(unit.GameID)); err == nil {
+		currentTurn := 1 // fallback
+		if s.phaseManager != nil {
+			turn, err := s.phaseManager.GetCurrentPhase(unit.GameID)
+			if err == nil && turn != nil {
+				currentTurn = turn.TurnNumber
+			}
+		}
+		if err := s.validatorFactory.ValidateMovement(unit, unit.Position, hex, fuelTracking, currentTurn); err == nil {
 			validHexes = append(validHexes, hex)
 		}
 	}
@@ -177,6 +192,19 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 		return nil, errors.New("insufficient fuel for movement")
 	}
 
+	// Получаем текущий ход и фазу
+	currentTurn := 1
+	currentPhase := "movement"
+	if s.phaseManager != nil {
+		turn, err := s.phaseManager.GetCurrentPhase(unit.GameID)
+		if err == nil && turn != nil {
+			currentTurn = turn.TurnNumber
+			currentPhase = string(turn.CurrentPhase)
+		} else if err != nil {
+			s.logger.Warn("Failed to get current phase, using fallback", "game_id", unit.GameID, "error", err)
+		}
+	}
+
 	// Создаем запись о движении
 	movement := &models.Movement{
 		ID:           s.generateID(),
@@ -188,8 +216,8 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 		FuelCost:     fuelCost,
 		HexesMoved:   s.hexCalculator.CalculateDistance(unit.Position, toHex),
 		MovementType: models.MovementTypeNormal,
-		Turn:         s.getCurrentTurn(unit.GameID),
-		Phase:        s.getCurrentPhase(unit.GameID),
+		Turn:         currentTurn,
+		Phase:        currentPhase,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -204,7 +232,16 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 	unit.Position = toHex
 
 	// Обновляем данные о движении
-	currentTurn := s.getCurrentTurn(unit.GameID)
+	if s.phaseManager != nil {
+		turn, err := s.phaseManager.GetCurrentPhase(unit.GameID)
+		if err == nil && turn != nil {
+			currentTurn = turn.TurnNumber
+		} else {
+			currentTurn = 1 // fallback
+		}
+	} else {
+		currentTurn = 1 // fallback
+	}
 	unit.MovementUsed += movement.HexesMoved
 	unit.LastMoveTurn = currentTurn
 
@@ -408,36 +445,6 @@ func (s *MovementService) saveMovement(movement *models.Movement) error {
 	return nil
 }
 
-func (s *MovementService) getCurrentTurn(gameID string) int {
-	// Если PhaseManager не инициализирован (для тестов), возвращаем 1
-	if s.phaseManager == nil {
-		return 1
-	}
-
-	// Получаем текущий ход из PhaseManager
-	turn, err := s.phaseManager.GetCurrentPhase(gameID)
-	if err != nil || turn == nil {
-		s.logger.Warn("Failed to get current turn, using fallback", "game_id", gameID, "error", err)
-		return 1 // fallback
-	}
-	return turn.TurnNumber
-}
-
-func (s *MovementService) getCurrentPhase(gameID string) string {
-	// Если PhaseManager не инициализирован (для тестов), возвращаем "movement"
-	if s.phaseManager == nil {
-		return "movement"
-	}
-
-	// Получаем текущую фазу из PhaseManager
-	turn, err := s.phaseManager.GetCurrentPhase(gameID)
-	if err != nil || turn == nil {
-		s.logger.Warn("Failed to get current phase, using fallback", "game_id", gameID, "error", err)
-		return "movement" // fallback
-	}
-	return string(turn.CurrentPhase)
-}
-
 func (s *MovementService) generateID() string {
 	// Генерируем UUID для движения
 	return uuid.New().String()
@@ -612,8 +619,17 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 
 	// Логируем событие движения Task Force в игровой лог
 	if s.eventService != nil {
-		currentTurn := s.getCurrentTurn(taskForce.GameID)
-		currentPhase := s.getCurrentPhase(taskForce.GameID)
+		currentTurn := 1
+		currentPhase := "movement"
+		if s.phaseManager != nil {
+			turn, err := s.phaseManager.GetCurrentPhase(taskForce.GameID)
+			if err == nil && turn != nil {
+				currentTurn = turn.TurnNumber
+				currentPhase = string(turn.CurrentPhase)
+			} else if err != nil {
+				s.logger.Warn("Failed to get current phase, using fallback", "game_id", taskForce.GameID, "error", err)
+			}
+		}
 		playerSide, err := s.gameService.GetPlayerSide(taskForce.GameID, taskForce.Owner)
 		if err != nil {
 			s.logger.Warn("Failed to get player side for task force movement event", "error", err, "game_id", taskForce.GameID, "player_id", taskForce.Owner)
@@ -712,7 +728,14 @@ func (s *MovementService) executeTaskForceUnitMovement(unit *models.NavalUnit, f
 
 	// Обновляем статистику движения
 	unit.PreviousTurnMovedHexes = s.hexCalculator.CalculateDistance(fromHex, toHex)
-	unit.LastMoveTurn = s.getCurrentTurn(unit.GameID)
+	currentTurn := 1 // fallback
+	if s.phaseManager != nil {
+		turn, err := s.phaseManager.GetCurrentPhase(unit.GameID)
+		if err == nil && turn != nil {
+			currentTurn = turn.TurnNumber
+		}
+	}
+	unit.LastMoveTurn = currentTurn
 	unit.MovementUsed += unit.PreviousTurnMovedHexes
 
 	// Устанавливаем ограничения движения для медленных кораблей
@@ -729,6 +752,21 @@ func (s *MovementService) executeTaskForceUnitMovement(unit *models.NavalUnit, f
 		return nil, fmt.Errorf("failed to update unit: %w", err)
 	}
 
+	// Получаем текущий ход и фазу для записи движения
+	currentPhase := "movement"
+	if s.phaseManager != nil {
+		turn, err := s.phaseManager.GetCurrentPhase(unit.GameID)
+		if err == nil && turn != nil {
+			currentTurn = turn.TurnNumber
+			currentPhase = string(turn.CurrentPhase)
+		} else if err != nil {
+			s.logger.Warn("Failed to get current phase, using fallback", "game_id", unit.GameID, "error", err)
+			currentTurn = 1 // fallback
+		}
+	} else {
+		currentTurn = 1 // fallback
+	}
+
 	// Создаем запись о движении
 	movement := &models.Movement{
 		ID:           s.generateID(),
@@ -740,8 +778,8 @@ func (s *MovementService) executeTaskForceUnitMovement(unit *models.NavalUnit, f
 		FuelCost:     fuelCost,
 		HexesMoved:   unit.PreviousTurnMovedHexes,
 		MovementType: models.MovementTypeTaskForce, // Новый тип движения для TF
-		Turn:         s.getCurrentTurn(unit.GameID),
-		Phase:        s.getCurrentPhase(unit.GameID),
+		Turn:         currentTurn,
+		Phase:        currentPhase,
 		CreatedAt:    time.Now(),
 	}
 
@@ -799,7 +837,13 @@ func (s *MovementService) updateTaskForcePosition(taskForceID, newPosition strin
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1`
 
-	currentTurn := s.getCurrentTurn(taskForce.GameID)
+	currentTurn := 1 // fallback
+	if s.phaseManager != nil {
+		turn, err := s.phaseManager.GetCurrentPhase(taskForce.GameID)
+		if err == nil && turn != nil {
+			currentTurn = turn.TurnNumber
+		}
+	}
 
 	_, err = s.db.Exec(query, taskForceID, newPosition, currentTurn)
 	if err != nil {
