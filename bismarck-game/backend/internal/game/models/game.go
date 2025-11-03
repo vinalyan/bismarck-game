@@ -149,7 +149,7 @@ type CreateGameRequest struct {
 
 // JoinGameRequest представляет запрос на присоединение к игре
 type JoinGameRequest struct {
-	Side     PlayerSide `json:"side,omitempty"` // Желаемая сторона (german или allied)
+	Side     PlayerSide `json:"side,omitempty" validate:"omitempty,oneof=german allied"` // Желаемая сторона (german или allied)
 	Password string     `json:"password,omitempty"`
 }
 

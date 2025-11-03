@@ -43,31 +43,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Валидация полей
-	if req.Username == "" {
-		utils.WriteValidationError(w, "Username is required", map[string]string{
-			"username": "Username cannot be empty",
-		})
-		return
-	}
-
-	if req.Email == "" {
-		utils.WriteValidationError(w, "Email is required", map[string]string{
-			"email": "Email cannot be empty",
-		})
-		return
-	}
-
-	if req.Password == "" {
-		utils.WriteValidationError(w, "Password is required", map[string]string{
-			"password": "Password cannot be empty",
-		})
-		return
-	}
-
-	if len(req.Password) < 6 {
-		utils.WriteValidationError(w, "Password is too short", map[string]string{
-			"password": "Password must be at least 6 characters long",
-		})
+	if !utils.ValidateRequest(w, &req) {
 		return
 	}
 
@@ -116,17 +92,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Валидация полей
-	if req.Username == "" {
-		utils.WriteValidationError(w, "Username is required", map[string]string{
-			"username": "Username cannot be empty",
-		})
-		return
-	}
-
-	if req.Password == "" {
-		utils.WriteValidationError(w, "Password is required", map[string]string{
-			"password": "Password cannot be empty",
-		})
+	if !utils.ValidateRequest(w, &req) {
 		return
 	}
 
@@ -264,24 +230,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Валидация полей
-	if req.CurrentPassword == "" {
-		utils.WriteValidationError(w, "Current password is required", map[string]string{
-			"current_password": "Current password cannot be empty",
-		})
-		return
-	}
-
-	if req.NewPassword == "" {
-		utils.WriteValidationError(w, "New password is required", map[string]string{
-			"new_password": "New password cannot be empty",
-		})
-		return
-	}
-
-	if len(req.NewPassword) < 6 {
-		utils.WriteValidationError(w, "New password is too short", map[string]string{
-			"new_password": "New password must be at least 6 characters long",
-		})
+	if !utils.ValidateRequest(w, &req) {
 		return
 	}
 

@@ -168,31 +168,7 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	log.Printf("CreateGame: Request parsed successfully: %+v", req)
 
 	// Валидация полей
-	if req.Name == "" {
-		pkgutils.WriteValidationError(w, "Game name is required", map[string]string{
-			"name": "Game name cannot be empty",
-		})
-		return
-	}
-
-	if len(req.Name) < 3 || len(req.Name) > 100 {
-		pkgutils.WriteValidationError(w, "Invalid game name length", map[string]string{
-			"name": "Game name must be between 3 and 100 characters",
-		})
-		return
-	}
-
-	if req.Side == "" {
-		pkgutils.WriteValidationError(w, "Player side is required", map[string]string{
-			"side": "Player side must be 'german' or 'allied'",
-		})
-		return
-	}
-
-	if req.Side != models.PlayerSideGerman && req.Side != models.PlayerSideAllied {
-		pkgutils.WriteValidationError(w, "Invalid player side", map[string]string{
-			"side": "Player side must be 'german' or 'allied'",
-		})
+	if !pkgutils.ValidateRequest(w, &req) {
 		return
 	}
 
