@@ -119,14 +119,23 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 
 	// Обновляем юниты, добавляя их в Task Force
 	for _, unitID := range taskForce.Units {
-		unit, _ := s.unitService.GetNavalUnitByID(unitID)
+		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		if err != nil {
+			s.logger.Warn("Failed to get unit when adding to task force", "unit_id", unitID, "error", err)
+			continue
+		}
 		if unit != nil {
+			// Сохраняем текущее значение NoMovementTurnsLeft перед обновлением
+			noMovementTurnsLeft := unit.NoMovementTurnsLeft
 			unit.TaskForceID = &taskForce.ID
 			// Обнуляем позицию корабля - теперь он перемещается только с Task Force
 			unit.Position = ""
+			// Восстанавливаем NoMovementTurnsLeft после изменения позиции
+			unit.NoMovementTurnsLeft = noMovementTurnsLeft
 			s.unitService.UpdateNavalUnit(unit)
 			s.logger.Info("Unit added to task force and position cleared",
-				"unit_id", unitID, "unit_name", unit.Name, "task_force_id", taskForce.ID)
+				"unit_id", unitID, "unit_name", unit.Name, "task_force_id", taskForce.ID,
+				"no_movement_turns_left", unit.NoMovementTurnsLeft)
 		}
 	}
 
@@ -525,6 +534,15 @@ func (s *TaskForceService) CanTaskForceMove(taskForceID string) (bool, string) {
 			continue
 		}
 
+		s.logger.Debug("Checking unit for movement restrictions",
+			"unit_id", unitID,
+			"unit_name", unit.Name,
+			"no_movement_turns_left", unit.NoMovementTurnsLeft,
+			"is_alive", unit.IsAlive(),
+			"status", unit.Status,
+			"fuel", unit.Fuel,
+			"is_emergency_fuel", unit.IsEmergencyFuel)
+
 		// Проверяем базовые ограничения (жизнь, статус)
 		if !unit.IsAlive() || unit.Status == models.UnitStatusRepairing {
 			return false, fmt.Sprintf("unit %s (%s) cannot move", unit.Name, unitID)
@@ -537,7 +555,7 @@ func (s *TaskForceService) CanTaskForceMove(taskForceID string) (bool, string) {
 
 		// Проверяем ограничения для медленных кораблей (S/VS)
 		if unit.NoMovementTurnsLeft > 0 {
-			return false, fmt.Sprintf("unit %s (%s) cannot move - %d turns restriction left",
+			return false, fmt.Sprintf("unit %s (%s) cannot move - %d movement restriction turns left",
 				unit.Name, unitID, unit.NoMovementTurnsLeft)
 		}
 	}

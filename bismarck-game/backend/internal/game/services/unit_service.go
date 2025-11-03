@@ -51,11 +51,12 @@ func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 			hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
 			secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
 			base_secondary_armament, torpedoes, max_torpedoes, radar_level,
-			status, detection_level, damage, is_emergency_fuel, emergency_turn
+			status, detection_level, damage, is_emergency_fuel, emergency_turn,
+			no_movement_turns_left, movement_used, last_move_turn
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
 			$15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30
+			$26, $27, $28, $29, $30, $31, $32, $33
 		) RETURNING id, created_at, updated_at`
 
 	damageJSON, _ := json.Marshal(unit.Damage)
@@ -67,6 +68,7 @@ func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 		unit.SecondaryArmament, unit.BasePrimaryArmamentBow, unit.BasePrimaryArmamentStern,
 		unit.BaseSecondaryArmament, unit.Torpedoes, unit.MaxTorpedoes, unit.RadarLevel,
 		unit.Status, unit.DetectionLevel, damageJSON, unit.IsEmergencyFuel, unit.EmergencyTurn,
+		unit.NoMovementTurnsLeft, unit.MovementUsed, unit.LastMoveTurn,
 	).Scan(&unit.ID, &unit.CreatedAt, &unit.UpdatedAt)
 
 	if err != nil {
@@ -74,7 +76,7 @@ func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 		return fmt.Errorf("failed to create naval unit: %w", err)
 	}
 
-	s.logger.Info("Created naval unit", "unit_id", unit.ID, "name", unit.Name)
+	s.logger.Info("Created naval unit", "unit_id", unit.ID, "name", unit.Name, "no_movement_turns_left", unit.NoMovementTurnsLeft)
 	return nil
 }
 
