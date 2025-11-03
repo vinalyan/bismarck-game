@@ -586,13 +586,15 @@ type AdminPhaseHandler struct {
 	phaseManager     models.PhaseManagerInterface
 	unitService      *UnitService
 	taskForceService *TaskForceService
+	searchService    *SearchService
 }
 
 // NewAdminPhaseHandler создает новый обработчик админской фазы
-func NewAdminPhaseHandler(unitService *UnitService, taskForceService *TaskForceService) *AdminPhaseHandler {
+func NewAdminPhaseHandler(unitService *UnitService, taskForceService *TaskForceService, searchService *SearchService) *AdminPhaseHandler {
 	return &AdminPhaseHandler{
 		unitService:      unitService,
 		taskForceService: taskForceService,
+		searchService:    searchService,
 	}
 }
 
@@ -616,6 +618,14 @@ func (h *AdminPhaseHandler) Start(gameID string, turn int) error {
 		err := h.taskForceService.RemoveAllPatrolMarkers(gameID)
 		if err != nil {
 			log.Printf("Failed to remove task force patrol markers: %v", err)
+		}
+	}
+
+	// Удаляем все маркеры пути полета поиска согласно правилам игры (фаза администрирования)
+	if h.searchService != nil {
+		err := h.searchService.RemoveAllFlightPathSearchMarkers(gameID)
+		if err != nil {
+			log.Printf("Failed to remove flight path search markers: %v", err)
 		}
 	}
 

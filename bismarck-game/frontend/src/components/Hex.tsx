@@ -23,6 +23,7 @@ interface HexProps {
   expandedStackHex?: string | null;
   currentTurn?: number;
   isTFCandidate?: boolean;
+  hasFlightPathMarker?: boolean;
   onClick: () => void;
   onHover: () => void;
   onUnitClick?: (unitId: string, unitData: any) => void;
@@ -49,6 +50,7 @@ const Hex: React.FC<HexProps> = ({
   expandedStackHex = null,
   currentTurn = 0,
   isTFCandidate = false,
+  hasFlightPathMarker = false,
   onClick,
   onHover,
   onUnitClick,
@@ -59,6 +61,7 @@ const Hex: React.FC<HexProps> = ({
   onUnitStackClick,
   onStackedUnitSelect
 }) => {
+  const hexId = `${coordinate.letter}${coordinate.number}`;
   // Состояние для подсказки
   const [showTooltip, setShowTooltip] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -666,6 +669,17 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
   const hexStyle = getHexStyle();
   const points = getHexPoints();
 
+  // Вычисляем координаты для маркера пути полета заранее
+  const topY = Math.min(...corners.map(c => c.y));
+  const topCorners = corners.filter(c => Math.abs(c.y - topY) < 1);
+  const topRightCorner = topCorners.reduce((max, c) => c.x > max.x ? c : max, topCorners[0]);
+  const iconSize = 18; // Фиксированный размер, как у иконок юнитов (20), но чуть меньше
+  const iconX = topRightCorner.x - iconSize * 0.6;
+  const iconY = topRightCorner.y - iconSize * 0.8;
+
+  // Проверяем, нужно ли рендерить маркер
+  const shouldRenderMarker = Boolean(hasFlightPathMarker);
+
   return (
     <>
       <g
@@ -715,6 +729,21 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
           opacity={0.7}
           className="weather-effect"
         />
+      )}
+      
+      {/* Маркер пути полета (Flight Path) - ВНУТРИ основного g, но в конце, чтобы был поверх */}
+      {shouldRenderMarker && (
+        <g className="flight-path-marker">
+          <image
+            href="/assets/markers/FP.svg"
+            x={iconX}
+            y={iconY}
+            width={iconSize}
+            height={iconSize}
+            preserveAspectRatio="xMidYMid meet"
+            style={{ pointerEvents: 'none' }}
+          />
+        </g>
       )}
       </g>
     </>

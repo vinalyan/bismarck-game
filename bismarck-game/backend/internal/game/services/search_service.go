@@ -52,10 +52,29 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 		return 0, fmt.Errorf("failed to get units in hex: %w", err)
 	}
 
-	// Подсчитываем отдельные корабли и Task Forces (только своей стороны)
+	// Получаем Task Forces напрямую из таблицы task_forces (TF дает +1 независимо от юнитов)
+	taskForcesInHex, err := s.getTaskForcesInHex(gameID, hexID, searchingPlayerID)
+	if err != nil {
+		s.logger.Warn("Failed to get task forces in hex", "game_id", gameID, "hex_id", hexID, "error", err)
+		taskForcesInHex = []string{}
+	}
+	
+	// Детальное логирование для отладки (особенно для E21)
+	if hexID == "E21" {
+		s.logger.Info("🔍 DEBUG E21",
+			"searching_player_id", searchingPlayerID,
+			"units_found", len(units),
+			"task_forces_found", len(taskForcesInHex),
+			"task_force_ids", taskForcesInHex)
+	}
+
+	// Подсчитываем отдельные корабли (не в ТФ) и Task Forces
 	unitCount := 0
-	tfCount := 0
-	tfUnits := make(map[string]bool) // Учитываем юниты в ТФ только один раз
+	tfCount := len(taskForcesInHex)
+	tfUnitsInHex := make(map[string]bool) // Отмечаем, какие ТФ уже учтены
+	for _, tfID := range taskForcesInHex {
+		tfUnitsInHex[tfID] = true
+	}
 
 	for _, unit := range units {
 		// Учитываем только юниты той стороны, которая ищет (сравниваем по UUID пользователя)
@@ -68,13 +87,9 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 			continue
 		}
 
-		if unit.TaskForceID != nil {
-			tfID := *unit.TaskForceID
-			if !tfUnits[tfID] {
-				tfCount++
-				tfUnits[tfID] = true
-			}
-		} else {
+		// Если юнит в ТФ - не считаем его отдельно (ТФ уже учтена выше)
+		// Если юнит не в ТФ - считаем его как отдельный корабль
+		if unit.TaskForceID == nil {
 			unitCount++
 		}
 	}
@@ -115,8 +130,9 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 		"searching_player_side", searchingPlayerSide,
 		"total_factors", totalFactors,
 		"units_in_hex", len(units),
-		"units_of_side", unitCount,
-		"task_forces", tfCount,
+		"units_outside_tf", unitCount,
+		"task_forces_count", tfCount,
+		"task_force_ids", taskForcesInHex,
 		"patrol_markers", len(patrolMarkers),
 		"tf_patrol_markers", len(tfPatrolMarkers),
 		"flight_path_markers", len(flightPathMarkers))
@@ -258,6 +274,66 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 	return markerIDs, rows.Err()
 }
 
+// getTaskForcesInHex возвращает все Task Forces в указанном гексе для указанного игрока
+// Каждая TF дает +1 фактор поиска независимо от количества кораблей в ней
+func (s *SearchService) getTaskForcesInHex(gameID, hexID string, playerID string) ([]string, error) {
+	if playerID == "" {
+		return []string{}, nil
+	}
+
+	query := `
+		SELECT id
+		FROM task_forces
+		WHERE game_id = $1 
+		AND position = $2 
+		AND owner = $3
+		-- TF дает фактор поиска независимо от is_activated (всегда учитываем TF)
+	`
+	
+	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task forces in hex: %w", err)
+	}
+	defer rows.Close()
+	
+	var tfIDs []string
+	for rows.Next() {
+		var tfID string
+		if err := rows.Scan(&tfID); err != nil {
+			s.logger.Warn("Failed to scan task force", "error", err)
+			continue
+		}
+		tfIDs = append(tfIDs, tfID)
+	}
+	
+	// Детальное логирование для отладки E21
+	if hexID == "E21" {
+		// Проверяем, есть ли TF в этом гексе вообще (без фильтра по owner и is_activated)
+		debugQuery := `
+			SELECT id, owner, is_activated, position
+			FROM task_forces
+			WHERE game_id = $1 AND position = $2
+		`
+		debugRows, _ := s.db.GetConnection().Query(debugQuery, gameID, hexID)
+		if debugRows != nil {
+			defer debugRows.Close()
+			var allTFs []map[string]interface{}
+			for debugRows.Next() {
+				var tfID, owner, position string
+				var isActivated bool
+				if err := debugRows.Scan(&tfID, &owner, &isActivated, &position); err == nil {
+					allTFs = append(allTFs, map[string]interface{}{
+						"id": tfID, "owner": owner, "is_activated": isActivated, "position": position,
+					})
+				}
+			}
+			s.logger.Info("🔍 DEBUG E21 - All TFs in hex", "all_task_forces", allTFs, "searching_player_id", playerID)
+		}
+	}
+	
+	return tfIDs, rows.Err()
+}
+
 // getTaskForcePatrolMarkersInHex возвращает патрулирующие Task Forces в гексе (только для указанной стороны)
 // Патрулирующий Task Force дает +3 фактора поиска в своем гексе
 // playerSide может быть "german" или "allied" - нужно конвертировать в UUID пользователя
@@ -319,7 +395,7 @@ func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, pla
 }
 
 // getFlightPathMarkersInHex возвращает маркеры Пути полета Поиска в гексе (только для указанной стороны)
-// Маркеры хранятся в поле FlightPathSearchHexes у воздушных юнитов
+// Маркеры хранятся в таблице flight_path_search_markers
 // playerSide может быть "german" или "allied" - нужно конвертировать в UUID пользователя
 func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSide string) ([]string, error) {
 	// Сначала определяем UUID пользователя для указанной стороны
@@ -345,47 +421,130 @@ func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSi
 		return []string{}, nil
 	}
 	
-	// Получаем все воздушные юниты игры указанной стороны
+	// Получаем маркеры из таблицы flight_path_search_markers
 	query := `
-		SELECT id, flight_path_search_hexes
-		FROM air_units
-		WHERE game_id = $1 AND owner = $2
+		SELECT id
+		FROM flight_path_search_markers
+		WHERE game_id = $1 AND hex_id = $2 AND player_id = $3
 	`
 	
-	rows, err := s.db.GetConnection().Query(query, gameID, playerID)
+	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query air units: %w", err)
+		return nil, fmt.Errorf("failed to query flight path markers: %w", err)
 	}
 	defer rows.Close()
 	
 	var markerIDs []string
 	for rows.Next() {
-		var airUnitID string
-		var flightPathHexesJSON []byte
-		
-		if err := rows.Scan(&airUnitID, &flightPathHexesJSON); err != nil {
-			s.logger.Warn("Failed to scan air unit", "error", err)
+		var markerID string
+		if err := rows.Scan(&markerID); err != nil {
+			s.logger.Warn("Failed to scan flight path marker", "error", err)
 			continue
 		}
-		
-		// Парсим JSON массив гексов
-		var flightPathHexes []string
-		if len(flightPathHexesJSON) > 0 {
-			if err := json.Unmarshal(flightPathHexesJSON, &flightPathHexes); err != nil {
-				s.logger.Warn("Failed to unmarshal flight path hexes", "air_unit_id", airUnitID, "error", err)
-				continue
-			}
-			
-			// Проверяем, есть ли нужный гекс в массиве
-			for _, hex := range flightPathHexes {
-				if hex == hexID {
-					markerIDs = append(markerIDs, airUnitID)
-					break
-				}
-			}
-		}
+		markerIDs = append(markerIDs, markerID)
+	}
+	
+	if len(markerIDs) > 0 {
+		s.logger.Info("Found flight path markers in hex", "hex_id", hexID, "player_side", playerSide, "count", len(markerIDs))
 	}
 	
 	return markerIDs, rows.Err()
+}
+
+// AddFlightPathSearchMarker добавляет маркер пути полета поиска в гекс
+func (s *SearchService) AddFlightPathSearchMarker(gameID, playerID, hexID string) error {
+	query := `
+		INSERT INTO flight_path_search_markers (game_id, player_id, hex_id, created_at, updated_at)
+		VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (game_id, player_id, hex_id) DO NOTHING
+		RETURNING id
+	`
+	
+	var markerID string
+	err := s.db.GetConnection().QueryRow(query, gameID, playerID, hexID).Scan(&markerID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Маркер уже существует (ON CONFLICT DO NOTHING)
+			s.logger.Warn("Flight path marker already exists", "game_id", gameID, "player_id", playerID, "hex_id", hexID)
+			return nil
+		}
+		s.logger.Error("Failed to add flight path marker", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "error", err)
+		return fmt.Errorf("failed to add flight path marker: %w", err)
+	}
+	
+	s.logger.Info("Added flight path search marker", "marker_id", markerID, "game_id", gameID, "hex_id", hexID)
+	return nil
+}
+
+// RemoveFlightPathSearchMarker удаляет маркер пути полета поиска из гекса
+func (s *SearchService) RemoveFlightPathSearchMarker(gameID, playerID, hexID string) error {
+	query := `
+		DELETE FROM flight_path_search_markers
+		WHERE game_id = $1 AND player_id = $2 AND hex_id = $3
+	`
+	
+	result, err := s.db.GetConnection().Exec(query, gameID, playerID, hexID)
+	if err != nil {
+		s.logger.Error("Failed to remove flight path marker", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "error", err)
+		return fmt.Errorf("failed to remove flight path marker: %w", err)
+	}
+	
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected > 0 {
+		s.logger.Info("Removed flight path search marker", "game_id", gameID, "hex_id", hexID)
+	}
+	
+	return nil
+}
+
+// GetFlightPathSearchMarkers возвращает все маркеры пути полета поиска для игрока в игре
+func (s *SearchService) GetFlightPathSearchMarkers(gameID, playerID string) ([]string, error) {
+	query := `
+		SELECT hex_id
+		FROM flight_path_search_markers
+		WHERE game_id = $1 AND player_id = $2
+		ORDER BY hex_id
+	`
+	
+	rows, err := s.db.GetConnection().Query(query, gameID, playerID)
+	if err != nil {
+		s.logger.Error("Failed to get flight path markers", "game_id", gameID, "player_id", playerID, "error", err)
+		return nil, fmt.Errorf("failed to get flight path markers: %w", err)
+	}
+	defer rows.Close()
+	
+	var hexIDs []string
+	for rows.Next() {
+		var hexID string
+		if err := rows.Scan(&hexID); err != nil {
+			s.logger.Warn("Failed to scan hex_id", "error", err)
+			continue
+		}
+		hexIDs = append(hexIDs, hexID)
+	}
+	
+	return hexIDs, rows.Err()
+}
+
+// RemoveAllFlightPathSearchMarkers удаляет все маркеры пути полета поиска для игры
+// Используется в AdminPhaseHandler для очистки маркеров в конце хода
+func (s *SearchService) RemoveAllFlightPathSearchMarkers(gameID string) error {
+	query := `
+		DELETE FROM flight_path_search_markers
+		WHERE game_id = $1
+	`
+	
+	result, err := s.db.GetConnection().Exec(query, gameID)
+	if err != nil {
+		s.logger.Error("Failed to remove all flight path markers", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to remove all flight path markers: %w", err)
+	}
+	
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected > 0 {
+		s.logger.Info("Removed all flight path search markers", "game_id", gameID, "count", rowsAffected)
+	}
+	
+	return nil
 }
 

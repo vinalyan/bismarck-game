@@ -16,6 +16,7 @@ import { phaseAPI } from '../services/api/phaseAPI';
 import { gameEventAPI } from '../services/api/gameEventAPI';
 import { unitsAPI } from '../services/api/unitsAPI';
 import { gameAPI } from '../services/api/gameAPI';
+import { searchAPI } from '../services/api/searchAPI';
 import './HexMap.css';
 
 interface HexMapProps {
@@ -49,6 +50,7 @@ interface HexMapProps {
   currentPhase?: string;
   searchFactorHexes?: Map<string, number>;
   visibilityLevel?: number;
+  flightPathSearchMarkers?: Set<string>;
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -81,7 +83,8 @@ const HexMap: React.FC<HexMapProps> = ({
   isStartFirstTurnVisible = false,
   currentPhase = 'setup',
   searchFactorHexes = new Map<string, number>(),
-  visibilityLevel = 1
+  visibilityLevel = 1,
+  flightPathSearchMarkers: flightPathSearchMarkersProp = new Set<string>()
 }) => {
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
@@ -92,6 +95,12 @@ const HexMap: React.FC<HexMapProps> = ({
   const [isPatrolMode, setIsPatrolMode] = useState(false);
   const [showPatrolDialog, setShowPatrolDialog] = useState(false);
   const [selectedPatrolHex, setSelectedPatrolHex] = useState<string | null>(null);
+  const [isFlightPathSearchMode, setIsFlightPathSearchMode] = useState(false);
+  const [displaySearchFactors, setDisplaySearchFactors] = useState<Map<string, number>>(new Map());
+  
+  // Используем пропс напрямую для отображения маркеров
+  const flightPathSearchMarkers = flightPathSearchMarkersProp;
+  const [isLoadingSearchFactors, setIsLoadingSearchFactors] = useState(false);
   const [tooltip, setTooltip] = useState<{
     show: boolean;
     unitId: string;
@@ -220,6 +229,38 @@ const HexMap: React.FC<HexMapProps> = ({
     setIsPatrolMode(false);
     setSelectedPatrolHex(null);
     setShowPatrolDialog(false);
+  };
+
+  // Обработчик кнопки воздушной разведки
+  const handleFlightPathSearchClick = () => {
+    setIsFlightPathSearchMode(true);
+  };
+
+  // Выход из режима воздушной разведки
+  const handleCancelFlightPathSearch = () => {
+    setIsFlightPathSearchMode(false);
+  };
+
+  // Обработчик клика по гексу в режиме воздушной разведки
+  const handleHexClickInFlightPathSearchMode = async (hexId: string) => {
+    if (!isFlightPathSearchMode || !gameId || !authToken) {
+      return;
+    }
+
+    // Проверяем, что гекс морской (можно добавить проверку через mapStructures)
+    // Пока просто добавляем маркер в любой гекс
+
+    try {
+      const response = await searchAPI.addFlightPathSearchMarker(gameId, hexId, authToken);
+      if (response.success) {
+        // Обновляем данные игры - маркеры загрузятся через пропсы
+        if (onRefreshData) {
+          onRefreshData();
+        }
+      }
+    } catch (error) {
+      // Ошибка уже обработана в API
+    }
   };
 
   // Обработчик клика по гексу в режиме патруля
@@ -589,6 +630,36 @@ const HexMap: React.FC<HexMapProps> = ({
     setTooltip(null);
   };
 
+  // Обработчик для кнопки "показать фактор поиска"
+  const handleShowSearchFactors = async () => {
+    if (!gameId || !authToken || !playerSide) return;
+    
+    setIsLoadingSearchFactors(true);
+    try {
+      // Просто берем все hexIds из существующих hexes
+      const allHexIds = Array.from(hexes.keys());
+      
+      const factors = await searchAPI.getSearchFactors(
+        gameId,
+        allHexIds,
+        playerSide as 'german' | 'allied',
+        authToken
+      );
+
+      // Сохраняем результаты
+      const factorsMap = new Map<string, number>();
+      Object.entries(factors).forEach(([hexId, factorValue]) => {
+        factorsMap.set(hexId, factorValue);
+      });
+      
+      setDisplaySearchFactors(factorsMap);
+    } catch (error: any) {
+      console.error('Error fetching search factors:', error);
+    } finally {
+      setIsLoadingSearchFactors(false);
+    }
+  };
+
   // Обработчики для подсказки гекса
   const handleHexTooltipShow = (x: number, y: number, content: { hexId: string; hexType: string; features: string[] }) => {
     setHexTooltip({
@@ -631,8 +702,9 @@ const HexMap: React.FC<HexMapProps> = ({
   };
 
   // Рендерим гексы
-  const renderHexes = () => {
-    const hexElements: React.JSX.Element[] = [];
+  // Используем useMemo для пересчета при изменении маркеров
+  const hexElements = useMemo(() => {
+    const elements: React.JSX.Element[] = [];
     
     hexes.forEach((hexData, hexId) => {
       const { coordinate } = hexData;
@@ -658,8 +730,18 @@ const HexMap: React.FC<HexMapProps> = ({
       );
       
       // Проверяем, достаточны ли факторы поиска для обнаружения в этом гексе
-      const hexSearchFactors = searchFactorHexes.get(hexId) || 0;
-      const isSearchAvailable = hexSearchFactors >= visibilityLevel;
+      // Используем displaySearchFactors, если он установлен (когда нажата кнопка), иначе searchFactorHexes
+      let hexSearchFactors = 0;
+      if (displaySearchFactors.size > 0) {
+        // Если есть данные из кнопки, используем их
+        hexSearchFactors = displaySearchFactors.get(hexId) || 0;
+      } else {
+        // Иначе используем данные из пропсов
+        hexSearchFactors = searchFactorHexes.get(hexId) || 0;
+      }
+      
+      const isSearchAvailable = hexSearchFactors > 0 && hexSearchFactors >= visibilityLevel;
+      
 
       // Проверяем, является ли этот гекс активным
       const activeHex = activeHexes.find(
@@ -668,9 +750,15 @@ const HexMap: React.FC<HexMapProps> = ({
           hex.coordinate.row === coordinate.row
       );
 
-      hexElements.push(
+      // Проверяем, есть ли маркер пути полета в этом гексе
+      // Явно приводим к boolean, чтобы гарантировать правильный тип
+      const hasFlightPathMarker = Boolean(flightPathSearchMarkers && flightPathSearchMarkers.has(hexId));
+
+      // Используем ключ с маркером, чтобы React обновлял компонент при изменении маркеров
+      const markerKey = hasFlightPathMarker ? `marker-${flightPathSearchMarkers?.size || 0}` : 'no-marker';
+      elements.push(
         <Hex
-          key={hexId}
+          key={`${hexId}-${markerKey}`}
           coordinate={coordinate}
           hexData={hexData}
           center={center}
@@ -685,7 +773,22 @@ const HexMap: React.FC<HexMapProps> = ({
           expandedStackHex={expandedStackHex}
           currentTurn={currentTurn}
           isTFCandidate={isCreateTFMode && tfCandidateHexes.includes(hexId)}
-          onClick={() => handleHexClick(coordinate)}
+          hasFlightPathMarker={hasFlightPathMarker}
+          // Отладка передачи пропса
+          {...(hasFlightPathMarker && { 'data-debug-marker': 'true' })}
+          onClick={() => {
+            const hexId = `${coordinate.letter}${coordinate.number}`;
+            // Проверяем режимы в порядке приоритета
+            if (isFlightPathSearchMode) {
+              handleHexClickInFlightPathSearchMode(hexId);
+            } else if (isPatrolMode) {
+              handleHexClickInPatrolMode(hexId);
+            } else if (isCreateTFMode) {
+              handleHexClickInTFMode(hexId);
+            } else if (onHexClick) {
+              onHexClick(coordinate);
+            }
+          }}
           onHover={() => handleHexHover(coordinate)}
           onUnitClick={onUnitClick}
           onUnitHover={handleUnitHover}
@@ -698,8 +801,8 @@ const HexMap: React.FC<HexMapProps> = ({
       );
     });
     
-    return hexElements;
-  };
+    return elements;
+  }, [hexes, flightPathSearchMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect]);
 
   return (
     <div className="hex-map-container">
@@ -721,12 +824,16 @@ const HexMap: React.FC<HexMapProps> = ({
         <button onClick={() => setMapOffset({ x: mapOffset.x, y: mapOffset.y + 50 })}>
           ↓
         </button>
-        <button onClick={() => setMapOffset({ x: 0, y: 0 })}>
-          Центр
+        <button 
+          onClick={handleShowSearchFactors}
+          disabled={isLoadingSearchFactors || !gameId || !authToken || !playerSide}
+          title="Показать гексы, где будет проводиться поиск (фактор поиска >= видимость)"
+        >
+          🔍 Показать фактор поиска
         </button>
         
-        {/* Кнопки Task Force и Патруль */}
-        {currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && (
+        {/* Кнопки Task Force, Патруль и Воздушная разведка */}
+        {currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (
           <>
             <button 
               onClick={() => {
@@ -745,6 +852,15 @@ const HexMap: React.FC<HexMapProps> = ({
               title="Установить патруль"
             >
               🛡️ Патруль
+            </button>
+            <button 
+              onClick={() => {
+                console.log('✈️ Flight Path Search button clicked');
+                handleFlightPathSearchClick();
+              }} 
+              title="Воздушная разведка"
+            >
+              ✈️ Воздушная разведка
             </button>
           </>
         )}
@@ -768,6 +884,17 @@ const HexMap: React.FC<HexMapProps> = ({
             title="Отменить установку патруля"
           >
             ❌ Отмена
+          </button>
+        )}
+        {isFlightPathSearchMode && (
+          <button 
+            onClick={() => {
+              console.log('❌ Cancel Flight Path Search button clicked');
+              handleCancelFlightPathSearch();
+            }} 
+            title="Отменить воздушную разведку"
+          >
+            ❌ Отмена разведки
           </button>
         )}
         
@@ -849,7 +976,7 @@ const HexMap: React.FC<HexMapProps> = ({
             fill="url(#mapBackground)"
           />
           
-          {renderHexes()}
+          {hexElements}
         </svg>
       </div>
       

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -33,6 +34,9 @@ func (h *SearchHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	searchRouter.Use(middleware.AuthMiddleware(jwtSecret))
 
 	searchRouter.HandleFunc("/{gameId}/search/factors", h.GetSearchFactorsByHexes).Methods("GET")
+	searchRouter.HandleFunc("/{gameId}/flight-path-search/markers", h.AddFlightPathSearchMarker).Methods("POST")
+	searchRouter.HandleFunc("/{gameId}/flight-path-search/markers", h.GetFlightPathSearchMarkers).Methods("GET")
+	searchRouter.HandleFunc("/{gameId}/flight-path-search/markers/{hexId}", h.RemoveFlightPathSearchMarker).Methods("DELETE")
 }
 
 // GetSearchFactorsByHexes возвращает факторы поиска для указанных гексов
@@ -102,6 +106,106 @@ func (h *SearchHandler) GetSearchFactorsByHexes(w http.ResponseWriter, r *http.R
 
 	response := map[string]interface{}{
 		"hex_factors": hexFactors,
+	}
+
+	utils.WriteSuccessResponse(w, response)
+}
+
+// AddFlightPathSearchMarkerRequest представляет запрос на добавление маркера пути полета
+type AddFlightPathSearchMarkerRequest struct {
+	HexID string `json:"hex_id"`
+}
+
+// AddFlightPathSearchMarker добавляет маркер пути полета поиска в гекс
+func (h *SearchHandler) AddFlightPathSearchMarker(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["gameId"]
+
+	// Получаем userID из контекста
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	var req AddFlightPathSearchMarkerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.HexID == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "hex_id is required")
+		return
+	}
+
+	// Добавляем маркер
+	err := h.searchService.AddFlightPathSearchMarker(gameID, userID, req.HexID)
+	if err != nil {
+		h.logger.Error("Failed to add flight path marker", "game_id", gameID, "hex_id", req.HexID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to add flight path marker")
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "Flight path search marker added successfully",
+		"hex_id":  req.HexID,
+	}
+
+	utils.WriteSuccessResponse(w, response)
+}
+
+// GetFlightPathSearchMarkers возвращает все маркеры пути полета поиска для текущего игрока
+func (h *SearchHandler) GetFlightPathSearchMarkers(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["gameId"]
+
+	// Получаем userID из контекста
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	// Получаем маркеры
+	hexIDs, err := h.searchService.GetFlightPathSearchMarkers(gameID, userID)
+	if err != nil {
+		h.logger.Error("Failed to get flight path markers", "game_id", gameID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get flight path markers")
+		return
+	}
+
+	response := map[string]interface{}{
+		"markers": hexIDs,
+	}
+
+	utils.WriteSuccessResponse(w, response)
+}
+
+// RemoveFlightPathSearchMarker удаляет маркер пути полета поиска из гекса
+func (h *SearchHandler) RemoveFlightPathSearchMarker(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["gameId"]
+	hexID := vars["hexId"]
+
+	// Получаем userID из контекста
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok || userID == "" {
+		utils.WriteErrorResponse(w, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	// Удаляем маркер
+	err := h.searchService.RemoveFlightPathSearchMarker(gameID, userID, hexID)
+	if err != nil {
+		h.logger.Error("Failed to remove flight path marker", "game_id", gameID, "hex_id", hexID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to remove flight path marker")
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "Flight path search marker removed successfully",
+		"hex_id":  hexID,
 	}
 
 	utils.WriteSuccessResponse(w, response)

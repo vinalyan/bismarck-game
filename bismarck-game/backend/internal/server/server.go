@@ -132,7 +132,11 @@ func (s *Server) setupRoutes() {
 	taskForceLogger, _ := logger.New(logger.INFO, "taskforce-service", "stdout")
 	taskForceService := services.NewTaskForceService(s.db, taskForceLogger, unitService, nil)
 	
-	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, taskForceService, eventService, s.wsHub, apiBaseURL)
+	// Создаем сервис поиска (нужен для PhaseManager)
+	searchLogger, _ := logger.New(logger.INFO, "search-service", "stdout")
+	searchService := services.NewSearchService(s.db, searchLogger, unitService)
+	
+	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, taskForceService, searchService, eventService, s.wsHub, apiBaseURL)
 
 	// Создаем сервисы для движения
 	visibilityLogger, _ := logger.New(logger.INFO, "visibility-service", "stdout")
@@ -152,10 +156,6 @@ func (s *Server) setupRoutes() {
 
 	// Настраиваем автоматическое удаление затонувших кораблей из Task Forces
 	unitService.SetUnitSunkHandler(taskForceService.HandleUnitSunk)
-
-	// Создаем сервис поиска
-	searchLogger, _ := logger.New(logger.INFO, "search-service", "stdout")
-	searchService := services.NewSearchService(s.db, searchLogger, unitService)
 
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {

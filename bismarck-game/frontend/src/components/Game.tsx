@@ -133,6 +133,7 @@ const Game: React.FC = () => {
   const [taskForces, setTaskForces] = useState<TaskForce[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [searchFactorHexes, setSearchFactorHexes] = useState<Map<string, number>>(new Map());
+  const [flightPathSearchMarkers, setFlightPathSearchMarkers] = useState<Set<string>>(new Set());
 
   // Хук для управления активными гексами
   const {
@@ -204,6 +205,15 @@ const Game: React.FC = () => {
             message: response.error || 'Не удалось загрузить юниты игры',
             read: false
           });
+        }
+
+        // Загружаем маркеры пути полета поиска
+        try {
+          const markers = await searchAPI.getFlightPathSearchMarkers(currentGame.id, authToken);
+          setFlightPathSearchMarkers(new Set(markers));
+        } catch (error) {
+          console.error('Error loading flight path search markers:', error);
+          // Не критично, просто продолжаем
         }
       } catch (error) {
         console.error('Error loading game units:', error);
@@ -484,11 +494,13 @@ const Game: React.FC = () => {
             const results = await Promise.all([
               phaseAPI.getCurrentPhase(currentGame.id),
               gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15),
-              unitsAPI.getGameUnits(currentGame.id, authToken)
+              unitsAPI.getGameUnits(currentGame.id, authToken),
+              searchAPI.getFlightPathSearchMarkers(currentGame.id, authToken)
             ]);
             
             const updatedTurn = results[0];
             const unitsResponse = results[2];
+            const markers = results[3];
             
             if (updatedTurn) {
               setCurrentTurn(updatedTurn);
@@ -503,6 +515,9 @@ const Game: React.FC = () => {
                 setTaskForces(unitsResponse.data.task_forces);
               }
             }
+
+            // Обновляем маркеры пути полета поиска
+            setFlightPathSearchMarkers(new Set(markers));
             
             // Показываем уведомление
             const phaseName = eventData.data?.phase ? PHASE_NAMES[eventData.data.phase as GamePhase] : 'Неизвестная фаза';
@@ -528,15 +543,20 @@ const Game: React.FC = () => {
             const results = await Promise.all([
               phaseAPI.getCurrentPhase(currentGame.id),
               gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15),
-              unitsAPI.getGameUnits(currentGame.id, authToken)
+              unitsAPI.getGameUnits(currentGame.id, authToken),
+              searchAPI.getFlightPathSearchMarkers(currentGame.id, authToken)
             ]);
             
             const updatedTurn = results[0];
             const unitsResponse = results[2];
+            const markers = results[3];
             
             if (updatedTurn) {
               setCurrentTurn(updatedTurn);
             }
+
+            // Обновляем маркеры пути полета поиска
+            setFlightPathSearchMarkers(new Set(markers));
             
             // Обновляем юниты и TF, особенно важно после admin фазы (сброс патрулей)
             if (unitsResponse.success && unitsResponse.data) {
@@ -1590,6 +1610,10 @@ const Game: React.FC = () => {
                     }
                   }
                 });
+                // Загружаем маркеры пути полета поиска
+                searchAPI.getFlightPathSearchMarkers(currentGame.id, authToken).then(markers => {
+                  setFlightPathSearchMarkers(new Set(markers));
+                });
                 // Загружаем текущую фазу
                 phaseAPI.getCurrentPhase(currentGame.id).then(turn => {
                   setCurrentTurn(turn);
@@ -1694,6 +1718,10 @@ const Game: React.FC = () => {
                     }
                   }
                 });
+                // Загружаем маркеры пути полета поиска
+                searchAPI.getFlightPathSearchMarkers(currentGame.id, authToken).then(markers => {
+                  setFlightPathSearchMarkers(new Set(markers));
+                });
                 // Загружаем текущую фазу
                 phaseAPI.getCurrentPhase(currentGame.id).then(turn => {
                   setCurrentTurn(turn);
@@ -1703,6 +1731,7 @@ const Game: React.FC = () => {
             onUnitStackClick={handleUnitStackClick}
             onStackedUnitSelect={handleStackedUnitSelect}
             currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
+            flightPathSearchMarkers={flightPathSearchMarkers}
           />
         </div>
       </div>
