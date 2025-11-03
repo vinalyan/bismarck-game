@@ -395,8 +395,10 @@ func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, pla
 }
 
 // getFlightPathMarkersInHex возвращает маркеры Пути полета Поиска в гексе (только для указанной стороны)
-// Маркеры хранятся в таблице flight_path_search_markers
+// Использует новую универсальную таблицу hex_markers
 // playerSide может быть "german" или "allied" - нужно конвертировать в UUID пользователя
+// ВНИМАНИЕ: Этот метод используется только для обратной совместимости.
+// Для расчета факторов поиска используется getHexMarkersInHex, который уже использует новую таблицу.
 func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSide string) ([]string, error) {
 	// Сначала определяем UUID пользователя для указанной стороны
 	var playerID string
@@ -421,14 +423,14 @@ func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSi
 		return []string{}, nil
 	}
 	
-	// Получаем маркеры из таблицы flight_path_search_markers
+	// Получаем маркеры из новой универсальной таблицы hex_markers
 	query := `
 		SELECT id
-		FROM flight_path_search_markers
-		WHERE game_id = $1 AND hex_id = $2 AND player_id = $3
+		FROM hex_markers
+		WHERE game_id = $1 AND hex_id = $2 AND player_id = $3 AND marker_type = $4
 	`
 	
-	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
+	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID, string(models.MarkerTypeFlightPathSearch))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query flight path markers: %w", err)
 	}
@@ -452,100 +454,32 @@ func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSi
 }
 
 // AddFlightPathSearchMarker добавляет маркер пути полета поиска в гекс
+// Использует новую универсальную таблицу hex_markers вместо старой flight_path_search_markers
 func (s *SearchService) AddFlightPathSearchMarker(gameID, playerID, hexID string) error {
-	query := `
-		INSERT INTO flight_path_search_markers (game_id, player_id, hex_id, created_at, updated_at)
-		VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (game_id, player_id, hex_id) DO NOTHING
-		RETURNING id
-	`
-	
-	var markerID string
-	err := s.db.GetConnection().QueryRow(query, gameID, playerID, hexID).Scan(&markerID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			// Маркер уже существует (ON CONFLICT DO NOTHING)
-			s.logger.Warn("Flight path marker already exists", "game_id", gameID, "player_id", playerID, "hex_id", hexID)
-			return nil
-		}
-		s.logger.Error("Failed to add flight path marker", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "error", err)
-		return fmt.Errorf("failed to add flight path marker: %w", err)
-	}
-	
-	s.logger.Info("Added flight path search marker", "marker_id", markerID, "game_id", gameID, "hex_id", hexID)
-	return nil
+	// Используем универсальный метод AddHexMarker для совместимости с новой системой
+	return s.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 }
 
 // RemoveFlightPathSearchMarker удаляет маркер пути полета поиска из гекса
+// Использует новую универсальную таблицу hex_markers
 func (s *SearchService) RemoveFlightPathSearchMarker(gameID, playerID, hexID string) error {
-	query := `
-		DELETE FROM flight_path_search_markers
-		WHERE game_id = $1 AND player_id = $2 AND hex_id = $3
-	`
-	
-	result, err := s.db.GetConnection().Exec(query, gameID, playerID, hexID)
-	if err != nil {
-		s.logger.Error("Failed to remove flight path marker", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "error", err)
-		return fmt.Errorf("failed to remove flight path marker: %w", err)
-	}
-	
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected > 0 {
-		s.logger.Info("Removed flight path search marker", "game_id", gameID, "hex_id", hexID)
-	}
-	
-	return nil
+	// Используем универсальный метод RemoveHexMarker для совместимости с новой системой
+	return s.RemoveHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 }
 
 // GetFlightPathSearchMarkers возвращает все маркеры пути полета поиска для игрока в игре
+// Использует новую универсальную таблицу hex_markers
 func (s *SearchService) GetFlightPathSearchMarkers(gameID, playerID string) ([]string, error) {
-	query := `
-		SELECT hex_id
-		FROM flight_path_search_markers
-		WHERE game_id = $1 AND player_id = $2
-		ORDER BY hex_id
-	`
-	
-	rows, err := s.db.GetConnection().Query(query, gameID, playerID)
-	if err != nil {
-		s.logger.Error("Failed to get flight path markers", "game_id", gameID, "player_id", playerID, "error", err)
-		return nil, fmt.Errorf("failed to get flight path markers: %w", err)
-	}
-	defer rows.Close()
-	
-	var hexIDs []string
-	for rows.Next() {
-		var hexID string
-		if err := rows.Scan(&hexID); err != nil {
-			s.logger.Warn("Failed to scan hex_id", "error", err)
-			continue
-		}
-		hexIDs = append(hexIDs, hexID)
-	}
-	
-	return hexIDs, rows.Err()
+	// Используем универсальный метод GetHexMarkers для совместимости с новой системой
+	return s.GetHexMarkers(gameID, playerID, string(models.MarkerTypeFlightPathSearch))
 }
 
 // RemoveAllFlightPathSearchMarkers удаляет все маркеры пути полета поиска для игры
 // Используется в AdminPhaseHandler для очистки маркеров в конце хода
+// Использует новую универсальную таблицу hex_markers
 func (s *SearchService) RemoveAllFlightPathSearchMarkers(gameID string) error {
-	query := `
-		DELETE FROM flight_path_search_markers
-		WHERE game_id = $1
-	`
-	
-	result, err := s.db.GetConnection().Exec(query, gameID)
-	if err != nil {
-		s.logger.Error("Failed to remove all flight path markers", "game_id", gameID, "error", err)
-		return fmt.Errorf("failed to remove all flight path markers: %w", err)
-	}
-	
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected > 0 {
-		s.logger.Info("Removed all flight path search markers", "game_id", gameID, "count", rowsAffected)
-	}
-	
-	return nil
+	// Используем универсальный метод RemoveAllHexMarkersByType для совместимости с новой системой
+	return s.RemoveAllHexMarkersByType(gameID, string(models.MarkerTypeFlightPathSearch))
 }
 
 // getPlayerIDFromSide возвращает UUID игрока для указанной стороны
