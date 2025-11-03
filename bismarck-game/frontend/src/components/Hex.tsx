@@ -683,7 +683,7 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
   return (
     <>
       <g
-        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isAvailableForMovement ? 'available-for-movement' : ''} ${isTFCandidate ? 'tf-candidate' : ''}`}
+        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isAvailableForMovement ? 'available-for-movement' : ''} ${isTFCandidate ? 'tf-candidate' : ''} ${isSearchAvailable ? 'search-available' : ''}`}
         onClick={onClick}
         onMouseEnter={(e) => {
           onHover();

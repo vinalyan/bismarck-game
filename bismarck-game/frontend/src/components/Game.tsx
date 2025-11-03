@@ -324,7 +324,17 @@ const Game: React.FC = () => {
         
         // Сохраняем информацию о маркерах
         if (response.hex_markers) {
+          console.log('🔍 Game: Setting hexMarkers from calculateSearchFactors:', Object.keys(response.hex_markers).length, 'hexes');
+          // Логируем примеры маркеров
+          const markersWithData = Object.entries(response.hex_markers).filter(([hexId, markers]: [string, any]) => 
+            Object.keys(markers).length > 0
+          );
+          if (markersWithData.length > 0) {
+            console.log('🔍 Game: Hexes with markers:', markersWithData.slice(0, 10));
+          }
           setHexMarkers(response.hex_markers);
+        } else {
+          console.log('🔍 Game: No hex_markers in response');
         }
       } catch (error) {
         // Ошибка расчета факторов поиска - просто игнорируем
@@ -1622,25 +1632,50 @@ const Game: React.FC = () => {
             expandedStackHex={expandedStackHex}
             gameId={currentGame?.id || undefined}
             authToken={authToken}
-            onRefreshData={() => {
+            onRefreshData={async () => {
               // Обновляем все данные игры
               if (currentGame?.id && authToken) {
-                // Загружаем юниты
-                unitsAPI.getGameUnits(currentGame.id, authToken).then(response => {
-                  if (response.success && response.data) {
-                    if (response.data.units) {
-                      setGameUnits(response.data.units);
+                const playerSide = getPlayerSideString();
+                if (playerSide === 'unknown') {
+                  console.warn('⚠️ Cannot refresh: unknown player side');
+                  return;
+                }
+                
+                try {
+                  // Загружаем юниты
+                  const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
+                  if (unitsResponse.success && unitsResponse.data) {
+                    if (unitsResponse.data.units) {
+                      setGameUnits(unitsResponse.data.units);
                     }
-                    if (response.data.task_forces) {
-                      setTaskForces(response.data.task_forces);
+                    if (unitsResponse.data.task_forces) {
+                      setTaskForces(unitsResponse.data.task_forces);
                     }
                   }
-                });
-                // Маркеры загружаются через getSearchFactors (см. calculateSearchFactors выше)
-                // Загружаем текущую фазу
-                phaseAPI.getCurrentPhase(currentGame.id).then(turn => {
+                  
+                  // Обновляем маркеры через getSearchFactors
+                  if (mapStructures) {
+                    const seaHexes = getAllSeaHexes();
+                    if (seaHexes.length > 0) {
+                      const searchResponse = await searchAPI.getSearchFactors(
+                        currentGame.id,
+                        seaHexes,
+                        playerSide as 'german' | 'allied',
+                        authToken
+                      );
+                      if (searchResponse.hex_markers) {
+                        console.log('🔄 Refreshed hex markers:', Object.keys(searchResponse.hex_markers).length, 'hexes');
+                        setHexMarkers(searchResponse.hex_markers);
+                      }
+                    }
+                  }
+                  
+                  // Загружаем текущую фазу
+                  const turn = await phaseAPI.getCurrentPhase(currentGame.id);
                   setCurrentTurn(turn);
-                });
+                } catch (error) {
+                  console.error('❌ Error refreshing data:', error);
+                }
               }
             }}
             currentTurn={getTurnData(currentTurn)?.turn_number}

@@ -241,22 +241,31 @@ const HexMap: React.FC<HexMapProps> = ({
   // Обработчик клика по гексу в режиме воздушной разведки
   const handleHexClickInFlightPathSearchMode = async (hexId: string) => {
     if (!isFlightPathSearchMode || !gameId || !authToken) {
+      console.warn('⚠️ Cannot add marker: missing data', { isFlightPathSearchMode, gameId: !!gameId, authToken: !!authToken });
       return;
     }
 
-    // Проверяем, что гекс морской (можно добавить проверку через mapStructures)
-    // Пока просто добавляем маркер в любой гекс
+    console.log('✈️ Adding flight path search marker', { gameId, hexId, playerSide });
 
     try {
       const response = await searchAPI.addHexMarker(gameId, hexId, 'flight_path_search', authToken);
+      console.log('✈️ Add marker response:', response);
       if (response.success) {
+        console.log('✅ Marker added successfully, refreshing data...');
         // Обновляем данные игры - маркеры загрузятся через пропсы
         if (onRefreshData) {
           onRefreshData();
         }
+      } else {
+        console.error('❌ Failed to add marker:', response.error);
       }
-    } catch (error) {
-      // Ошибка уже обработана в API
+    } catch (error: any) {
+      console.error('❌ Error adding marker:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
     }
   };
 
@@ -571,6 +580,12 @@ const HexMap: React.FC<HexMapProps> = ({
   const handleHexClick = (coordinate: HexCoordinate) => {
     const hexId = `${coordinate.letter}${coordinate.number}`;
     
+    // Если в режиме воздушной разведки, обрабатываем клик
+    if (isFlightPathSearchMode) {
+      handleHexClickInFlightPathSearchMode(hexId);
+      return;
+    }
+    
     // Если в режиме патруля, обрабатываем клик
     if (isPatrolMode) {
       handleHexClickInPatrolMode(hexId);
@@ -759,8 +774,14 @@ const HexMap: React.FC<HexMapProps> = ({
       );
 
       // Проверяем, есть ли маркер пути полета в этом гексе
-      const flightPathSearchCount = hexMarkers?.[hexId]?.flight_path_search || 0;
+      const hexMarkerData = hexMarkers?.[hexId];
+      const flightPathSearchCount = hexMarkerData?.flight_path_search || 0;
       const hasFlightPathMarker = flightPathSearchCount > 0;
+      
+      // Логирование для отладки (только для первых нескольких гексов с маркерами или без)
+      if (elements.length < 3 && (hasFlightPathMarker || hexMarkerData)) {
+        console.log(`🔍 HexMap: Hex ${hexId}: hexMarkerData=`, hexMarkerData, `flightPathSearchCount=${flightPathSearchCount}, hasFlightPathMarker=${hasFlightPathMarker}`);
+      }
 
       // Используем ключ с маркером, чтобы React обновлял компонент при изменении маркеров
       const markerKey = hasFlightPathMarker ? `marker-${flightPathSearchCount}` : 'no-marker';
@@ -786,8 +807,10 @@ const HexMap: React.FC<HexMapProps> = ({
           {...(hasFlightPathMarker && { 'data-debug-marker': 'true' })}
           onClick={() => {
             const hexId = `${coordinate.letter}${coordinate.number}`;
+            console.log('🎯 Hex clicked:', hexId, { isFlightPathSearchMode, isPatrolMode, isCreateTFMode });
             // Проверяем режимы в порядке приоритета
             if (isFlightPathSearchMode) {
+              console.log('✈️ Calling handleHexClickInFlightPathSearchMode for', hexId);
               handleHexClickInFlightPathSearchMode(hexId);
             } else if (isPatrolMode) {
               handleHexClickInPatrolMode(hexId);

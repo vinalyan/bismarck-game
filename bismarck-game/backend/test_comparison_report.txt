@@ -1,0 +1,54 @@
+=== ОТЧЕТ О РЕЗУЛЬТАТАХ ТЕСТИРОВАНИЯ ===
+
+ДАТА: $(date)
+СРАВНЕНИЕ: test_results_after.txt vs test_results_final.txt
+
+=== ТЕСТЫ ДЛЯ УНИВЕРСАЛЬНОЙ СИСТЕМЫ МАРКЕРОВ ===
+
+✅ SearchService (6 тестов):
+  - TestSearchService_AddHexMarker: PASS (было: FAIL - накопление данных)
+  - TestSearchService_RemoveHexMarker: PASS (было: FAIL - накопление данных)
+  - TestSearchService_GetHexMarkers: PASS (было: FAIL - накопление данных)
+  - TestSearchService_GetHexMarkersCount: PASS (было: FAIL - накопление данных)
+  - TestSearchService_RemoveAllHexMarkersByType: PASS (было: FAIL - накопление данных)
+  - TestSearchService_CalculateSearchFactors_WithHexMarkers: PASS (было: FAIL - накопление данных)
+
+✅ SearchHandler (4 теста):
+  - TestSearchHandler_AddHexMarker: PASS (новый тест)
+  - TestSearchHandler_GetHexMarkers: PASS (новый тест)
+  - TestSearchHandler_RemoveHexMarker: PASS (новый тест)
+  - TestSearchHandler_GetSearchFactorsByHexes_WithHexMarkers: PASS (новый тест)
+
+=== ИСПРАВЛЕННЫЕ ПРОБЛЕМЫ ===
+
+1. ✅ Обновлена тестовая схема БД (schema.sql):
+   - Добавлена таблица hex_markers
+   - Добавлено поле is_patrolling в naval_units и task_forces
+   - Добавлено поле last_login в users
+
+2. ✅ Исправлены тесты SearchService:
+   - Добавлена очистка данных между тестами
+   - Исправлены UUID для тестовых пользователей
+   - Исправлена логика проверки количества маркеров
+
+3. ✅ Исправлены тесты SearchHandler:
+   - Добавлен импорт context
+   - Исправлена сигнатура setupSearchHandler
+   - Исправлена структура ответа API (data.markers вместо markers)
+
+=== СРАВНЕНИЕ С test_results_after.txt ===
+
+В test_results_after.txt:
+- Тесты SearchService падали из-за накопления данных между тестами
+- Тесты SearchHandler отсутствовали (новая функциональность)
+
+Текущее состояние:
+- ✅ Все тесты SearchService проходят (6/6)
+- ✅ Все тесты SearchHandler проходят (4/4)
+
+=== ДРУГИЕ ТЕСТЫ ===
+
+Другие падающие тесты (auth, game_event_service, unit_service, taskforce_service)
+не связаны с реализацией универсальной системы маркеров и были проблемными
+уже в test_results_after.txt.
+
