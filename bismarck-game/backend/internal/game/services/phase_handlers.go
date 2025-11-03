@@ -623,7 +623,7 @@ func (h *AdminPhaseHandler) Start(gameID string, turn int) error {
 
 	// Удаляем все маркеры пути полета поиска согласно правилам игры (фаза администрирования)
 	if h.searchService != nil {
-		err := h.searchService.RemoveAllFlightPathSearchMarkers(gameID)
+		err := h.searchService.RemoveAllHexMarkersByType(gameID, string(models.MarkerTypeFlightPathSearch))
 		if err != nil {
 			log.Printf("Failed to remove flight path search markers: %v", err)
 		}

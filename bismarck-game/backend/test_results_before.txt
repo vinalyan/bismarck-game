@@ -1,0 +1,204 @@
+ok  	bismarck-game/backend	(cached)
+?   	bismarck-game/backend/cmd/migrate	[no test files]
+# bismarck-game/backend/internal/game/services [bismarck-game/backend/internal/game/services.test]
+internal/game/services/phase_manager_websocket_test.go:62:106: not enough arguments in call to NewPhaseManager
+	have (*sql.DB, *UnitService, *TaskForceService, *GameEventService, *"bismarck-game/backend/internal/websocket".Hub, string)
+	want (*sql.DB, *UnitService, *TaskForceService, *SearchService, *GameEventService, *"bismarck-game/backend/internal/websocket".Hub, string)
+internal/game/services/phase_manager_websocket_test.go:117:106: not enough arguments in call to NewPhaseManager
+	have (*sql.DB, *UnitService, *TaskForceService, *GameEventService, *"bismarck-game/backend/internal/websocket".Hub, string)
+	want (*sql.DB, *UnitService, *TaskForceService, *SearchService, *GameEventService, *"bismarck-game/backend/internal/websocket".Hub, string)
+internal/game/services/phase_manager_websocket_test.go:187:106: not enough arguments in call to NewPhaseManager
+	have (*sql.DB, *UnitService, *TaskForceService, *GameEventService, *"bismarck-game/backend/internal/websocket".Hub, string)
+	want (*sql.DB, *UnitService, *TaskForceService, *SearchService, *GameEventService, *"bismarck-game/backend/internal/websocket".Hub, string)
+?   	bismarck-game/backend/cmd/server	[no test files]
+?   	bismarck-game/backend/docs	[no test files]
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestLogin (0.09s)
+    --- FAIL: TestLogin/successful_login (0.00s)
+        auth_handler_test.go:298: 
+            	Error Trace:	auth_handler_test.go:298
+            	Error:      	Not equal: 
+            	            	expected: 200
+            	            	actual  : 500
+            	Test:       	TestLogin/successful_login
+        auth_handler_test.go:303: 
+            	Error Trace:	auth_handler_test.go:303
+            	Error:      	Not equal: 
+            	            	expected: string("Login successful")
+            	            	actual  : <nil>(<nil>)
+            	Test:       	TestLogin/successful_login
+        auth_handler_test.go:304: 
+            	Error Trace:	auth_handler_test.go:304
+            	Error:      	Should NOT be empty, but was <nil>
+            	Test:       	TestLogin/successful_login
+        auth_handler_test.go:305: 
+            	Error Trace:	auth_handler_test.go:305
+            	Error:      	Should NOT be empty, but was <nil>
+            	Test:       	TestLogin/successful_login
+    --- FAIL: TestLogin/invalid_credentials (0.00s)
+        auth_handler_test.go:321: 
+            	Error Trace:	auth_handler_test.go:321
+            	Error:      	Not equal: 
+            	            	expected: 401
+            	            	actual  : 500
+            	Test:       	TestLogin/invalid_credentials
+        auth_handler_test.go:326: 
+            	Error Trace:	auth_handler_test.go:326
+            	Error:      	"Login failed" does not contain "invalid credentials"
+            	Test:       	TestLogin/invalid_credentials
+    --- FAIL: TestLogin/missing_username (0.00s)
+        auth_handler_test.go:346: 
+            	Error Trace:	auth_handler_test.go:346
+            	Error:      	"Username is required" does not contain "username is required"
+            	Test:       	TestLogin/missing_username
+    --- FAIL: TestLogin/missing_password (0.00s)
+        auth_handler_test.go:366: 
+            	Error Trace:	auth_handler_test.go:366
+            	Error:      	"Password is required" does not contain "password is required"
+            	Test:       	TestLogin/missing_password
+    --- FAIL: TestLogin/invalid_JSON (0.00s)
+        auth_handler_test.go:381: 
+            	Error Trace:	auth_handler_test.go:381
+            	Error:      	"Invalid request format" does not contain "invalid JSON"
+            	Test:       	TestLogin/invalid_JSON
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestLogout (0.03s)
+    --- FAIL: TestLogout/successful_logout (0.00s)
+        auth_handler_test.go:398: 
+            	Error Trace:	auth_handler_test.go:398
+            	Error:      	Not equal: 
+            	            	expected: 200
+            	            	actual  : 401
+            	Test:       	TestLogout/successful_logout
+        auth_handler_test.go:403: 
+            	Error Trace:	auth_handler_test.go:403
+            	Error:      	Not equal: 
+            	            	expected: string("Logout successful")
+            	            	actual  : <nil>(<nil>)
+            	Test:       	TestLogout/successful_logout
+    --- FAIL: TestLogout/no_user_id_in_context (0.00s)
+        auth_handler_test.go:417: 
+            	Error Trace:	auth_handler_test.go:417
+            	Error:      	"Authorization header required" does not contain "user not authenticated"
+            	Test:       	TestLogout/no_user_id_in_context
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestGetProfile (0.08s)
+panic: interface conversion: interface {} is nil, not string [recovered, repanicked]
+
+goroutine 6 [running]:
+testing.tRunner.func1.2({0x1030a7c20, 0x140002092c0})
+	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1872 +0x190
+testing.tRunner.func1()
+	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1875 +0x31c
+panic({0x1030a7c20?, 0x140002092c0?})
+	/opt/homebrew/Cellar/go/1.25.3/libexec/src/runtime/panic.go:783 +0x120
+bismarck-game/backend/internal/api/handlers.TestGetProfile(0x14000003340)
+	/Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/api/handlers/auth_handler_test.go:443 +0x4e8
+testing.tRunner(0x14000003340, 0x103130828)
+	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1934 +0xc8
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1997 +0x364
+FAIL	bismarck-game/backend/internal/api/handlers	0.798s
+?   	bismarck-game/backend/internal/api/middleware	[no test files]
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestNew (0.01s)
+    auth_service_test.go:17: Failed to setup test database: failed to create test schema: pq: duplicate key value violates unique constraint "pg_type_typname_nsp_index"
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql
+Failed to read /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: open /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/pkg/testutil/schema.sql: no such file or directory
+Trying schema path: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Found schema at: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+Using schema file: /Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/pkg/testutil/schema.sql
+--- FAIL: TestGetUserByID (0.08s)
+    --- FAIL: TestGetUserByID/user_found (0.00s)
+        auth_service_test.go:266: Unexpected error: failed to get user: pq: column "last_login" does not exist
+        auth_service_test.go:269: Expected user to be returned
+panic: runtime error: invalid memory address or nil pointer dereference [recovered, repanicked]
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x0 pc=0x104ad9890]
+
+goroutine 43 [running]:
+testing.tRunner.func1.2({0x104be28a0, 0x104e41470})
+	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1872 +0x190
+testing.tRunner.func1()
+	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1875 +0x31c
+panic({0x104be28a0?, 0x104e41470?})
+	/opt/homebrew/Cellar/go/1.25.3/libexec/src/runtime/panic.go:783 +0x120
+bismarck-game/backend/internal/auth.TestGetUserByID.func1(0x1400017c8c0)
+	/Users/vikozhemyakin/Documents/Projects/bismarck-game/bismarck-game/backend/internal/auth/auth_service_test.go:271 +0xa0
+testing.tRunner(0x1400017c8c0, 0x1400000ef60)
+	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1934 +0xc8
+created by testing.(*T).Run in goroutine 59
+	/opt/homebrew/Cellar/go/1.25.3/libexec/src/testing/testing.go:1997 +0x364
+FAIL	bismarck-game/backend/internal/auth	1.185s
+ok  	bismarck-game/backend/internal/config	(cached)
+ok  	bismarck-game/backend/internal/game/models	(cached)
+?   	bismarck-game/backend/internal/game/restrictions	[no test files]
+FAIL	bismarck-game/backend/internal/game/services [build failed]
+ok  	bismarck-game/backend/internal/game/services/validation	(cached)
+?   	bismarck-game/backend/internal/server	[no test files]
+?   	bismarck-game/backend/internal/testutil	[no test files]
+?   	bismarck-game/backend/internal/websocket	[no test files]
+?   	bismarck-game/backend/pkg/database	[no test files]
+ok  	bismarck-game/backend/pkg/hexgrid	(cached)
+?   	bismarck-game/backend/pkg/logger	[no test files]
+?   	bismarck-game/backend/pkg/redis	[no test files]
+ok  	bismarck-game/backend/pkg/testutil	(cached)
+?   	bismarck-game/backend/pkg/utils	[no test files]
+?   	bismarck-game/backend/test	[no test files]
+FAIL

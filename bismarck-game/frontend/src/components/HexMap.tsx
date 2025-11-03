@@ -16,7 +16,7 @@ import { phaseAPI } from '../services/api/phaseAPI';
 import { gameEventAPI } from '../services/api/gameEventAPI';
 import { unitsAPI } from '../services/api/unitsAPI';
 import { gameAPI } from '../services/api/gameAPI';
-import { searchAPI } from '../services/api/searchAPI';
+import { searchAPI, HexMarkers } from '../services/api/searchAPI';
 import './HexMap.css';
 
 interface HexMapProps {
@@ -50,7 +50,7 @@ interface HexMapProps {
   currentPhase?: string;
   searchFactorHexes?: Map<string, number>;
   visibilityLevel?: number;
-  flightPathSearchMarkers?: Set<string>;
+  hexMarkers?: Record<string, HexMarkers>;
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -99,7 +99,7 @@ const HexMap: React.FC<HexMapProps> = ({
   const [displaySearchFactors, setDisplaySearchFactors] = useState<Map<string, number>>(new Map());
   
   // Используем пропс напрямую для отображения маркеров
-  const flightPathSearchMarkers = flightPathSearchMarkersProp;
+  const hexMarkers = hexMarkersProp;
   const [isLoadingSearchFactors, setIsLoadingSearchFactors] = useState(false);
   const [tooltip, setTooltip] = useState<{
     show: boolean;
@@ -251,7 +251,7 @@ const HexMap: React.FC<HexMapProps> = ({
     // Пока просто добавляем маркер в любой гекс
 
     try {
-      const response = await searchAPI.addFlightPathSearchMarker(gameId, hexId, authToken);
+      const response = await searchAPI.addHexMarker(gameId, hexId, 'flight_path_search', authToken);
       if (response.success) {
         // Обновляем данные игры - маркеры загрузятся через пропсы
         if (onRefreshData) {
@@ -751,11 +751,11 @@ const HexMap: React.FC<HexMapProps> = ({
       );
 
       // Проверяем, есть ли маркер пути полета в этом гексе
-      // Явно приводим к boolean, чтобы гарантировать правильный тип
-      const hasFlightPathMarker = Boolean(flightPathSearchMarkers && flightPathSearchMarkers.has(hexId));
+      const flightPathSearchCount = hexMarkers?.[hexId]?.flight_path_search || 0;
+      const hasFlightPathMarker = flightPathSearchCount > 0;
 
       // Используем ключ с маркером, чтобы React обновлял компонент при изменении маркеров
-      const markerKey = hasFlightPathMarker ? `marker-${flightPathSearchMarkers?.size || 0}` : 'no-marker';
+      const markerKey = hasFlightPathMarker ? `marker-${flightPathSearchCount}` : 'no-marker';
       elements.push(
         <Hex
           key={`${hexId}-${markerKey}`}
@@ -802,7 +802,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, flightPathSearchMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect]);
+  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect]);
 
   return (
     <div className="hex-map-container">
