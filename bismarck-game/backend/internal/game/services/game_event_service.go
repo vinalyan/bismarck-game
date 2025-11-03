@@ -204,6 +204,16 @@ func (s *GameEventService) GetGameEvents(gameID, playerSide string, limit int) (
 
 // saveEvent сохраняет событие в базу данных
 func (s *GameEventService) saveEvent(event *models.GameEvent) error {
+	// Генерируем ID если он не установлен
+	if event.ID == "" {
+		event.ID = uuid.New().String()
+	}
+
+	// Устанавливаем CreatedAt если он не установлен
+	if event.CreatedAt.IsZero() {
+		event.CreatedAt = time.Now()
+	}
+
 	dataJSON, _ := json.Marshal(event.Data)
 	visibilityJSON, _ := json.Marshal(event.Visibility)
 
