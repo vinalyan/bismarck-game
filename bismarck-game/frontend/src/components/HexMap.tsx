@@ -97,7 +97,48 @@ const HexMap: React.FC<HexMapProps> = ({
   const [selectedPatrolHex, setSelectedPatrolHex] = useState<string | null>(null);
   const [isFlightPathSearchMode, setIsFlightPathSearchMode] = useState(false);
   const [displaySearchFactors, setDisplaySearchFactors] = useState<Map<string, number>>(new Map());
+  // Локальное состояние для оптимистичного обновления маркеров
+  const [localHexMarkers, setLocalHexMarkers] = useState<Record<string, HexMarkers>>({});
   const [isLoadingSearchFactors, setIsLoadingSearchFactors] = useState(false);
+  
+  // Объединяем пропсы и локальное состояние для немедленного отображения
+  const effectiveHexMarkers = useMemo(() => {
+    const merged = { ...hexMarkers };
+    Object.keys(localHexMarkers).forEach(hexId => {
+      const local = localHexMarkers[hexId];
+      const existing = merged[hexId] || {};
+      merged[hexId] = {
+        ...existing,
+        ...local,
+        // Объединяем счетчики маркеров
+        flight_path_search: local.flight_path_search !== undefined 
+          ? local.flight_path_search 
+          : existing.flight_path_search,
+      };
+    });
+    return merged;
+  }, [hexMarkers, localHexMarkers]);
+  
+  // Очищаем локальное состояние при обновлении данных с сервера
+  // Очищаем только те маркеры, которые уже есть в серверных данных
+  useEffect(() => {
+    if (hexMarkers && Object.keys(hexMarkers).length > 0) {
+      setLocalHexMarkers(prev => {
+        const cleaned: Record<string, HexMarkers> = {};
+        // Оставляем только те локальные маркеры, которых еще нет на сервере
+        Object.keys(prev).forEach(hexId => {
+          const serverMarker = hexMarkers[hexId];
+          const localMarker = prev[hexId];
+          // Если на сервере нет маркера или количество меньше локального, оставляем локальное
+          if (!serverMarker || (localMarker.flight_path_search || 0) > (serverMarker.flight_path_search || 0)) {
+            cleaned[hexId] = localMarker;
+          }
+        });
+        return cleaned;
+      });
+    }
+  }, [hexMarkers]);
+  
   const [tooltip, setTooltip] = useState<{
     show: boolean;
     unitId: string;
@@ -241,30 +282,65 @@ const HexMap: React.FC<HexMapProps> = ({
   // Обработчик клика по гексу в режиме воздушной разведки
   const handleHexClickInFlightPathSearchMode = async (hexId: string) => {
     if (!isFlightPathSearchMode || !gameId || !authToken) {
-      console.warn('⚠️ Cannot add marker: missing data', { isFlightPathSearchMode, gameId: !!gameId, authToken: !!authToken });
       return;
     }
 
-    console.log('✈️ Adding flight path search marker', { gameId, hexId, playerSide });
+    // Оптимистичное обновление - сразу обновляем локальное состояние для мгновенного отображения
+    setLocalHexMarkers(prev => {
+      // Используем текущее значение из локального состояния или из пропсов
+      const localMarker = prev[hexId];
+      const propMarker = hexMarkers?.[hexId];
+      const current = localMarker || propMarker || {};
+      const currentCount = current.flight_path_search || 0;
+      return {
+        ...prev,
+        [hexId]: {
+          ...current,
+          flight_path_search: currentCount + 1
+        }
+      };
+    });
 
     try {
       const response = await searchAPI.addHexMarker(gameId, hexId, 'flight_path_search', authToken);
-      console.log('✈️ Add marker response:', response);
       if (response.success) {
-        console.log('✅ Marker added successfully, refreshing data...');
-        // Обновляем данные игры - маркеры загрузятся через пропсы
+        // Синхронизируем с сервером в фоне (не блокируем UI)
         if (onRefreshData) {
-          onRefreshData();
+          // Вызываем асинхронно с небольшой задержкой, чтобы не блокировать UI
+          setTimeout(() => {
+            onRefreshData();
+          }, 100);
         }
       } else {
-        console.error('❌ Failed to add marker:', response.error);
+        // Откатываем оптимистичное обновление при ошибке
+        setLocalHexMarkers(prev => {
+          const newState = { ...prev };
+          const current = newState[hexId];
+          if (current) {
+            const newCount = (current.flight_path_search || 0) - 1;
+            if (newCount <= 0) {
+              delete newState[hexId];
+            } else {
+              newState[hexId] = { ...current, flight_path_search: newCount };
+            }
+          }
+          return newState;
+        });
       }
     } catch (error: any) {
-      console.error('❌ Error adding marker:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
+      // Откатываем оптимистичное обновление при ошибке
+      setLocalHexMarkers(prev => {
+        const newState = { ...prev };
+        const current = newState[hexId];
+        if (current) {
+          const newCount = (current.flight_path_search || 0) - 1;
+          if (newCount <= 0) {
+            delete newState[hexId];
+          } else {
+            newState[hexId] = { ...current, flight_path_search: newCount };
+          }
+        }
+        return newState;
       });
     }
   };
@@ -605,11 +681,8 @@ const HexMap: React.FC<HexMapProps> = ({
     );
     
     
-    // ВСЕГДА вызываем onHexClick для отладки
     if (onHexClick) {
       onHexClick(coordinate);
-    } else {
-      console.log('🎯🎯🎯 HexMap: onHexClick is not defined');
     }
   };
 
@@ -760,12 +833,6 @@ const HexMap: React.FC<HexMapProps> = ({
       
       const isSearchAvailable = hexSearchFactors > 0 && hexSearchFactors >= visibilityLevel;
       
-      // Логирование для отладки (только для первых нескольких гексов с факторами > 0)
-      if (hexSearchFactors > 0 && elements.length < 5) {
-        console.log(`🔍 Hex ${hexId}: factors=${hexSearchFactors}, visibility=${visibilityLevel}, isSearchAvailable=${isSearchAvailable}, displaySearchFactors.size=${displaySearchFactors.size}`);
-      }
-      
-
       // Проверяем, является ли этот гекс активным
       const activeHex = activeHexes.find(
         hex => 
@@ -773,15 +840,10 @@ const HexMap: React.FC<HexMapProps> = ({
           hex.coordinate.row === coordinate.row
       );
 
-      // Проверяем, есть ли маркер пути полета в этом гексе
-      const hexMarkerData = hexMarkers?.[hexId];
+      // Проверяем, есть ли маркер пути полета в этом гексе (используем effectiveHexMarkers для оптимистичного обновления)
+      const hexMarkerData = effectiveHexMarkers?.[hexId];
       const flightPathSearchCount = hexMarkerData?.flight_path_search || 0;
       const hasFlightPathMarker = flightPathSearchCount > 0;
-      
-      // Логирование для отладки (только для первых нескольких гексов с маркерами или без)
-      if (elements.length < 3 && (hasFlightPathMarker || hexMarkerData)) {
-        console.log(`🔍 HexMap: Hex ${hexId}: hexMarkerData=`, hexMarkerData, `flightPathSearchCount=${flightPathSearchCount}, hasFlightPathMarker=${hasFlightPathMarker}`);
-      }
 
       // Используем ключ с маркером, чтобы React обновлял компонент при изменении маркеров
       const markerKey = hasFlightPathMarker ? `marker-${flightPathSearchCount}` : 'no-marker';
@@ -803,14 +865,10 @@ const HexMap: React.FC<HexMapProps> = ({
           currentTurn={currentTurn}
           isTFCandidate={isCreateTFMode && tfCandidateHexes.includes(hexId)}
           hasFlightPathMarker={hasFlightPathMarker}
-          // Отладка передачи пропса
-          {...(hasFlightPathMarker && { 'data-debug-marker': 'true' })}
           onClick={() => {
             const hexId = `${coordinate.letter}${coordinate.number}`;
-            console.log('🎯 Hex clicked:', hexId, { isFlightPathSearchMode, isPatrolMode, isCreateTFMode });
             // Проверяем режимы в порядке приоритета
             if (isFlightPathSearchMode) {
-              console.log('✈️ Calling handleHexClickInFlightPathSearchMode for', hexId);
               handleHexClickInFlightPathSearchMode(hexId);
             } else if (isPatrolMode) {
               handleHexClickInPatrolMode(hexId);
@@ -833,7 +891,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect]);
+  }, [hexes, effectiveHexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect]);
 
   return (
     <div className="hex-map-container">
@@ -867,28 +925,19 @@ const HexMap: React.FC<HexMapProps> = ({
         {currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (
           <>
             <button 
-              onClick={() => {
-                console.log('🚢 Create TF button clicked');
-                handleCreateTFClick();
-              }} 
+              onClick={handleCreateTFClick}
               title="Создать Task Force"
             >
               🚢 Создать TF
             </button>
             <button 
-              onClick={() => {
-                console.log('🛡️ Patrol button clicked');
-                handlePatrolClick();
-              }} 
+              onClick={handlePatrolClick}
               title="Установить патруль"
             >
               🛡️ Патруль
             </button>
             <button 
-              onClick={() => {
-                console.log('✈️ Flight Path Search button clicked');
-                handleFlightPathSearchClick();
-              }} 
+              onClick={handleFlightPathSearchClick}
               title="Воздушная разведка"
             >
               ✈️ Воздушная разведка
@@ -897,10 +946,7 @@ const HexMap: React.FC<HexMapProps> = ({
         )}
         {isCreateTFMode && (
           <button 
-            onClick={() => {
-              console.log('❌ Cancel TF button clicked');
-              handleCancelCreateTF();
-            }} 
+            onClick={handleCancelCreateTF}
             title="Отменить создание TF"
           >
             ❌ Отмена
