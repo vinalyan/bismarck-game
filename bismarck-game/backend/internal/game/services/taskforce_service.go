@@ -29,51 +29,67 @@ func NewTaskForceService(db *database.Database, logger *logger.Logger, unitServi
 
 // CreateTaskForce создает новое оперативное соединение
 func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
-	// Минимум 2 корабля для создания Task Force
-	if len(taskForce.Units) < 2 {
+	var err error
+	
+	// Минимум 2 корабля для создания Task Force (но можно создать пустой TF для последующего добавления юнитов)
+	if len(taskForce.Units) > 0 && len(taskForce.Units) < 2 {
 		return fmt.Errorf("task force must contain at least 2 units")
 	}
 
-	// Проверяем, что все юниты принадлежат одному игроку
-	units, err := s.unitService.GetNavalUnitsByGameID(taskForce.GameID)
-	if err != nil {
-		return fmt.Errorf("failed to get units: %w", err)
-	}
+	// Если есть юниты, проверяем их
+	if len(taskForce.Units) > 0 {
+		// Проверяем, что все юниты принадлежат одному игроку
+		units, err := s.unitService.GetNavalUnitsByGameID(taskForce.GameID)
+		if err != nil {
+			return fmt.Errorf("failed to get units: %w", err)
+		}
 
-	unitMap := make(map[string]models.NavalUnit)
-	for _, unit := range units {
-		unitMap[unit.ID] = unit
-	}
+		unitMap := make(map[string]models.NavalUnit)
+		for _, unit := range units {
+			unitMap[unit.ID] = unit
+		}
 
-	// Получаем первый юнит для определения национальности и позиции
-	firstUnit, exists := unitMap[taskForce.Units[0]]
-	if !exists {
-		return fmt.Errorf("first unit not found")
-	}
-
-	taskForce.Nationality = firstUnit.Nationality
-	taskForce.Position = firstUnit.Position
-	taskForce.Owner = firstUnit.Owner
-
-	// Проверяем юниты согласно правилам игры
-	for _, unitID := range taskForce.Units {
-		unit, exists := unitMap[unitID]
+		// Получаем первый юнит для определения национальности и позиции
+		firstUnit, exists := unitMap[taskForce.Units[0]]
 		if !exists {
-			return fmt.Errorf("unit %s not found", unitID)
+			return fmt.Errorf("first unit not found")
 		}
-		if unit.Owner != taskForce.Owner {
-			return fmt.Errorf("unit %s does not belong to player %s", unitID, taskForce.Owner)
+
+		taskForce.Nationality = firstUnit.Nationality
+		taskForce.Position = firstUnit.Position
+		taskForce.Owner = firstUnit.Owner
+
+		// Проверяем юниты согласно правилам игры
+		for _, unitID := range taskForce.Units {
+			unit, exists := unitMap[unitID]
+			if !exists {
+				return fmt.Errorf("unit %s not found", unitID)
+			}
+			if unit.Owner != taskForce.Owner {
+				return fmt.Errorf("unit %s does not belong to player %s", unitID, taskForce.Owner)
+			}
+			if unit.TaskForceID != nil {
+				return fmt.Errorf("unit %s is already in a task force", unitID)
+			}
+			// Проверяем, что юнит в том же гексе
+			if unit.Position != taskForce.Position {
+				return fmt.Errorf("unit %s is not in the same hex as task force", unitID)
+			}
+			// Проверяем уровень обнаружения
+			if unit.DetectionLevel == "sighted" {
+				return fmt.Errorf("cannot form task force - unit %s is sighted", unitID)
+			}
 		}
-		if unit.TaskForceID != nil {
-			return fmt.Errorf("unit %s is already in a task force", unitID)
+	} else {
+		// Для пустого Task Force нужно установить значения по умолчанию
+		if taskForce.Nationality == "" {
+			taskForce.Nationality = "german" // По умолчанию
 		}
-		// Проверяем, что юнит в том же гексе
-		if unit.Position != taskForce.Position {
-			return fmt.Errorf("unit %s is not in the same hex as task force", unitID)
+		if taskForce.Owner == "" {
+			return fmt.Errorf("owner must be specified for empty task force")
 		}
-		// Проверяем уровень обнаружения
-		if unit.DetectionLevel == "sighted" {
-			return fmt.Errorf("cannot form task force - unit %s is sighted", unitID)
+		if taskForce.Position == "" {
+			return fmt.Errorf("position must be specified for empty task force")
 		}
 	}
 
@@ -93,7 +109,20 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 	}
 
 	// Вычисляем скорость соединения (по самому медленному кораблю)
-	taskForce.Speed = s.calculateTaskForceSpeed(taskForce.Units, unitMap)
+	if len(taskForce.Units) > 0 {
+		units, err := s.unitService.GetNavalUnitsByGameID(taskForce.GameID)
+		if err != nil {
+			return fmt.Errorf("failed to get units for speed calculation: %w", err)
+		}
+
+		unitMap := make(map[string]models.NavalUnit)
+		for _, unit := range units {
+			unitMap[unit.ID] = unit
+		}
+		taskForce.Speed = s.calculateTaskForceSpeed(taskForce.Units, unitMap)
+	} else {
+		taskForce.Speed = 0 // Пустой TF имеет скорость 0
+	}
 	taskForce.DetectionLevel = "none"
 	taskForce.IsVisible = true
 
@@ -119,14 +148,23 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 
 	// Обновляем юниты, добавляя их в Task Force
 	for _, unitID := range taskForce.Units {
-		unit, _ := s.unitService.GetNavalUnitByID(unitID)
+		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		if err != nil {
+			s.logger.Warn("Failed to get unit when adding to task force", "unit_id", unitID, "error", err)
+			continue
+		}
 		if unit != nil {
+			// Сохраняем текущее значение NoMovementTurnsLeft перед обновлением
+			noMovementTurnsLeft := unit.NoMovementTurnsLeft
 			unit.TaskForceID = &taskForce.ID
 			// Обнуляем позицию корабля - теперь он перемещается только с Task Force
 			unit.Position = ""
+			// Восстанавливаем NoMovementTurnsLeft после изменения позиции
+			unit.NoMovementTurnsLeft = noMovementTurnsLeft
 			s.unitService.UpdateNavalUnit(unit)
 			s.logger.Info("Unit added to task force and position cleared",
-				"unit_id", unitID, "unit_name", unit.Name, "task_force_id", taskForce.ID)
+				"unit_id", unitID, "unit_name", unit.Name, "task_force_id", taskForce.ID,
+				"no_movement_turns_left", unit.NoMovementTurnsLeft)
 		}
 	}
 
@@ -482,20 +520,28 @@ func (s *TaskForceService) GetTaskForceEffectiveSpeed(taskForceID string) (int, 
 }
 
 // GetTaskForceTotalSearchFactors возвращает общие факторы поиска Task Force
+// Task Force дает 1 фактор поиска независимо от количества кораблей (по правилам игры)
 func (s *TaskForceService) GetTaskForceTotalSearchFactors(taskForceID string) (int, error) {
 	units, err := s.GetTaskForceUnits(taskForceID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get task force units: %w", err)
 	}
 
-	totalSearchFactors := 0
+	// Проверяем, есть ли хотя бы один корабль, который может искать
+	hasSearchCapableUnit := false
 	for _, unit := range units {
 		if unit.CanSearch() {
-			totalSearchFactors += 1 // Все корабли дают 1 фактор поиска
+			hasSearchCapableUnit = true
+			break
 		}
 	}
 
-	return totalSearchFactors, nil
+	// Task Force дает 1 фактор поиска независимо от количества кораблей
+	if hasSearchCapableUnit {
+		return 1, nil
+	}
+
+	return 0, nil
 }
 
 // CanTaskForceMove проверяет, может ли Task Force двигаться
@@ -517,20 +563,29 @@ func (s *TaskForceService) CanTaskForceMove(taskForceID string) (bool, string) {
 			continue
 		}
 
-		// Проверяем базовые ограничения движения
-		if !unit.CanMove() {
+		s.logger.Debug("Checking unit for movement restrictions",
+			"unit_id", unitID,
+			"unit_name", unit.Name,
+			"no_movement_turns_left", unit.NoMovementTurnsLeft,
+			"is_alive", unit.IsAlive(),
+			"status", unit.Status,
+			"fuel", unit.Fuel,
+			"is_emergency_fuel", unit.IsEmergencyFuel)
+
+		// Проверяем базовые ограничения (жизнь, статус)
+		if !unit.IsAlive() || unit.Status == models.UnitStatusRepairing {
 			return false, fmt.Sprintf("unit %s (%s) cannot move", unit.Name, unitID)
+		}
+
+		// Проверяем топливо (включая аварийное топливо) - более конкретное сообщение
+		if unit.Fuel <= 0 && !unit.IsEmergencyFuel {
+			return false, fmt.Sprintf("unit %s (%s) has no fuel", unit.Name, unitID)
 		}
 
 		// Проверяем ограничения для медленных кораблей (S/VS)
 		if unit.NoMovementTurnsLeft > 0 {
-			return false, fmt.Sprintf("unit %s (%s) cannot move - %d turns restriction left",
+			return false, fmt.Sprintf("unit %s (%s) cannot move - %d movement restriction turns left",
 				unit.Name, unitID, unit.NoMovementTurnsLeft)
-		}
-
-		// Проверяем топливо (включая аварийное топливо)
-		if unit.Fuel <= 0 && !unit.IsEmergencyFuel {
-			return false, fmt.Sprintf("unit %s (%s) has no fuel", unit.Name, unitID)
 		}
 	}
 
@@ -816,3 +871,4 @@ func (s *TaskForceService) RemoveAllPatrolMarkers(gameID string) error {
 	s.logger.Info("Removed all patrol markers from task forces", "game_id", gameID, "task_forces_affected", rowsAffected)
 	return nil
 }
+

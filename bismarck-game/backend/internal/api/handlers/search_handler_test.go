@@ -43,7 +43,8 @@ func setupSearchHandler(t *testing.T) (*SearchHandler, *auth.AuthService, string
 
 	authService := auth.New(db, nil, cfg.JWT.Secret, 24*3600*1000000000) // 24 hours in nanoseconds
 	unitService := services.NewUnitService(db, log)
-	searchService := services.NewSearchService(db, log, unitService)
+	gameService := services.NewGameService(db, log)
+	searchService := services.NewSearchService(db, log, unitService, gameService)
 	handler := NewSearchHandler(searchService, log)
 
 	// Create test user

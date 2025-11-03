@@ -31,7 +31,8 @@ func setupEmergencyFuelServiceTest(t *testing.T) (*EmergencyFuelService, *databa
 	unitService := NewUnitService(db, logger)
 	eventService := NewGameEventService(db, logger)
 	taskForceService := NewTaskForceService(db, logger, unitService, nil)
-	searchService := NewSearchService(db, logger, unitService)
+	gameService := NewGameService(db, logger)
+	searchService := NewSearchService(db, logger, unitService, gameService)
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, nil, "http://localhost:8080")
 
 	service := NewEmergencyFuelService(db, logger, phaseManager)

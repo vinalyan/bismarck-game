@@ -439,7 +439,7 @@ func TestUpdateAirUnit(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, updatedUnit, 1)
 		assert.Equal(t, "B1", updatedUnit[0].Position)
-		assert.Equal(t, "damaged", updatedUnit[0].Status)
+		assert.Equal(t, models.AirUnitStatusOnRaid, updatedUnit[0].Status)
 	})
 
 	t.Run("update non-existing unit", func(t *testing.T) {

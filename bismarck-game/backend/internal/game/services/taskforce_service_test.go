@@ -23,7 +23,8 @@ func TestNewTaskForceService(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	assert.NotNil(t, service)
@@ -44,7 +45,8 @@ func TestCreateTaskForce(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	testGameID := uuid.New().String()
@@ -97,7 +99,8 @@ func TestGetTaskForcesByGameID(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Generate test game ID
@@ -177,7 +180,8 @@ func TestGetTaskForceByID(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create test game and two units and task force
@@ -233,7 +237,8 @@ func TestAddUnitToTaskForce(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create base units to satisfy min TF size
@@ -315,7 +320,8 @@ func TestAddUnitToTaskForce_ClearsUnitPosition(t *testing.T) {
 	logger, _ := logger.New(logger.INFO, "text", "stdout")
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	tf := &models.TaskForce{GameID: testGameID, Name: "TF-Pos-Add", Owner: "u", Position: "J10", IsVisible: true, Units: []string{}}
@@ -350,7 +356,8 @@ func TestRemoveUnitFromTaskForce_SetsUnitPositionToTF(t *testing.T) {
 	logger, _ := logger.New(logger.INFO, "text", "stdout")
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create 3 units in same hex
@@ -400,7 +407,8 @@ func TestRemoveUnitFromTaskForce_Disband_AssignsPositionsToAll(t *testing.T) {
 	logger, _ := logger.New(logger.INFO, "text", "stdout")
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	pos := "M30"
@@ -451,7 +459,8 @@ func TestRemoveUnitFromTaskForce(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create test unit
@@ -561,7 +570,8 @@ func TestMoveTaskForce(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create game and two units for TF movement test
@@ -603,6 +613,10 @@ func TestDeleteTaskForce(t *testing.T) {
 	defer db.Close()
 
 	testGameID := uuid.New().String()
+	
+	// Create test game first to satisfy foreign key constraint
+	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	require.NoError(t, err)
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
@@ -612,7 +626,8 @@ func TestDeleteTaskForce(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create two units for delete test
@@ -668,7 +683,8 @@ func TestGetTaskForceUnits(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create test units
@@ -770,7 +786,8 @@ func TestGetTaskForceEffectiveSpeed(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create test units with different speeds
@@ -832,10 +849,11 @@ func TestGetTaskForceEffectiveSpeed(t *testing.T) {
 
 	t.Run("calculate effective speed", func(t *testing.T) {
 		// Effective speed should be the minimum of all unit speeds
-		// Fast ship: 4, Slow ship: 2 -> Effective speed: 2
+		// Fast ship: Evasion=5 -> GetEffectiveSpeed()=5, Slow ship: Evasion=3 -> GetEffectiveSpeed()=3
+		// Effective speed: min(5, 3) = 3
 		effectiveSpeed, err := service.GetTaskForceEffectiveSpeed(taskForce.ID)
 		assert.NoError(t, err)
-		assert.Equal(t, 2, effectiveSpeed) // Should be the minimum speed
+		assert.Equal(t, 3, effectiveSpeed) // Should be the minimum speed
 	})
 
 	t.Run("get effective speed for non-existing task force", func(t *testing.T) {
@@ -866,7 +884,8 @@ func TestGetTaskForceTotalSearchFactors(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create test units with different search factors
@@ -929,11 +948,11 @@ func TestGetTaskForceTotalSearchFactors(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("calculate total search factors", func(t *testing.T) {
-		// Total search factors should be sum of all unit search factors
-		// Unit1: 2, Unit2: 1 -> Total: 3
+		// Task Force gives 1 search factor regardless of number of units
+		// (per game rules: each TF gives +1 search factor)
 		totalSearchFactors, err := service.GetTaskForceTotalSearchFactors(taskForce.ID)
 		assert.NoError(t, err)
-		assert.Equal(t, 3, totalSearchFactors) // 2 + 1 = 3
+		assert.Equal(t, 1, totalSearchFactors) // TF gives 1 factor regardless of units
 	})
 
 	t.Run("get total search factors for non-existing task force", func(t *testing.T) {
@@ -969,7 +988,8 @@ func TestGetTaskForceAvailableMoves_WorstCaseScenario(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create test units with different movement capabilities
@@ -1085,7 +1105,8 @@ func TestTaskForceMovement_NoMovementTurnsLeft(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create units with different movement restrictions
@@ -1192,7 +1213,8 @@ func TestTaskForceMovement_FuelRestrictions(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Unit 1: Has fuel
@@ -1312,7 +1334,8 @@ func TestTaskForceMovement_EmergencyFuel(t *testing.T) {
 	unitService := NewUnitService(db, logger)
 	eventService := NewGameEventService(db, logger)
 	taskForceServiceForPM := NewTaskForceService(db, logger, unitService, nil)
-	searchService := NewSearchService(db, logger, unitService)
+	gameService := NewGameService(db, logger)
+	searchService := NewSearchService(db, logger, unitService, gameService)
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceServiceForPM, searchService, eventService, nil, "http://localhost:8080")
 	
 	// Start turn for phase manager
@@ -1322,7 +1345,8 @@ func TestTaskForceMovement_EmergencyFuel(t *testing.T) {
 	mapStructService := NewMapStructureService()
 	emergencyFuelService := NewEmergencyFuelService(db, logger, phaseManager)
 	unitService.SetEmergencyFuelService(emergencyFuelService)
-	movementService := NewMovementService(db, logger, nil, phaseManager, unitService, mapStructService, eventService, emergencyFuelService)
+	gameService = NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, phaseManager, unitService, mapStructService, eventService, emergencyFuelService, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 	
 	// Create hex calculator for distance calculations
@@ -1514,7 +1538,8 @@ func TestExecuteTaskForceMovement_Integration(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create test units for Task Force
@@ -1656,7 +1681,8 @@ func TestTaskForceFuelConsumption_Individual(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create units with different fuel consumption characteristics
@@ -1780,7 +1806,8 @@ func TestTaskForceMovement_UpdateAllUnits(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create multiple units
@@ -1889,7 +1916,8 @@ func TestCreateTaskForce_SightedUnitsRejected(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create normal unit (not sighted)
@@ -2021,7 +2049,8 @@ func TestAddUnitToTaskForce_SightedUnitRejected(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create two hidden units for initial Task Force
@@ -2168,7 +2197,8 @@ func TestCanTaskForceMove_SightedTaskForce(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create units for Task Force
@@ -2275,7 +2305,8 @@ func TestCanAddUnit_DetectionLevelCheck(t *testing.T) {
 	require.NoError(t, err)
 	unitService := NewUnitService(db, logger)
 	mapStructService := NewMapStructureService()
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil)
+	gameService := NewGameService(db, logger)
+	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
 
 	// Create base units for Task Force

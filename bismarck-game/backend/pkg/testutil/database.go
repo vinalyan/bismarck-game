@@ -55,11 +55,11 @@ func SetupTestDatabase() (*database.Database, error) {
 func CreateTestGame(db *sql.DB, gameID string) error {
 	// Создаем тестовую игру
 	query := `
-		INSERT INTO games (id, name, status, current_phase, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO games (id, name, status, current_phase, turn_number, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (id) DO NOTHING
 	`
-	_, err := db.Exec(query, gameID, "Test Game", "active", "setup",
+	_, err := db.Exec(query, gameID, "Test Game", "active", "setup", 1,
 		"2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z")
 	return err
 }
@@ -340,7 +340,7 @@ func createBasicSchema(db *sql.DB) error {
 			target_hex VARCHAR(10) NOT NULL,
 			search_type VARCHAR(20) NOT NULL,
 			search_factors INTEGER DEFAULT 0,
-			units_found INTEGER DEFAULT 0,
+			units_found JSONB DEFAULT '[]',
 			result VARCHAR(20) NOT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,

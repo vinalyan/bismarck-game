@@ -128,13 +128,17 @@ func (s *Server) setupRoutes() {
 		}
 	}
 
+	// Создаем GameService для централизованной работы с игрой
+	gameLogger, _ := logger.New(logger.INFO, "game-service", "stdout")
+	gameService := services.NewGameService(s.db, gameLogger)
+	
 	// Создаем сервис Task Forces (нужен для PhaseManager)
 	taskForceLogger, _ := logger.New(logger.INFO, "taskforce-service", "stdout")
 	taskForceService := services.NewTaskForceService(s.db, taskForceLogger, unitService, nil)
 	
 	// Создаем сервис поиска (нужен для PhaseManager)
 	searchLogger, _ := logger.New(logger.INFO, "search-service", "stdout")
-	searchService := services.NewSearchService(s.db, searchLogger, unitService)
+	searchService := services.NewSearchService(s.db, searchLogger, unitService, gameService)
 	
 	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, taskForceService, searchService, eventService, s.wsHub, apiBaseURL)
 
@@ -153,7 +157,7 @@ func (s *Server) setupRoutes() {
 	emergencyFuelService := services.NewEmergencyFuelService(s.db, emergencyFuelLogger, phaseManager)
 
 	movementLogger, _ := logger.New(logger.INFO, "movement-service", "stdout")
-	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService, mapStructureService, eventService, emergencyFuelService)
+	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService, mapStructureService, eventService, emergencyFuelService, gameService)
 
 	// Обновляем TaskForceService с MovementService
 	taskForceService = services.NewTaskForceService(s.db, taskForceLogger, unitService, movementService)
