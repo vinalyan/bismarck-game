@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS unit_searches (
     target_hex VARCHAR(10) NOT NULL,
     search_type VARCHAR(20) NOT NULL,
     search_factors INTEGER DEFAULT 0,
-    units_found INTEGER DEFAULT 0,
+    units_found JSONB DEFAULT '[]',
     result VARCHAR(20) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
