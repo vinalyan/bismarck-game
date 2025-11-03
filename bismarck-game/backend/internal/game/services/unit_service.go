@@ -10,6 +10,7 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
+	"github.com/google/uuid"
 )
 
 // UnitSunkHandler это функция для обработки потопления корабля
@@ -103,6 +104,14 @@ func (s *UnitService) CreateAirUnit(unit *models.AirUnit) error {
 
 // GetNavalUnitsByGameID возвращает все морские юниты игры
 func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, error) {
+	// Валидируем UUID перед выполнением запроса
+	if _, err := uuid.Parse(gameID); err != nil {
+		// Для невалидного UUID возвращаем пустой список без ошибки
+		// Это соответствует ожиданиям теста и более корректному поведению
+		s.logger.Debug("Invalid game ID format, returning empty list", "game_id", gameID)
+		return []models.NavalUnit{}, nil
+	}
+
 	query := BuildNavalUnitSelectQuery(
 		[]string{}, // без дополнительных полей
 		"WHERE game_id = $1 AND status != 'sunk'\nORDER BY created_at",
