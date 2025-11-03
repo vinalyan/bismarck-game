@@ -38,15 +38,11 @@ func NewGameHandler(db *database.Database, unitService *services.UnitService, sh
 	}
 }
 
-// getUserIDFromContext безопасно извлекает user_id из контекста
-func getUserIDFromContext(r *http.Request) (string, error) {
-	userIDInterface := r.Context().Value("user_id")
-	if userIDInterface == nil {
-		return "", fmt.Errorf("user_id not found in context")
-	}
-	userID, ok := userIDInterface.(string)
+// getUserIDFromRequest безопасно извлекает user_id из контекста запроса
+func getUserIDFromRequest(r *http.Request) (string, error) {
+	userID, ok := middleware.GetUserIDFromContext(r.Context())
 	if !ok {
-		return "", fmt.Errorf("invalid user_id type in context")
+		return "", fmt.Errorf("user_id not found in context")
 	}
 	return userID, nil
 }
@@ -151,7 +147,7 @@ func (h *GameHandler) createStartingTaskForces(gameID string) error {
 // @Router /games [post]
 func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста
-	userID, err := getUserIDFromContext(r)
+	userID, err := getUserIDFromRequest(r)
 	if err != nil {
 		log.Printf("CreateGame: Failed to get user ID: %v", err)
 		pkgutils.WriteUnauthorized(w, "Authentication required")
@@ -531,7 +527,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем ID пользователя из контекста
-	userID, err := getUserIDFromContext(r)
+	userID, err := getUserIDFromRequest(r)
 	if err != nil {
 		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
@@ -819,7 +815,7 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем ID пользователя из контекста
-	userID, err := getUserIDFromContext(r)
+	userID, err := getUserIDFromRequest(r)
 	if err != nil {
 		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
@@ -913,7 +909,7 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем ID пользователя из контекста
-	userID, err := getUserIDFromContext(r)
+	userID, err := getUserIDFromRequest(r)
 	if err != nil {
 		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
@@ -994,7 +990,7 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем ID пользователя из контекста
-	userID, err := getUserIDFromContext(r)
+	userID, err := getUserIDFromRequest(r)
 	if err != nil {
 		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
@@ -1081,7 +1077,7 @@ func (h *GameHandler) InitializeGameUnits(w http.ResponseWriter, r *http.Request
 	}
 
 	// Получаем ID пользователя из контекста
-	userID, err := getUserIDFromContext(r)
+	userID, err := getUserIDFromRequest(r)
 	if err != nil {
 		pkgutils.WriteUnauthorized(w, "Authentication required")
 		return
