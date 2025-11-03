@@ -82,16 +82,21 @@ func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 
 // CreateAirUnit создает новый воздушный юнит
 func (s *UnitService) CreateAirUnit(unit *models.AirUnit) error {
+	// Генерируем имя если не указано
+	if unit.Name == "" {
+		unit.Name = fmt.Sprintf("Air Unit %s", unit.Type)
+	}
+
 	query := `
 		INSERT INTO air_units (
-			game_id, type, owner, position, base_position,
+			game_id, name, type, owner, position, base_position,
 			max_speed, endurance, status
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8
+			$1, $2, $3, $4, $5, $6, $7, $8, $9
 		) RETURNING id, created_at, updated_at`
 
 	err := s.db.QueryRow(query,
-		unit.GameID, unit.Type, unit.Owner, unit.Position, unit.BasePosition,
+		unit.GameID, unit.Name, unit.Type, unit.Owner, unit.Position, unit.BasePosition,
 		unit.MaxSpeed, unit.Endurance, unit.Status,
 	).Scan(&unit.ID, &unit.CreatedAt, &unit.UpdatedAt)
 
@@ -100,7 +105,7 @@ func (s *UnitService) CreateAirUnit(unit *models.AirUnit) error {
 		return fmt.Errorf("failed to create air unit: %w", err)
 	}
 
-	s.logger.Info("Created air unit", "unit_id", unit.ID, "type", unit.Type)
+	s.logger.Info("Created air unit", "unit_id", unit.ID, "type", unit.Type, "name", unit.Name)
 	return nil
 }
 
@@ -195,10 +200,15 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 
 // GetAirUnitsByGameID возвращает все воздушные юниты игры
 func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, error) {
+	// Валидируем UUID перед выполнением запроса
+	if _, err := uuid.Parse(gameID); err != nil {
+		s.logger.Debug("Invalid game ID format, returning empty list", "game_id", gameID)
+		return []models.AirUnit{}, nil
+	}
+
 	query := `
 		SELECT id, game_id, name, type, owner, position, base_position,
-			   max_speed, endurance, status, flight_path_search_hexes,
-			   created_at, updated_at
+			   max_speed, endurance, status, created_at, updated_at
 		FROM air_units
 		WHERE game_id = $1
 		ORDER BY created_at`
@@ -213,11 +223,10 @@ func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, erro
 	var units []models.AirUnit
 	for rows.Next() {
 		var unit models.AirUnit
-		var flightPathHexesJSON []byte
 
 		err := rows.Scan(
 			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Owner, &unit.Position, &unit.BasePosition,
-			&unit.MaxSpeed, &unit.Endurance, &unit.Status, &flightPathHexesJSON,
+			&unit.MaxSpeed, &unit.Endurance, &unit.Status,
 			&unit.CreatedAt, &unit.UpdatedAt,
 		)
 		if err != nil {
@@ -225,13 +234,8 @@ func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, erro
 			continue
 		}
 
-		// Парсим JSON массив гексов
-		if len(flightPathHexesJSON) > 0 {
-			if err := json.Unmarshal(flightPathHexesJSON, &unit.FlightPathSearchHexes); err != nil {
-				s.logger.Warn("Failed to unmarshal flight path hexes", "air_unit_id", unit.ID, "error", err)
-				unit.FlightPathSearchHexes = []string{}
-			}
-		} else {
+		// Инициализируем FlightPathSearchHexes пустым массивом
+		if unit.FlightPathSearchHexes == nil {
 			unit.FlightPathSearchHexes = []string{}
 		}
 

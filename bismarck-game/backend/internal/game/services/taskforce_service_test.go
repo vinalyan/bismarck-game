@@ -613,6 +613,10 @@ func TestDeleteTaskForce(t *testing.T) {
 	defer db.Close()
 
 	testGameID := uuid.New().String()
+	
+	// Create test game first to satisfy foreign key constraint
+	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	require.NoError(t, err)
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
