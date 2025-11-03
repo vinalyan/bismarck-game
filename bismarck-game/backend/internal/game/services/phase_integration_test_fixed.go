@@ -32,7 +32,8 @@ func TestPhaseSequenceIntegration(t *testing.T) {
 
 	// Создаем сервисы для PhaseManager (nil для тестов)
 	taskForceService := NewTaskForceService(db, eventLogger, unitService, nil)
-	searchService := NewSearchService(db, eventLogger, unitService)
+	gameService := NewGameService(db, eventLogger)
+	searchService := NewSearchService(db, eventLogger, unitService, gameService)
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
 
 	// Тест 1: Первый ход - последовательность фаз
@@ -203,7 +204,8 @@ func TestPhaseRecordsIntegration(t *testing.T) {
 
 	// Создаем сервисы для PhaseManager (nil для тестов)
 	taskForceService := NewTaskForceService(db, eventLogger, unitService, nil)
-	searchService := NewSearchService(db, eventLogger, unitService)
+	gameService := NewGameService(db, eventLogger)
+	searchService := NewSearchService(db, eventLogger, unitService, gameService)
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
 	gameID := "test-game-records"
 	turnNumber := 1
@@ -324,7 +326,8 @@ func TestPhaseHandlersIntegration(t *testing.T) {
 
 	// Создаем сервисы для PhaseManager (nil для тестов)
 	taskForceService := NewTaskForceService(db, eventLogger, unitService, nil)
-	searchService := NewSearchService(db, eventLogger, unitService)
+	gameService := NewGameService(db, eventLogger)
+	searchService := NewSearchService(db, eventLogger, unitService, gameService)
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
 	gameID := "test-game-handlers"
 	turnNumber := 1
@@ -391,7 +394,8 @@ func TestCompleteTurnTransition(t *testing.T) {
 
 	// Создаем сервисы для PhaseManager (nil для тестов)
 	taskForceService := NewTaskForceService(db, eventLogger, unitService, nil)
-	searchService := NewSearchService(db, eventLogger, unitService)
+	gameService := NewGameService(db, eventLogger)
+	searchService := NewSearchService(db, eventLogger, unitService, gameService)
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
 	gameID := "test-game-transition"
 

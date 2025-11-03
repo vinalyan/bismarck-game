@@ -19,7 +19,8 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 	log, err := logger.New(logger.INFO, "test", "stdout")
 	require.NoError(t, err)
 	unitService := NewUnitService(db, log)
-	searchService := NewSearchService(db, log, unitService)
+	gameService := NewGameService(db, log)
+	searchService := NewSearchService(db, log, unitService, gameService)
 
 	// Create test game
 	gameID := "550e8400-e29b-41d4-a716-446655440010"
@@ -122,7 +123,8 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 	log, err := logger.New(logger.INFO, "test", "stdout")
 	require.NoError(t, err)
 	unitService := NewUnitService(db, log)
-	searchService := NewSearchService(db, log, unitService)
+	gameService := NewGameService(db, log)
+	searchService := NewSearchService(db, log, unitService, gameService)
 
 	gameID := "550e8400-e29b-41d4-a716-446655440011"
 	playerID := "550e8400-e29b-41d4-a716-446655440002"
@@ -177,7 +179,8 @@ func TestSearchService_GetHexMarkers(t *testing.T) {
 	log, err := logger.New(logger.INFO, "test", "stdout")
 	require.NoError(t, err)
 	unitService := NewUnitService(db, log)
-	searchService := NewSearchService(db, log, unitService)
+	gameService := NewGameService(db, log)
+	searchService := NewSearchService(db, log, unitService, gameService)
 
 	gameID := "550e8400-e29b-41d4-a716-446655440012"
 	playerID := "550e8400-e29b-41d4-a716-446655440003"
@@ -232,7 +235,8 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 	log, err := logger.New(logger.INFO, "test", "stdout")
 	require.NoError(t, err)
 	unitService := NewUnitService(db, log)
-	searchService := NewSearchService(db, log, unitService)
+	gameService := NewGameService(db, log)
+	searchService := NewSearchService(db, log, unitService, gameService)
 
 	gameID := "550e8400-e29b-41d4-a716-446655440013"
 	playerID := "550e8400-e29b-41d4-a716-446655440004"
@@ -286,7 +290,8 @@ func TestSearchService_RemoveAllHexMarkersByType(t *testing.T) {
 	log, err := logger.New(logger.INFO, "test", "stdout")
 	require.NoError(t, err)
 	unitService := NewUnitService(db, log)
-	searchService := NewSearchService(db, log, unitService)
+	gameService := NewGameService(db, log)
+	searchService := NewSearchService(db, log, unitService, gameService)
 
 	gameID := "550e8400-e29b-41d4-a716-446655440014"
 	playerID := "550e8400-e29b-41d4-a716-446655440005"
@@ -340,7 +345,8 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 	log, err := logger.New(logger.INFO, "test", "stdout")
 	require.NoError(t, err)
 	unitService := NewUnitService(db, log)
-	searchService := NewSearchService(db, log, unitService)
+	gameService := NewGameService(db, log)
+	searchService := NewSearchService(db, log, unitService, gameService)
 
 	gameID := "550e8400-e29b-41d4-a716-446655440015"
 	playerID := "550e8400-e29b-41d4-a716-446655440006"

@@ -38,7 +38,8 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 	// Создаем logger для taskForceService
 	log, _ := logger.New(logger.INFO, "test", "")
 	taskForceService := services.NewTaskForceService(db, log, unitService, nil)
-	searchService := services.NewSearchService(db, log, unitService)
+	gameService := services.NewGameService(db, log)
+	searchService := services.NewSearchService(db, log, unitService, gameService)
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
@@ -241,7 +242,8 @@ func TestPhaseSequenceAPI(t *testing.T) {
 	// Создаем logger для taskForceService
 	log, _ := logger.New(logger.INFO, "test", "")
 	taskForceService := services.NewTaskForceService(db, log, unitService, nil)
-	searchService := services.NewSearchService(db, log, unitService)
+	gameService := services.NewGameService(db, log)
+	searchService := services.NewSearchService(db, log, unitService, gameService)
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 
@@ -377,7 +379,8 @@ func TestPhaseValidationAPI(t *testing.T) {
 	// Создаем logger для taskForceService
 	log, _ := logger.New(logger.INFO, "test", "")
 	taskForceService := services.NewTaskForceService(db, log, unitService, nil)
-	searchService := services.NewSearchService(db, log, unitService)
+	gameService := services.NewGameService(db, log)
+	searchService := services.NewSearchService(db, log, unitService, gameService)
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
 	phaseHandler := NewPhaseHandler(phaseManager)
 

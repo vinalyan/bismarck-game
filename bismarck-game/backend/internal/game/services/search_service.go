@@ -13,14 +13,16 @@ type SearchService struct {
 	db          *database.Database
 	logger      *logger.Logger
 	unitService *UnitService
+	gameService *GameService
 }
 
 // NewSearchService создает новый сервис поиска
-func NewSearchService(db *database.Database, logger *logger.Logger, unitService *UnitService) *SearchService {
+func NewSearchService(db *database.Database, logger *logger.Logger, unitService *UnitService, gameService *GameService) *SearchService {
 	return &SearchService{
 		db:          db,
 		logger:      logger,
 		unitService: unitService,
+		gameService: gameService,
 	}
 }
 
@@ -502,24 +504,11 @@ func (s *SearchService) GetHexMarkers(gameID, playerID string, markerType string
 // AddHexMarker добавляет маркер указанного типа в гекс
 // Поддерживает несколько маркеров одного типа в одном гексе (нет UNIQUE constraint)
 func (s *SearchService) AddHexMarker(gameID, playerID, hexID, markerType string) error {
-	// Проверяем, что игрок является участником игры
-	var player1ID, player2ID string
-	checkQuery := `SELECT player1_id, player2_id FROM games WHERE id = $1`
-	err := s.db.GetConnection().QueryRow(checkQuery, gameID).Scan(&player1ID, &player2ID)
+	// Определяем сторону игрока и проверяем, что игрок является участником игры
+	playerSide, err := s.gameService.GetPlayerSide(gameID, playerID)
 	if err != nil {
-		s.logger.Error("Failed to verify game players", "game_id", gameID, "error", err)
-		return fmt.Errorf("failed to verify game: %w", err)
-	}
-	
-	// Определяем сторону игрока для логирования
-	var playerSide string
-	if playerID == player1ID {
-		playerSide = "german"
-	} else if playerID == player2ID {
-		playerSide = "allied"
-	} else {
-		s.logger.Error("Player is not part of this game", "game_id", gameID, "player_id", playerID, "player1_id", player1ID, "player2_id", player2ID)
-		return fmt.Errorf("player is not part of this game")
+		s.logger.Error("Failed to get player side or player is not part of this game", "game_id", gameID, "player_id", playerID, "error", err)
+		return fmt.Errorf("player is not part of this game: %w", err)
 	}
 	
 	s.logger.Info("🔍 Adding hex marker", "game_id", gameID, "player_id", playerID, "player_side", playerSide, "hex_id", hexID, "marker_type", markerType)

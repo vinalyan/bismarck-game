@@ -57,7 +57,8 @@ func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 	// Создаем logger для taskForceService
 	log, _ := logger.New(logger.INFO, "test", "")
 	taskForceService := NewTaskForceService(db, log, unitService, nil)
-	searchService := NewSearchService(db, log, unitService)
+	gameService := NewGameService(db, log)
+	searchService := NewSearchService(db, log, unitService, gameService)
 
 	// Создаем PhaseManager с WebSocket Hub
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, testServer.URL)
@@ -113,7 +114,8 @@ func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 	// Создаем logger для taskForceService
 	log, _ := logger.New(logger.INFO, "test", "")
 	taskForceService := NewTaskForceService(db, log, unitService, nil)
-	searchService := NewSearchService(db, log, unitService)
+	gameService := NewGameService(db, log)
+	searchService := NewSearchService(db, log, unitService, gameService)
 
 	// Создаем PhaseManager с WebSocket Hub
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, testServer.URL)
@@ -184,7 +186,8 @@ func TestPhaseManager_StartPhase_CallsCurrentPhaseAPI(t *testing.T) {
 	// Создаем logger для taskForceService
 	log, _ := logger.New(logger.INFO, "test", "")
 	taskForceService := NewTaskForceService(db, log, unitService, nil)
-	searchService := NewSearchService(db, log, unitService)
+	gameService := NewGameService(db, log)
+	searchService := NewSearchService(db, log, unitService, gameService)
 
 	// Создаем PhaseManager с WebSocket Hub
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, testServer.URL)

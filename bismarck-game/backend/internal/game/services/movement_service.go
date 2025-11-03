@@ -28,10 +28,11 @@ type MovementService struct {
 	mapStructureService *MapStructureService
 	eventService        *GameEventService
 	emergencyFuelService *EmergencyFuelService
+	gameService         *GameService
 }
 
 // NewMovementService создает новый сервис движения
-func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService, phaseManager *PhaseManager, unitService *UnitService, mapStructureService *MapStructureService, eventService *GameEventService, emergencyFuelService *EmergencyFuelService) *MovementService {
+func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService, phaseManager *PhaseManager, unitService *UnitService, mapStructureService *MapStructureService, eventService *GameEventService, emergencyFuelService *EmergencyFuelService, gameService *GameService) *MovementService {
 	hexCalculator := hexgrid.NewStandardHexCalculator()
 	validatorFactory := validation.NewValidatorFactory(hexCalculator)
 
@@ -46,6 +47,7 @@ func NewMovementService(db *database.Database, logger *logger.Logger, visibility
 		mapStructureService: mapStructureService,
 		eventService:        eventService,
 		emergencyFuelService: emergencyFuelService,
+		gameService:         gameService,
 	}
 }
 
@@ -278,8 +280,12 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 	// Логируем событие движения
 	if s.eventService != nil {
 		// Определяем сторону игрока по владельцу юнита
-		playerSide := s.getPlayerSide(unit.GameID, unit.Owner)
-		err := s.eventService.LogMovementEvent(
+		playerSide, err := s.gameService.GetPlayerSide(unit.GameID, unit.Owner)
+		if err != nil {
+			s.logger.Warn("Failed to get player side for movement event", "error", err, "game_id", unit.GameID, "player_id", unit.Owner)
+			playerSide = "unknown" // Fallback для совместимости
+		}
+		err = s.eventService.LogMovementEvent(
 			unit.GameID,
 			unit.ID,
 			unit.Name,
@@ -444,26 +450,6 @@ func (s *MovementService) notifyPlayersAboutMovement(unit *models.NavalUnit, mov
 		"movement_id", movement.ID)
 }
 
-// getPlayerSide определяет сторону игрока по ID игры и ID игрока
-func (s *MovementService) getPlayerSide(gameID, playerID string) string {
-	query := `SELECT player1_id, player2_id FROM games WHERE id = $1`
-	var player1ID, player2ID string
-
-	err := s.db.QueryRow(query, gameID).Scan(&player1ID, &player2ID)
-	if err != nil {
-		s.logger.Error("Failed to get game players", "error", err, "game_id", gameID)
-		return "unknown"
-	}
-
-	if player1ID == playerID {
-		return "german" // Player1 всегда немцы
-	}
-	if player2ID == playerID {
-		return "allied" // Player2 всегда союзники
-	}
-
-	return "unknown"
-}
 
 // CalculateDistance публичный метод для расчета расстояния
 func (s *MovementService) CalculateDistance(fromHex, toHex string) int {
@@ -628,9 +614,13 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 	if s.eventService != nil {
 		currentTurn := s.getCurrentTurn(taskForce.GameID)
 		currentPhase := s.getCurrentPhase(taskForce.GameID)
-		playerSide := s.getPlayerSide(taskForce.GameID, taskForce.Owner)
+		playerSide, err := s.gameService.GetPlayerSide(taskForce.GameID, taskForce.Owner)
+		if err != nil {
+			s.logger.Warn("Failed to get player side for task force movement event", "error", err, "game_id", taskForce.GameID, "player_id", taskForce.Owner)
+			playerSide = "unknown" // Fallback для совместимости
+		}
 
-		err := s.eventService.LogTaskForceMovementEvent(
+		err = s.eventService.LogTaskForceMovementEvent(
 			taskForce.GameID,
 			taskForceID,
 			taskForce.Name,
