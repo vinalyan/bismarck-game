@@ -13,15 +13,18 @@ import (
 
 // VisibilityService предоставляет методы для работы с видимостью юнитов
 type VisibilityService struct {
-	db     *database.Database
-	logger *logger.Logger
+	db          *database.Database
+	logger      *logger.Logger
+	unitService *UnitService
 }
 
 // NewVisibilityService создает новый сервис видимости
 func NewVisibilityService(db *database.Database, logger *logger.Logger) *VisibilityService {
+	unitService := NewUnitService(db, logger)
 	return &VisibilityService{
-		db:     db,
-		logger: logger,
+		db:          db,
+		logger:      logger,
+		unitService: unitService,
 	}
 }
 
@@ -131,6 +134,7 @@ func (s *VisibilityService) UpdateUnitVisibility(gameID, unitID, playerID string
 	}
 
 	// Если состояние не существует, создаем новое
+	now := time.Now()
 	if state == nil {
 		state = &models.UnitVisibilityState{
 			ID:           s.generateID(),
@@ -138,14 +142,21 @@ func (s *VisibilityService) UpdateUnitVisibility(gameID, unitID, playerID string
 			UnitID:       unitID,
 			PlayerID:     playerID,
 			Visibility:   visibility,
-			LastKnownHex: "",
-			LastSeenAt:   time.Now(),
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			LastKnownHex: "", // Можно установить позже через SetUnitSighted/SetUnitShadowed
+			LastSeenAt:   now,
+			CreatedAt:    now,
+			UpdatedAt:    now,
 		}
 	} else {
 		// Обновляем существующее состояние
-		state.UpdateVisibility(visibility, state.LastKnownHex)
+		// Сохраняем LastKnownHex если он уже установлен
+		lastKnownHex := state.LastKnownHex
+		state.UpdateVisibility(visibility, lastKnownHex)
+		state.UpdatedAt = now
+		// Обновляем LastSeenAt если юнит видим
+		if visibility == models.VisibilitySighted || visibility == models.VisibilityShadowed {
+			state.LastSeenAt = now
+		}
 	}
 
 	// Сохраняем состояние в базе данных
@@ -233,12 +244,80 @@ func (s *VisibilityService) GetUnitVisibility(gameID, unitID, playerID string) (
 
 // SetUnitSighted помечает юнит как обнаруженный
 func (s *VisibilityService) SetUnitSighted(gameID, unitID, playerID, hex string) error {
-	return s.UpdateUnitVisibility(gameID, unitID, playerID, models.VisibilitySighted)
+	// Получаем текущее состояние
+	state, err := s.getVisibilityState(gameID, unitID, playerID)
+	if err != nil {
+		return fmt.Errorf("failed to get visibility state: %w", err)
+	}
+
+	// Если состояние не существует, создаем новое
+	if state == nil {
+		now := time.Now()
+		state = &models.UnitVisibilityState{
+			ID:           s.generateID(),
+			GameID:       gameID,
+			UnitID:       unitID,
+			PlayerID:     playerID,
+			Visibility:   models.VisibilitySighted,
+			LastKnownHex: hex,
+			LastSeenAt:   now,
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		}
+	} else {
+		// Обновляем существующее состояние
+		state.UpdateVisibility(models.VisibilitySighted, hex)
+		state.LastKnownHex = hex
+		state.LastSeenAt = time.Now()
+		state.UpdatedAt = time.Now()
+	}
+
+	// Сохраняем в БД
+	if err := s.saveVisibilityState(state); err != nil {
+		return fmt.Errorf("failed to save visibility state: %w", err)
+	}
+
+	s.logger.Info("Unit set as sighted", "unit_id", unitID, "player_id", playerID, "hex", hex)
+	return nil
 }
 
 // SetUnitShadowed помечает юнит как преследуемый
 func (s *VisibilityService) SetUnitShadowed(gameID, unitID, playerID, hex string) error {
-	return s.UpdateUnitVisibility(gameID, unitID, playerID, models.VisibilityShadowed)
+	// Получаем текущее состояние
+	state, err := s.getVisibilityState(gameID, unitID, playerID)
+	if err != nil {
+		return fmt.Errorf("failed to get visibility state: %w", err)
+	}
+
+	// Если состояние не существует, создаем новое
+	if state == nil {
+		now := time.Now()
+		state = &models.UnitVisibilityState{
+			ID:           s.generateID(),
+			GameID:       gameID,
+			UnitID:       unitID,
+			PlayerID:     playerID,
+			Visibility:   models.VisibilityShadowed,
+			LastKnownHex: hex,
+			LastSeenAt:   now,
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		}
+	} else {
+		// Обновляем существующее состояние
+		state.UpdateVisibility(models.VisibilityShadowed, hex)
+		state.LastKnownHex = hex
+		state.LastSeenAt = time.Now()
+		state.UpdatedAt = time.Now()
+	}
+
+	// Сохраняем в БД
+	if err := s.saveVisibilityState(state); err != nil {
+		return fmt.Errorf("failed to save visibility state: %w", err)
+	}
+
+	s.logger.Info("Unit set as shadowed", "unit_id", unitID, "player_id", playerID, "hex", hex)
+	return nil
 }
 
 // ClearUnitVisibility сбрасывает видимость юнита (удаляет запись из базы данных)
@@ -267,29 +346,62 @@ func (s *VisibilityService) ClearUnitVisibility(gameID, unitID, playerID string)
 // Вспомогательные методы
 
 func (s *VisibilityService) getAllUnitsInGame(gameID string) ([]*models.NavalUnit, error) {
-	// Упрощенная реализация - в реальной игре нужно получать из базы данных
-	// Возвращаем тестовые данные
-	return []*models.NavalUnit{
-		{
-			ID:     "unit1",
-			GameID: gameID,
-			Type:   models.UnitTypeBattleship,
-			Owner:  "german",
-			Position: "K15",
-		},
-		{
-			ID:     "unit2",
-			GameID: gameID,
-			Type:   models.UnitTypeHeavyCruiser,
-			Owner:  "allied",
-			Position: "L16",
-		},
-	}, nil
+	// Получаем все морские юниты игры через UnitService
+	units, err := s.unitService.GetNavalUnitsByGameID(gameID)
+	if err != nil {
+		s.logger.Error("Failed to get all units in game", "error", err, "game_id", gameID)
+		return nil, fmt.Errorf("failed to get all units in game: %w", err)
+	}
+
+	// Преобразуем []models.NavalUnit в []*models.NavalUnit
+	result := make([]*models.NavalUnit, len(units))
+	for i := range units {
+		result[i] = &units[i]
+	}
+
+	return result, nil
 }
 
 func (s *VisibilityService) getVisibilityStatesForPlayer(gameID, playerID string) ([]*models.UnitVisibilityState, error) {
-	// Упрощенная реализация - в реальной игре нужно получать из базы данных
-	return []*models.UnitVisibilityState{}, nil
+	query := `
+		SELECT id, game_id, unit_id, player_id, visibility, last_known_hex, last_seen_at, created_at, updated_at
+		FROM unit_visibility
+		WHERE game_id = $1 AND player_id = $2
+	`
+
+	rows, err := s.db.Query(query, gameID, playerID)
+	if err != nil {
+		s.logger.Error("Failed to query visibility states", "error", err, "game_id", gameID, "player_id", playerID)
+		return nil, fmt.Errorf("failed to get visibility states: %w", err)
+	}
+	defer rows.Close()
+
+	var states []*models.UnitVisibilityState
+	for rows.Next() {
+		var state models.UnitVisibilityState
+		err := rows.Scan(
+			&state.ID,
+			&state.GameID,
+			&state.UnitID,
+			&state.PlayerID,
+			&state.Visibility,
+			&state.LastKnownHex,
+			&state.LastSeenAt,
+			&state.CreatedAt,
+			&state.UpdatedAt,
+		)
+		if err != nil {
+			s.logger.Error("Failed to scan visibility state", "error", err)
+			continue
+		}
+		states = append(states, &state)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating visibility states: %w", err)
+	}
+
+	return states, nil
 }
 
 func (s *VisibilityService) getVisibilityState(gameID, unitID, playerID string) (*models.UnitVisibilityState, error) {

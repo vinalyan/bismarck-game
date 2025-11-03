@@ -134,39 +134,92 @@ func TestGetLastKnownPositions(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	testGameID := "550e8400-e29b-41d4-a716-446655440001"
+	testUnitID1 := "550e8400-e29b-41d4-a716-446655440002"
+	testUnitID2 := "550e8400-e29b-41d4-a716-446655440003"
+
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id::text LIKE 'test-game-%'")
+	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id = $1", testGameID)
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", testGameID)
+	require.NoError(t, err)
+
+	// Create test game to satisfy foreign key constraint
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
 	service := NewVisibilityService(db, logger)
+	unitService := NewUnitService(db, logger)
 
-	// Create test visibility records
-	visibility1 := &models.UnitVisibilityState{
-		GameID:       "550e8400-e29b-41d4-a716-446655440001",
-		UnitID:       "unit-1",
-		PlayerID:     "testuser1",
-		Visibility:   models.VisibilityUnknown,
-		LastKnownHex: "A1",
-		LastSeenAt:   time.Now(),
+	// Create test units first (needed for GetLastKnownPositions to work)
+	unit1 := &models.NavalUnit{
+		GameID:      testGameID,
+		Name:        "Unit 1",
+		Type:        models.UnitTypeBattleship,
+		Class:       "Bismarck",
+		Owner:       "testuser2", // Different owner so it's not own unit
+		Nationality: "german",
+		Position:    "A1",
+		SetupHex:    "A1",
+		Evasion:     3,
+		BaseEvasion: 3,
+		SpeedRating: models.SpeedTypeMedium,
+		Fuel:        100,
+		MaxFuel:     100,
+		HullBoxes:   8,
+		CurrentHull: 8,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
-	err = service.UpdateUnitVisibility(visibility1.GameID, visibility1.UnitID, visibility1.PlayerID, visibility1.Visibility)
+	err = unitService.CreateNavalUnit(unit1)
+	require.NoError(t, err)
+	// Update unit ID to match our test ID
+	_, err = db.GetConnection().Exec("UPDATE naval_units SET id = $1 WHERE id = $2", testUnitID1, unit1.ID)
 	require.NoError(t, err)
 
-	visibility2 := &models.UnitVisibilityState{
-		GameID:       "550e8400-e29b-41d4-a716-446655440001",
-		UnitID:       "unit-2",
-		PlayerID:     "testuser1",
-		Visibility:   models.VisibilityUnknown,
-		LastKnownHex: "B1",
-		LastSeenAt:   time.Now(),
+	unit2 := &models.NavalUnit{
+		GameID:      testGameID,
+		Name:        "Unit 2",
+		Type:        models.UnitTypeHeavyCruiser,
+		Class:       "Prinz Eugen",
+		Owner:       "testuser2", // Different owner so it's not own unit
+		Nationality: "german",
+		Position:    "B1",
+		SetupHex:    "B1",
+		Evasion:     4,
+		BaseEvasion: 4,
+		SpeedRating: models.SpeedTypeFast,
+		Fuel:        80,
+		MaxFuel:     80,
+		HullBoxes:   6,
+		CurrentHull: 6,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
-	err = service.UpdateUnitVisibility(visibility2.GameID, visibility2.UnitID, visibility2.PlayerID, visibility2.Visibility)
+	err = unitService.CreateNavalUnit(unit2)
+	require.NoError(t, err)
+	// Update unit ID to match our test ID
+	_, err = db.GetConnection().Exec("UPDATE naval_units SET id = $1 WHERE id = $2", testUnitID2, unit2.ID)
+	require.NoError(t, err)
+
+	// Create test visibility records with LastKnownHex
+	// Создаем записи через UpdateUnitVisibility, затем обновляем LastKnownHex через SQL
+	err = service.UpdateUnitVisibility(testGameID, testUnitID1, "testuser1", models.VisibilityUnknown)
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("UPDATE unit_visibility SET last_known_hex = $1 WHERE game_id = $2 AND unit_id = $3 AND player_id = $4", "A1", testGameID, testUnitID1, "testuser1")
+	require.NoError(t, err)
+
+	err = service.UpdateUnitVisibility(testGameID, testUnitID2, "testuser1", models.VisibilityUnknown)
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("UPDATE unit_visibility SET last_known_hex = $1 WHERE game_id = $2 AND unit_id = $3 AND player_id = $4", "B1", testGameID, testUnitID2, "testuser1")
 	require.NoError(t, err)
 
 	t.Run("get last known positions", func(t *testing.T) {
-		lastKnown, err := service.GetLastKnownPositions("550e8400-e29b-41d4-a716-446655440001", "testuser1")
+		lastKnown, err := service.GetLastKnownPositions(testGameID, "testuser1")
 		assert.NoError(t, err)
 		assert.Len(t, lastKnown, 2)
 
@@ -180,7 +233,8 @@ func TestGetLastKnownPositions(t *testing.T) {
 	})
 
 	t.Run("get last known positions for non-existing game", func(t *testing.T) {
-		lastKnown, err := service.GetLastKnownPositions("non-existing-game", "testuser1")
+		nonExistingGameID := "550e8400-e29b-41d4-a716-446655440004"
+		lastKnown, err := service.GetLastKnownPositions(nonExistingGameID, "testuser1")
 		assert.NoError(t, err)
 		assert.Len(t, lastKnown, 0)
 	})
@@ -191,8 +245,17 @@ func TestUpdateUnitVisibility(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	testGameID := "550e8400-e29b-41d4-a716-446655440001"
+	testUnitID := "550e8400-e29b-41d4-a716-446655440002"
+
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id::text LIKE 'test-game-%'")
+	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id = $1", testGameID)
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", testGameID)
+	require.NoError(t, err)
+
+	// Create test game to satisfy foreign key constraint
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -200,20 +263,13 @@ func TestUpdateUnitVisibility(t *testing.T) {
 	service := NewVisibilityService(db, logger)
 
 	t.Run("successful update", func(t *testing.T) {
-		visibility := &models.UnitVisibilityState{
-			GameID:       "550e8400-e29b-41d4-a716-446655440001",
-			UnitID:       "unit-1",
-			PlayerID:     "testuser1",
-			Visibility:   models.VisibilitySighted,
-			LastKnownHex: "A1",
-			LastSeenAt:   time.Now(),
-		}
-
-		err := service.UpdateUnitVisibility(visibility.GameID, visibility.UnitID, visibility.PlayerID, visibility.Visibility)
+		err := service.UpdateUnitVisibility(testGameID, testUnitID, "testuser1", models.VisibilitySighted)
 		assert.NoError(t, err)
-		assert.NotEmpty(t, visibility.ID)
-		assert.NotZero(t, visibility.CreatedAt)
-		assert.NotZero(t, visibility.UpdatedAt)
+
+		// Verify visibility was saved by retrieving it
+		retrievedVisibility, err := service.GetUnitVisibility(testGameID, testUnitID, "testuser1")
+		assert.NoError(t, err)
+		assert.Equal(t, models.VisibilitySighted, retrievedVisibility)
 	})
 
 	t.Run("database error", func(t *testing.T) {
@@ -292,8 +348,18 @@ func TestGetUnitVisibility(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	testGameID := "550e8400-e29b-41d4-a716-446655440001"
+	testUnitID := "550e8400-e29b-41d4-a716-446655440002"
+	nonExistingUnitID := "550e8400-e29b-41d4-a716-446655440003"
+
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id::text LIKE 'test-game-%'")
+	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id = $1", testGameID)
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", testGameID)
+	require.NoError(t, err)
+
+	// Create test game to satisfy foreign key constraint
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -302,8 +368,8 @@ func TestGetUnitVisibility(t *testing.T) {
 
 	// Create test visibility record
 	visibility := &models.UnitVisibilityState{
-		GameID:       "550e8400-e29b-41d4-a716-446655440001",
-		UnitID:       "unit-1",
+		GameID:       testGameID,
+		UnitID:       testUnitID,
 		PlayerID:     "testuser1",
 		Visibility:   models.VisibilitySighted,
 		LastKnownHex: "A1",
@@ -313,13 +379,13 @@ func TestGetUnitVisibility(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("get existing unit visibility", func(t *testing.T) {
-		retrievedVisibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1")
+		retrievedVisibility, err := service.GetUnitVisibility(testGameID, testUnitID, "testuser1")
 		assert.NoError(t, err)
 		assert.Equal(t, models.VisibilitySighted, retrievedVisibility)
 	})
 
 	t.Run("get non-existing unit visibility", func(t *testing.T) {
-		_, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "non-existing-unit", "testuser1")
+		_, err := service.GetUnitVisibility(testGameID, nonExistingUnitID, "testuser1")
 		assert.Error(t, err)
 	})
 }
@@ -329,8 +395,18 @@ func TestSetUnitSighted(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	testGameID := "550e8400-e29b-41d4-a716-446655440001"
+	testUnitID1 := "550e8400-e29b-41d4-a716-446655440002"
+	testUnitID2 := "550e8400-e29b-41d4-a716-446655440003"
+
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id::text LIKE 'test-game-%'")
+	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id = $1", testGameID)
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", testGameID)
+	require.NoError(t, err)
+
+	// Create test game to satisfy foreign key constraint
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -338,26 +414,26 @@ func TestSetUnitSighted(t *testing.T) {
 	service := NewVisibilityService(db, logger)
 
 	t.Run("set unit as sighted", func(t *testing.T) {
-		err := service.SetUnitSighted("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1", "A1")
+		err := service.SetUnitSighted(testGameID, testUnitID1, "testuser1", "A1")
 		assert.NoError(t, err)
 
 		// Verify unit was set as sighted
-		visibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1")
+		visibility, err := service.GetUnitVisibility(testGameID, testUnitID1, "testuser1")
 		assert.NoError(t, err)
 		assert.Equal(t, models.VisibilitySighted, visibility)
 	})
 
 	t.Run("update existing sighted unit", func(t *testing.T) {
 		// First sighting
-		err := service.SetUnitSighted("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1", "A1")
+		err := service.SetUnitSighted(testGameID, testUnitID2, "testuser1", "A1")
 		assert.NoError(t, err)
 
 		// Second sighting at different position
-		err = service.SetUnitSighted("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1", "B1")
+		err = service.SetUnitSighted(testGameID, testUnitID2, "testuser1", "B1")
 		assert.NoError(t, err)
 
 		// Verify position was updated
-		visibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1")
+		visibility, err := service.GetUnitVisibility(testGameID, testUnitID2, "testuser1")
 		assert.NoError(t, err)
 		assert.Equal(t, models.VisibilitySighted, visibility)
 	})
@@ -368,8 +444,18 @@ func TestSetUnitShadowed(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	testGameID := "550e8400-e29b-41d4-a716-446655440001"
+	testUnitID1 := "550e8400-e29b-41d4-a716-446655440002"
+	testUnitID2 := "550e8400-e29b-41d4-a716-446655440003"
+
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id::text LIKE 'test-game-%'")
+	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id = $1", testGameID)
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", testGameID)
+	require.NoError(t, err)
+
+	// Create test game to satisfy foreign key constraint
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -377,26 +463,26 @@ func TestSetUnitShadowed(t *testing.T) {
 	service := NewVisibilityService(db, logger)
 
 	t.Run("set unit as shadowed", func(t *testing.T) {
-		err := service.SetUnitShadowed("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1", "A1")
+		err := service.SetUnitShadowed(testGameID, testUnitID1, "testuser1", "A1")
 		assert.NoError(t, err)
 
 		// Verify unit was set as shadowed
-		visibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1")
+		visibility, err := service.GetUnitVisibility(testGameID, testUnitID1, "testuser1")
 		assert.NoError(t, err)
 		assert.Equal(t, models.VisibilityShadowed, visibility)
 	})
 
 	t.Run("update existing shadowed unit", func(t *testing.T) {
 		// First shadowing
-		err := service.SetUnitShadowed("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1", "A1")
+		err := service.SetUnitShadowed(testGameID, testUnitID2, "testuser1", "A1")
 		assert.NoError(t, err)
 
 		// Second shadowing at different position
-		err = service.SetUnitShadowed("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1", "B1")
+		err = service.SetUnitShadowed(testGameID, testUnitID2, "testuser1", "B1")
 		assert.NoError(t, err)
 
 		// Verify position was updated
-		visibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-2", "testuser1")
+		visibility, err := service.GetUnitVisibility(testGameID, testUnitID2, "testuser1")
 		assert.NoError(t, err)
 		assert.Equal(t, models.VisibilityShadowed, visibility)
 	})
