@@ -14,7 +14,7 @@ import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
 import { mapService, MapStructure } from '../services/api/mapService';
 import { gameEventAPI } from '../services/api/gameEventAPI';
-import { searchAPI } from '../services/api/searchAPI';
+import { searchAPI, HexMarkers } from '../services/api/searchAPI';
 import { GameTurnResponse, PHASE_NAMES } from '../types/phaseTypes';
 import wsClient from '../services/websocket/websocketClient';
 import HexMap from './HexMap';
@@ -133,7 +133,7 @@ const Game: React.FC = () => {
   const [taskForces, setTaskForces] = useState<TaskForce[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [searchFactorHexes, setSearchFactorHexes] = useState<Map<string, number>>(new Map());
-  const [flightPathSearchMarkers, setFlightPathSearchMarkers] = useState<Set<string>>(new Set());
+  const [hexMarkers, setHexMarkers] = useState<Record<string, HexMarkers>>({});
 
   // Хук для управления активными гексами
   const {
@@ -207,14 +207,7 @@ const Game: React.FC = () => {
           });
         }
 
-        // Загружаем маркеры пути полета поиска
-        try {
-          const markers = await searchAPI.getFlightPathSearchMarkers(currentGame.id, authToken);
-          setFlightPathSearchMarkers(new Set(markers));
-        } catch (error) {
-          console.error('Error loading flight path search markers:', error);
-          // Не критично, просто продолжаем
-        }
+        // Маркеры теперь загружаются через getSearchFactors, см. calculateSearchFactors выше
       } catch (error) {
         console.error('Error loading game units:', error);
         addNotification({
@@ -313,21 +306,36 @@ const Game: React.FC = () => {
       }
 
       try {
-        // Вызываем API для расчета факторов поиска
-        const factors = await searchAPI.getSearchFactors(
+        // Вызываем API для расчета факторов поиска (теперь возвращает и факторы, и маркеры)
+        const response = await searchAPI.getSearchFactors(
           currentGame.id,
           seaHexes,
           playerSide as 'german' | 'allied',
           authToken
         );
 
-        // Сохраняем результаты в Map
+        // Сохраняем результаты факторов поиска в Map
         const factorsMap = new Map<string, number>();
-        Object.entries(factors).forEach(([hexId, factorValue]) => {
+        Object.entries(response.hex_factors).forEach(([hexId, factorValue]) => {
           factorsMap.set(hexId, factorValue);
         });
 
         setSearchFactorHexes(factorsMap);
+        
+        // Сохраняем информацию о маркерах
+        if (response.hex_markers) {
+          console.log('🔍 Game: Setting hexMarkers from calculateSearchFactors:', Object.keys(response.hex_markers).length, 'hexes');
+          // Логируем примеры маркеров
+          const markersWithData = Object.entries(response.hex_markers).filter(([hexId, markers]: [string, any]) => 
+            Object.keys(markers).length > 0
+          );
+          if (markersWithData.length > 0) {
+            console.log('🔍 Game: Hexes with markers:', markersWithData.slice(0, 10));
+          }
+          setHexMarkers(response.hex_markers);
+        } else {
+          console.log('🔍 Game: No hex_markers in response');
+        }
       } catch (error) {
         // Ошибка расчета факторов поиска - просто игнорируем
       }
@@ -491,16 +499,28 @@ const Game: React.FC = () => {
               return;
             }
             
+            const playerSide = getPlayerSideString();
+            if (playerSide === 'unknown') {
+              console.error('Unable to determine player side');
+              return;
+            }
+            
             const results = await Promise.all([
               phaseAPI.getCurrentPhase(currentGame.id),
-              gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15),
+              gameEventAPI.getGameEvents(currentGame.id, playerSide as 'german' | 'allied', 15),
               unitsAPI.getGameUnits(currentGame.id, authToken),
-              searchAPI.getFlightPathSearchMarkers(currentGame.id, authToken)
+              // Получаем маркеры через getSearchFactors
+              searchAPI.getSearchFactors(
+                currentGame.id,
+                getAllSeaHexes(),
+                playerSide as 'german' | 'allied',
+                authToken
+              )
             ]);
             
             const updatedTurn = results[0];
             const unitsResponse = results[2];
-            const markers = results[3];
+            const searchResponse = results[3];
             
             if (updatedTurn) {
               setCurrentTurn(updatedTurn);
@@ -516,8 +536,10 @@ const Game: React.FC = () => {
               }
             }
 
-            // Обновляем маркеры пути полета поиска
-            setFlightPathSearchMarkers(new Set(markers));
+            // Обновляем маркеры из ответа getSearchFactors
+            if (searchResponse.hex_markers) {
+              setHexMarkers(searchResponse.hex_markers);
+            }
             
             // Показываем уведомление
             const phaseName = eventData.data?.phase ? PHASE_NAMES[eventData.data.phase as GamePhase] : 'Неизвестная фаза';
@@ -540,23 +562,37 @@ const Game: React.FC = () => {
               return;
             }
             
+            const playerSide = getPlayerSideString();
+            if (playerSide === 'unknown') {
+              console.error('Unable to determine player side');
+              return;
+            }
+            
             const results = await Promise.all([
               phaseAPI.getCurrentPhase(currentGame.id),
-              gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15),
+              gameEventAPI.getGameEvents(currentGame.id, playerSide as 'german' | 'allied', 15),
               unitsAPI.getGameUnits(currentGame.id, authToken),
-              searchAPI.getFlightPathSearchMarkers(currentGame.id, authToken)
+              // Получаем маркеры через getSearchFactors
+              searchAPI.getSearchFactors(
+                currentGame.id,
+                getAllSeaHexes(),
+                playerSide as 'german' | 'allied',
+                authToken
+              )
             ]);
             
             const updatedTurn = results[0];
             const unitsResponse = results[2];
-            const markers = results[3];
+            const searchResponse = results[3];
             
             if (updatedTurn) {
               setCurrentTurn(updatedTurn);
             }
 
-            // Обновляем маркеры пути полета поиска
-            setFlightPathSearchMarkers(new Set(markers));
+            // Обновляем маркеры из ответа getSearchFactors
+            if (searchResponse.hex_markers) {
+              setHexMarkers(searchResponse.hex_markers);
+            }
             
             // Обновляем юниты и TF, особенно важно после admin фазы (сброс патрулей)
             if (unitsResponse.success && unitsResponse.data) {
@@ -1596,28 +1632,50 @@ const Game: React.FC = () => {
             expandedStackHex={expandedStackHex}
             gameId={currentGame?.id || undefined}
             authToken={authToken}
-            onRefreshData={() => {
+            onRefreshData={async () => {
               // Обновляем все данные игры
               if (currentGame?.id && authToken) {
-                // Загружаем юниты
-                unitsAPI.getGameUnits(currentGame.id, authToken).then(response => {
-                  if (response.success && response.data) {
-                    if (response.data.units) {
-                      setGameUnits(response.data.units);
+                const playerSide = getPlayerSideString();
+                if (playerSide === 'unknown') {
+                  console.warn('⚠️ Cannot refresh: unknown player side');
+                  return;
+                }
+                
+                try {
+                  // Загружаем юниты
+                  const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
+                  if (unitsResponse.success && unitsResponse.data) {
+                    if (unitsResponse.data.units) {
+                      setGameUnits(unitsResponse.data.units);
                     }
-                    if (response.data.task_forces) {
-                      setTaskForces(response.data.task_forces);
+                    if (unitsResponse.data.task_forces) {
+                      setTaskForces(unitsResponse.data.task_forces);
                     }
                   }
-                });
-                // Загружаем маркеры пути полета поиска
-                searchAPI.getFlightPathSearchMarkers(currentGame.id, authToken).then(markers => {
-                  setFlightPathSearchMarkers(new Set(markers));
-                });
-                // Загружаем текущую фазу
-                phaseAPI.getCurrentPhase(currentGame.id).then(turn => {
+                  
+                  // Обновляем маркеры через getSearchFactors
+                  if (mapStructures) {
+                    const seaHexes = getAllSeaHexes();
+                    if (seaHexes.length > 0) {
+                      const searchResponse = await searchAPI.getSearchFactors(
+                        currentGame.id,
+                        seaHexes,
+                        playerSide as 'german' | 'allied',
+                        authToken
+                      );
+                      if (searchResponse.hex_markers) {
+                        console.log('🔄 Refreshed hex markers:', Object.keys(searchResponse.hex_markers).length, 'hexes');
+                        setHexMarkers(searchResponse.hex_markers);
+                      }
+                    }
+                  }
+                  
+                  // Загружаем текущую фазу
+                  const turn = await phaseAPI.getCurrentPhase(currentGame.id);
                   setCurrentTurn(turn);
-                });
+                } catch (error) {
+                  console.error('❌ Error refreshing data:', error);
+                }
               }
             }}
             currentTurn={getTurnData(currentTurn)?.turn_number}
@@ -1638,6 +1696,7 @@ const Game: React.FC = () => {
             currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
             searchFactorHexes={searchFactorHexes}
             visibilityLevel={getTurnData(currentTurn)?.visibility_level ?? currentGame?.visibility_level ?? 1}
+            hexMarkers={hexMarkers}
           />
         </div>
 
@@ -1718,10 +1777,7 @@ const Game: React.FC = () => {
                     }
                   }
                 });
-                // Загружаем маркеры пути полета поиска
-                searchAPI.getFlightPathSearchMarkers(currentGame.id, authToken).then(markers => {
-                  setFlightPathSearchMarkers(new Set(markers));
-                });
+                // Маркеры загружаются через getSearchFactors (см. calculateSearchFactors выше)
                 // Загружаем текущую фазу
                 phaseAPI.getCurrentPhase(currentGame.id).then(turn => {
                   setCurrentTurn(turn);
@@ -1731,7 +1787,7 @@ const Game: React.FC = () => {
             onUnitStackClick={handleUnitStackClick}
             onStackedUnitSelect={handleStackedUnitSelect}
             currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
-            flightPathSearchMarkers={flightPathSearchMarkers}
+            hexMarkers={hexMarkers}
           />
         </div>
       </div>

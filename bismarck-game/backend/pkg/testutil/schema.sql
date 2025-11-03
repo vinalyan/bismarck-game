@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS naval_units (
     is_activated BOOLEAN DEFAULT false,
     is_emergency_fuel BOOLEAN DEFAULT false,
     emergency_turn INTEGER DEFAULT 0,
+    is_patrolling BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -103,6 +105,7 @@ CREATE TABLE IF NOT EXISTS task_forces (
     detection_level VARCHAR(20) DEFAULT 'none',
     last_move_turn INTEGER DEFAULT 0,
     is_activated BOOLEAN DEFAULT false,
+    is_patrolling BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -192,3 +195,18 @@ CREATE INDEX IF NOT EXISTS idx_unit_visibility_player_id ON unit_visibility(play
 CREATE INDEX IF NOT EXISTS idx_game_events_game_id ON game_events(game_id);
 CREATE INDEX IF NOT EXISTS idx_unit_searches_game_id ON unit_searches(game_id);
 CREATE INDEX IF NOT EXISTS idx_movements_game_id ON movements(game_id);
+
+-- Таблица универсальных маркеров гексов
+CREATE TABLE IF NOT EXISTS hex_markers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    player_id UUID NOT NULL,
+    hex_id VARCHAR(10) NOT NULL,
+    marker_type VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_hex_markers_game_hex_type ON hex_markers(game_id, hex_id, marker_type);
+CREATE INDEX IF NOT EXISTS idx_hex_markers_game_player_type ON hex_markers(game_id, player_id, marker_type);
+CREATE INDEX IF NOT EXISTS idx_hex_markers_game_type ON hex_markers(game_id, marker_type);

@@ -914,6 +914,87 @@ func getMigrations() []Migration {
 				DROP TABLE IF EXISTS flight_path_search_markers;
 			`,
 		},
+		{
+			Version:     "020_create_hex_markers",
+			Description: "Create universal hex_markers table for storing all types of hex markers",
+			SQL: `
+				-- Универсальная таблица для всех типов маркеров на гексах
+				CREATE TABLE IF NOT EXISTS hex_markers (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+					player_id UUID NOT NULL,
+					hex_id VARCHAR(10) NOT NULL,
+					marker_type VARCHAR(20) NOT NULL,
+					created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+				);
+
+				-- Индексы для быстрого поиска
+				CREATE INDEX IF NOT EXISTS idx_hex_markers_game_hex_type 
+					ON hex_markers(game_id, hex_id, marker_type);
+					
+				CREATE INDEX IF NOT EXISTS idx_hex_markers_game_player_type 
+					ON hex_markers(game_id, player_id, marker_type);
+
+				CREATE INDEX IF NOT EXISTS idx_hex_markers_game_type 
+					ON hex_markers(game_id, marker_type);
+
+				-- Комментарии
+				COMMENT ON TABLE hex_markers IS 'Универсальная таблица для хранения маркеров на гексах. Поддерживает несколько маркеров одного типа в гексе.';
+				COMMENT ON COLUMN hex_markers.marker_type IS 'Тип маркера: flight_path_search (путь полета поиска), air_attack (воздушная атака) и т.д.';
+			`,
+			RollbackSQL: `
+				DROP INDEX IF EXISTS idx_hex_markers_game_type;
+				DROP INDEX IF EXISTS idx_hex_markers_game_player_type;
+				DROP INDEX IF EXISTS idx_hex_markers_game_hex_type;
+				DROP TABLE IF EXISTS hex_markers;
+			`,
+		},
+		{
+			Version:     "021_migrate_flight_path_markers",
+			Description: "Migrate data from flight_path_search_markers to hex_markers",
+			SQL: `
+				-- Перенос данных из flight_path_search_markers в hex_markers
+				INSERT INTO hex_markers (game_id, player_id, hex_id, marker_type, created_at, updated_at)
+				SELECT game_id, player_id, hex_id, 'flight_path_search', created_at, updated_at
+				FROM flight_path_search_markers
+				WHERE NOT EXISTS (
+					SELECT 1 FROM hex_markers hm 
+					WHERE hm.game_id = flight_path_search_markers.game_id 
+					AND hm.player_id = flight_path_search_markers.player_id 
+					AND hm.hex_id = flight_path_search_markers.hex_id 
+					AND hm.marker_type = 'flight_path_search'
+				);
+			`,
+			RollbackSQL: `
+				-- Откат не требуется, данные остаются в обеих таблицах
+			`,
+		},
+		{
+			Version:     "022_drop_flight_path_search_markers",
+			Description: "Drop old flight_path_search_markers table after migration to hex_markers",
+			SQL: `
+				-- Удаление старой таблицы flight_path_search_markers
+				-- После миграции данных в hex_markers старая таблица больше не нужна
+				DROP TABLE IF EXISTS flight_path_search_markers;
+			`,
+			RollbackSQL: `
+				-- Восстановление таблицы (без данных, так как они уже в hex_markers)
+				CREATE TABLE IF NOT EXISTS flight_path_search_markers (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+					player_id UUID NOT NULL,
+					hex_id VARCHAR(10) NOT NULL,
+					created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					UNIQUE(game_id, player_id, hex_id)
+				);
+				CREATE INDEX IF NOT EXISTS idx_flight_path_search_markers_game_hex 
+					ON flight_path_search_markers(game_id, hex_id);
+				CREATE INDEX IF NOT EXISTS idx_flight_path_search_markers_game_player 
+					ON flight_path_search_markers(game_id, player_id);
+			`,
+		},
 	}
 }
 

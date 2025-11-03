@@ -16,7 +16,7 @@ import { phaseAPI } from '../services/api/phaseAPI';
 import { gameEventAPI } from '../services/api/gameEventAPI';
 import { unitsAPI } from '../services/api/unitsAPI';
 import { gameAPI } from '../services/api/gameAPI';
-import { searchAPI } from '../services/api/searchAPI';
+import { searchAPI, HexMarkers } from '../services/api/searchAPI';
 import './HexMap.css';
 
 interface HexMapProps {
@@ -50,7 +50,7 @@ interface HexMapProps {
   currentPhase?: string;
   searchFactorHexes?: Map<string, number>;
   visibilityLevel?: number;
-  flightPathSearchMarkers?: Set<string>;
+  hexMarkers?: Record<string, HexMarkers>;
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -84,7 +84,7 @@ const HexMap: React.FC<HexMapProps> = ({
   currentPhase = 'setup',
   searchFactorHexes = new Map<string, number>(),
   visibilityLevel = 1,
-  flightPathSearchMarkers: flightPathSearchMarkersProp = new Set<string>()
+  hexMarkers = {}
 }) => {
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
@@ -97,10 +97,48 @@ const HexMap: React.FC<HexMapProps> = ({
   const [selectedPatrolHex, setSelectedPatrolHex] = useState<string | null>(null);
   const [isFlightPathSearchMode, setIsFlightPathSearchMode] = useState(false);
   const [displaySearchFactors, setDisplaySearchFactors] = useState<Map<string, number>>(new Map());
-  
-  // Используем пропс напрямую для отображения маркеров
-  const flightPathSearchMarkers = flightPathSearchMarkersProp;
+  // Локальное состояние для оптимистичного обновления маркеров
+  const [localHexMarkers, setLocalHexMarkers] = useState<Record<string, HexMarkers>>({});
   const [isLoadingSearchFactors, setIsLoadingSearchFactors] = useState(false);
+  
+  // Объединяем пропсы и локальное состояние для немедленного отображения
+  const effectiveHexMarkers = useMemo(() => {
+    const merged = { ...hexMarkers };
+    Object.keys(localHexMarkers).forEach(hexId => {
+      const local = localHexMarkers[hexId];
+      const existing = merged[hexId] || {};
+      merged[hexId] = {
+        ...existing,
+        ...local,
+        // Объединяем счетчики маркеров
+        flight_path_search: local.flight_path_search !== undefined 
+          ? local.flight_path_search 
+          : existing.flight_path_search,
+      };
+    });
+    return merged;
+  }, [hexMarkers, localHexMarkers]);
+  
+  // Очищаем локальное состояние при обновлении данных с сервера
+  // Очищаем только те маркеры, которые уже есть в серверных данных
+  useEffect(() => {
+    if (hexMarkers && Object.keys(hexMarkers).length > 0) {
+      setLocalHexMarkers(prev => {
+        const cleaned: Record<string, HexMarkers> = {};
+        // Оставляем только те локальные маркеры, которых еще нет на сервере
+        Object.keys(prev).forEach(hexId => {
+          const serverMarker = hexMarkers[hexId];
+          const localMarker = prev[hexId];
+          // Если на сервере нет маркера или количество меньше локального, оставляем локальное
+          if (!serverMarker || (localMarker.flight_path_search || 0) > (serverMarker.flight_path_search || 0)) {
+            cleaned[hexId] = localMarker;
+          }
+        });
+        return cleaned;
+      });
+    }
+  }, [hexMarkers]);
+  
   const [tooltip, setTooltip] = useState<{
     show: boolean;
     unitId: string;
@@ -247,19 +285,63 @@ const HexMap: React.FC<HexMapProps> = ({
       return;
     }
 
-    // Проверяем, что гекс морской (можно добавить проверку через mapStructures)
-    // Пока просто добавляем маркер в любой гекс
+    // Оптимистичное обновление - сразу обновляем локальное состояние для мгновенного отображения
+    setLocalHexMarkers(prev => {
+      // Используем текущее значение из локального состояния или из пропсов
+      const localMarker = prev[hexId];
+      const propMarker = hexMarkers?.[hexId];
+      const current = localMarker || propMarker || {};
+      const currentCount = current.flight_path_search || 0;
+      return {
+        ...prev,
+        [hexId]: {
+          ...current,
+          flight_path_search: currentCount + 1
+        }
+      };
+    });
 
     try {
-      const response = await searchAPI.addFlightPathSearchMarker(gameId, hexId, authToken);
+      const response = await searchAPI.addHexMarker(gameId, hexId, 'flight_path_search', authToken);
       if (response.success) {
-        // Обновляем данные игры - маркеры загрузятся через пропсы
+        // Синхронизируем с сервером в фоне (не блокируем UI)
         if (onRefreshData) {
-          onRefreshData();
+          // Вызываем асинхронно с небольшой задержкой, чтобы не блокировать UI
+          setTimeout(() => {
+            onRefreshData();
+          }, 100);
         }
+      } else {
+        // Откатываем оптимистичное обновление при ошибке
+        setLocalHexMarkers(prev => {
+          const newState = { ...prev };
+          const current = newState[hexId];
+          if (current) {
+            const newCount = (current.flight_path_search || 0) - 1;
+            if (newCount <= 0) {
+              delete newState[hexId];
+            } else {
+              newState[hexId] = { ...current, flight_path_search: newCount };
+            }
+          }
+          return newState;
+        });
       }
-    } catch (error) {
-      // Ошибка уже обработана в API
+    } catch (error: any) {
+      // Откатываем оптимистичное обновление при ошибке
+      setLocalHexMarkers(prev => {
+        const newState = { ...prev };
+        const current = newState[hexId];
+        if (current) {
+          const newCount = (current.flight_path_search || 0) - 1;
+          if (newCount <= 0) {
+            delete newState[hexId];
+          } else {
+            newState[hexId] = { ...current, flight_path_search: newCount };
+          }
+        }
+        return newState;
+      });
     }
   };
 
@@ -574,6 +656,12 @@ const HexMap: React.FC<HexMapProps> = ({
   const handleHexClick = (coordinate: HexCoordinate) => {
     const hexId = `${coordinate.letter}${coordinate.number}`;
     
+    // Если в режиме воздушной разведки, обрабатываем клик
+    if (isFlightPathSearchMode) {
+      handleHexClickInFlightPathSearchMode(hexId);
+      return;
+    }
+    
     // Если в режиме патруля, обрабатываем клик
     if (isPatrolMode) {
       handleHexClickInPatrolMode(hexId);
@@ -593,11 +681,8 @@ const HexMap: React.FC<HexMapProps> = ({
     );
     
     
-    // ВСЕГДА вызываем onHexClick для отладки
     if (onHexClick) {
       onHexClick(coordinate);
-    } else {
-      console.log('🎯🎯🎯 HexMap: onHexClick is not defined');
     }
   };
 
@@ -639,18 +724,24 @@ const HexMap: React.FC<HexMapProps> = ({
       // Просто берем все hexIds из существующих hexes
       const allHexIds = Array.from(hexes.keys());
       
-      const factors = await searchAPI.getSearchFactors(
+      const response = await searchAPI.getSearchFactors(
         gameId,
         allHexIds,
         playerSide as 'german' | 'allied',
         authToken
       );
 
-      // Сохраняем результаты
+      // Сохраняем результаты факторов поиска
       const factorsMap = new Map<string, number>();
-      Object.entries(factors).forEach(([hexId, factorValue]) => {
+      Object.entries(response.hex_factors || {}).forEach(([hexId, factorValue]) => {
         factorsMap.set(hexId, factorValue);
       });
+      
+      console.log('🔍 Search factors loaded:', factorsMap.size, 'hexes');
+      console.log('🔍 Visibility level:', visibilityLevel);
+      // Логируем несколько примеров для отладки
+      const exampleHexes = Array.from(factorsMap.entries()).slice(0, 10);
+      console.log('🔍 Example factors:', exampleHexes);
       
       setDisplaySearchFactors(factorsMap);
     } catch (error: any) {
@@ -742,7 +833,6 @@ const HexMap: React.FC<HexMapProps> = ({
       
       const isSearchAvailable = hexSearchFactors > 0 && hexSearchFactors >= visibilityLevel;
       
-
       // Проверяем, является ли этот гекс активным
       const activeHex = activeHexes.find(
         hex => 
@@ -750,12 +840,13 @@ const HexMap: React.FC<HexMapProps> = ({
           hex.coordinate.row === coordinate.row
       );
 
-      // Проверяем, есть ли маркер пути полета в этом гексе
-      // Явно приводим к boolean, чтобы гарантировать правильный тип
-      const hasFlightPathMarker = Boolean(flightPathSearchMarkers && flightPathSearchMarkers.has(hexId));
+      // Проверяем, есть ли маркер пути полета в этом гексе (используем effectiveHexMarkers для оптимистичного обновления)
+      const hexMarkerData = effectiveHexMarkers?.[hexId];
+      const flightPathSearchCount = hexMarkerData?.flight_path_search || 0;
+      const hasFlightPathMarker = flightPathSearchCount > 0;
 
       // Используем ключ с маркером, чтобы React обновлял компонент при изменении маркеров
-      const markerKey = hasFlightPathMarker ? `marker-${flightPathSearchMarkers?.size || 0}` : 'no-marker';
+      const markerKey = hasFlightPathMarker ? `marker-${flightPathSearchCount}` : 'no-marker';
       elements.push(
         <Hex
           key={`${hexId}-${markerKey}`}
@@ -774,8 +865,6 @@ const HexMap: React.FC<HexMapProps> = ({
           currentTurn={currentTurn}
           isTFCandidate={isCreateTFMode && tfCandidateHexes.includes(hexId)}
           hasFlightPathMarker={hasFlightPathMarker}
-          // Отладка передачи пропса
-          {...(hasFlightPathMarker && { 'data-debug-marker': 'true' })}
           onClick={() => {
             const hexId = `${coordinate.letter}${coordinate.number}`;
             // Проверяем режимы в порядке приоритета
@@ -802,7 +891,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, flightPathSearchMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect]);
+  }, [hexes, effectiveHexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect]);
 
   return (
     <div className="hex-map-container">
@@ -836,28 +925,19 @@ const HexMap: React.FC<HexMapProps> = ({
         {currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (
           <>
             <button 
-              onClick={() => {
-                console.log('🚢 Create TF button clicked');
-                handleCreateTFClick();
-              }} 
+              onClick={handleCreateTFClick}
               title="Создать Task Force"
             >
               🚢 Создать TF
             </button>
             <button 
-              onClick={() => {
-                console.log('🛡️ Patrol button clicked');
-                handlePatrolClick();
-              }} 
+              onClick={handlePatrolClick}
               title="Установить патруль"
             >
               🛡️ Патруль
             </button>
             <button 
-              onClick={() => {
-                console.log('✈️ Flight Path Search button clicked');
-                handleFlightPathSearchClick();
-              }} 
+              onClick={handleFlightPathSearchClick}
               title="Воздушная разведка"
             >
               ✈️ Воздушная разведка
@@ -866,10 +946,7 @@ const HexMap: React.FC<HexMapProps> = ({
         )}
         {isCreateTFMode && (
           <button 
-            onClick={() => {
-              console.log('❌ Cancel TF button clicked');
-              handleCancelCreateTF();
-            }} 
+            onClick={handleCancelCreateTF}
             title="Отменить создание TF"
           >
             ❌ Отмена

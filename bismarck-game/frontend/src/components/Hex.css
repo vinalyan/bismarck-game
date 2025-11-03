@@ -623,3 +623,22 @@
 .task-force-container.allied .task-force-background {
   stroke: #991b1b;
 }
+
+/* Подсветка гексов, где будет проводиться поиск */
+.hex.search-available .hex-shape {
+  stroke: #FFD700 !important;
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6)) !important;
+  animation: searchPulse 2s ease-in-out infinite !important;
+}
+
+@keyframes searchPulse {
+  0%, 100% {
+    stroke-opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+  }
+  50% {
+    stroke-opacity: 0.7;
+    filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.8));
+  }
+}
