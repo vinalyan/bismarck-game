@@ -84,7 +84,7 @@ const HexMap: React.FC<HexMapProps> = ({
   currentPhase = 'setup',
   searchFactorHexes = new Map<string, number>(),
   visibilityLevel = 1,
-  flightPathSearchMarkers: flightPathSearchMarkersProp = new Set<string>()
+  hexMarkers = {}
 }) => {
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
@@ -97,9 +97,6 @@ const HexMap: React.FC<HexMapProps> = ({
   const [selectedPatrolHex, setSelectedPatrolHex] = useState<string | null>(null);
   const [isFlightPathSearchMode, setIsFlightPathSearchMode] = useState(false);
   const [displaySearchFactors, setDisplaySearchFactors] = useState<Map<string, number>>(new Map());
-  
-  // Используем пропс напрямую для отображения маркеров
-  const hexMarkers = hexMarkersProp;
   const [isLoadingSearchFactors, setIsLoadingSearchFactors] = useState(false);
   const [tooltip, setTooltip] = useState<{
     show: boolean;
@@ -639,18 +636,24 @@ const HexMap: React.FC<HexMapProps> = ({
       // Просто берем все hexIds из существующих hexes
       const allHexIds = Array.from(hexes.keys());
       
-      const factors = await searchAPI.getSearchFactors(
+      const response = await searchAPI.getSearchFactors(
         gameId,
         allHexIds,
         playerSide as 'german' | 'allied',
         authToken
       );
 
-      // Сохраняем результаты
+      // Сохраняем результаты факторов поиска
       const factorsMap = new Map<string, number>();
-      Object.entries(factors).forEach(([hexId, factorValue]) => {
+      Object.entries(response.hex_factors || {}).forEach(([hexId, factorValue]) => {
         factorsMap.set(hexId, factorValue);
       });
+      
+      console.log('🔍 Search factors loaded:', factorsMap.size, 'hexes');
+      console.log('🔍 Visibility level:', visibilityLevel);
+      // Логируем несколько примеров для отладки
+      const exampleHexes = Array.from(factorsMap.entries()).slice(0, 10);
+      console.log('🔍 Example factors:', exampleHexes);
       
       setDisplaySearchFactors(factorsMap);
     } catch (error: any) {
@@ -741,6 +744,11 @@ const HexMap: React.FC<HexMapProps> = ({
       }
       
       const isSearchAvailable = hexSearchFactors > 0 && hexSearchFactors >= visibilityLevel;
+      
+      // Логирование для отладки (только для первых нескольких гексов с факторами > 0)
+      if (hexSearchFactors > 0 && elements.length < 5) {
+        console.log(`🔍 Hex ${hexId}: factors=${hexSearchFactors}, visibility=${visibilityLevel}, isSearchAvailable=${isSearchAvailable}, displaySearchFactors.size=${displaySearchFactors.size}`);
+      }
       
 
       // Проверяем, является ли этот гекс активным

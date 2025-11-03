@@ -26,6 +26,9 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 	playerID := "550e8400-e29b-41d4-a716-446655440001"
 	hexID := "F26"
 
+	// Clean up before test
+	_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1", gameID)
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
 	
@@ -44,7 +47,10 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("add single marker", func(t *testing.T) {
-		err := searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		// Clean up markers for this specific test
+		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
+		require.NoError(t, err)
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		assert.NoError(t, err)
 
 		// Verify marker was added directly from database
@@ -63,8 +69,16 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 	})
 
 	t.Run("add multiple markers of same type", func(t *testing.T) {
+		// Clean up markers for this specific test
+		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
+		require.NoError(t, err)
+		
+		// Add first marker
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		require.NoError(t, err)
+		
 		// Add second marker of same type
-		err := searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		assert.NoError(t, err)
 
 		// Verify both markers exist
@@ -74,7 +88,18 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 	})
 
 	t.Run("add different marker type", func(t *testing.T) {
-		err := searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeAirAttack))
+		// Clean up markers for this specific test
+		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
+		require.NoError(t, err)
+		
+		// Add flight path markers first
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		require.NoError(t, err)
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		require.NoError(t, err)
+		
+		// Add air attack marker
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeAirAttack))
 		assert.NoError(t, err)
 
 		// Verify air attack marker was added
@@ -100,9 +125,12 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 	searchService := NewSearchService(db, log, unitService)
 
 	gameID := "550e8400-e29b-41d4-a716-446655440011"
-	playerID := "test-player-1"
+	playerID := "550e8400-e29b-41d4-a716-446655440002"
 	hexID := "F26"
 
+	// Clean up before test
+	_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1", gameID)
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
 	
@@ -120,14 +148,18 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// Add multiple markers
-	err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
-	require.NoError(t, err)
-	err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
-	require.NoError(t, err)
-
 	t.Run("remove one marker", func(t *testing.T) {
-		err := searchService.RemoveHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		// Clean up markers for this specific test
+		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
+		require.NoError(t, err)
+		
+		// Add multiple markers
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		require.NoError(t, err)
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		require.NoError(t, err)
+
+		err = searchService.RemoveHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		assert.NoError(t, err)
 
 		// Verify one marker remains
@@ -148,8 +180,11 @@ func TestSearchService_GetHexMarkers(t *testing.T) {
 	searchService := NewSearchService(db, log, unitService)
 
 	gameID := "550e8400-e29b-41d4-a716-446655440012"
-	playerID := "test-player-1"
+	playerID := "550e8400-e29b-41d4-a716-446655440003"
 
+	// Clean up before test
+	_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1", gameID)
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
 	
@@ -167,15 +202,19 @@ func TestSearchService_GetHexMarkers(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// Add markers to different hexes
-	err = searchService.AddHexMarker(gameID, playerID, "F26", string(models.MarkerTypeFlightPathSearch))
-	require.NoError(t, err)
-	err = searchService.AddHexMarker(gameID, playerID, "F27", string(models.MarkerTypeFlightPathSearch))
-	require.NoError(t, err)
-	err = searchService.AddHexMarker(gameID, playerID, "F28", string(models.MarkerTypeFlightPathSearch))
-	require.NoError(t, err)
-
 	t.Run("get all markers of type", func(t *testing.T) {
+		// Clean up markers for this specific test
+		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1", gameID)
+		require.NoError(t, err)
+		
+		// Add markers to different hexes
+		err = searchService.AddHexMarker(gameID, playerID, "F26", string(models.MarkerTypeFlightPathSearch))
+		require.NoError(t, err)
+		err = searchService.AddHexMarker(gameID, playerID, "F27", string(models.MarkerTypeFlightPathSearch))
+		require.NoError(t, err)
+		err = searchService.AddHexMarker(gameID, playerID, "F28", string(models.MarkerTypeFlightPathSearch))
+		require.NoError(t, err)
+
 		hexIDs, err := searchService.GetHexMarkers(gameID, playerID, string(models.MarkerTypeFlightPathSearch))
 		assert.NoError(t, err)
 		assert.Contains(t, hexIDs, "F26")
@@ -196,9 +235,12 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 	searchService := NewSearchService(db, log, unitService)
 
 	gameID := "550e8400-e29b-41d4-a716-446655440013"
-	playerID := "test-player-1"
+	playerID := "550e8400-e29b-41d4-a716-446655440004"
 	hexID := "F26"
 
+	// Clean up before test
+	_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1", gameID)
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
 	
@@ -216,15 +258,19 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// Add multiple markers of different types
-	err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
-	require.NoError(t, err)
-	err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
-	require.NoError(t, err)
-	err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeAirAttack))
-	require.NoError(t, err)
-
 	t.Run("get markers count", func(t *testing.T) {
+		// Clean up markers for this specific test
+		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
+		require.NoError(t, err)
+		
+		// Add multiple markers of different types
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		require.NoError(t, err)
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		require.NoError(t, err)
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeAirAttack))
+		require.NoError(t, err)
+
 		counts, err := searchService.GetHexMarkersCount(gameID, hexID, "german")
 		assert.NoError(t, err)
 		assert.Equal(t, 2, counts[string(models.MarkerTypeFlightPathSearch)])
@@ -243,7 +289,7 @@ func TestSearchService_RemoveAllHexMarkersByType(t *testing.T) {
 	searchService := NewSearchService(db, log, unitService)
 
 	gameID := "550e8400-e29b-41d4-a716-446655440014"
-	playerID := "test-player-1"
+	playerID := "550e8400-e29b-41d4-a716-446655440005"
 
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
@@ -297,9 +343,12 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 	searchService := NewSearchService(db, log, unitService)
 
 	gameID := "550e8400-e29b-41d4-a716-446655440015"
-	playerID := "test-player-1"
+	playerID := "550e8400-e29b-41d4-a716-446655440006"
 	hexID := "F26"
 
+	// Clean up before test
+	_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1", gameID)
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
 	
@@ -318,8 +367,12 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("calculate factors with flight path markers", func(t *testing.T) {
+		// Clean up markers for this test
+		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
+		require.NoError(t, err)
+		
 		// Add two flight path markers (each gives +2)
-		err := searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
+		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		require.NoError(t, err)
 		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		require.NoError(t, err)
@@ -327,8 +380,9 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 		factors, err := searchService.CalculateSearchFactors(gameID, hexID, "german")
 		assert.NoError(t, err)
 		// 2 markers * 2 factors each = 4 factors from markers
-		// Additional factors may come from units/patrols
+		// Additional factors may come from units/patrols, but minimum should be 4
 		assert.GreaterOrEqual(t, factors, 4)
+		assert.Equal(t, 4, factors) // Should be exactly 4 if no units/patrols
 	})
 }
 

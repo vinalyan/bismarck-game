@@ -489,15 +489,21 @@ const Game: React.FC = () => {
               return;
             }
             
+            const playerSide = getPlayerSideString();
+            if (playerSide === 'unknown') {
+              console.error('Unable to determine player side');
+              return;
+            }
+            
             const results = await Promise.all([
               phaseAPI.getCurrentPhase(currentGame.id),
-              gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15),
+              gameEventAPI.getGameEvents(currentGame.id, playerSide as 'german' | 'allied', 15),
               unitsAPI.getGameUnits(currentGame.id, authToken),
               // Получаем маркеры через getSearchFactors
               searchAPI.getSearchFactors(
                 currentGame.id,
                 getAllSeaHexes(),
-                currentPlayerSide || 'german',
+                playerSide as 'german' | 'allied',
                 authToken
               )
             ]);
@@ -546,15 +552,21 @@ const Game: React.FC = () => {
               return;
             }
             
+            const playerSide = getPlayerSideString();
+            if (playerSide === 'unknown') {
+              console.error('Unable to determine player side');
+              return;
+            }
+            
             const results = await Promise.all([
               phaseAPI.getCurrentPhase(currentGame.id),
-              gameEventAPI.getGameEvents(currentGame.id, currentPlayerSide || 'german', 15),
+              gameEventAPI.getGameEvents(currentGame.id, playerSide as 'german' | 'allied', 15),
               unitsAPI.getGameUnits(currentGame.id, authToken),
               // Получаем маркеры через getSearchFactors
               searchAPI.getSearchFactors(
                 currentGame.id,
                 getAllSeaHexes(),
-                currentPlayerSide || 'german',
+                playerSide as 'german' | 'allied',
                 authToken
               )
             ]);
@@ -1649,6 +1661,7 @@ const Game: React.FC = () => {
             currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
             searchFactorHexes={searchFactorHexes}
             visibilityLevel={getTurnData(currentTurn)?.visibility_level ?? currentGame?.visibility_level ?? 1}
+            hexMarkers={hexMarkers}
           />
         </div>
 
