@@ -702,8 +702,9 @@ const HexMap: React.FC<HexMapProps> = ({
   };
 
   // Рендерим гексы
-  const renderHexes = () => {
-    const hexElements: React.JSX.Element[] = [];
+  // Используем useMemo для пересчета при изменении маркеров
+  const hexElements = useMemo(() => {
+    const elements: React.JSX.Element[] = [];
     
     hexes.forEach((hexData, hexId) => {
       const { coordinate } = hexData;
@@ -750,11 +751,14 @@ const HexMap: React.FC<HexMapProps> = ({
       );
 
       // Проверяем, есть ли маркер пути полета в этом гексе
-      const hasFlightPathMarker = flightPathSearchMarkers.has(hexId);
+      // Явно приводим к boolean, чтобы гарантировать правильный тип
+      const hasFlightPathMarker = Boolean(flightPathSearchMarkers && flightPathSearchMarkers.has(hexId));
 
-      hexElements.push(
+      // Используем ключ с маркером, чтобы React обновлял компонент при изменении маркеров
+      const markerKey = hasFlightPathMarker ? `marker-${flightPathSearchMarkers?.size || 0}` : 'no-marker';
+      elements.push(
         <Hex
-          key={hexId}
+          key={`${hexId}-${markerKey}`}
           coordinate={coordinate}
           hexData={hexData}
           center={center}
@@ -770,6 +774,8 @@ const HexMap: React.FC<HexMapProps> = ({
           currentTurn={currentTurn}
           isTFCandidate={isCreateTFMode && tfCandidateHexes.includes(hexId)}
           hasFlightPathMarker={hasFlightPathMarker}
+          // Отладка передачи пропса
+          {...(hasFlightPathMarker && { 'data-debug-marker': 'true' })}
           onClick={() => {
             const hexId = `${coordinate.letter}${coordinate.number}`;
             // Проверяем режимы в порядке приоритета
@@ -795,8 +801,8 @@ const HexMap: React.FC<HexMapProps> = ({
       );
     });
     
-    return hexElements;
-  };
+    return elements;
+  }, [hexes, flightPathSearchMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect]);
 
   return (
     <div className="hex-map-container">
@@ -970,7 +976,7 @@ const HexMap: React.FC<HexMapProps> = ({
             fill="url(#mapBackground)"
           />
           
-          {renderHexes()}
+          {hexElements}
         </svg>
       </div>
       
