@@ -525,20 +525,20 @@ func (s *TaskForceService) CanTaskForceMove(taskForceID string) (bool, string) {
 			continue
 		}
 
-		// Проверяем базовые ограничения движения
-		if !unit.CanMove() {
+		// Проверяем базовые ограничения (жизнь, статус)
+		if !unit.IsAlive() || unit.Status == models.UnitStatusRepairing {
 			return false, fmt.Sprintf("unit %s (%s) cannot move", unit.Name, unitID)
+		}
+
+		// Проверяем топливо (включая аварийное топливо) - более конкретное сообщение
+		if unit.Fuel <= 0 && !unit.IsEmergencyFuel {
+			return false, fmt.Sprintf("unit %s (%s) has no fuel", unit.Name, unitID)
 		}
 
 		// Проверяем ограничения для медленных кораблей (S/VS)
 		if unit.NoMovementTurnsLeft > 0 {
 			return false, fmt.Sprintf("unit %s (%s) cannot move - %d turns restriction left",
 				unit.Name, unitID, unit.NoMovementTurnsLeft)
-		}
-
-		// Проверяем топливо (включая аварийное топливо)
-		if unit.Fuel <= 0 && !unit.IsEmergencyFuel {
-			return false, fmt.Sprintf("unit %s (%s) has no fuel", unit.Name, unitID)
 		}
 	}
 
