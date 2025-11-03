@@ -27,10 +27,11 @@ type MovementService struct {
 	validatorFactory    *validation.ValidatorFactory
 	mapStructureService *MapStructureService
 	eventService        *GameEventService
+	emergencyFuelService *EmergencyFuelService
 }
 
 // NewMovementService создает новый сервис движения
-func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService, phaseManager *PhaseManager, unitService *UnitService, mapStructureService *MapStructureService, eventService *GameEventService) *MovementService {
+func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService, phaseManager *PhaseManager, unitService *UnitService, mapStructureService *MapStructureService, eventService *GameEventService, emergencyFuelService *EmergencyFuelService) *MovementService {
 	hexCalculator := hexgrid.NewStandardHexCalculator()
 	validatorFactory := validation.NewValidatorFactory(hexCalculator)
 
@@ -44,6 +45,7 @@ func NewMovementService(db *database.Database, logger *logger.Logger, visibility
 		validatorFactory:    validatorFactory,
 		mapStructureService: mapStructureService,
 		eventService:        eventService,
+		emergencyFuelService: emergencyFuelService,
 	}
 }
 
@@ -210,10 +212,25 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 	fuelTracking.UpdatedAt = time.Now()
 
 	// Проверяем активацию аварийного топлива (унифицированная логика)
-	s.activateEmergencyFuelIfNeeded(unit, fuelTracking.CurrentFuel)
-	if unit.IsEmergencyFuel {
-		fuelTracking.IsEmergencyFuel = unit.IsEmergencyFuel
-		fuelTracking.EmergencyTurn = unit.EmergencyTurn
+	if s.emergencyFuelService != nil {
+		if err := s.emergencyFuelService.ActivateIfNeeded(unit.GameID, unit.ID, fuelTracking.CurrentFuel); err != nil {
+			s.logger.Warn("Failed to activate emergency fuel", "error", err, "unit_id", unit.ID)
+		}
+		// Получаем обновленный статус аварийного топлива из БД
+		query := `SELECT is_emergency_fuel, emergency_turn FROM naval_units WHERE id = $1 AND game_id = $2`
+		var isEmergencyFuel bool
+		var emergencyTurn sql.NullInt64
+		err := s.db.QueryRow(query, unit.ID, unit.GameID).Scan(&isEmergencyFuel, &emergencyTurn)
+		if err == nil {
+			fuelTracking.IsEmergencyFuel = isEmergencyFuel
+			if emergencyTurn.Valid {
+				fuelTracking.EmergencyTurn = int(emergencyTurn.Int64)
+			}
+			unit.IsEmergencyFuel = isEmergencyFuel
+			if emergencyTurn.Valid {
+				unit.EmergencyTurn = int(emergencyTurn.Int64)
+			}
+		}
 	}
 
 	// Устанавливаем ограничения движения для медленных кораблей
@@ -357,21 +374,6 @@ func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) 
 	return nil
 }
 
-// activateEmergencyFuelIfNeeded проверяет и активирует аварийное топливо при необходимости
-func (s *MovementService) activateEmergencyFuelIfNeeded(unit *models.NavalUnit, currentFuel int) {
-	if currentFuel <= 0 && !unit.IsEmergencyFuel {
-		currentTurn := s.getCurrentTurn(unit.GameID)
-		unit.IsEmergencyFuel = true
-		unit.EmergencyTurn = currentTurn + 10
-
-		s.logger.Warn("Emergency fuel activated - ship must reach port or refuel within 10 turns",
-			"unit_id", unit.ID,
-			"unit_name", unit.Name,
-			"current_turn", currentTurn,
-			"emergency_turn", unit.EmergencyTurn,
-			"turns_remaining", 10)
-	}
-}
 
 func (s *MovementService) saveMovement(movement *models.Movement) error {
 	// Сохраняем движение в базе данных
@@ -491,20 +493,17 @@ func (s *MovementService) RefuelUnit(gameID, unitID string, fuelAmount int) erro
 	fuelTracking.CurrentFuel = newFuel
 	fuelTracking.UpdatedAt = time.Now()
 
-	// Если топливо > 0, снимаем статус аварийного топлива
-	if fuelTracking.CurrentFuel > 0 {
-		fuelTracking.IsEmergencyFuel = false
-		fuelTracking.EmergencyTurn = 0
-
-		s.logger.Info("Emergency fuel status cleared due to refueling",
-			"unit_id", unitID,
-			"new_fuel", fuelTracking.CurrentFuel,
-			"fuel_added", fuelAmount)
-	}
-
-	// Сохраняем изменения
+	// Сохраняем изменения топлива
 	if err := s.updateFuelTracking(fuelTracking); err != nil {
 		return fmt.Errorf("failed to update fuel tracking: %w", err)
+	}
+
+	// Используем EmergencyFuelService для очистки статуса аварийного топлива
+	if s.emergencyFuelService != nil {
+		if err := s.emergencyFuelService.ClearIfRefueled(gameID, unitID); err != nil {
+			s.logger.Warn("Failed to clear emergency fuel status", "error", err, "unit_id", unitID)
+			// Не возвращаем ошибку, так как основная операция (заправка) выполнена
+		}
 	}
 
 	s.logger.Info("Unit refueled successfully",
@@ -523,31 +522,18 @@ func (s *MovementService) GetFuelTracking(gameID, unitID string) (*models.FuelTr
 
 // CheckAndActivateEmergencyFuel проверяет и активирует аварийное топливо для корабля
 func (s *MovementService) CheckAndActivateEmergencyFuel(gameID, unitID string) error {
+	if s.emergencyFuelService == nil {
+		return fmt.Errorf("emergency fuel service is not initialized")
+	}
+
 	// Получаем текущее состояние топлива
 	fuelTracking, err := s.getFuelTracking(gameID, unitID)
 	if err != nil {
 		return fmt.Errorf("failed to get fuel tracking: %w", err)
 	}
 
-	// Проверяем, нужно ли активировать аварийное топливо
-	if fuelTracking.CurrentFuel <= 0 && !fuelTracking.IsEmergencyFuel {
-		currentTurn := s.getCurrentTurn(gameID)
-		fuelTracking.IsEmergencyFuel = true
-		fuelTracking.EmergencyTurn = currentTurn + 10
-		fuelTracking.UpdatedAt = time.Now()
-
-		// Сохраняем изменения
-		if err := s.updateFuelTracking(fuelTracking); err != nil {
-			return fmt.Errorf("failed to update fuel tracking: %w", err)
-		}
-
-		s.logger.Warn("Emergency fuel activated",
-			"unit_id", unitID,
-			"current_fuel", fuelTracking.CurrentFuel,
-			"emergency_turn", fuelTracking.EmergencyTurn)
-	}
-
-	return nil
+	// Используем EmergencyFuelService для активации
+	return s.emergencyFuelService.ActivateIfNeeded(gameID, unitID, fuelTracking.CurrentFuel)
 }
 
 // GetTaskForceAvailableMoves рассчитывает доступные ходы для Task Force
@@ -717,7 +703,22 @@ func (s *MovementService) executeTaskForceUnitMovement(unit *models.NavalUnit, f
 	unit.Fuel -= fuelCost
 
 	// Проверяем активацию аварийного топлива (унифицированная логика)
-	s.activateEmergencyFuelIfNeeded(unit, unit.Fuel)
+	if s.emergencyFuelService != nil {
+		if err := s.emergencyFuelService.ActivateIfNeeded(unit.GameID, unit.ID, unit.Fuel); err != nil {
+			s.logger.Warn("Failed to activate emergency fuel", "error", err, "unit_id", unit.ID)
+		}
+		// Обновляем статус аварийного топлива в объекте unit
+		query := `SELECT is_emergency_fuel, emergency_turn FROM naval_units WHERE id = $1 AND game_id = $2`
+		var isEmergencyFuel bool
+		var emergencyTurn sql.NullInt64
+		err := s.db.QueryRow(query, unit.ID, unit.GameID).Scan(&isEmergencyFuel, &emergencyTurn)
+		if err == nil {
+			unit.IsEmergencyFuel = isEmergencyFuel
+			if emergencyTurn.Valid {
+				unit.EmergencyTurn = int(emergencyTurn.Int64)
+			}
+		}
+	}
 
 	// Обновляем статистику движения
 	unit.PreviousTurnMovedHexes = s.hexCalculator.CalculateDistance(fromHex, toHex)

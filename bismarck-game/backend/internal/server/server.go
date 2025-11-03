@@ -148,14 +148,21 @@ func (s *Server) setupRoutes() {
 		logger.Error("Failed to load map structures", "error", err)
 	}
 
+	// Создаем сервис аварийного топлива
+	emergencyFuelLogger, _ := logger.New(logger.INFO, "emergency-fuel-service", "stdout")
+	emergencyFuelService := services.NewEmergencyFuelService(s.db, emergencyFuelLogger, phaseManager)
+
 	movementLogger, _ := logger.New(logger.INFO, "movement-service", "stdout")
-	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService, mapStructureService, eventService)
+	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService, mapStructureService, eventService, emergencyFuelService)
 
 	// Обновляем TaskForceService с MovementService
 	taskForceService = services.NewTaskForceService(s.db, taskForceLogger, unitService, movementService)
 
 	// Настраиваем автоматическое удаление затонувших кораблей из Task Forces
 	unitService.SetUnitSunkHandler(taskForceService.HandleUnitSunk)
+
+	// Настраиваем сервис аварийного топлива для UnitService
+	unitService.SetEmergencyFuelService(emergencyFuelService)
 
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {

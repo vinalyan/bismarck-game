@@ -57,7 +57,7 @@ func setupMovementHandler(t *testing.T) (*MovementHandler, func()) {
 	taskForceServiceForPM := services.NewTaskForceService(db, logger, unitService, nil)
 	searchServiceForPM := services.NewSearchService(db, logger, unitService)
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceServiceForPM, searchServiceForPM, eventService, wsHub, "http://localhost:8080")
-	movementService := services.NewMovementService(db, logger, visibilityService, phaseManager, unitService, mapStructureService, eventService)
+	movementService := services.NewMovementService(db, logger, visibilityService, phaseManager, unitService, mapStructureService, eventService, nil)
 	taskForceService := services.NewTaskForceService(db, logger, unitService, movementService)
 
 	handler := NewMovementHandler(movementService, visibilityService, unitService, taskForceService, logger)

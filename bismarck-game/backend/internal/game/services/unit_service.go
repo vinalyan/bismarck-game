@@ -17,9 +17,10 @@ type UnitSunkHandler func(unitID string) error
 
 // UnitService предоставляет методы для работы с юнитами
 type UnitService struct {
-	db         *database.Database
-	logger     *logger.Logger
-	onUnitSunk UnitSunkHandler
+	db                *database.Database
+	logger            *logger.Logger
+	onUnitSunk        UnitSunkHandler
+	emergencyFuelService *EmergencyFuelService
 }
 
 // NewUnitService создает новый сервис юнитов
@@ -28,6 +29,11 @@ func NewUnitService(db *database.Database, logger *logger.Logger) *UnitService {
 		db:     db,
 		logger: logger,
 	}
+}
+
+// SetEmergencyFuelService устанавливает сервис аварийного топлива
+func (s *UnitService) SetEmergencyFuelService(service *EmergencyFuelService) {
+	s.emergencyFuelService = service
 }
 
 // SetUnitSunkHandler устанавливает обработчик для потопления корабля
@@ -121,21 +127,25 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 	}
 
 	// Автоматическая проверка и активация аварийного топлива для кораблей с 0 или отрицательным топливом
-	for i := range units {
-		if units[i].Fuel <= 0 && !units[i].IsEmergencyFuel {
-			// Активируем аварийное топливо
-			currentTurn := s.getCurrentTurn(units[i].GameID)
-			units[i].IsEmergencyFuel = true
-			units[i].EmergencyTurn = currentTurn + 10
-
-			// Обновляем в базе данных
-			s.updateEmergencyFuelStatus(units[i].ID, units[i].GameID, true, currentTurn+10)
-
-			s.logger.Warn("Emergency fuel auto-activated",
-				"unit_id", units[i].ID,
-				"unit_name", units[i].Name,
-				"current_fuel", units[i].Fuel,
-				"emergency_turn", units[i].EmergencyTurn)
+	if s.emergencyFuelService != nil {
+		for i := range units {
+			if units[i].Fuel <= 0 {
+				// Используем EmergencyFuelService для активации
+				if err := s.emergencyFuelService.ActivateIfNeeded(units[i].GameID, units[i].ID, units[i].Fuel); err != nil {
+					s.logger.Warn("Failed to activate emergency fuel", "error", err, "unit_id", units[i].ID)
+				}
+				// Обновляем статус в объекте из БД
+				query := `SELECT is_emergency_fuel, emergency_turn FROM naval_units WHERE id = $1 AND game_id = $2`
+				var isEmergencyFuel bool
+				var emergencyTurn sql.NullInt64
+				err := s.db.QueryRow(query, units[i].ID, units[i].GameID).Scan(&isEmergencyFuel, &emergencyTurn)
+				if err == nil {
+					units[i].IsEmergencyFuel = isEmergencyFuel
+					if emergencyTurn.Valid {
+						units[i].EmergencyTurn = int(emergencyTurn.Int64)
+					}
+				}
+			}
 		}
 	}
 
@@ -601,23 +611,6 @@ func (s *UnitService) getCurrentTurn(gameID string) int {
 	return turn
 }
 
-// updateEmergencyFuelStatus обновляет статус аварийного топлива в базе данных
-func (s *UnitService) updateEmergencyFuelStatus(unitID, gameID string, isEmergency bool, emergencyTurn int) error {
-	query := `
-		UPDATE naval_units SET
-			is_emergency_fuel = $1,
-			emergency_turn = $2,
-			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3 AND game_id = $4`
-
-	_, err := s.db.Exec(query, isEmergency, emergencyTurn, unitID, gameID)
-	if err != nil {
-		s.logger.Error("Failed to update emergency fuel status", "error", err, "unit_id", unitID)
-		return fmt.Errorf("failed to update emergency fuel status: %w", err)
-	}
-
-	return nil
-}
 
 // DeleteNavalUnit удаляет морской юнит из игры
 func (s *UnitService) DeleteNavalUnit(unitID string) error {

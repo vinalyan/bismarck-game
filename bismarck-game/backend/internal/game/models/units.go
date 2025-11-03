@@ -294,7 +294,8 @@ func (u *NavalUnit) IsAlive() bool {
 
 // CanMove проверяет, может ли юнит двигаться
 func (u *NavalUnit) CanMove() bool {
-	return u.IsAlive() && u.Fuel > 0 && u.Status != UnitStatusRepairing
+	hasFuel := u.Fuel > 0 || u.IsEmergencyFuel
+	return u.IsAlive() && hasFuel && u.Status != UnitStatusRepairing
 }
 
 // CanSearch проверяет, может ли юнит искать
