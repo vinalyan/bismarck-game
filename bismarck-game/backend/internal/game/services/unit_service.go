@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"bismarck-game/backend/internal/game/models"
@@ -96,19 +97,10 @@ func (s *UnitService) CreateAirUnit(unit *models.AirUnit) error {
 
 // GetNavalUnitsByGameID возвращает все морские юниты игры
 func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, error) {
-	query := `
-		SELECT id, game_id, name, type, class, owner, nationality, position, setup_hex,
-			   evasion, base_evasion, speed_rating, fuel, max_fuel,
-			   hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
-			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
-			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
-			   status, detection_level, last_known_pos, task_force_id, damage,
-			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_turn, is_patrolling,
-			   created_at, updated_at
-		FROM naval_units
-		WHERE game_id = $1 AND status != 'sunk'
-		ORDER BY created_at`
+	query := BuildNavalUnitSelectQuery(
+		[]string{}, // без дополнительных полей
+		"WHERE game_id = $1 AND status != 'sunk'\nORDER BY created_at",
+	)
 
 	rows, err := s.db.Query(query, gameID)
 	if err != nil {
@@ -119,44 +111,13 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 
 	var units []models.NavalUnit
 	for rows.Next() {
-		var unit models.NavalUnit
-		var damageJSON []byte
-		var lastKnownPos, taskForceID, detectionLevel sql.NullString
-		var emergencyRemovalTurn sql.NullInt32
-
-		err := rows.Scan(
-			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
-			&unit.Evasion, &unit.BaseEvasion, &unit.SpeedRating, &unit.Fuel, &unit.MaxFuel,
-			&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
-			&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
-			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
-			&unit.Status, &detectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
-			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
-			&unit.IsEmergencyFuel, &emergencyRemovalTurn, &unit.IsPatrolling,
-			&unit.CreatedAt, &unit.UpdatedAt,
-		)
+		unit, err := ScanNavalUnitFromRow(rows, false, true, true) // includeCategory=false, useNullableDetectionLevel=true, useNullableEmergencyTurn=true
 		if err != nil {
 			s.logger.Error("Failed to scan naval unit", "error", err)
 			continue
 		}
 
-		// Парсим JSON поля
-		json.Unmarshal(damageJSON, &unit.Damage)
-
-		if detectionLevel.Valid {
-			unit.DetectionLevel = models.DetectionLevel(detectionLevel.String)
-		}
-		if lastKnownPos.Valid {
-			unit.LastKnownPos = &lastKnownPos.String
-		}
-		if taskForceID.Valid {
-			unit.TaskForceID = &taskForceID.String
-		}
-		if emergencyRemovalTurn.Valid {
-			unit.EmergencyTurn = int(emergencyRemovalTurn.Int32)
-		}
-
-		units = append(units, unit)
+		units = append(units, *unit)
 	}
 
 	// Автоматическая проверка и активация аварийного топлива для кораблей с 0 или отрицательным топливом
@@ -183,58 +144,32 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 
 // GetNavalUnitByID возвращает морской юнит по ID
 func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error) {
-	query := `
-		SELECT id, game_id, name, type, class, owner, nationality, position, setup_hex,
-			   evasion, base_evasion, speed_rating, fuel, max_fuel,
-			   hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
-			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
-			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
-			   status, detection_level, last_known_pos, task_force_id, damage,
-			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_turn, is_patrolling, created_at, updated_at
-		FROM naval_units
-		WHERE id = $1`
-
-	var unit models.NavalUnit
-	var damageJSON []byte
-	var lastKnownPos, taskForceID, detectionLevel sql.NullString
-	var emergencyRemovalTurn sql.NullInt32
-
-	err := s.db.QueryRow(query, unitID).Scan(
-		&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
-		&unit.Evasion, &unit.BaseEvasion, &unit.SpeedRating, &unit.Fuel, &unit.MaxFuel,
-		&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
-		&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
-		&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
-		&unit.Status, &detectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
-		&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
-		&unit.IsEmergencyFuel, &emergencyRemovalTurn, &unit.IsPatrolling, &unit.CreatedAt, &unit.UpdatedAt,
+	query := BuildNavalUnitSelectQuery(
+		[]string{}, // без дополнительных полей
+		"WHERE id = $1",
 	)
+
+	rows, err := s.db.Query(query, unitID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("naval unit not found")
-		}
 		s.logger.Error("Failed to get naval unit", "unit_id", unitID, "error", err)
 		return nil, fmt.Errorf("failed to get naval unit: %w", err)
 	}
+	defer rows.Close()
 
-	// Парсим JSON поля
-	json.Unmarshal(damageJSON, &unit.Damage)
-
-	if detectionLevel.Valid {
-		unit.DetectionLevel = models.DetectionLevel(detectionLevel.String)
-	}
-	if lastKnownPos.Valid {
-		unit.LastKnownPos = &lastKnownPos.String
-	}
-	if taskForceID.Valid {
-		unit.TaskForceID = &taskForceID.String
-	}
-	if emergencyRemovalTurn.Valid {
-		unit.EmergencyTurn = int(emergencyRemovalTurn.Int32)
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("failed to get naval unit: %w", err)
+		}
+		return nil, fmt.Errorf("naval unit not found")
 	}
 
-	return &unit, nil
+	unit, err := ScanNavalUnitFromRow(rows, false, true, true) // includeCategory=false, useNullableDetectionLevel=true, useNullableEmergencyTurn=true
+	if err != nil {
+		s.logger.Error("Failed to scan naval unit", "unit_id", unitID, "error", err)
+		return nil, fmt.Errorf("failed to get naval unit: %w", err)
+	}
+
+	return unit, nil
 }
 
 // GetAirUnitsByGameID возвращает все воздушные юниты игры
@@ -434,18 +369,10 @@ func (s *UnitService) RecordSearch(search *models.UnitSearch) error {
 // GetUnitsByPosition возвращает все юниты в указанной позиции
 func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]models.NavalUnit, []models.AirUnit, error) {
 	// Получаем морские юниты
-	navalQuery := `
-		SELECT id, game_id, name, type, class, owner, nationality, position, setup_hex,
-			   evasion, base_evasion, speed_rating, fuel, max_fuel,
-			   hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
-			   secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
-			   base_secondary_armament, torpedoes, max_torpedoes, radar_level,
-			   status, detection_level, last_known_pos, task_force_id, damage,
-			   previous_turn_moved_hexes, last_move_turn, movement_used, no_movement_turns_left,
-			   is_emergency_fuel, emergency_turn, is_patrolling,
-			   created_at, updated_at
-		FROM naval_units
-		WHERE game_id = $1 AND position = $2`
+	navalQuery := BuildNavalUnitSelectQuery(
+		[]string{}, // без дополнительных полей
+		"WHERE game_id = $1 AND position = $2",
+	)
 
 	navalRows, err := s.db.Query(navalQuery, gameID, position)
 	if err != nil {
@@ -455,35 +382,12 @@ func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]mode
 
 	var navalUnits []models.NavalUnit
 	for navalRows.Next() {
-		var unit models.NavalUnit
-		var damageJSON []byte
-		var lastKnownPos, taskForceID sql.NullString
-
-		err := navalRows.Scan(
-			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
-			&unit.Evasion, &unit.BaseEvasion, &unit.SpeedRating, &unit.Fuel, &unit.MaxFuel,
-			&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
-			&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
-			&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
-			&unit.Status, &unit.DetectionLevel, &lastKnownPos, &taskForceID, &damageJSON,
-			&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
-			&unit.IsEmergencyFuel, &unit.EmergencyTurn, &unit.IsPatrolling,
-			&unit.CreatedAt, &unit.UpdatedAt,
-		)
+		unit, err := ScanNavalUnitFromRow(navalRows, false, false, false) // includeCategory=false, useNullableDetectionLevel=false, useNullableEmergencyTurn=false
 		if err != nil {
 			continue
 		}
 
-		json.Unmarshal(damageJSON, &unit.Damage)
-
-		if lastKnownPos.Valid {
-			unit.LastKnownPos = &lastKnownPos.String
-		}
-		if taskForceID.Valid {
-			unit.TaskForceID = &taskForceID.String
-		}
-
-		navalUnits = append(navalUnits, unit)
+		navalUnits = append(navalUnits, *unit)
 	}
 
 	// Получаем воздушные юниты
@@ -1155,4 +1059,119 @@ func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlight
 		"units_count", len(detectedUnits))
 
 	return nil
+}
+
+// BuildNavalUnitSelectQuery строит SELECT запрос для получения NavalUnit
+// additionalFields - дополнительные поля (например, "category") - будут добавлены после поля "type"
+// whereClause - условие WHERE (например, "WHERE game_id = $1 AND status != 'sunk'")
+func BuildNavalUnitSelectQuery(additionalFields []string, whereClause string) string {
+	baseFields := []string{
+		"id", "game_id", "name", "type",
+	}
+	
+	// Добавляем дополнительные поля после "type" если они есть
+	fields := append(baseFields, additionalFields...)
+	
+	// Добавляем остальные базовые поля
+	fields = append(fields, []string{
+		"class", "owner", "nationality", "position", "setup_hex",
+		"evasion", "base_evasion", "speed_rating", "fuel", "max_fuel",
+		"hull_boxes", "current_hull", "primary_armament_bow", "primary_armament_stern",
+		"secondary_armament", "base_primary_armament_bow", "base_primary_armament_stern",
+		"base_secondary_armament", "torpedoes", "max_torpedoes", "radar_level",
+		"status", "detection_level", "last_known_pos", "task_force_id", "damage",
+		"previous_turn_moved_hexes", "last_move_turn", "movement_used", "no_movement_turns_left",
+		"is_emergency_fuel", "emergency_turn", "is_patrolling", "created_at", "updated_at",
+	}...)
+	
+	query := "SELECT " + strings.Join(fields, ", ") + "\nFROM naval_units\n" + whereClause
+	return query
+}
+
+// ScanNavalUnitFromRow сканирует NavalUnit из sql.Rows
+// includeCategory - нужно ли сканировать поле category (должно быть в SELECT запросе)
+// useNullableDetectionLevel - использовать sql.NullString для detection_level (true) или прямое сканирование (false)
+// useNullableEmergencyTurn - использовать sql.NullInt32 для emergency_turn (true) или прямое сканирование (false)
+// Возвращает ошибку или заполненный NavalUnit
+func ScanNavalUnitFromRow(rows *sql.Rows, includeCategory bool, useNullableDetectionLevel bool, useNullableEmergencyTurn bool) (*models.NavalUnit, error) {
+	var unit models.NavalUnit
+	var damageJSON []byte
+	var lastKnownPos, taskForceID sql.NullString
+	var detectionLevel sql.NullString
+	var emergencyRemovalTurn sql.NullInt32
+	
+	// Строим список аргументов для Scan в зависимости от параметров
+	scanArgs := []interface{}{
+		&unit.ID, &unit.GameID, &unit.Name, &unit.Type,
+	}
+	
+	// Добавляем category если нужно
+	if includeCategory {
+		scanArgs = append(scanArgs, &unit.Category)
+	}
+	
+	// Остальные поля
+	scanArgs = append(scanArgs, []interface{}{
+		&unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
+		&unit.Evasion, &unit.BaseEvasion, &unit.SpeedRating, &unit.Fuel, &unit.MaxFuel,
+		&unit.HullBoxes, &unit.CurrentHull, &unit.PrimaryArmamentBow, &unit.PrimaryArmamentStern,
+		&unit.SecondaryArmament, &unit.BasePrimaryArmamentBow, &unit.BasePrimaryArmamentStern,
+		&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
+		&unit.Status, // status поле
+	}...)
+	
+	// Добавляем detection_level
+	if useNullableDetectionLevel {
+		scanArgs = append(scanArgs, &detectionLevel)
+	} else {
+		scanArgs = append(scanArgs, &unit.DetectionLevel)
+	}
+	
+	// Добавляем остальные nullable поля
+	scanArgs = append(scanArgs, &lastKnownPos, &taskForceID, &damageJSON)
+	scanArgs = append(scanArgs, []interface{}{
+		&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
+		&unit.IsEmergencyFuel,
+	}...)
+	
+	// Добавляем emergency_turn
+	if useNullableEmergencyTurn {
+		scanArgs = append(scanArgs, &emergencyRemovalTurn)
+	} else {
+		scanArgs = append(scanArgs, &unit.EmergencyTurn)
+	}
+	
+	scanArgs = append(scanArgs, &unit.IsPatrolling, &unit.CreatedAt, &unit.UpdatedAt)
+	
+	err := rows.Scan(scanArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan naval unit: %w", err)
+	}
+	
+	// Парсим JSON поля
+	if len(damageJSON) > 0 {
+		if err := json.Unmarshal(damageJSON, &unit.Damage); err != nil {
+			// Логируем ошибку, но не прерываем выполнение
+			unit.Damage = []models.Damage{}
+		}
+	}
+	
+	// Обрабатываем nullable поля
+	if useNullableDetectionLevel && detectionLevel.Valid {
+		unit.DetectionLevel = models.DetectionLevel(detectionLevel.String)
+	}
+	
+	if lastKnownPos.Valid {
+		unit.LastKnownPos = &lastKnownPos.String
+	}
+	
+	if taskForceID.Valid {
+		unit.TaskForceID = &taskForceID.String
+	}
+	
+	if useNullableEmergencyTurn && emergencyRemovalTurn.Valid {
+		unit.EmergencyTurn = int(emergencyRemovalTurn.Int32)
+	}
+	
+	return &unit, nil
 }
