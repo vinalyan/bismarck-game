@@ -514,14 +514,19 @@ func (s *VisibilityService) getGamePlayers(gameID string) ([]*models.User, error
 }
 
 func (s *VisibilityService) getUnit(gameID, unitID string) (*models.NavalUnit, error) {
-	// Упрощенная реализация - в реальной игре нужно получать из базы данных
-	return &models.NavalUnit{
-		ID:     unitID,
-		GameID: gameID,
-		Type:   models.UnitTypeBattleship,
-		Owner:  "german",
-		Position: "K15",
-	}, nil
+	// Получаем юнит через UnitService
+	unit, err := s.unitService.GetNavalUnitByID(unitID)
+	if err != nil {
+		s.logger.Error("Failed to get unit", "error", err, "game_id", gameID, "unit_id", unitID)
+		return nil, fmt.Errorf("failed to get unit: %w", err)
+	}
+
+	// Проверяем, что юнит принадлежит этой игре
+	if unit.GameID != gameID {
+		return nil, fmt.Errorf("unit %s does not belong to game %s", unitID, gameID)
+	}
+
+	return unit, nil
 }
 
 func (s *VisibilityService) getPlayerSide(playerID string) string {

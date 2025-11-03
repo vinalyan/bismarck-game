@@ -329,16 +329,23 @@ func TestProcessMovementVisibility(t *testing.T) {
 		err := service.ProcessMovementVisibility("550e8400-e29b-41d4-a716-446655440001", unit.ID, "A1", "B1")
 		assert.NoError(t, err)
 
-		// Verify visibility was updated
-		visibleUnits, err := service.GetVisibleUnitsForPlayer("550e8400-e29b-41d4-a716-446655440001", "testuser2")
+		// Verify visibility state was created for player2 (from getGamePlayers stub)
+		// getGamePlayers returns "player1" and "player2"
+		visibility, err := service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", unit.ID, "player2")
 		assert.NoError(t, err)
-		assert.Len(t, visibleUnits, 1)
-		assert.Equal(t, unit.ID, visibleUnits[0].UnitID)
-		assert.Equal(t, "B1", visibleUnits[0].Position)
+		// Visibility should be Unknown after movement
+		assert.Equal(t, models.VisibilityUnknown, visibility)
+
+		// Verify LastKnownHex was updated to "B1"
+		state, err := service.getVisibilityState("550e8400-e29b-41d4-a716-446655440001", unit.ID, "player2")
+		assert.NoError(t, err)
+		assert.NotNil(t, state)
+		assert.Equal(t, "B1", state.LastKnownHex)
 	})
 
 	t.Run("process movement visibility for non-existing unit", func(t *testing.T) {
-		err := service.ProcessMovementVisibility("550e8400-e29b-41d4-a716-446655440001", "non-existing-unit", "A1", "B1")
+		nonExistingUnitID := "550e8400-e29b-41d4-a716-446655440004"
+		err := service.ProcessMovementVisibility("550e8400-e29b-41d4-a716-446655440001", nonExistingUnitID, "A1", "B1")
 		assert.Error(t, err)
 	})
 }
