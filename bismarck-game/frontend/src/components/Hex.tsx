@@ -23,6 +23,7 @@ interface HexProps {
   expandedStackHex?: string | null;
   currentTurn?: number;
   isTFCandidate?: boolean;
+  hasFlightPathMarker?: boolean;
   onClick: () => void;
   onHover: () => void;
   onUnitClick?: (unitId: string, unitData: any) => void;
@@ -49,6 +50,7 @@ const Hex: React.FC<HexProps> = ({
   expandedStackHex = null,
   currentTurn = 0,
   isTFCandidate = false,
+  hasFlightPathMarker = false,
   onClick,
   onHover,
   onUnitClick,
@@ -714,6 +716,18 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
           strokeWidth={1}
           opacity={0.7}
           className="weather-effect"
+        />
+      )}
+      
+      {/* Маркер пути полета (Flight Path) */}
+      {hasFlightPathMarker && (
+        <image
+          href="/assets/markers/FP.svg"
+          x={center.x + size * 0.5}
+          y={center.y - size * 0.75}
+          width={size * 0.35}
+          height={size * 0.4}
+          className="flight-path-marker"
         />
       )}
       </g>

@@ -53,7 +53,8 @@ func setupGameHandler(t *testing.T) (*GameHandler, func()) {
 
 	shipConfigService := services.NewShipConfigService()
 	taskForceService := services.NewTaskForceService(db, logger, unitService, nil)
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, eventService, wsHub, "http://localhost:8080")
+	searchService := services.NewSearchService(db, logger, unitService)
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
 	handler := NewGameHandler(db, unitService, shipConfigService, phaseManager, taskForceService)
 
 	cleanup := func() {

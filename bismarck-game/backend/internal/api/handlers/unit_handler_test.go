@@ -53,7 +53,8 @@ func setupUnitHandler(t *testing.T) (*UnitHandler, func()) {
 
 	// Создаем временный taskForceService для phaseManager (movementService будет nil)
 	taskForceServiceForPM := services.NewTaskForceService(db, logger, unitService, nil)
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceServiceForPM, eventService, wsHub, "http://localhost:8080")
+	searchServiceForPM := services.NewSearchService(db, logger, unitService)
+	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceServiceForPM, searchServiceForPM, eventService, wsHub, "http://localhost:8080")
 
 	movementService := services.NewMovementService(db, logger, nil, phaseManager, unitService, nil, eventService)
 	taskForceService := services.NewTaskForceService(db, logger, unitService, movementService)
