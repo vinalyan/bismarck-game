@@ -845,10 +845,11 @@ func TestGetTaskForceEffectiveSpeed(t *testing.T) {
 
 	t.Run("calculate effective speed", func(t *testing.T) {
 		// Effective speed should be the minimum of all unit speeds
-		// Fast ship: 4, Slow ship: 2 -> Effective speed: 2
+		// Fast ship: Evasion=5 -> GetEffectiveSpeed()=5, Slow ship: Evasion=3 -> GetEffectiveSpeed()=3
+		// Effective speed: min(5, 3) = 3
 		effectiveSpeed, err := service.GetTaskForceEffectiveSpeed(taskForce.ID)
 		assert.NoError(t, err)
-		assert.Equal(t, 2, effectiveSpeed) // Should be the minimum speed
+		assert.Equal(t, 3, effectiveSpeed) // Should be the minimum speed
 	})
 
 	t.Run("get effective speed for non-existing task force", func(t *testing.T) {
@@ -943,11 +944,11 @@ func TestGetTaskForceTotalSearchFactors(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("calculate total search factors", func(t *testing.T) {
-		// Total search factors should be sum of all unit search factors
-		// Unit1: 2, Unit2: 1 -> Total: 3
+		// Task Force gives 1 search factor regardless of number of units
+		// (per game rules: each TF gives +1 search factor)
 		totalSearchFactors, err := service.GetTaskForceTotalSearchFactors(taskForce.ID)
 		assert.NoError(t, err)
-		assert.Equal(t, 3, totalSearchFactors) // 2 + 1 = 3
+		assert.Equal(t, 1, totalSearchFactors) // TF gives 1 factor regardless of units
 	})
 
 	t.Run("get total search factors for non-existing task force", func(t *testing.T) {

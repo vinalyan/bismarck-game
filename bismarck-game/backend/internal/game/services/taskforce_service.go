@@ -482,20 +482,28 @@ func (s *TaskForceService) GetTaskForceEffectiveSpeed(taskForceID string) (int, 
 }
 
 // GetTaskForceTotalSearchFactors возвращает общие факторы поиска Task Force
+// Task Force дает 1 фактор поиска независимо от количества кораблей (по правилам игры)
 func (s *TaskForceService) GetTaskForceTotalSearchFactors(taskForceID string) (int, error) {
 	units, err := s.GetTaskForceUnits(taskForceID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get task force units: %w", err)
 	}
 
-	totalSearchFactors := 0
+	// Проверяем, есть ли хотя бы один корабль, который может искать
+	hasSearchCapableUnit := false
 	for _, unit := range units {
 		if unit.CanSearch() {
-			totalSearchFactors += 1 // Все корабли дают 1 фактор поиска
+			hasSearchCapableUnit = true
+			break
 		}
 	}
 
-	return totalSearchFactors, nil
+	// Task Force дает 1 фактор поиска независимо от количества кораблей
+	if hasSearchCapableUnit {
+		return 1, nil
+	}
+
+	return 0, nil
 }
 
 // CanTaskForceMove проверяет, может ли Task Force двигаться
@@ -816,3 +824,4 @@ func (s *TaskForceService) RemoveAllPatrolMarkers(gameID string) error {
 	s.logger.Info("Removed all patrol markers from task forces", "game_id", gameID, "task_forces_affected", rowsAffected)
 	return nil
 }
+
