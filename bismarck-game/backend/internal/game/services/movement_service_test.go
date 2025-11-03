@@ -9,13 +9,14 @@ import (
 
 // Простой тест для проверки, что функция hexToCube работает без ошибок
 func TestHexToCubeConversion(t *testing.T) {
-	service := &MovementService{}
+	// Используем hexCalculator напрямую вместо метода MovementService
+	hexCalculator := hexgrid.NewStandardHexCalculator()
 
 	// Проверяем, что функция не падает и возвращает валидные координаты
 	testHexes := []string{"A1", "B1", "A2", "C1", "J30", "K15"}
 
 	for _, hex := range testHexes {
-		result := service.HexToCube(hex)
+		result := hexCalculator.HexToCube(hex)
 		// Проверяем, что q + r + s = 0 (основное свойство кубических координат)
 		if result.Q+result.R+result.S != 0 {
 			t.Errorf("HexToCube(%s) = %v, but Q + R + S = %d (should be 0)", hex, result, result.Q+result.R+result.S)
