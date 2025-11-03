@@ -1,12 +1,14 @@
 package services
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
+	"github.com/google/uuid"
 )
 
 // VisibilityService предоставляет методы для работы с видимостью юнитов
@@ -223,7 +225,7 @@ func (s *VisibilityService) GetUnitVisibility(gameID, unitID, playerID string) (
 	}
 
 	if state == nil {
-		return models.VisibilityUnknown, nil
+		return models.VisibilityUnknown, fmt.Errorf("visibility record not found for unit %s and player %s", unitID, playerID)
 	}
 
 	return state.Visibility, nil
@@ -239,9 +241,27 @@ func (s *VisibilityService) SetUnitShadowed(gameID, unitID, playerID, hex string
 	return s.UpdateUnitVisibility(gameID, unitID, playerID, models.VisibilityShadowed)
 }
 
-// ClearUnitVisibility сбрасывает видимость юнита (делает невидимым)
+// ClearUnitVisibility сбрасывает видимость юнита (удаляет запись из базы данных)
 func (s *VisibilityService) ClearUnitVisibility(gameID, unitID, playerID string) error {
-	return s.UpdateUnitVisibility(gameID, unitID, playerID, models.VisibilityUnknown)
+	query := `DELETE FROM unit_visibility WHERE game_id = $1 AND unit_id = $2 AND player_id = $3`
+	
+	result, err := s.db.Exec(query, gameID, unitID, playerID)
+	if err != nil {
+		s.logger.Error("Failed to clear unit visibility", "error", err, "game_id", gameID, "unit_id", unitID, "player_id", playerID)
+		return fmt.Errorf("failed to clear unit visibility: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		s.logger.Warn("Failed to get rows affected", "error", err)
+	}
+
+	s.logger.Info("Unit visibility cleared", 
+		"unit_id", unitID, 
+		"player_id", playerID,
+		"rows_affected", rowsAffected)
+
+	return nil
 }
 
 // Вспомогательные методы
@@ -273,12 +293,103 @@ func (s *VisibilityService) getVisibilityStatesForPlayer(gameID, playerID string
 }
 
 func (s *VisibilityService) getVisibilityState(gameID, unitID, playerID string) (*models.UnitVisibilityState, error) {
-	// Упрощенная реализация - в реальной игре нужно получать из базы данных
-	return nil, nil
+	query := `
+		SELECT id, game_id, unit_id, player_id, visibility, last_known_hex, last_seen_at, created_at, updated_at
+		FROM unit_visibility
+		WHERE game_id = $1 AND unit_id = $2 AND player_id = $3
+	`
+
+	var state models.UnitVisibilityState
+	err := s.db.QueryRow(query, gameID, unitID, playerID).Scan(
+		&state.ID,
+		&state.GameID,
+		&state.UnitID,
+		&state.PlayerID,
+		&state.Visibility,
+		&state.LastKnownHex,
+		&state.LastSeenAt,
+		&state.CreatedAt,
+		&state.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // Запись не найдена - это нормально
+		}
+		s.logger.Error("Failed to get visibility state", "error", err, "game_id", gameID, "unit_id", unitID, "player_id", playerID)
+		return nil, fmt.Errorf("failed to get visibility state: %w", err)
+	}
+
+	return &state, nil
 }
 
 func (s *VisibilityService) saveVisibilityState(state *models.UnitVisibilityState) error {
-	// Упрощенная реализация - в реальной игре нужно сохранять в базе данных
+	// Проверяем, существует ли запись
+	existingState, err := s.getVisibilityState(state.GameID, state.UnitID, state.PlayerID)
+	if err != nil {
+		return fmt.Errorf("failed to check existing visibility state: %w", err)
+	}
+
+	// Если created_at не установлен, устанавливаем текущее время
+	if state.CreatedAt.IsZero() {
+		state.CreatedAt = time.Now()
+	}
+	state.UpdatedAt = time.Now()
+
+	if existingState == nil {
+		// Запись не существует - создаем новую
+		if state.ID == "" {
+			state.ID = uuid.New().String()
+		}
+
+		query := `
+			INSERT INTO unit_visibility (id, game_id, unit_id, player_id, visibility, last_known_hex, last_seen_at, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`
+
+		_, err := s.db.Exec(query,
+			state.ID,
+			state.GameID,
+			state.UnitID,
+			state.PlayerID,
+			state.Visibility,
+			state.LastKnownHex,
+			state.LastSeenAt,
+			state.CreatedAt,
+			state.UpdatedAt,
+		)
+
+		if err != nil {
+			s.logger.Error("Failed to insert visibility state", "error", err, "game_id", state.GameID, "unit_id", state.UnitID, "player_id", state.PlayerID)
+			return fmt.Errorf("failed to insert visibility state: %w", err)
+		}
+	} else {
+		// Запись существует - обновляем существующую
+		query := `
+			UPDATE unit_visibility 
+			SET visibility = $1, 
+			    last_known_hex = $2, 
+			    last_seen_at = $3, 
+			    updated_at = $4
+			WHERE game_id = $5 AND unit_id = $6 AND player_id = $7
+		`
+
+		_, err := s.db.Exec(query,
+			state.Visibility,
+			state.LastKnownHex,
+			state.LastSeenAt,
+			state.UpdatedAt,
+			state.GameID,
+			state.UnitID,
+			state.PlayerID,
+		)
+
+		if err != nil {
+			s.logger.Error("Failed to update visibility state", "error", err, "game_id", state.GameID, "unit_id", state.UnitID, "player_id", state.PlayerID)
+			return fmt.Errorf("failed to update visibility state: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -310,6 +421,6 @@ func (s *VisibilityService) getPlayerSide(playerID string) string {
 }
 
 func (s *VisibilityService) generateID() string {
-	// Упрощенная генерация ID - в реальной игре нужно использовать UUID
-	return fmt.Sprintf("visibility_%d", time.Now().UnixNano())
+	// Генерируем UUID для ID
+	return uuid.New().String()
 }

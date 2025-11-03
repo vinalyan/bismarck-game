@@ -407,8 +407,18 @@ func TestClearUnitVisibility(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	testGameID := "550e8400-e29b-41d4-a716-446655440001"
+	testUnitID := "550e8400-e29b-41d4-a716-446655440002"
+	nonExistingUnitID := "550e8400-e29b-41d4-a716-446655440003"
+
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id::text LIKE 'test-game-%'")
+	_, err = db.GetConnection().Exec("DELETE FROM unit_visibility WHERE game_id = $1", testGameID)
+	require.NoError(t, err)
+	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", testGameID)
+	require.NoError(t, err)
+
+	// Create test game to satisfy foreign key constraint
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -417,8 +427,8 @@ func TestClearUnitVisibility(t *testing.T) {
 
 	// Create test visibility record
 	visibility := &models.UnitVisibilityState{
-		GameID:       "550e8400-e29b-41d4-a716-446655440001",
-		UnitID:       "unit-1",
+		GameID:       testGameID,
+		UnitID:       testUnitID,
 		PlayerID:     "testuser1",
 		Visibility:   models.VisibilitySighted,
 		LastKnownHex: "A1",
@@ -428,16 +438,16 @@ func TestClearUnitVisibility(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("clear unit visibility", func(t *testing.T) {
-		err := service.ClearUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1")
+		err := service.ClearUnitVisibility(testGameID, testUnitID, "testuser1")
 		assert.NoError(t, err)
 
 		// Verify visibility was cleared
-		_, err = service.GetUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "unit-1", "testuser1")
+		_, err = service.GetUnitVisibility(testGameID, testUnitID, "testuser1")
 		assert.Error(t, err)
 	})
 
 	t.Run("clear non-existing unit visibility", func(t *testing.T) {
-		err := service.ClearUnitVisibility("550e8400-e29b-41d4-a716-446655440001", "non-existing-unit", "testuser1")
+		err := service.ClearUnitVisibility(testGameID, nonExistingUnitID, "testuser1")
 		assert.NoError(t, err) // Should not error for non-existing records
 	})
 }
