@@ -642,7 +642,6 @@ const HexMap: React.FC<HexMapProps> = ({
           units: unitsInHex, // Массив отдельных юнитов в гексе
           taskForces: taskForcesInHex, // Массив Task Forces в гексе
           weather: 'clear',
-          fogLevel: 0,
           hexType,
           isRestrictedDD
         });

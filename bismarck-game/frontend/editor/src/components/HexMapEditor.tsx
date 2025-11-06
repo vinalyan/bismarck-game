@@ -69,8 +69,7 @@ const HexMapEditor: React.FC<HexMapEditorProps> = ({
           isVisible: true,
           isHighlighted: false,
           hasUnit: false,
-          weather: 'clear',
-          fogLevel: 0
+          weather: 'clear'
         });
       }
     }

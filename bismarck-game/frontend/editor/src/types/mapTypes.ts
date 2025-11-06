@@ -63,7 +63,6 @@ export interface HexData {
   unitType?: string | null;  // Тип юнита (BB, BC, CV, CA, CL, DD, CG, TK, B, R)
   unitSide?: PlayerSide | null; // Сторона юнита
   weather: WeatherType;      // Погода на гексе
-  fogLevel: number;          // Уровень тумана войны (0-100)
 }
 
 // Юнит на карте

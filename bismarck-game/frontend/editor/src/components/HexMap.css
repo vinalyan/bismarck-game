@@ -112,11 +112,6 @@
   /* Убрано масштабирование */
 }
 
-/* Стили для тумана войны */
-.fog-marker {
-  pointer-events: none;
-}
-
 /* Стили для погодных эффектов */
 .weather-effect {
   pointer-events: none;

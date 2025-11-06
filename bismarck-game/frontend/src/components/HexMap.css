@@ -157,11 +157,6 @@
   /* Убрано масштабирование */
 }
 
-/* Стили для тумана войны */
-.fog-marker {
-  pointer-events: none;
-}
-
 /* Стили для погодных эффектов */
 .weather-effect {
   pointer-events: none;
@@ -180,6 +175,8 @@
   stroke-width: 4 !important;
   fill-opacity: 0.3 !important;
 }
+
+
 
 /* Адаптивность */
 @media (max-width: 768px) {

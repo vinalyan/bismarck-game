@@ -92,7 +92,6 @@ export interface HexData {
   units?: any[];             // Массив отдельных юнитов в гексе (не в Task Forces)
   taskForces?: any[];        // Массив Task Forces в гексе
   weather: WeatherType;      // Погода на гексе
-  fogLevel: number;          // Уровень тумана войны (0-100)
   hexType: 'water' | 'land' | 'non_game'; // Тип гекса для движения
   isRestrictedDD?: boolean;  // Разрешен ли гекс для немецких DD
 }

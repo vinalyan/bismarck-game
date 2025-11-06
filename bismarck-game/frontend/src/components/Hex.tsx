@@ -708,18 +708,6 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
       {/* Юниты на гексе */}
       {renderUnits()}
       
-      {/* Маркер тумана войны */}
-      {hexData.fogLevel > 0 && (
-        <circle
-          cx={center.x}
-          cy={center.y + size * 0.2}
-          r={size * 0.15}
-          fill="#333333"
-          opacity={hexData.fogLevel / 100}
-          className="fog-marker"
-        />
-      )}
-      
       {/* Погодные эффекты */}
       {hexData.weather === 'storm' && (
         <path
