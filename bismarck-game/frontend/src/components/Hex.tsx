@@ -24,6 +24,7 @@ interface HexProps {
   currentTurn?: number;
   isTFCandidate?: boolean;
   hasFlightPathMarker?: boolean;
+  isFog?: boolean;
   onClick: () => void;
   onHover: () => void;
   onUnitClick?: (unitId: string, unitData: any) => void;
@@ -51,6 +52,7 @@ const Hex: React.FC<HexProps> = ({
   currentTurn = 0,
   isTFCandidate = false,
   hasFlightPathMarker = false,
+  isFog = false,
   onClick,
   onHover,
   onUnitClick,
@@ -611,13 +613,13 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
         stroke = 'transparent';
         break;
       case 'land':
-        fill = '#8B7355'; // Коричневый для суши
-        fillOpacity = 0.3;
+        fill = 'url(#waterGradient)'; // Убрана специальная подсветка для суши
+        fillOpacity = 0; // Полная прозрачность
         stroke = 'transparent';
         break;
       case 'non_game':
-        fill = '#333333'; // Серый для неигровых
-        fillOpacity = 0.1;
+        fill = 'url(#waterGradient)'; // Убрана специальная подсветка для неигровых
+        fillOpacity = 0; // Полная прозрачность
         stroke = 'transparent';
         break;
       default:
@@ -654,12 +656,21 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
       }
     }
     
-    // Специальная подсветка для restricted DD гексов
-    if (hexData.isRestrictedDD) {
-      stroke = '#FF6B35'; // Оранжевый для restricted DD гексов
-      strokeWidth = 1;
-      if (!isAvailableForMovement && !activeHex) {
-        fillOpacity = 0.1; // Легкая подсветка
+    // НЕ применяем туманные стили к non_game и land гексам - возвращаем стили сразу
+    if (hexData.hexType === 'non_game' || hexData.hexType === 'land') {
+      return { fill, stroke, strokeWidth, fillOpacity };
+    }
+    
+    // Подсветка туманных гексов (применяется только если isFog = true и гекс туманный)
+    // Приоритет: после isAvailableForMovement, но может перекрываться выбранным гексом
+    // Применяем только к water гексам (non_game и land уже обработаны выше)
+    if (isFog && hexData.isFogHex && !isSelected && hexData.hexType === 'water') {
+      // Полная подсветка тумана (не перекрываем стили доступных для движения или поиска)
+      if (!isAvailableForMovement && !isSearchAvailable && !activeHex) {
+        stroke = '#a1bcab';
+        strokeWidth = 3;
+        fillOpacity = 0.2;
+        fill = '#3a4840';
       }
     }
     

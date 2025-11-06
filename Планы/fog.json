@@ -6,7 +6,7 @@
   "nonGameHexes": [],
   "landAreas": [],
   "englishChannel": {
-    "type": "english_channel",
+    "type": "fog",
     "hexIds": [
       "F20",
       "E20",

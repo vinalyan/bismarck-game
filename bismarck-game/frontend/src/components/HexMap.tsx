@@ -51,6 +51,7 @@ interface HexMapProps {
   searchFactorHexes?: Map<string, number>;
   visibilityLevel?: number;
   hexMarkers?: Record<string, HexMarkers>;
+  isFog?: boolean;
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -84,8 +85,22 @@ const HexMap: React.FC<HexMapProps> = ({
   currentPhase = 'setup',
   searchFactorHexes = new Map<string, number>(),
   visibilityLevel = 1,
-  hexMarkers = {}
+  hexMarkers = {},
+  isFog = false
 }) => {
+  // Отладка: логируем isFog и fogAreas при изменении
+  useEffect(() => {
+    if (isFog) {
+      console.log('🌫️ Fog is active, fog hexes should be highlighted');
+      if (mapStructures?.fogAreas) {
+        console.log('🌫️ Fog areas loaded:', mapStructures.fogAreas.length, 'areas');
+        const totalFogHexes = mapStructures.fogAreas.reduce((sum, area) => sum + (area.hexIds?.length || 0), 0);
+        console.log('🌫️ Total fog hexes:', totalFogHexes);
+      } else {
+        console.warn('⚠️ Fog is active but fogAreas not loaded in mapStructures');
+      }
+    }
+  }, [isFog, mapStructures]);
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
   const [isCreateTFMode, setIsCreateTFMode] = useState(false);
@@ -604,6 +619,7 @@ const HexMap: React.FC<HexMapProps> = ({
         // Определяем тип гекса на основе структур карты
         let hexType: 'water' | 'land' | 'non_game' = 'water';
         let isRestrictedDD = false;
+        let isFogHex = false;
         
         if (mapStructures) {
           // Проверяем неигровые гексы
@@ -628,6 +644,21 @@ const HexMap: React.FC<HexMapProps> = ({
           if (mapStructures.restrictedDD && mapStructures.restrictedDD.hexIds.includes(hexId)) {
             isRestrictedDD = true;
           }
+          
+          // Проверяем туманные гексы
+          if (mapStructures.fogAreas && mapStructures.fogAreas.length > 0) {
+            for (const fogArea of mapStructures.fogAreas) {
+              if (fogArea.hexIds && fogArea.hexIds.includes(hexId)) {
+                isFogHex = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        // Отладка для туманных гексов
+        if (isFogHex && isFog) {
+          console.log(`🌫️ Fog hex detected: ${hexId}, isFog: ${isFog}, isFogHex: ${isFogHex}`);
         }
         
         newHexes.set(hexId, {
@@ -643,13 +674,14 @@ const HexMap: React.FC<HexMapProps> = ({
           taskForces: taskForcesInHex, // Массив Task Forces в гексе
           weather: 'clear',
           hexType,
-          isRestrictedDD
+          isRestrictedDD,
+          isFogHex
         });
       }
     }
     
     return newHexes;
-  }, [width, height, gameUnits, taskForces, mapStructures]);
+  }, [width, height, gameUnits, taskForces, mapStructures, isFog]);
 
   // Обработчики событий
   const handleHexClick = (coordinate: HexCoordinate) => {
@@ -864,6 +896,7 @@ const HexMap: React.FC<HexMapProps> = ({
           currentTurn={currentTurn}
           isTFCandidate={isCreateTFMode && tfCandidateHexes.includes(hexId)}
           hasFlightPathMarker={hasFlightPathMarker}
+          isFog={isFog}
           onClick={() => {
             const hexId = `${coordinate.letter}${coordinate.number}`;
             // Проверяем режимы в порядке приоритета

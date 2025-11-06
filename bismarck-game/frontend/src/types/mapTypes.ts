@@ -51,6 +51,7 @@ export interface MapStructure {
   landAreas: LandArea[];
   nonGameHexes: NonGameHex[];
   restrictedDD?: RestrictedDD;
+  fogAreas?: FogArea[];
 }
 
 export interface LandArea {
@@ -68,6 +69,12 @@ export interface NonGameHex {
 export interface RestrictedDD {
   type: string;
   hexIds: string[];
+}
+
+export interface FogArea {
+  type: string;
+  hexIds: string[];
+  name: string;
 }
 
 // Стороны игроков
@@ -94,6 +101,7 @@ export interface HexData {
   weather: WeatherType;      // Погода на гексе
   hexType: 'water' | 'land' | 'non_game'; // Тип гекса для движения
   isRestrictedDD?: boolean;  // Разрешен ли гекс для немецких DD
+  isFogHex?: boolean;        // Является ли гекс туманным
 }
 
 // Юнит на карте

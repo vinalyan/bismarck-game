@@ -42,7 +42,8 @@ func (s *MapStructureService) LoadConfig(path string) error {
 	s.logger.Info("Конфигурация структур карты успешно загружена",
 		"landAreas", len(mapStructures.LandAreas),
 		"nonGameHexes", len(mapStructures.NonGameHexes),
-		"hasRestrictedDD", mapStructures.RestrictedDD != nil)
+		"hasRestrictedDD", mapStructures.RestrictedDD != nil,
+		"fogAreas", len(mapStructures.FogAreas))
 
 	return nil
 }
@@ -99,6 +100,22 @@ func (s *MapStructureService) IsRestrictedDDHex(hexId string) bool {
 	for _, id := range s.mapStructures.RestrictedDD.HexIds {
 		if id == hexId {
 			return true
+		}
+	}
+	return false
+}
+
+// IsFogHex проверяет, является ли гекс туманным
+func (s *MapStructureService) IsFogHex(hexId string) bool {
+	if s.mapStructures == nil {
+		return false
+	}
+
+	for _, fogArea := range s.mapStructures.FogAreas {
+		for _, id := range fogArea.HexIds {
+			if id == hexId {
+				return true
+			}
 		}
 	}
 	return false

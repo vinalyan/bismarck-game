@@ -5,6 +5,7 @@ type MapStructure struct {
 	LandAreas    []LandArea    `json:"landAreas"`
 	NonGameHexes []NonGameHex  `json:"nonGameHexes"`
 	RestrictedDD *RestrictedDD `json:"restrictedDD,omitempty"`
+	FogAreas     []FogArea     `json:"fogAreas,omitempty"`
 }
 
 // LandArea представляет сухопутную область
@@ -25,6 +26,13 @@ type NonGameHex struct {
 type RestrictedDD struct {
 	Type   string   `json:"type"`
 	HexIds []string `json:"hexIds"`
+}
+
+// FogArea представляет туманную область
+type FogArea struct {
+	Type   string   `json:"type"`
+	HexIds []string `json:"hexIds"`
+	Name   string   `json:"name"`
 }
 
 // HexType представляет тип гекса

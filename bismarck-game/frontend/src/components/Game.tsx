@@ -146,6 +146,13 @@ const Game: React.FC = () => {
     const loadMapStructures = async () => {
       try {
         const structures = await mapService.getMapStructures();
+        console.log('🗺️ Map structures loaded:', {
+          landAreas: structures.landAreas?.length || 0,
+          nonGameHexes: structures.nonGameHexes?.length || 0,
+          hasRestrictedDD: !!structures.restrictedDD,
+          fogAreas: structures.fogAreas?.length || 0,
+          fogAreasData: structures.fogAreas
+        });
         setMapStructures(structures);
       } catch (error) {
         console.error('Error loading map structures:', error);
@@ -1697,6 +1704,8 @@ const Game: React.FC = () => {
             searchFactorHexes={searchFactorHexes}
             visibilityLevel={getTurnData(currentTurn)?.visibility_level ?? currentGame?.visibility_level ?? 1}
             hexMarkers={hexMarkers}
+            isFog={getTurnData(currentTurn)?.is_fog ?? currentGame?.is_fog ?? false}
+            mapStructures={mapStructures}
           />
         </div>
 

@@ -5,6 +5,7 @@ export interface MapStructure {
   landAreas: LandArea[];
   nonGameHexes: NonGameHex[];
   restrictedDD?: RestrictedDD;
+  fogAreas?: FogArea[];
 }
 
 export interface LandArea {
@@ -22,6 +23,12 @@ export interface NonGameHex {
 export interface RestrictedDD {
   type: string;
   hexIds: string[];
+}
+
+export interface FogArea {
+  type: string;
+  hexIds: string[];
+  name: string;
 }
 
 export const mapService = {

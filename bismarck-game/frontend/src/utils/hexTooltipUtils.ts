@@ -13,8 +13,17 @@ export const getHexFeatures = (hexId: string, mapStructures: MapStructure | null
     features.push('restricted_dd');
   }
 
+  // Проверяем туманные гексы
+  if (mapStructures.fogAreas) {
+    for (const fogArea of mapStructures.fogAreas) {
+      if (fogArea.hexIds.includes(hexId)) {
+        features.push('fog');
+        break;
+      }
+    }
+  }
+
   // TODO: Добавить проверки для других особенностей когда они будут реализованы
-  // - fog: туман
   // - port: порт
   // - airport: аэропорт
   // - air_sector: зона действия авиации
