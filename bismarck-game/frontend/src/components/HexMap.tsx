@@ -658,7 +658,6 @@ const HexMap: React.FC<HexMapProps> = ({
         
         // Отладка для туманных гексов
         if (isFogHex && isFog) {
-          console.log(`🌫️ Fog hex detected: ${hexId}, isFog: ${isFog}, isFogHex: ${isFogHex}`);
         }
         
         newHexes.set(hexId, {
