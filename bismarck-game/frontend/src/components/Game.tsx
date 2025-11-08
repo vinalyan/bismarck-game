@@ -1419,7 +1419,11 @@ const Game: React.FC = () => {
                           <span className="unit-type">TF</span>
                         </div>
                         <div className="unit-status">
-
+                          {tf.detection_level && tf.detection_level.toLowerCase() !== 'none' && (
+                            <span className={`detection-tag ${tf.detection_level.toLowerCase()}`}>
+                              {tf.detection_level.toLowerCase() === 'shadowed' ? '🔴 Преследуется' : '🟠 Обнаружен'}
+                            </span>
+                          )}
                         </div>
 
                         {memberUnits.length > 0 && (
@@ -1459,6 +1463,11 @@ const Game: React.FC = () => {
                                   <span className="unit-type">{mu!.type}</span>
                                 </div>
                                 <div className="unit-status">
+                                  {mu!.detection_level && mu!.detection_level.toLowerCase() !== 'none' && (
+                                    <span className={`detection-tag ${mu!.detection_level.toLowerCase()}`}>
+                                      {mu!.detection_level.toLowerCase() === 'shadowed' ? '🔴 Преследуется' : '🟠 Обнаружен'}
+                                    </span>
+                                  )}
                                   <span>F: {mu!.fuel ?? 0}/{mu!.max_fuel ?? 0}</span>
                                   {(mu!.speed_rating === 'S' || mu!.speed_rating === 'VS') && mu!.no_movement_turns_left > 0 && (
                                     <span style={{ color: '#fbbf24' }}>
@@ -1541,6 +1550,11 @@ const Game: React.FC = () => {
                         <span className="unit-type">{unit.type}</span>
                       </div>
                       <div className="unit-status">
+                        {unit.detection_level && unit.detection_level.toLowerCase() !== 'none' && (
+                          <span className={`detection-tag ${unit.detection_level.toLowerCase()}`}>
+                            {unit.detection_level.toLowerCase() === 'shadowed' ? '🔴 Преследуется' : '🟠 Обнаружен'}
+                          </span>
+                        )}
                         {/* Показываем топливо только для быстрых и средних юнитов */}
                         {(unit.speed_rating === 'F' || unit.speed_rating === 'M') && (
                           <span>F: {unit.fuel || 0}/{unit.max_fuel || 0}</span>

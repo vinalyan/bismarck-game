@@ -231,6 +231,30 @@
   color: #d1d5db;
 }
 
+.detection-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  align-self: flex-start;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.detection-tag.sighted {
+  background: rgba(251, 146, 60, 0.12);
+  color: #f97316;
+  border: 1px solid rgba(251, 146, 60, 0.55);
+}
+
+.detection-tag.shadowed {
+  background: rgba(248, 113, 113, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(248, 113, 113, 0.6);
+}
+
 
 
 /* Выбранная позиция */

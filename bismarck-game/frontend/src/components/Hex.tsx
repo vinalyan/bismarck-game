@@ -173,8 +173,11 @@ const Hex: React.FC<HexProps> = ({
     return `${sideFlag} ${sideName} ${typeName}\n${unitId}\nПозиция: ${coordinates}`;
   };
 
+  type UnitVisualState = 'idle' | 'selected' | 'active' | 'cannot-move' | 'emergency-fuel' | 'sighted' | 'shadowed';
+  type TaskForceVisualState = 'idle' | 'selected' | 'active' | 'cannot-move' | 'sighted' | 'shadowed';
+
   // Функция для определения состояния юнита
-  const getUnitState = (unit: any): 'idle' | 'selected' | 'active' | 'cannot-move' | 'emergency-fuel' => {
+  const getUnitState = (unit: any): UnitVisualState => {
     if (selectedUnit === unit.id) {
       return 'selected';
     }
@@ -182,6 +185,14 @@ const Hex: React.FC<HexProps> = ({
     // Проверяем аварийное топливо
     if (unit.is_emergency_fuel === true) {
       return 'emergency-fuel';
+    }
+
+    const detectionLevel = typeof unit.detection_level === 'string' ? unit.detection_level.toLowerCase() : '';
+    if (detectionLevel === 'shadowed') {
+      return 'shadowed';
+    }
+    if (detectionLevel === 'sighted') {
+      return 'sighted';
     }
     
     // Проверяем условия "не может двигаться"
@@ -203,7 +214,7 @@ const Hex: React.FC<HexProps> = ({
   };
 
   // Функция для определения состояния стека
-  const getStackState = (units: any[]): 'idle' | 'selected' | 'active' | 'cannot-move' | 'emergency-fuel' => {
+  const getStackState = (units: any[]): UnitVisualState => {
     // Если есть выбранный юнит в стеке
     if (units.some(unit => selectedUnit === unit.id)) {
       return 'selected';
@@ -212,6 +223,13 @@ const Hex: React.FC<HexProps> = ({
     // Если есть юнит с аварийным топливом
     if (units.some(unit => unit.is_emergency_fuel === true)) {
       return 'emergency-fuel';
+    }
+
+    if (units.some(unit => (unit.detection_level || '').toLowerCase() === 'shadowed')) {
+      return 'shadowed';
+    }
+    if (units.some(unit => (unit.detection_level || '').toLowerCase() === 'sighted')) {
+      return 'sighted';
     }
     
     // Если все юниты не могут двигаться
@@ -228,10 +246,18 @@ const Hex: React.FC<HexProps> = ({
 };
 
 // Функция для определения состояния Task Force
-const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'cannot-move' => {
+const getTaskForceState = (taskForce: any): TaskForceVisualState => {
   // Если Task Force выбран
   if (selectedUnit === taskForce.id) {
     return 'selected';
+  }
+
+  const detectionLevel = typeof taskForce.detection_level === 'string' ? taskForce.detection_level.toLowerCase() : '';
+  if (detectionLevel === 'shadowed') {
+    return 'shadowed';
+  }
+  if (detectionLevel === 'sighted') {
+    return 'sighted';
   }
   
   // Проверяем, может ли двигаться (если есть данные о последнем ходе)
@@ -368,7 +394,7 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
   };
 
   // Функция для определения состояния смешанного стека (Task Forces + Units)
-  const getStackStateForMixedItems = (items: Array<any & { isTaskForce: boolean }>): 'idle' | 'selected' | 'active' | 'cannot-move' | 'emergency-fuel' => {
+  const getStackStateForMixedItems = (items: Array<any & { isTaskForce: boolean }>): UnitVisualState => {
     // Если есть выбранный объект в стеке
     if (items.some(item => selectedUnit === item.id)) {
       return 'selected';
@@ -377,6 +403,20 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
     // Если есть юнит с аварийным топливом
     if (items.some(item => !item.isTaskForce && item.is_emergency_fuel === true)) {
       return 'emergency-fuel';
+    }
+
+    if (items.some(item => {
+      const level = (item.detection_level || '').toLowerCase();
+      return level === 'shadowed';
+    })) {
+      return 'shadowed';
+    }
+
+    if (items.some(item => {
+      const level = (item.detection_level || '').toLowerCase();
+      return level === 'sighted';
+    })) {
+      return 'sighted';
     }
 
     // Если все объекты не могут двигаться
@@ -460,7 +500,7 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
               y={center.y - size * 0.4}
               width={size * 0.8}
               height={size * 0.8}
-              className="unit-stack-icon taskforce"
+              className={`unit-stack-icon taskforce ${stackState}`}
               preserveAspectRatio="xMidYMid meet"
             />
           ) : (
@@ -470,7 +510,7 @@ const getTaskForceState = (taskForce: any): 'idle' | 'selected' | 'active' | 'ca
               y={center.y - size * 0.4}
               width={size * 0.8}
               height={size * 0.8}
-              className="unit-stack-icon"
+              className={`unit-stack-icon ${stackState}`}
               preserveAspectRatio="xMidYMid meet"
             />
           )}

@@ -241,6 +241,27 @@
   animation: emergencyFuelGlow 1.5s ease-in-out infinite;
 }
 
+/* Обнаруженные статусы */
+.unit-container.sighted .unit-background {
+  stroke: #fb923c !important;
+  stroke-width: 3px !important;
+  fill: rgba(251, 146, 60, 0.2);
+}
+
+.unit-container.sighted .unit-icon {
+  filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.65));
+}
+
+.unit-container.shadowed .unit-background {
+  stroke: #f87171 !important;
+  stroke-width: 3px !important;
+  fill: rgba(248, 113, 113, 0.22);
+}
+
+.unit-container.shadowed .unit-icon {
+  filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.75));
+}
+
 /* ===== СТЕКИРОВАНИЕ ЮНИТОВ ===== */
 
 /* Контейнер свернутого стека */
@@ -275,6 +296,52 @@
   stroke: #ef4444;
   filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6));
   animation: emergencyFuelPulse 1.5s ease-in-out infinite;
+}
+
+.unit-stack-background.sighted {
+  stroke: #fb923c;
+  fill: rgba(251, 146, 60, 0.2);
+  animation: none;
+}
+
+.unit-stack-container.sighted .unit-stack-ring {
+  stroke: rgba(251, 146, 60, 0.8);
+}
+
+.unit-stack-icon.sighted {
+  filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.65));
+}
+
+.stacked-unit-background.sighted {
+  stroke: #fb923c;
+  fill: rgba(251, 146, 60, 0.2);
+}
+
+.stacked-unit-icon.sighted {
+  filter: drop-shadow(0 0 4px rgba(251, 146, 60, 0.65));
+}
+
+.unit-stack-background.shadowed {
+  stroke: #f87171;
+  fill: rgba(248, 113, 113, 0.22);
+  animation: none;
+}
+
+.unit-stack-container.shadowed .unit-stack-ring {
+  stroke: rgba(248, 113, 113, 0.8);
+}
+
+.unit-stack-icon.shadowed {
+  filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.75));
+}
+
+.stacked-unit-background.shadowed {
+  stroke: #f87171;
+  fill: rgba(248, 113, 113, 0.22);
+}
+
+.stacked-unit-icon.shadowed {
+  filter: drop-shadow(0 0 4px rgba(248, 113, 113, 0.75));
 }
 
 .unit-stack-icon {
@@ -573,6 +640,39 @@
 
 .task-force-container.active .task-force-icon {
   filter: drop-shadow(0 0 6px #22c55e);
+}
+
+/* Task Force - обнаружен / преследуется */
+.task-force-container.sighted .task-force-background {
+  stroke: #fb923c !important;
+  stroke-width: 3px !important;
+  fill: rgba(251, 146, 60, 0.2);
+  animation: none;
+}
+
+.task-force-container.sighted .task-force-icon {
+  filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.65));
+}
+
+.task-force-container.sighted .task-force-name,
+.task-force-container.sighted .task-force-count {
+  color: #fb923c;
+}
+
+.task-force-container.shadowed .task-force-background {
+  stroke: #f87171 !important;
+  stroke-width: 3px !important;
+  fill: rgba(248, 113, 113, 0.22);
+  animation: none;
+}
+
+.task-force-container.shadowed .task-force-icon {
+  filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.75));
+}
+
+.task-force-container.shadowed .task-force-name,
+.task-force-container.shadowed .task-force-count {
+  color: #f87171;
 }
 
 /* Task Force, который не может двигаться */
