@@ -79,6 +79,89 @@ func (s *GameEventService) LogTaskForceMovementEvent(gameID, taskForceID, taskFo
 	return s.saveEvent(event)
 }
 
+// LogSearchAttemptEvent фиксирует факт выполнения поиска в гексе
+func (s *GameEventService) LogSearchAttemptEvent(gameID string, turn int, phase, hexID, searchingSide string, factors, visibilityLevel int, status string) error {
+	description := fmt.Sprintf("Поиск в гексе %s", hexID)
+	if status != "" {
+		description = fmt.Sprintf("%s — %s", description, status)
+	}
+
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       phase,
+		EventType:   models.EventTypeSearch,
+		Description: description,
+		Data: map[string]interface{}{
+			"hex_id":           hexID,
+			"searching_side":   searchingSide,
+			"factors":          factors,
+			"visibility_level": visibilityLevel,
+			"status":           status,
+		},
+		Visibility: map[string]interface{}{
+			"is_public": true,
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}
+
+// LogSearchResultEvent фиксирует итог поиска для обеих сторон
+func (s *GameEventService) LogSearchResultEvent(gameID string, turn int, phase, hexID, searchingSide, description string, detectionLevel models.DetectionLevel, shipCount int, classSummary string, taskForceNames []string, hasContact bool) error {
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       phase,
+		EventType:   models.EventTypeSearch,
+		Description: description,
+		Data: map[string]interface{}{
+			"hex_id":          hexID,
+			"searching_side":  searchingSide,
+			"has_contact":     hasContact,
+			"ship_count":      shipCount,
+			"class_summary":   classSummary,
+			"task_force_list": taskForceNames,
+			"detection_level": string(detectionLevel),
+		},
+		Visibility: map[string]interface{}{
+			"is_public": true,
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}
+
+// LogSearchWarningEvent уведомляет владельца обнаруженных кораблей
+func (s *GameEventService) LogSearchWarningEvent(gameID string, turn int, phase, hexID, ownerSide, description string, detectionLevel models.DetectionLevel, shipNames []string, taskForceDetails []string) error {
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       phase,
+		EventType:   models.EventTypeDetection,
+		Description: description,
+		Data: map[string]interface{}{
+			"hex_id":          hexID,
+			"owner_side":      ownerSide,
+			"detection_level": string(detectionLevel),
+			"ship_names":      shipNames,
+			"task_forces":     taskForceDetails,
+		},
+		Visibility: map[string]interface{}{
+			"is_public":   false,
+			"player_side": ownerSide,
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}
+
 // LogPhaseChangeEvent логирует событие смены фазы
 func (s *GameEventService) LogPhaseChangeEvent(gameID string, turn int, fromPhase, toPhase string) error {
 	event := &models.GameEvent{

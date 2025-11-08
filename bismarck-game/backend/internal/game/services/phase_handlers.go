@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"time"
 
@@ -462,6 +463,19 @@ func (h *SearchPhaseHandler) getGameSearchContext(pm *PhaseManager, gameID strin
 }
 
 func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID string, visibilityLevel int, isFog bool, side searchSide) {
+	var turnNumber int
+	phaseName := string(models.PhaseSearch)
+	if pm.eventService != nil {
+		if currentTurn, err := pm.GetCurrentPhase(gameID); err != nil {
+			log.Printf("Search phase - failed to get current turn for logging: %v", err)
+		} else if currentTurn != nil {
+			turnNumber = currentTurn.TurnNumber
+			if currentTurn.CurrentPhase != "" {
+				phaseName = string(currentTurn.CurrentPhase)
+			}
+		}
+	}
+
 	hexes := h.collectCandidateHexes(pm, gameID, side)
 	if len(hexes) == 0 {
 		log.Printf("Search phase - no candidate hexes for side %s in game %s", side.label, gameID)
@@ -473,6 +487,7 @@ func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID strin
 			continue
 		}
 		if isFog && h.isHexFogged(pm, hex) {
+			h.logSearchAttempt(pm, gameID, turnNumber, phaseName, hex, side.label, 0, visibilityLevel, "пропущен (туман)")
 			log.Printf("Search phase - skipping hex %s for side %s due to fog", hex, side.label)
 			continue
 		}
@@ -484,8 +499,12 @@ func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID strin
 		}
 
 		if factors < visibilityLevel {
+			status := fmt.Sprintf("недостаточно факторов (%d < %d)", factors, visibilityLevel)
+			h.logSearchAttempt(pm, gameID, turnNumber, phaseName, hex, side.label, factors, visibilityLevel, status)
 			continue
 		}
+
+		h.logSearchAttempt(pm, gameID, turnNumber, phaseName, hex, side.label, factors, visibilityLevel, "")
 
 		hasFlightMarker, err := h.hexHasFlightPathMarker(pm, gameID, hex, side.label)
 		if err != nil {
@@ -510,12 +529,235 @@ func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID strin
 		}
 
 		if len(enemyUnits) == 0 && len(enemyTaskForces) == 0 {
+			h.logSearchResult(pm, gameID, turnNumber, phaseName, hex, side.label, models.DetectionLevelNone, nil, nil, nil, false)
 			log.Printf("Search phase - factors met in hex %s for side %s but no enemy forces detected (possible trail)", hex, side.label)
 			continue
 		}
 
+		tfUnitsByID := make(map[string][]models.NavalUnit)
+		tfNameByID := make(map[string]string)
+		for _, tf := range enemyTaskForces {
+			tfNameByID[tf.ID] = tf.Name
+			if pm.taskForceService != nil {
+				if units, err := pm.taskForceService.GetTaskForceUnits(tf.ID); err == nil {
+					tfUnitsByID[tf.ID] = units
+				} else {
+					log.Printf("Search phase - failed to preload task force units for %s: %v", tf.ID, err)
+				}
+			}
+		}
+
+		h.logSearchResult(pm, gameID, turnNumber, phaseName, hex, side.label, detectionLevel, enemyUnits, tfUnitsByID, tfNameByID, true)
+
+		if side.opponentLabel != "" {
+			h.logSearchWarning(pm, gameID, turnNumber, phaseName, hex, side.opponentLabel, detectionLevel, enemyUnits, enemyTaskForces, tfUnitsByID)
+		}
+
 		h.applyDetectionToUnits(pm, gameID, hex, side.playerID, side.label, detectionLevel, enemyUnits)
 		h.applyDetectionToTaskForces(pm, gameID, hex, side.playerID, side.label, detectionLevel, enemyTaskForces)
+	}
+}
+
+func (h *SearchPhaseHandler) logSearchAttempt(pm *PhaseManager, gameID string, turnNumber int, phaseName, hexID, searchingSide string, factors, visibilityLevel int, status string) {
+	if pm == nil || pm.eventService == nil {
+		return
+	}
+
+	if err := pm.eventService.LogSearchAttemptEvent(gameID, turnNumber, phaseName, hexID, searchingSide, factors, visibilityLevel, status); err != nil {
+		log.Printf("Search phase - failed to log search attempt for hex %s: %v", hexID, err)
+	}
+}
+
+func (h *SearchPhaseHandler) logSearchResult(pm *PhaseManager, gameID string, turnNumber int, phaseName, hexID, searchingSide string, detectionLevel models.DetectionLevel, enemyUnits []*models.NavalUnit, tfUnits map[string][]models.NavalUnit, tfNameByID map[string]string, hasContact bool) {
+	if pm == nil || pm.eventService == nil {
+		return
+	}
+
+	description := fmt.Sprintf("Searсh «hex %s: нет контакта»", hexID)
+	shipCount := 0
+	classSummary := ""
+	taskForceNames := []string{}
+
+	if hasContact {
+		allUnits, classes, tfNames := h.buildSearchSummary(enemyUnits, tfUnits, tfNameByID)
+		shipCount = len(allUnits)
+		classSummary = classes
+		taskForceNames = tfNames
+		detectionText := string(detectionLevel)
+		if detectionText == "" {
+			detectionText = string(models.DetectionLevelSighted)
+		}
+		description = fmt.Sprintf("Searсh «hex %s: обнаружено %d %s (%s). Task force: %s. Detection=%s».",
+			hexID,
+			shipCount,
+			h.pluralizeShips(shipCount),
+			classSummary,
+			h.formatTaskForceText(taskForceNames),
+			detectionText,
+		)
+	}
+
+	if err := pm.eventService.LogSearchResultEvent(gameID, turnNumber, phaseName, hexID, searchingSide, description, detectionLevel, shipCount, classSummary, taskForceNames, hasContact); err != nil {
+		log.Printf("Search phase - failed to log search result for hex %s: %v", hexID, err)
+	}
+}
+
+func (h *SearchPhaseHandler) logSearchWarning(pm *PhaseManager, gameID string, turnNumber int, phaseName, hexID, ownerSide string, detectionLevel models.DetectionLevel, enemyUnits []*models.NavalUnit, enemyTaskForces []*models.TaskForce, tfUnits map[string][]models.NavalUnit) {
+	if pm == nil || pm.eventService == nil {
+		return
+	}
+
+	var soloNames []string
+	var shipNames []string
+	for _, unit := range enemyUnits {
+		if unit == nil {
+			continue
+		}
+		soloNames = append(soloNames, unit.Name)
+		shipNames = append(shipNames, unit.Name)
+	}
+
+	var tfDescriptions []string
+	for _, tf := range enemyTaskForces {
+		units := tfUnits[tf.ID]
+		if len(units) == 0 && pm != nil && pm.taskForceService != nil {
+			if fetched, err := pm.taskForceService.GetTaskForceUnits(tf.ID); err == nil {
+				units = fetched
+			}
+		}
+
+		names := h.extractUnitNames(units)
+		if len(names) > 0 {
+			tfDescriptions = append(tfDescriptions, fmt.Sprintf("%s (%s)", tf.Name, strings.Join(names, ", ")))
+			shipNames = append(shipNames, names...)
+		} else {
+			tfDescriptions = append(tfDescriptions, tf.Name)
+		}
+	}
+
+	bodyParts := make([]string, 0, 2)
+	if len(soloNames) > 0 {
+		bodyParts = append(bodyParts, strings.Join(soloNames, ", "))
+	}
+	if len(tfDescriptions) > 0 {
+		tfMessages := make([]string, 0, len(tfDescriptions))
+		for _, desc := range tfDescriptions {
+			tfMessages = append(tfMessages, fmt.Sprintf("нашу TF %s", desc))
+		}
+		bodyParts = append(bodyParts, strings.Join(tfMessages, "; "))
+	}
+
+	if len(bodyParts) == 0 {
+		return
+	}
+
+	description := fmt.Sprintf("Search warning «hex %s: противник обнаружил %s. Detection=%s».",
+		hexID,
+		strings.Join(bodyParts, "; "),
+		detectionLevel,
+	)
+
+	if err := pm.eventService.LogSearchWarningEvent(gameID, turnNumber, phaseName, hexID, ownerSide, description, detectionLevel, shipNames, tfDescriptions); err != nil {
+		log.Printf("Search phase - failed to log search warning for hex %s: %v", hexID, err)
+	}
+}
+
+func (h *SearchPhaseHandler) buildSearchSummary(enemyUnits []*models.NavalUnit, tfUnits map[string][]models.NavalUnit, tfNameByID map[string]string) ([]models.NavalUnit, string, []string) {
+	allUnits := make([]models.NavalUnit, 0, len(enemyUnits))
+	classCounts := make(map[string]int)
+
+	for _, unit := range enemyUnits {
+		if unit == nil {
+			continue
+		}
+		allUnits = append(allUnits, *unit)
+		classKey := strings.ToUpper(string(unit.Type))
+		if classKey == "" {
+			classKey = strings.ToUpper(unit.Class)
+		}
+		if classKey == "" {
+			classKey = "UNKNOWN"
+		}
+		classCounts[classKey]++
+	}
+
+	taskForceNames := make([]string, 0, len(tfUnits))
+	for tfID, tfName := range tfNameByID {
+		if tfName == "" {
+			tfName = tfID
+		}
+		taskForceNames = append(taskForceNames, tfName)
+
+		units := tfUnits[tfID]
+		if len(units) == 0 {
+			continue
+		}
+
+		for _, unit := range units {
+			allUnits = append(allUnits, unit)
+			classKey := strings.ToUpper(string(unit.Type))
+			if classKey == "" {
+				classKey = strings.ToUpper(unit.Class)
+			}
+			if classKey == "" {
+				classKey = "UNKNOWN"
+			}
+			classCounts[classKey]++
+		}
+	}
+	sort.Strings(taskForceNames)
+
+	classSummary := h.formatClassSummary(classCounts)
+
+	return allUnits, classSummary, taskForceNames
+}
+
+func (h *SearchPhaseHandler) formatClassSummary(classCounts map[string]int) string {
+	if len(classCounts) == 0 {
+		return "нет данных"
+	}
+
+	keys := make([]string, 0, len(classCounts))
+	for class := range classCounts {
+		keys = append(keys, class)
+	}
+	sort.Strings(keys)
+
+	parts := make([]string, 0, len(keys))
+	for _, class := range keys {
+		parts = append(parts, fmt.Sprintf("%s×%d", class, classCounts[class]))
+	}
+	return strings.Join(parts, ", ")
+}
+
+func (h *SearchPhaseHandler) formatTaskForceText(taskForceNames []string) string {
+	if len(taskForceNames) == 0 {
+		return "нет"
+	}
+	return strings.Join(taskForceNames, ", ")
+}
+
+func (h *SearchPhaseHandler) extractUnitNames(units []models.NavalUnit) []string {
+	names := make([]string, 0, len(units))
+	for _, unit := range units {
+		if unit.Name != "" {
+			names = append(names, unit.Name)
+		}
+	}
+	return names
+}
+
+func (h *SearchPhaseHandler) pluralizeShips(count int) string {
+	countMod10 := count % 10
+	countMod100 := count % 100
+
+	switch {
+	case countMod10 == 1 && countMod100 != 11:
+		return "корабль"
+	case countMod10 >= 2 && countMod10 <= 4 && (countMod100 < 10 || countMod100 >= 20):
+		return "корабля"
+	default:
+		return "кораблей"
 	}
 }
 

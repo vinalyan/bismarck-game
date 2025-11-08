@@ -1,15 +1,23 @@
 package services
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"bismarck-game/backend/internal/game/models"
+	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/testutil"
 )
+
+type loggedEvent struct {
+	Description string
+	EventType   string
+	Visibility  map[string]interface{}
+}
 
 func mustCreateNavalUnit(t *testing.T, unitService *UnitService, gameID, name, unitType, class, owner, nationality, position string) string {
 	t.Helper()
@@ -100,7 +108,12 @@ func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
 	err = db.GetConnection().QueryRow(`SELECT COUNT(*) FROM hex_markers WHERE game_id = $1 AND player_id = $2`, gameID, alliedPlayerID).Scan(&markerCount)
 	require.NoError(t, err)
 	assert.Equal(t, 0, markerCount)
-	// silence potential unused variable warning
+
+	events := fetchSearchEvents(t, db, gameID)
+	descriptions := extractDescriptions(events)
+	assert.Contains(t, descriptions, "Поиск в гексе A1")
+	assert.Contains(t, descriptions, "Searсh «hex A1: обнаружено 1 корабль (CA×1). Task force: нет. Detection=shadowed».")
+	assert.Contains(t, descriptions, "Search warning «hex A1: противник обнаружил German Raider. Detection=shadowed».")
 }
 
 func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
@@ -162,6 +175,12 @@ func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
 	err = db.GetConnection().QueryRow(`SELECT visibility FROM unit_visibility WHERE game_id = $1 AND unit_id = $2 AND player_id = $3`, gameID, enemyUnitID, alliedPlayerID).Scan(&visibility)
 	require.NoError(t, err)
 	assert.Equal(t, string(models.VisibilitySighted), visibility)
+
+	events := fetchSearchEvents(t, db, gameID)
+	descriptions := extractDescriptions(events)
+	assert.Contains(t, descriptions, "Поиск в гексе B2")
+	assert.Contains(t, descriptions, "Searсh «hex B2: обнаружено 1 корабль (CA×1). Task force: нет. Detection=sighted».")
+	assert.Contains(t, descriptions, "Search warning «hex B2: противник обнаружил German Raider 2. Detection=sighted».")
 
 }
 
@@ -227,4 +246,59 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, visibilityCount)
 
+	events := fetchSearchEvents(t, db, gameID)
+	descriptions := extractDescriptions(events)
+	expectedDescription := "Поиск в гексе C3 — пропущен (туман)"
+	assert.GreaterOrEqual(t, countOccurrences(descriptions, expectedDescription), 1)
+}
+
+func fetchSearchEvents(t *testing.T, db *database.Database, gameID string) []loggedEvent {
+	t.Helper()
+
+	rows, err := db.GetConnection().Query(`SELECT description, event_type, visibility FROM game_events WHERE game_id = $1 ORDER BY created_at ASC`, gameID)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	var events []loggedEvent
+	for rows.Next() {
+		var (
+			description string
+			eventType   string
+			visibility  []byte
+		)
+		require.NoError(t, rows.Scan(&description, &eventType, &visibility))
+
+		var visibilityMap map[string]interface{}
+		if len(visibility) > 0 {
+			require.NoError(t, json.Unmarshal(visibility, &visibilityMap))
+		} else {
+			visibilityMap = make(map[string]interface{})
+		}
+
+		events = append(events, loggedEvent{
+			Description: description,
+			EventType:   eventType,
+			Visibility:  visibilityMap,
+		})
+	}
+
+	return events
+}
+
+func extractDescriptions(events []loggedEvent) []string {
+	descriptions := make([]string, 0, len(events))
+	for _, event := range events {
+		descriptions = append(descriptions, event.Description)
+	}
+	return descriptions
+}
+
+func countOccurrences(items []string, target string) int {
+	count := 0
+	for _, item := range items {
+		if item == target {
+			count++
+		}
+	}
+	return count
 }
