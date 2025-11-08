@@ -91,8 +91,38 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 		fogHexes = pm.mapStructureService.GetFogHexes()
 	}
 
+	turnNumber, phaseLabel := getTurnAndPhase(pm, gameID, models.PhaseVisibility)
+
 	// Если туман - сбросить обнаружение в туманных гексах
 	if isFog {
+		var unitShadowedTransitions, unitSightedTransitions []DetectionTarget
+		if pm.unitService != nil && len(fogHexes) > 0 {
+			if targets, err := pm.unitService.ListUnitsByDetectionLevel(gameID, models.DetectionLevelShadowed, fogHexes); err != nil {
+				log.Printf("Visibility phase - failed to collect shadowed units in fog: %v", err)
+			} else {
+				unitShadowedTransitions = targets
+			}
+			if targets, err := pm.unitService.ListUnitsByDetectionLevel(gameID, models.DetectionLevelSighted, fogHexes); err != nil {
+				log.Printf("Visibility phase - failed to collect sighted units in fog: %v", err)
+			} else {
+				unitSightedTransitions = targets
+			}
+		}
+
+		var taskForceShadowedTransitions, taskForceSightedTransitions []DetectionTarget
+		if pm.taskForceService != nil && len(fogHexes) > 0 {
+			if targets, err := pm.taskForceService.ListTaskForcesByDetectionLevel(gameID, models.DetectionLevelShadowed, fogHexes); err != nil {
+				log.Printf("Visibility phase - failed to collect shadowed task forces in fog: %v", err)
+			} else {
+				taskForceShadowedTransitions = targets
+			}
+			if targets, err := pm.taskForceService.ListTaskForcesByDetectionLevel(gameID, models.DetectionLevelSighted, fogHexes); err != nil {
+				log.Printf("Visibility phase - failed to collect sighted task forces in fog: %v", err)
+			} else {
+				taskForceSightedTransitions = targets
+			}
+		}
+
 		err = pm.unitService.ResetDetectionInFog(gameID, fogHexes)
 		if err != nil {
 			log.Printf("Failed to reset detection in fog: %v", err)
@@ -104,6 +134,11 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 				log.Printf("Failed to reset task force detection in fog: %v", err)
 			}
 		}
+
+		logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitShadowedTransitions, models.DetectionLevelShadowed, models.DetectionLevelNone, "туман: фаза видимости")
+		logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitSightedTransitions, models.DetectionLevelSighted, models.DetectionLevelNone, "туман: фаза видимости")
+		logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, taskForceShadowedTransitions, models.DetectionLevelShadowed, models.DetectionLevelNone, "туман: фаза видимости")
+		logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, taskForceSightedTransitions, models.DetectionLevelSighted, models.DetectionLevelNone, "туман: фаза видимости")
 	}
 
 	// Если видимость X (>= 10) - сбросить все обнаружения
@@ -212,12 +247,25 @@ func (h *ShadowPhaseHandler) Complete(gameID string, turn int) error {
 		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
 	}
 
+	turnNumber, phaseLabel := getTurnAndPhase(pm, gameID, models.PhaseShadow)
+
+	var sightedTransitions []DetectionTarget
+	if pm.unitService != nil {
+		if targets, err := pm.unitService.ListUnitsByDetectionLevel(gameID, models.DetectionLevelSighted, nil); err != nil {
+			log.Printf("Shadow phase - failed to collect sighted units for reset: %v", err)
+		} else {
+			sightedTransitions = targets
+		}
+	}
+
 	// После всех попыток преследования убираем оставшиеся Sighted
 	err := pm.unitService.RemoveRemainingSighted(gameID)
 	if err != nil {
 		log.Printf("Failed to remove remaining sighted: %v", err)
 		// Не возвращаем ошибку, продолжаем выполнение
 	}
+
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedTransitions, models.DetectionLevelSighted, models.DetectionLevelNone, "фаза слежения: очистка обнаружения")
 
 	return nil
 }
@@ -315,9 +363,20 @@ func (h *MovementPhaseHandler) Complete(gameID string, turn int) error {
 		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
 	}
 
+	turnNumber, phaseLabel := getTurnAndPhase(pm, gameID, models.PhaseMovement)
+
 	var fogHexes []string
 	if pm.mapStructureService != nil {
 		fogHexes = pm.mapStructureService.GetFogHexes()
+	}
+
+	var unitFogTransitions []DetectionTarget
+	if pm.unitService != nil && len(fogHexes) > 0 {
+		if targets, err := pm.unitService.ListUnitsByDetectionLevel(gameID, models.DetectionLevelShadowed, fogHexes); err != nil {
+			log.Printf("Movement phase - failed to collect shadowed units in fog: %v", err)
+		} else {
+			unitFogTransitions = targets
+		}
 	}
 
 	// Проверка туманных гексов: сбросить обнаружение у shadowed юнитов в туманных гексах
@@ -326,11 +385,23 @@ func (h *MovementPhaseHandler) Complete(gameID string, turn int) error {
 		// Не возвращаем ошибку, продолжаем выполнение
 	}
 
+	var tfFogTransitions []DetectionTarget
+	if pm.taskForceService != nil && len(fogHexes) > 0 {
+		if targets, err := pm.taskForceService.ListTaskForcesByDetectionLevel(gameID, models.DetectionLevelShadowed, fogHexes); err != nil {
+			log.Printf("Movement phase - failed to collect shadowed task forces in fog: %v", err)
+		} else {
+			tfFogTransitions = targets
+		}
+	}
+
 	if pm.taskForceService != nil {
 		if err := pm.taskForceService.ResetDetectionForUnitsInFog(gameID, fogHexes); err != nil {
 			log.Printf("Failed to reset task force detection in fog: %v", err)
 		}
 	}
+
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitFogTransitions, models.DetectionLevelShadowed, models.DetectionLevelNone, "туман: окончание фазы движения")
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, tfFogTransitions, models.DetectionLevelShadowed, models.DetectionLevelNone, "туман: окончание фазы движения")
 
 	return nil
 }
@@ -383,9 +454,34 @@ func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
 	}
 
 	// В начале фазы поиска: Shadowed -> Sighted (очищаем результаты предыдущего поиска)
-	if err := pm.unitService.ConvertShadowedToSighted(gameID); err != nil {
-		log.Printf("Search phase - failed to convert shadowed to sighted: %v", err)
+	turnNumberForLogging, phaseLabel := getTurnAndPhase(pm, gameID, models.PhaseSearch)
+
+	var unitTransitions []DetectionTarget
+	if pm.unitService != nil {
+		if targets, err := pm.unitService.ListUnitsByDetectionLevel(gameID, models.DetectionLevelShadowed, nil); err != nil {
+			log.Printf("Search phase - failed to collect shadowed units before reset: %v", err)
+		} else {
+			unitTransitions = targets
+		}
+		if err := pm.unitService.ConvertShadowedToSighted(gameID); err != nil {
+			log.Printf("Search phase - failed to convert shadowed units to sighted: %v", err)
+		}
 	}
+
+	var taskForceTransitions []DetectionTarget
+	if pm.taskForceService != nil {
+		if targets, err := pm.taskForceService.ListTaskForcesByDetectionLevel(gameID, models.DetectionLevelShadowed, nil); err != nil {
+			log.Printf("Search phase - failed to collect shadowed task forces before reset: %v", err)
+		} else {
+			taskForceTransitions = targets
+		}
+		if err := pm.taskForceService.ConvertShadowedToSighted(gameID); err != nil {
+			log.Printf("Search phase - failed to convert shadowed task forces to sighted: %v", err)
+		}
+	}
+
+	logDetectionTransitions(pm, gameID, turnNumberForLogging, phaseLabel, unitTransitions, models.DetectionLevelShadowed, models.DetectionLevelSighted, "автосброс: начало фазы поиска")
+	logDetectionTransitions(pm, gameID, turnNumberForLogging, phaseLabel, taskForceTransitions, models.DetectionLevelShadowed, models.DetectionLevelSighted, "автосброс: начало фазы поиска")
 
 	sides := []searchSide{
 		{label: "allied", playerID: ctx.alliedPlayerID, opponentLabel: "german", opponentPlayerID: ctx.germanPlayerID},
@@ -648,6 +744,63 @@ func (h *SearchPhaseHandler) logSearchWarning(pm *PhaseManager, gameID string, t
 
 	if err := pm.eventService.LogSearchWarningEvent(gameID, turnNumber, phaseName, hexID, ownerSide, description, detectionLevel, shipNames, tfDescriptions); err != nil {
 		log.Printf("Search phase - failed to log search warning for hex %s: %v", hexID, err)
+	}
+}
+
+func getTurnAndPhase(pm *PhaseManager, gameID string, defaultPhase models.GamePhase) (int, string) {
+	if pm == nil {
+		return 0, string(defaultPhase)
+	}
+
+	current, err := pm.GetCurrentPhase(gameID)
+	if err != nil {
+		log.Printf("Detection logging - failed to fetch current phase: %v", err)
+		return 0, string(defaultPhase)
+	}
+
+	if current == nil {
+		return 0, string(defaultPhase)
+	}
+
+	phaseName := string(defaultPhase)
+	if current.CurrentPhase != "" {
+		phaseName = string(current.CurrentPhase)
+	}
+
+	return current.TurnNumber, phaseName
+}
+
+func logDetectionTransitions(pm *PhaseManager, gameID string, turn int, phaseName string, targets []DetectionTarget, fromLevel, toLevel models.DetectionLevel, reason string) {
+	if pm == nil || pm.eventService == nil || len(targets) == 0 {
+		return
+	}
+
+	for _, target := range targets {
+		if err := pm.eventService.LogDetectionTransitionEvent(gameID, turn, phaseName, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason); err != nil {
+			log.Printf("Detection logging - failed to log transition for %s %s: %v", target.Type, target.ID, err)
+		}
+
+		if target.Owner == "" {
+			continue
+		}
+
+		var shipNames []string
+		if target.Type == "task_force" && pm.taskForceService != nil {
+			if units, err := pm.taskForceService.GetTaskForceUnits(target.ID); err == nil {
+				shipNames = make([]string, 0, len(units))
+				for _, unit := range units {
+					shipNames = append(shipNames, unit.Name)
+				}
+			} else {
+				log.Printf("Detection logging - failed to fetch task force units for %s: %v", target.ID, err)
+			}
+		} else if target.Type == "unit" {
+			shipNames = []string{target.Name}
+		}
+
+		if err := pm.eventService.LogDetectionWarningEvent(gameID, turn, phaseName, target.Owner, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason, shipNames); err != nil {
+			log.Printf("Detection logging - failed to log warning for %s %s: %v", target.Type, target.ID, err)
+		}
 	}
 }
 

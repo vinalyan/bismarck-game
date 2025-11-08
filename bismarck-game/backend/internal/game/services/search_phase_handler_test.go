@@ -2,6 +2,8 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -250,6 +252,81 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 	assert.GreaterOrEqual(t, countOccurrences(descriptions, expectedDescription), 1)
 }
 
+func TestSearchPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
+	db, err := testutil.SetupTestDatabase()
+	require.NoError(t, err)
+	defer db.Close()
+
+	log, err := logger.New(logger.INFO, "test", "stdout")
+	require.NoError(t, err)
+
+	unitService := NewUnitService(db, log)
+	taskForceService := NewTaskForceService(db, log, unitService, nil)
+	gameService := NewGameService(db, log)
+	searchService := NewSearchService(db, log, unitService, gameService)
+	eventService := NewGameEventService(db, log)
+	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, nil, "http://localhost")
+
+	visibilityService := NewVisibilityService(db, log)
+	phaseManager.SetVisibilityService(visibilityService)
+
+	mapService := NewMapStructureService()
+	mapService.mapStructures = &models.MapStructure{}
+	phaseManager.SetMapStructureService(mapService)
+
+	handler := &SearchPhaseHandler{}
+	handler.SetPhaseManager(phaseManager)
+
+	germanPlayerID := "550e8400-e29b-41d4-a716-4466554430aa"
+	alliedPlayerID := "550e8400-e29b-41d4-a716-4466554430bb"
+	gameID := "550e8400-e29b-41d4-a716-4466554430cc"
+	hexID := "A5"
+
+	_, err = db.GetConnection().Exec(`
+        INSERT INTO users (id, username, email, password_hash)
+        VALUES ($1, 'german_log', 'german_log@test.com', 'hash1'),
+               ($2, 'allied_log', 'allied_log@test.com', 'hash2')
+        ON CONFLICT DO NOTHING
+    `, germanPlayerID, alliedPlayerID)
+	require.NoError(t, err)
+
+	_, err = db.GetConnection().Exec(`
+        INSERT INTO games (id, name, status, player1_id, player2_id, visibility_level, is_fog)
+        VALUES ($1, 'Detection Logging Test', 'active', $2, $3, 1, false)
+    `, gameID, germanPlayerID, alliedPlayerID)
+	require.NoError(t, err)
+
+	unit := &models.NavalUnit{
+		GameID:         gameID,
+		Name:           "Allied Shadowed",
+		Type:           models.UnitType("CL"),
+		Category:       models.UnitCategoryNaval,
+		Class:          "scout",
+		Owner:          alliedPlayerID,
+		Nationality:    "allied",
+		Position:       hexID,
+		SetupHex:       hexID,
+		SpeedRating:    models.SpeedTypeMedium,
+		Status:         models.UnitStatusActive,
+		DetectionLevel: models.DetectionLevelShadowed,
+	}
+	require.NoError(t, unitService.CreateNavalUnit(unit))
+
+	err = handler.Start(gameID, 1)
+	require.NoError(t, err)
+
+	var detection string
+	err = db.GetConnection().QueryRow(`SELECT detection_level FROM naval_units WHERE id = $1`, unit.ID).Scan(&detection)
+	require.NoError(t, err)
+	assert.Equal(t, string(models.DetectionLevelSighted), detection)
+
+	events := fetchSearchEvents(t, db, gameID)
+	descriptions := extractDescriptions(events)
+
+	assert.True(t, containsSubstring(descriptions, fmt.Sprintf("Detection «unit %s: status shadowed → sighted", unit.Name)))
+	assert.True(t, containsSubstring(descriptions, fmt.Sprintf("Detection warning «hex %s: наш unit %s перешёл в статус sighted", hexID, unit.Name)))
+}
+
 func fetchSearchEvents(t *testing.T, db *database.Database, gameID string) []loggedEvent {
 	t.Helper()
 
@@ -299,4 +376,13 @@ func countOccurrences(items []string, target string) int {
 		}
 	}
 	return count
+}
+
+func containsSubstring(items []string, substr string) bool {
+	for _, item := range items {
+		if strings.Contains(item, substr) {
+			return true
+		}
+	}
+	return false
 }

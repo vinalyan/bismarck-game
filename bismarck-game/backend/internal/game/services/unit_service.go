@@ -684,6 +684,48 @@ func (s *UnitService) ResetDetectionInFog(gameID string, fogHexes []string) erro
 	return nil
 }
 
+// ListUnitsByDetectionLevel возвращает юниты с указанным уровнем обнаружения (опционально по гексам)
+func (s *UnitService) ListUnitsByDetectionLevel(gameID string, level models.DetectionLevel, hexes []string) ([]DetectionTarget, error) {
+	query := `
+		SELECT nu.id,
+		       nu.name,
+		       CASE
+		         WHEN g.player1_id IS NOT NULL AND nu.owner = g.player1_id::text THEN 'german'
+		         WHEN g.player2_id IS NOT NULL AND nu.owner = g.player2_id::text THEN 'allied'
+		         ELSE nu.owner
+		       END AS owner_side,
+		       COALESCE(nu.position, '')
+		FROM naval_units nu
+		JOIN games g ON g.id = nu.game_id
+		WHERE nu.game_id = $1
+		AND nu.detection_level = $2
+	`
+
+	args := []interface{}{gameID, string(level)}
+	if len(hexes) > 0 {
+		query += " AND nu.position = ANY($3)"
+		args = append(args, pq.Array(hexes))
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list units by detection level: %w", err)
+	}
+	defer rows.Close()
+
+	var result []DetectionTarget
+	for rows.Next() {
+		var target DetectionTarget
+		if err := rows.Scan(&target.ID, &target.Name, &target.Owner, &target.Position); err != nil {
+			return nil, fmt.Errorf("failed to scan unit detection target: %w", err)
+		}
+		target.Type = "unit"
+		result = append(result, target)
+	}
+
+	return result, rows.Err()
+}
+
 // ResetAllDetection сбрасывает все обнаружения при видимости X
 func (s *UnitService) ResetAllDetection(gameID string) error {
 	query := `

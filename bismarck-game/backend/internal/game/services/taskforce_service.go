@@ -729,6 +729,49 @@ func (s *TaskForceService) ResetDetectionInFog(gameID string, fogHexes []string)
 	return nil
 }
 
+// ListTaskForcesByDetectionLevel возвращает Task Forces с указанным уровнем обнаружения (опционально по гексам)
+func (s *TaskForceService) ListTaskForcesByDetectionLevel(gameID string, level models.DetectionLevel, hexes []string) ([]DetectionTarget, error) {
+	query := `
+		SELECT tf.id,
+		       tf.name,
+		       CASE
+		         WHEN tf.owner IN ('german', 'allied') THEN tf.owner
+		         WHEN g.player1_id IS NOT NULL AND tf.owner = g.player1_id::text THEN 'german'
+		         WHEN g.player2_id IS NOT NULL AND tf.owner = g.player2_id::text THEN 'allied'
+		         ELSE tf.owner
+		       END AS owner_side,
+		       COALESCE(tf.position, '')
+		FROM task_forces tf
+		JOIN games g ON g.id = tf.game_id
+		WHERE tf.game_id = $1
+		AND tf.detection_level = $2
+	`
+
+	args := []interface{}{gameID, string(level)}
+	if len(hexes) > 0 {
+		query += " AND tf.position = ANY($3)"
+		args = append(args, pq.Array(hexes))
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list task forces by detection level: %w", err)
+	}
+	defer rows.Close()
+
+	var result []DetectionTarget
+	for rows.Next() {
+		var target DetectionTarget
+		if err := rows.Scan(&target.ID, &target.Name, &target.Owner, &target.Position); err != nil {
+			return nil, fmt.Errorf("failed to scan task force detection target: %w", err)
+		}
+		target.Type = "task_force"
+		result = append(result, target)
+	}
+
+	return result, rows.Err()
+}
+
 // ResetAllDetection сбрасывает все обнаружения Task Forces при видимости X
 func (s *TaskForceService) ResetAllDetection(gameID string) error {
 	query := `

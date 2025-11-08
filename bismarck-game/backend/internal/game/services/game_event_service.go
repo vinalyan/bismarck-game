@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"bismarck-game/backend/internal/game/models"
@@ -124,6 +125,108 @@ func (s *GameEventService) LogSearchWarningEvent(gameID string, turn int, phase,
 			"ship_names":      shipNames,
 			"task_forces":     taskForceDetails,
 		},
+		Visibility: map[string]interface{}{
+			"is_public":   false,
+			"player_side": ownerSide,
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}
+
+// LogDetectionTransitionEvent фиксирует автоматическую смену статуса обнаружения (публично)
+func (s *GameEventService) LogDetectionTransitionEvent(gameID string, turn int, phase, objectType, objectID, objectName string, fromLevel, toLevel models.DetectionLevel, hexID, reason string) error {
+	label := objectType
+	if label == "" {
+		label = "unit"
+	}
+
+	description := fmt.Sprintf("Detection «%s %s: status %s → %s", label, objectName, fromLevel, toLevel)
+	details := make([]string, 0, 3)
+	if hexID != "" {
+		details = append(details, fmt.Sprintf("hex %s", hexID))
+	}
+	details = append(details, fmt.Sprintf("turn %d", turn))
+	if reason != "" {
+		details = append(details, fmt.Sprintf("причина: %s", reason))
+	}
+	if len(details) > 0 {
+		description += " (" + strings.Join(details, ", ") + ")"
+	}
+	description += "»"
+
+	data := map[string]interface{}{
+		"object_type": label,
+		"object_id":   objectID,
+		"object_name": objectName,
+		"from_level":  string(fromLevel),
+		"to_level":    string(toLevel),
+		"hex_id":      hexID,
+	}
+	if reason != "" {
+		data["reason"] = reason
+	}
+
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       phase,
+		EventType:   models.EventTypeDetection,
+		ActorID:     objectID,
+		ActorName:   objectName,
+		Description: description,
+		Data:        data,
+		Visibility: map[string]interface{}{
+			"is_public": true,
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}
+
+// LogDetectionWarningEvent уведомляет владельца об изменении статуса обнаружения его сил
+func (s *GameEventService) LogDetectionWarningEvent(gameID string, turn int, phase, ownerSide, objectType, objectID, objectName string, fromLevel, toLevel models.DetectionLevel, hexID, reason string, shipNames []string) error {
+	label := objectType
+	if label == "" {
+		label = "unit"
+	}
+
+	description := fmt.Sprintf("Detection warning «hex %s: наш %s %s перешёл в статус %s", hexID, label, objectName, toLevel)
+	details := make([]string, 0, 2)
+	if reason != "" {
+		details = append(details, fmt.Sprintf("причина: %s", reason))
+	}
+	if len(details) > 0 {
+		description += " (" + strings.Join(details, ", ") + ")"
+	}
+	description += "»"
+
+	data := map[string]interface{}{
+		"object_type": label,
+		"object_id":   objectID,
+		"object_name": objectName,
+		"from_level":  string(fromLevel),
+		"to_level":    string(toLevel),
+		"hex_id":      hexID,
+		"ship_names":  shipNames,
+	}
+	if reason != "" {
+		data["reason"] = reason
+	}
+
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       phase,
+		EventType:   models.EventTypeDetection,
+		ActorID:     objectID,
+		ActorName:   objectName,
+		Description: description,
+		Data:        data,
 		Visibility: map[string]interface{}{
 			"is_public":   false,
 			"player_side": ownerSide,
