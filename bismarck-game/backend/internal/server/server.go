@@ -152,6 +152,10 @@ func (s *Server) setupRoutes() {
 		logger.Error("Failed to load map structures", "error", err)
 	}
 
+	// Инъекция вспомогательных сервисов в PhaseManager
+	phaseManager.SetVisibilityService(visibilityService)
+	phaseManager.SetMapStructureService(mapStructureService)
+
 	// Создаем сервис аварийного топлива
 	emergencyFuelLogger, _ := logger.New(logger.INFO, "emergency-fuel-service", "stdout")
 	emergencyFuelService := services.NewEmergencyFuelService(s.db, emergencyFuelLogger, phaseManager)

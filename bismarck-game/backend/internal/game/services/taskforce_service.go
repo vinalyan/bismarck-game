@@ -7,6 +7,7 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
+	"github.com/lib/pq"
 )
 
 // TaskForceService предоставляет методы для работы с оперативными соединениями
@@ -706,14 +707,19 @@ func (s *TaskForceService) UpdateTaskForceDetectionLevel(taskForceID string, lev
 }
 
 // ResetDetectionInFog сбрасывает DetectionLevel у Task Forces в туманных гексах
-func (s *TaskForceService) ResetDetectionInFog(gameID string) error {
+func (s *TaskForceService) ResetDetectionInFog(gameID string, fogHexes []string) error {
 	query := `
 		UPDATE task_forces 
 		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
 		WHERE game_id = $2 
 		AND detection_level IN ($3, $4)
+		AND position = ANY($5)
 	`
-	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted), string(models.DetectionLevelShadowed))
+	if len(fogHexes) == 0 {
+		return nil
+	}
+
+	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted), string(models.DetectionLevelShadowed), pq.Array(fogHexes))
 	if err != nil {
 		s.logger.Error("Failed to reset detection in fog for task forces", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset detection in fog for task forces: %w", err)
@@ -778,7 +784,7 @@ func (s *TaskForceService) ConvertShadowedToSighted(gameID string) error {
 }
 
 // ResetDetectionForUnitsInFog сбрасывает обнаружение у shadowed Task Forces в туманных гексах
-func (s *TaskForceService) ResetDetectionForUnitsInFog(gameID string) error {
+func (s *TaskForceService) ResetDetectionForUnitsInFog(gameID string, fogHexes []string) error {
 	// Получаем информацию об игре, чтобы проверить туман
 	var isFog bool
 	err := s.db.QueryRow("SELECT is_fog FROM games WHERE id = $1", gameID).Scan(&isFog)
@@ -787,7 +793,7 @@ func (s *TaskForceService) ResetDetectionForUnitsInFog(gameID string) error {
 		return fmt.Errorf("failed to get fog status: %w", err)
 	}
 
-	if !isFog {
+	if !isFog || len(fogHexes) == 0 {
 		// Нет тумана, ничего не делаем
 		return nil
 	}
@@ -797,8 +803,9 @@ func (s *TaskForceService) ResetDetectionForUnitsInFog(gameID string) error {
 		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
 		WHERE game_id = $2 
 		AND detection_level = $3
+		AND position = ANY($4)
 	`
-	_, err = s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelShadowed))
+	_, err = s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelShadowed), pq.Array(fogHexes))
 	if err != nil {
 		s.logger.Error("Failed to reset detection for task forces in fog", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset detection for task forces in fog: %w", err)

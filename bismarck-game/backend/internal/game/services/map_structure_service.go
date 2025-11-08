@@ -121,6 +121,19 @@ func (s *MapStructureService) IsFogHex(hexId string) bool {
 	return false
 }
 
+// GetFogHexes возвращает список всех гексов с туманом
+func (s *MapStructureService) GetFogHexes() []string {
+	if s.mapStructures == nil {
+		return nil
+	}
+
+	result := make([]string, 0)
+	for _, fogArea := range s.mapStructures.FogAreas {
+		result = append(result, fogArea.HexIds...)
+	}
+	return result
+}
+
 // CanUnitMoveTo проверяет, может ли юнит двигаться в указанный гекс
 func (s *MapStructureService) CanUnitMoveTo(unit *models.NavalUnit, hexId string) bool {
 	if unit == nil {

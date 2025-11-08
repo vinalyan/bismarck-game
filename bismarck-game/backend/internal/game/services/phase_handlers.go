@@ -85,13 +85,23 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 
 	log.Printf("Visibility updated: level=%d, fog=%v", visibilityLevel, isFog)
 
+	var fogHexes []string
+	if pm.mapStructureService != nil {
+		fogHexes = pm.mapStructureService.GetFogHexes()
+	}
+
 	// Если туман - сбросить обнаружение в туманных гексах
-	// Примечание: для TaskForce нужен доступ к TaskForceService, пока работаем только с юнитами
 	if isFog {
-		err = pm.unitService.ResetDetectionInFog(gameID)
+		err = pm.unitService.ResetDetectionInFog(gameID, fogHexes)
 		if err != nil {
 			log.Printf("Failed to reset detection in fog: %v", err)
 			// Не возвращаем ошибку, продолжаем выполнение
+		}
+
+		if pm.taskForceService != nil {
+			if err := pm.taskForceService.ResetDetectionInFog(gameID, fogHexes); err != nil {
+				log.Printf("Failed to reset task force detection in fog: %v", err)
+			}
 		}
 	}
 
@@ -304,18 +314,21 @@ func (h *MovementPhaseHandler) Complete(gameID string, turn int) error {
 		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
 	}
 
-	// В конце фазы движения: Shadowed -> Sighted
-	err := pm.unitService.ConvertShadowedToSighted(gameID)
-	if err != nil {
-		log.Printf("Failed to convert shadowed to sighted: %v", err)
-		// Не возвращаем ошибку, продолжаем выполнение
+	var fogHexes []string
+	if pm.mapStructureService != nil {
+		fogHexes = pm.mapStructureService.GetFogHexes()
 	}
 
 	// Проверка туманных гексов: сбросить обнаружение у shadowed юнитов в туманных гексах
-	err = pm.unitService.ResetDetectionForUnitsInFog(gameID)
-	if err != nil {
+	if err := pm.unitService.ResetDetectionForUnitsInFog(gameID, fogHexes); err != nil {
 		log.Printf("Failed to reset detection for units in fog: %v", err)
 		// Не возвращаем ошибку, продолжаем выполнение
+	}
+
+	if pm.taskForceService != nil {
+		if err := pm.taskForceService.ResetDetectionForUnitsInFog(gameID, fogHexes); err != nil {
+			log.Printf("Failed to reset task force detection in fog: %v", err)
+		}
 	}
 
 	return nil
@@ -366,6 +379,11 @@ func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
 		h.cleanupFlightPathMarkers(pm, gameID)
 		h.scheduleNextPhase(gameID)
 		return nil
+	}
+
+	// В начале фазы поиска: Shadowed -> Sighted (очищаем результаты предыдущего поиска)
+	if err := pm.unitService.ConvertShadowedToSighted(gameID); err != nil {
+		log.Printf("Search phase - failed to convert shadowed to sighted: %v", err)
 	}
 
 	sides := []searchSide{

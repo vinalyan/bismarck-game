@@ -11,6 +11,7 @@ import (
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 // UnitSunkHandler это функция для обработки потопления корабля
@@ -18,9 +19,9 @@ type UnitSunkHandler func(unitID string) error
 
 // UnitService предоставляет методы для работы с юнитами
 type UnitService struct {
-	db                *database.Database
-	logger            *logger.Logger
-	onUnitSunk        UnitSunkHandler
+	db                   *database.Database
+	logger               *logger.Logger
+	onUnitSunk           UnitSunkHandler
 	emergencyFuelService *EmergencyFuelService
 }
 
@@ -595,7 +596,6 @@ func (s *UnitService) getCurrentTurn(gameID string) int {
 	return turn
 }
 
-
 // DeleteNavalUnit удаляет морской юнит из игры
 func (s *UnitService) DeleteNavalUnit(unitID string) error {
 	query := `UPDATE naval_units SET status = 'sunk', updated_at = CURRENT_TIMESTAMP WHERE id = $1`
@@ -658,8 +658,8 @@ func (s *UnitService) AwardVPForSunkShip(gameID string, unit *models.NavalUnit) 
 	return nil
 }
 
- // ResetDetectionInFog сбрасывает DetectionLevel у юнитов в туманных гексах
-func (s *UnitService) ResetDetectionInFog(gameID string) error {
+// ResetDetectionInFog сбрасывает DetectionLevel у юнитов в туманных гексах
+func (s *UnitService) ResetDetectionInFog(gameID string, fogHexes []string) error {
 	// Получаем список туманных гексов (пока используем пустой список, так как нет таблицы туманных гексов)
 	// В будущем это можно получать из конфигурации карты или отдельной таблицы
 	// Пока сбрасываем все обнаружения, если игра в тумане
@@ -668,8 +668,13 @@ func (s *UnitService) ResetDetectionInFog(gameID string) error {
 		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
 		WHERE game_id = $2 
 		AND detection_level IN ($3, $4)
+		AND position = ANY($5)
 	`
-	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted), string(models.DetectionLevelShadowed))
+	if len(fogHexes) == 0 {
+		return nil
+	}
+
+	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted), string(models.DetectionLevelShadowed), pq.Array(fogHexes))
 	if err != nil {
 		s.logger.Error("Failed to reset detection in fog", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset detection in fog: %w", err)
@@ -736,7 +741,7 @@ func (s *UnitService) ConvertShadowedToSighted(gameID string) error {
 }
 
 // ResetDetectionForUnitsInFog сбрасывает обнаружение у shadowed юнитов в туманных гексах
-func (s *UnitService) ResetDetectionForUnitsInFog(gameID string) error {
+func (s *UnitService) ResetDetectionForUnitsInFog(gameID string, fogHexes []string) error {
 	// Получаем информацию об игре, чтобы проверить туман
 	var isFog bool
 	err := s.db.QueryRow("SELECT is_fog FROM games WHERE id = $1", gameID).Scan(&isFog)
@@ -745,7 +750,7 @@ func (s *UnitService) ResetDetectionForUnitsInFog(gameID string) error {
 		return fmt.Errorf("failed to get fog status: %w", err)
 	}
 
-	if !isFog {
+	if !isFog || len(fogHexes) == 0 {
 		// Нет тумана, ничего не делаем
 		return nil
 	}
@@ -757,8 +762,9 @@ func (s *UnitService) ResetDetectionForUnitsInFog(gameID string) error {
 		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
 		WHERE game_id = $2 
 		AND detection_level = $3
+		AND position = ANY($4)
 	`
-	_, err = s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelShadowed))
+	_, err = s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelShadowed), pq.Array(fogHexes))
 	if err != nil {
 		s.logger.Error("Failed to reset detection for units in fog", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset detection for units in fog: %w", err)
@@ -1011,10 +1017,10 @@ func BuildNavalUnitSelectQuery(additionalFields []string, whereClause string) st
 	baseFields := []string{
 		"id", "game_id", "name", "type",
 	}
-	
+
 	// Добавляем дополнительные поля после "type" если они есть
 	fields := append(baseFields, additionalFields...)
-	
+
 	// Добавляем остальные базовые поля
 	fields = append(fields, []string{
 		"class", "owner", "nationality", "position", "setup_hex",
@@ -1026,7 +1032,7 @@ func BuildNavalUnitSelectQuery(additionalFields []string, whereClause string) st
 		"previous_turn_moved_hexes", "last_move_turn", "movement_used", "no_movement_turns_left",
 		"is_emergency_fuel", "emergency_turn", "is_patrolling", "created_at", "updated_at",
 	}...)
-	
+
 	query := "SELECT " + strings.Join(fields, ", ") + "\nFROM naval_units\n" + whereClause
 	return query
 }
@@ -1042,17 +1048,17 @@ func ScanNavalUnitFromRow(rows *sql.Rows, includeCategory bool, useNullableDetec
 	var lastKnownPos, taskForceID sql.NullString
 	var detectionLevel sql.NullString
 	var emergencyRemovalTurn sql.NullInt32
-	
+
 	// Строим список аргументов для Scan в зависимости от параметров
 	scanArgs := []interface{}{
 		&unit.ID, &unit.GameID, &unit.Name, &unit.Type,
 	}
-	
+
 	// Добавляем category если нужно
 	if includeCategory {
 		scanArgs = append(scanArgs, &unit.Category)
 	}
-	
+
 	// Остальные поля
 	scanArgs = append(scanArgs, []interface{}{
 		&unit.Class, &unit.Owner, &unit.Nationality, &unit.Position, &unit.SetupHex,
@@ -1062,35 +1068,35 @@ func ScanNavalUnitFromRow(rows *sql.Rows, includeCategory bool, useNullableDetec
 		&unit.BaseSecondaryArmament, &unit.Torpedoes, &unit.MaxTorpedoes, &unit.RadarLevel,
 		&unit.Status, // status поле
 	}...)
-	
+
 	// Добавляем detection_level
 	if useNullableDetectionLevel {
 		scanArgs = append(scanArgs, &detectionLevel)
 	} else {
 		scanArgs = append(scanArgs, &unit.DetectionLevel)
 	}
-	
+
 	// Добавляем остальные nullable поля
 	scanArgs = append(scanArgs, &lastKnownPos, &taskForceID, &damageJSON)
 	scanArgs = append(scanArgs, []interface{}{
 		&unit.PreviousTurnMovedHexes, &unit.LastMoveTurn, &unit.MovementUsed, &unit.NoMovementTurnsLeft,
 		&unit.IsEmergencyFuel,
 	}...)
-	
+
 	// Добавляем emergency_turn
 	if useNullableEmergencyTurn {
 		scanArgs = append(scanArgs, &emergencyRemovalTurn)
 	} else {
 		scanArgs = append(scanArgs, &unit.EmergencyTurn)
 	}
-	
+
 	scanArgs = append(scanArgs, &unit.IsPatrolling, &unit.CreatedAt, &unit.UpdatedAt)
-	
+
 	err := rows.Scan(scanArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan naval unit: %w", err)
 	}
-	
+
 	// Парсим JSON поля
 	if len(damageJSON) > 0 {
 		if err := json.Unmarshal(damageJSON, &unit.Damage); err != nil {
@@ -1098,23 +1104,23 @@ func ScanNavalUnitFromRow(rows *sql.Rows, includeCategory bool, useNullableDetec
 			unit.Damage = []models.Damage{}
 		}
 	}
-	
+
 	// Обрабатываем nullable поля
 	if useNullableDetectionLevel && detectionLevel.Valid {
 		unit.DetectionLevel = models.DetectionLevel(detectionLevel.String)
 	}
-	
+
 	if lastKnownPos.Valid {
 		unit.LastKnownPos = &lastKnownPos.String
 	}
-	
+
 	if taskForceID.Valid {
 		unit.TaskForceID = &taskForceID.String
 	}
-	
+
 	if useNullableEmergencyTurn && emergencyRemovalTurn.Valid {
 		unit.EmergencyTurn = int(emergencyRemovalTurn.Int32)
 	}
-	
+
 	return &unit, nil
 }
