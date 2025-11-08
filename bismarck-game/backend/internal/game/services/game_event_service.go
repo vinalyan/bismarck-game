@@ -136,7 +136,7 @@ func (s *GameEventService) LogSearchWarningEvent(gameID string, turn int, phase,
 }
 
 // LogDetectionTransitionEvent фиксирует автоматическую смену статуса обнаружения (публично)
-func (s *GameEventService) LogDetectionTransitionEvent(gameID string, turn int, phase, objectType, objectID, objectName string, fromLevel, toLevel models.DetectionLevel, hexID, reason string) error {
+func (s *GameEventService) LogDetectionTransitionEvent(gameID string, turn int, phase, objectType, objectID, objectName string, fromLevel, toLevel models.DetectionLevel, hexID, reason, viewerSide string) error {
 	label := objectType
 	if label == "" {
 		label = "unit"
@@ -168,6 +168,13 @@ func (s *GameEventService) LogDetectionTransitionEvent(gameID string, turn int, 
 		data["reason"] = reason
 	}
 
+	visibility := map[string]interface{}{
+		"is_public": false,
+	}
+	if viewerSide != "" {
+		visibility["player_side"] = viewerSide
+	}
+
 	event := &models.GameEvent{
 		ID:          uuid.New().String(),
 		GameID:      gameID,
@@ -178,10 +185,8 @@ func (s *GameEventService) LogDetectionTransitionEvent(gameID string, turn int, 
 		ActorName:   objectName,
 		Description: description,
 		Data:        data,
-		Visibility: map[string]interface{}{
-			"is_public": true,
-		},
-		CreatedAt: time.Now(),
+		Visibility:  visibility,
+		CreatedAt:   time.Now(),
 	}
 
 	return s.saveEvent(event)

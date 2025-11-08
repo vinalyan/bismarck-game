@@ -776,7 +776,12 @@ func logDetectionTransitions(pm *PhaseManager, gameID string, turn int, phaseNam
 	}
 
 	for _, target := range targets {
-		if err := pm.eventService.LogDetectionTransitionEvent(gameID, turn, phaseName, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason); err != nil {
+		viewerSide := opponentSide(target.Owner)
+		if viewerSide == "" {
+			continue
+		}
+
+		if err := pm.eventService.LogDetectionTransitionEvent(gameID, turn, phaseName, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason, viewerSide); err != nil {
 			log.Printf("Detection logging - failed to log transition for %s %s: %v", target.Type, target.ID, err)
 		}
 
@@ -801,6 +806,17 @@ func logDetectionTransitions(pm *PhaseManager, gameID string, turn int, phaseNam
 		if err := pm.eventService.LogDetectionWarningEvent(gameID, turn, phaseName, target.Owner, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason, shipNames); err != nil {
 			log.Printf("Detection logging - failed to log warning for %s %s: %v", target.Type, target.ID, err)
 		}
+	}
+}
+
+func opponentSide(owner string) string {
+	switch strings.ToLower(owner) {
+	case "german":
+		return "allied"
+	case "allied":
+		return "german"
+	default:
+		return ""
 	}
 }
 
