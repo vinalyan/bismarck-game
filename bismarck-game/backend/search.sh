@@ -13,7 +13,7 @@ login() {
   curl -sS -X POST "$BASE_URL/auth/login" \
     -H "Content-Type: application/json" \
     -d "{\"username\":\"$user\",\"password\":\"$pass\"}" |
-    jq -er '.data.token'
+    jq -e '.data'
 }
 
 create_game() {
@@ -74,8 +74,13 @@ main() {
   command -v jq >/dev/null || { echo "jq не найден"; exit 1; }
 
   echo "🔐 Логин..."
-  P1_TOKEN=$(login "$PLAYER1_USER" "$PLAYER1_PASS")
-  P2_TOKEN=$(login "$PLAYER2_USER" "$PLAYER2_PASS")
+  P1_LOGIN_JSON=$(login "$PLAYER1_USER" "$PLAYER1_PASS")
+  P2_LOGIN_JSON=$(login "$PLAYER2_USER" "$PLAYER2_PASS")
+
+  P1_TOKEN=$(echo "$P1_LOGIN_JSON" | jq -r '.token')
+  P2_TOKEN=$(echo "$P2_LOGIN_JSON" | jq -r '.token')
+  P1_ID=$(echo "$P1_LOGIN_JSON" | jq -r '.user.id')
+  P2_ID=$(echo "$P2_LOGIN_JSON" | jq -r '.user.id')
 
   echo "🎮 Создание игры..."
   GAME_ID=$(create_game "$P1_TOKEN")
@@ -93,9 +98,9 @@ main() {
   add_hex_marker "$P1_TOKEN" "$GAME_ID" "A10"
   add_hex_marker "$P1_TOKEN" "$GAME_ID" "A10"
 
-  echo "✈️  Добавление маркеров воздушной разведки J30..."
-  add_air_marker "$P1_TOKEN" "$GAME_ID" "J30"
-  add_air_marker "$P1_TOKEN" "$GAME_ID" "J30"
+  echo "✈️  Добавление маркеров воздушной разведки J30 (союзники)..."
+  add_air_marker "$P2_TOKEN" "$GAME_ID" "J30"
+  add_air_marker "$P2_TOKEN" "$GAME_ID" "J30"
 
   echo "⏭️  Завершение фазы движения..."
   advance_phase "$GAME_ID"
@@ -104,11 +109,12 @@ main() {
   sleep 3
 
   echo "📊 Получение статуса юнитов..."
-  UNITS_JSON=$(get_units "$P1_TOKEN" "$GAME_ID")
+  UNITS_GERMAN_JSON=$(get_units "$P1_TOKEN" "$GAME_ID")
+  UNITS_ALLIED_JSON=$(get_units "$P2_TOKEN" "$GAME_ID")
 
-  ALLIED_SHADOWED=$(echo "$UNITS_JSON" | jq '[.data[] | select(.owner_side=="allied" and .detection_level=="shadowed")] | length')
-  ALLIED_TOTAL=$(echo "$UNITS_JSON" | jq '[.data[] | select(.owner_side=="allied")] | length')
-  TF_STATUS=$(echo "$UNITS_JSON" | jq -r '.data[] | select(.unit_type=="task_force" and .owner_side=="german") | .detection_level')
+  ALLIED_SHADOWED=$(echo "$UNITS_ALLIED_JSON" | jq '[.data.units[] | select(.detection_level == "shadowed")] | length')
+  ALLIED_TOTAL=$(echo "$UNITS_ALLIED_JSON" | jq '.data.units | length')
+  TF_STATUS=$(echo "$UNITS_GERMAN_JSON" | jq -r '.data.task_forces[] | .detection_level' | head -n 1)
 
   echo "✅ Обнаружено союзников (shadowed): $ALLIED_SHADOWED / $ALLIED_TOTAL"
   echo "✅ Состояние немецкой TF: ${TF_STATUS:-none}"
