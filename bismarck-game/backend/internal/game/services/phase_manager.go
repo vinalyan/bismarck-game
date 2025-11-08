@@ -13,28 +13,40 @@ import (
 )
 
 type PhaseManager struct {
-	db              *sql.DB
-	unitService     *UnitService
-	taskForceService *TaskForceService
-	searchService   *SearchService
-	phaseHandlers   map[models.GamePhase]models.PhaseHandler
-	eventService    *GameEventService
-	wsHub           *websocket.Hub
-	httpClient      *http.Client
-	apiBaseURL      string
+	db                  *sql.DB
+	unitService         *UnitService
+	taskForceService    *TaskForceService
+	searchService       *SearchService
+	visibilityService   *VisibilityService
+	mapStructureService *MapStructureService
+	phaseHandlers       map[models.GamePhase]models.PhaseHandler
+	eventService        *GameEventService
+	wsHub               *websocket.Hub
+	httpClient          *http.Client
+	apiBaseURL          string
+}
+
+// SetVisibilityService регистрирует сервис видимости
+func (pm *PhaseManager) SetVisibilityService(service *VisibilityService) {
+	pm.visibilityService = service
+}
+
+// SetMapStructureService регистрирует сервис структур карты
+func (pm *PhaseManager) SetMapStructureService(service *MapStructureService) {
+	pm.mapStructureService = service
 }
 
 func NewPhaseManager(db *sql.DB, unitService *UnitService, taskForceService *TaskForceService, searchService *SearchService, eventService *GameEventService, wsHub *websocket.Hub, apiBaseURL string) *PhaseManager {
 	pm := &PhaseManager{
-		db:              db,
-		unitService:     unitService,
+		db:               db,
+		unitService:      unitService,
 		taskForceService: taskForceService,
-		searchService:   searchService,
-		phaseHandlers:   make(map[models.GamePhase]models.PhaseHandler),
-		eventService:    eventService,
-		wsHub:           wsHub,
-		httpClient:      &http.Client{Timeout: 5 * time.Second},
-		apiBaseURL:      apiBaseURL,
+		searchService:    searchService,
+		phaseHandlers:    make(map[models.GamePhase]models.PhaseHandler),
+		eventService:     eventService,
+		wsHub:            wsHub,
+		httpClient:       &http.Client{Timeout: 5 * time.Second},
+		apiBaseURL:       apiBaseURL,
 	}
 
 	// Регистрируем обработчики фаз

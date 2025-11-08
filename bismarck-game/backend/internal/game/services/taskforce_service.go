@@ -30,7 +30,7 @@ func NewTaskForceService(db *database.Database, logger *logger.Logger, unitServi
 // CreateTaskForce создает новое оперативное соединение
 func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 	var err error
-	
+
 	// Минимум 2 корабля для создания Task Force (но можно создать пустой TF для последующего добавления юнитов)
 	if len(taskForce.Units) > 0 && len(taskForce.Units) < 2 {
 		return fmt.Errorf("task force must contain at least 2 units")
@@ -687,6 +687,24 @@ func (s *TaskForceService) HandleUnitSunk(unitID string) error {
 	return nil
 }
 
+// UpdateTaskForceDetectionLevel обновляет уровень обнаружения Task Force
+func (s *TaskForceService) UpdateTaskForceDetectionLevel(taskForceID string, level models.DetectionLevel) error {
+	query := `
+		UPDATE task_forces
+		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+
+	_, err := s.db.Exec(query, string(level), taskForceID)
+	if err != nil {
+		s.logger.Error("Failed to update task force detection level", "task_force_id", taskForceID, "level", level, "error", err)
+		return fmt.Errorf("failed to update task force detection level: %w", err)
+	}
+
+	s.logger.Info("Updated task force detection level", "task_force_id", taskForceID, "level", level)
+	return nil
+}
+
 // ResetDetectionInFog сбрасывает DetectionLevel у Task Forces в туманных гексах
 func (s *TaskForceService) ResetDetectionInFog(gameID string) error {
 	query := `
@@ -871,4 +889,3 @@ func (s *TaskForceService) RemoveAllPatrolMarkers(gameID string) error {
 	s.logger.Info("Removed all patrol markers from task forces", "game_id", gameID, "task_forces_affected", rowsAffected)
 	return nil
 }
-
