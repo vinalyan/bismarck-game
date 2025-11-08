@@ -265,6 +265,21 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 		return fmt.Errorf("phase %s cannot start", phase)
 	}
 
+	var (
+		prevPhaseValue string
+		hasPrevPhase   bool
+	)
+	if pm.eventService != nil {
+		var prevPhase sql.NullString
+		errPrev := pm.db.QueryRow("SELECT current_phase FROM games WHERE id = $1", gameID).Scan(&prevPhase)
+		if errPrev == nil && prevPhase.Valid {
+			prevPhaseValue = prevPhase.String
+			hasPrevPhase = true
+		} else if errPrev != nil && errPrev != sql.ErrNoRows {
+			log.Printf("Warning: failed to get previous phase for logging: %v", errPrev)
+		}
+	}
+
 	// Обновляем статус фазы
 	now := time.Now()
 	query := `
@@ -299,23 +314,16 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 		return fmt.Errorf("failed to update game current phase: %v", err)
 	}
 
+	if pm.eventService != nil && hasPrevPhase && prevPhaseValue != string(phase) {
+		if err := pm.eventService.LogPhaseChangeEvent(gameID, turnNumber, prevPhaseValue, string(phase)); err != nil {
+			log.Printf("Warning: failed to log phase change event: %v", err)
+		}
+	}
+
 	// Запускаем обработчик фазы
 	err = handler.Start(gameID, turnNumber)
 	if err != nil {
 		return fmt.Errorf("failed to start phase handler: %v", err)
-	}
-
-	// Логируем событие смены фазы
-	if pm.eventService != nil {
-		// Получаем предыдущую фазу
-		var previousPhase models.GamePhase
-		err := pm.db.QueryRow("SELECT current_phase FROM games WHERE id = $1", gameID).Scan(&previousPhase)
-		if err == nil && previousPhase != phase {
-			err := pm.eventService.LogPhaseChangeEvent(gameID, turnNumber, string(previousPhase), string(phase))
-			if err != nil {
-				log.Printf("Warning: failed to log phase change event: %v", err)
-			}
-		}
 	}
 
 	// Логирование начала фазы движения (без сброса)
@@ -655,11 +663,6 @@ func (pm *PhaseManager) NextPhase(gameID string) error {
 	}
 
 	log.Printf("Advanced to next phase %s for game %s turn %d", nextPhase, gameID, turn.TurnNumber)
-
-	// Логируем событие смены фазы в БД
-	if pm.eventService != nil {
-		pm.eventService.LogPhaseChangeEvent(gameID, turn.TurnNumber, string(turn.CurrentPhase), string(nextPhase))
-	}
 
 	// Отправляем WebSocket уведомление о переходе к следующей фазе
 	if pm.wsHub != nil {

@@ -1020,6 +1020,22 @@ func getMigrations() []Migration {
 				DROP TABLE IF EXISTS unit_visibility;
 			`,
 		},
+		{
+			Version:     "024_add_settings_column",
+			Description: "Ensure games.settings column exists with default JSON value",
+			SQL: `
+				ALTER TABLE games
+				ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'::jsonb;
+
+				UPDATE games
+				SET settings = '{}'::jsonb
+				WHERE settings IS NULL;
+			`,
+			RollbackSQL: `
+				ALTER TABLE games
+				DROP COLUMN IF EXISTS settings;
+			`,
+		},
 	}
 }
 

@@ -487,7 +487,7 @@ func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID strin
 			continue
 		}
 		if isFog && h.isHexFogged(pm, hex) {
-			h.logSearchAttempt(pm, gameID, turnNumber, phaseName, hex, side.label, 0, visibilityLevel, "пропущен (туман)")
+			h.logSearchResult(pm, gameID, turnNumber, phaseName, hex, side.label, models.DetectionLevelNone, nil, nil, nil, false, "пропущен: туман")
 			log.Printf("Search phase - skipping hex %s for side %s due to fog", hex, side.label)
 			continue
 		}
@@ -499,12 +499,9 @@ func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID strin
 		}
 
 		if factors < visibilityLevel {
-			status := fmt.Sprintf("недостаточно факторов (%d < %d)", factors, visibilityLevel)
-			h.logSearchAttempt(pm, gameID, turnNumber, phaseName, hex, side.label, factors, visibilityLevel, status)
+			log.Printf("Search phase - skipping hex %s for side %s due to insufficient factors (%d < %d)", hex, side.label, factors, visibilityLevel)
 			continue
 		}
-
-		h.logSearchAttempt(pm, gameID, turnNumber, phaseName, hex, side.label, factors, visibilityLevel, "")
 
 		hasFlightMarker, err := h.hexHasFlightPathMarker(pm, gameID, hex, side.label)
 		if err != nil {
@@ -529,7 +526,7 @@ func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID strin
 		}
 
 		if len(enemyUnits) == 0 && len(enemyTaskForces) == 0 {
-			h.logSearchResult(pm, gameID, turnNumber, phaseName, hex, side.label, models.DetectionLevelNone, nil, nil, nil, false)
+			h.logSearchResult(pm, gameID, turnNumber, phaseName, hex, side.label, models.DetectionLevelNone, nil, nil, nil, false, "")
 			log.Printf("Search phase - factors met in hex %s for side %s but no enemy forces detected (possible trail)", hex, side.label)
 			continue
 		}
@@ -547,7 +544,7 @@ func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID strin
 			}
 		}
 
-		h.logSearchResult(pm, gameID, turnNumber, phaseName, hex, side.label, detectionLevel, enemyUnits, tfUnitsByID, tfNameByID, true)
+		h.logSearchResult(pm, gameID, turnNumber, phaseName, hex, side.label, detectionLevel, enemyUnits, tfUnitsByID, tfNameByID, true, "")
 
 		if side.opponentLabel != "" {
 			h.logSearchWarning(pm, gameID, turnNumber, phaseName, hex, side.opponentLabel, detectionLevel, enemyUnits, enemyTaskForces, tfUnitsByID)
@@ -558,17 +555,7 @@ func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID strin
 	}
 }
 
-func (h *SearchPhaseHandler) logSearchAttempt(pm *PhaseManager, gameID string, turnNumber int, phaseName, hexID, searchingSide string, factors, visibilityLevel int, status string) {
-	if pm == nil || pm.eventService == nil {
-		return
-	}
-
-	if err := pm.eventService.LogSearchAttemptEvent(gameID, turnNumber, phaseName, hexID, searchingSide, factors, visibilityLevel, status); err != nil {
-		log.Printf("Search phase - failed to log search attempt for hex %s: %v", hexID, err)
-	}
-}
-
-func (h *SearchPhaseHandler) logSearchResult(pm *PhaseManager, gameID string, turnNumber int, phaseName, hexID, searchingSide string, detectionLevel models.DetectionLevel, enemyUnits []*models.NavalUnit, tfUnits map[string][]models.NavalUnit, tfNameByID map[string]string, hasContact bool) {
+func (h *SearchPhaseHandler) logSearchResult(pm *PhaseManager, gameID string, turnNumber int, phaseName, hexID, searchingSide string, detectionLevel models.DetectionLevel, enemyUnits []*models.NavalUnit, tfUnits map[string][]models.NavalUnit, tfNameByID map[string]string, hasContact bool, status string) {
 	if pm == nil || pm.eventService == nil {
 		return
 	}
@@ -595,9 +582,11 @@ func (h *SearchPhaseHandler) logSearchResult(pm *PhaseManager, gameID string, tu
 			h.formatTaskForceText(taskForceNames),
 			detectionText,
 		)
+	} else if status != "" {
+		description = fmt.Sprintf("Searсh «hex %s: нет контакта (%s)»", hexID, status)
 	}
 
-	if err := pm.eventService.LogSearchResultEvent(gameID, turnNumber, phaseName, hexID, searchingSide, description, detectionLevel, shipCount, classSummary, taskForceNames, hasContact); err != nil {
+	if err := pm.eventService.LogSearchResultEvent(gameID, turnNumber, phaseName, hexID, searchingSide, description, detectionLevel, shipCount, classSummary, taskForceNames, hasContact, status); err != nil {
 		log.Printf("Search phase - failed to log search result for hex %s: %v", hexID, err)
 	}
 }

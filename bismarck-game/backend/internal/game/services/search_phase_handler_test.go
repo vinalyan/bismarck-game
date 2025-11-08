@@ -111,7 +111,6 @@ func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
 
 	events := fetchSearchEvents(t, db, gameID)
 	descriptions := extractDescriptions(events)
-	assert.Contains(t, descriptions, "Поиск в гексе A1")
 	assert.Contains(t, descriptions, "Searсh «hex A1: обнаружено 1 корабль (CA×1). Task force: нет. Detection=shadowed».")
 	assert.Contains(t, descriptions, "Search warning «hex A1: противник обнаружил German Raider. Detection=shadowed».")
 }
@@ -178,7 +177,6 @@ func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
 
 	events := fetchSearchEvents(t, db, gameID)
 	descriptions := extractDescriptions(events)
-	assert.Contains(t, descriptions, "Поиск в гексе B2")
 	assert.Contains(t, descriptions, "Searсh «hex B2: обнаружено 1 корабль (CA×1). Task force: нет. Detection=sighted».")
 	assert.Contains(t, descriptions, "Search warning «hex B2: противник обнаружил German Raider 2. Detection=sighted».")
 
@@ -248,7 +246,7 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 
 	events := fetchSearchEvents(t, db, gameID)
 	descriptions := extractDescriptions(events)
-	expectedDescription := "Поиск в гексе C3 — пропущен (туман)"
+	expectedDescription := "Searсh «hex C3: нет контакта (пропущен: туман)»"
 	assert.GreaterOrEqual(t, countOccurrences(descriptions, expectedDescription), 1)
 }
 

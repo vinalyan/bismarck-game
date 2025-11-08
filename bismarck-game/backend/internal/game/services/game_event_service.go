@@ -79,38 +79,8 @@ func (s *GameEventService) LogTaskForceMovementEvent(gameID, taskForceID, taskFo
 	return s.saveEvent(event)
 }
 
-// LogSearchAttemptEvent фиксирует факт выполнения поиска в гексе
-func (s *GameEventService) LogSearchAttemptEvent(gameID string, turn int, phase, hexID, searchingSide string, factors, visibilityLevel int, status string) error {
-	description := fmt.Sprintf("Поиск в гексе %s", hexID)
-	if status != "" {
-		description = fmt.Sprintf("%s — %s", description, status)
-	}
-
-	event := &models.GameEvent{
-		ID:          uuid.New().String(),
-		GameID:      gameID,
-		Turn:        turn,
-		Phase:       phase,
-		EventType:   models.EventTypeSearch,
-		Description: description,
-		Data: map[string]interface{}{
-			"hex_id":           hexID,
-			"searching_side":   searchingSide,
-			"factors":          factors,
-			"visibility_level": visibilityLevel,
-			"status":           status,
-		},
-		Visibility: map[string]interface{}{
-			"is_public": true,
-		},
-		CreatedAt: time.Now(),
-	}
-
-	return s.saveEvent(event)
-}
-
 // LogSearchResultEvent фиксирует итог поиска для обеих сторон
-func (s *GameEventService) LogSearchResultEvent(gameID string, turn int, phase, hexID, searchingSide, description string, detectionLevel models.DetectionLevel, shipCount int, classSummary string, taskForceNames []string, hasContact bool) error {
+func (s *GameEventService) LogSearchResultEvent(gameID string, turn int, phase, hexID, searchingSide, description string, detectionLevel models.DetectionLevel, shipCount int, classSummary string, taskForceNames []string, hasContact bool, status string) error {
 	event := &models.GameEvent{
 		ID:          uuid.New().String(),
 		GameID:      gameID,
@@ -126,9 +96,11 @@ func (s *GameEventService) LogSearchResultEvent(gameID string, turn int, phase, 
 			"class_summary":   classSummary,
 			"task_force_list": taskForceNames,
 			"detection_level": string(detectionLevel),
+			"status":          status,
 		},
 		Visibility: map[string]interface{}{
-			"is_public": true,
+			"is_public":   false,
+			"player_side": searchingSide,
 		},
 		CreatedAt: time.Now(),
 	}
@@ -210,7 +182,7 @@ func (s *GameEventService) LogTurnChangeEvent(gameID string, turn int) error {
 func (s *GameEventService) GetGameEvents(gameID, playerSide string, limit int) ([]models.GameEvent, error) {
 	s.logger.Info("Getting game events", "game_id", gameID, "player_side", playerSide, "limit", limit)
 
-	query := `
+	baseQuery := `
 		SELECT id, game_id, turn, phase, event_type, actor_id, actor_name, 
 		       target_id, target_name, description, data, visibility, created_at
 		FROM game_events 
@@ -221,10 +193,16 @@ func (s *GameEventService) GetGameEvents(gameID, playerSide string, limit int) (
 			OR visibility->>'player_side' = $2
 		)
 		ORDER BY created_at DESC
-		LIMIT $3
 	`
 
-	rows, err := s.db.Query(query, gameID, playerSide, limit)
+	args := []interface{}{gameID, playerSide}
+	query := baseQuery
+	if limit > 0 {
+		query = baseQuery + "\n\t\tLIMIT $3"
+		args = append(args, limit)
+	}
+
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		s.logger.Error("Failed to query game events", "error", err, "game_id", gameID, "player_side", playerSide, "limit", limit)
 		return nil, fmt.Errorf("failed to get game events: %w", err)

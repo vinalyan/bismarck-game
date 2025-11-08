@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
 	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/utils"
@@ -22,7 +21,6 @@ func NewGameEventHandler(eventService *services.GameEventService) *GameEventHand
 func (h *GameEventHandler) GetGameEvents(w http.ResponseWriter, r *http.Request) {
 	gameID := r.URL.Query().Get("game_id")
 	playerSide := r.URL.Query().Get("player_side")
-	limitStr := r.URL.Query().Get("limit")
 
 	if gameID == "" {
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "Missing required parameter: game_id")
@@ -34,14 +32,7 @@ func (h *GameEventHandler) GetGameEvents(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	limit := 15 // По умолчанию
-	if limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
-	events, err := h.eventService.GetGameEvents(gameID, playerSide, limit)
+	events, err := h.eventService.GetGameEvents(gameID, playerSide, 0)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get game events")
 		return

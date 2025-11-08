@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS games (
     is_fog BOOLEAN DEFAULT FALSE,
     weather_track INTEGER DEFAULT 0,
     status VARCHAR(20) DEFAULT 'waiting',
+    settings JSONB DEFAULT '{}',
     victory_points JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
