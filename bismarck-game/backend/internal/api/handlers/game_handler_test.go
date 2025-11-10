@@ -623,8 +623,12 @@ func TestGetGameUnits(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.NotEmpty(t, response["naval_units"])
-		assert.NotEmpty(t, response["air_units"])
+	data, ok := response["data"].(map[string]interface{})
+	require.True(t, ok, "response data should be an object")
+	assert.NotNil(t, data["units"])
+	assert.NotNil(t, data["task_forces"])
+	_, hasContacts := data["enemy_contacts"]
+	assert.True(t, hasContacts, "response must include enemy_contacts field")
 	})
 
 	t.Run("game not found", func(t *testing.T) {

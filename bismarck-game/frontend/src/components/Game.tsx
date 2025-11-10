@@ -7,7 +7,7 @@ import { HexCoordinate } from '../types/mapTypes';
 import { MovementHex } from '../utils/movementUtils';
 import { useActiveHexes } from '../utils/activeHexesUtils';
 import { MAP_CONSTANTS } from '../utils/hexUtils';
-import { unitsAPI, GameUnit, TaskForce } from '../services/api/unitsAPI';
+import { unitsAPI, GameUnit, TaskForce, EnemyContact } from '../services/api/unitsAPI';
 import { movementAPI } from '../services/api/movementAPI';
 import { shipsAPI } from '../services/api/shipsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
@@ -131,6 +131,7 @@ const Game: React.FC = () => {
   const [loadingShips] = useState(false);
   const [gameUnits, setGameUnits] = useState<GameUnit[]>([]);
   const [taskForces, setTaskForces] = useState<TaskForce[]>([]);
+  const [enemyContacts, setEnemyContacts] = useState<EnemyContact[]>([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [searchFactorHexes, setSearchFactorHexes] = useState<Map<string, number>>(new Map());
   const [hexMarkers, setHexMarkers] = useState<Record<string, HexMarkers>>({});
@@ -203,6 +204,11 @@ const Game: React.FC = () => {
           }
           if (response.data.task_forces) {
             setTaskForces(response.data.task_forces);
+          }
+          if (response.data.enemy_contacts) {
+            setEnemyContacts(response.data.enemy_contacts);
+          } else {
+            setEnemyContacts([]);
           }
         } else {
           console.error('Failed to load game units:', response.error);
@@ -541,6 +547,7 @@ const Game: React.FC = () => {
               if (unitsResponse.data.task_forces) {
                 setTaskForces(unitsResponse.data.task_forces);
               }
+              setEnemyContacts(unitsResponse.data.enemy_contacts || []);
             }
 
             // Обновляем маркеры из ответа getSearchFactors
@@ -609,6 +616,7 @@ const Game: React.FC = () => {
               if (unitsResponse.data.task_forces) {
                 setTaskForces(unitsResponse.data.task_forces);
               }
+              setEnemyContacts(unitsResponse.data.enemy_contacts || []);
             }
             
             // Показываем уведомление
@@ -719,6 +727,7 @@ const Game: React.FC = () => {
             if (updatedUnits.data.task_forces) {
               setTaskForces(updatedUnits.data.task_forces);
             }
+            setEnemyContacts(updatedUnits.data.enemy_contacts || []);
           }
         } catch (error) {
           console.error('Error updating units after movement:', error);
@@ -807,6 +816,7 @@ const Game: React.FC = () => {
             if (updatedUnits.data.task_forces) {
               setTaskForces(updatedUnits.data.task_forces);
             }
+            setEnemyContacts(updatedUnits.data.enemy_contacts || []);
           }
         }
 
@@ -1497,6 +1507,41 @@ const Game: React.FC = () => {
                   })}
               </div>
             )}
+            {enemyContacts.length > 0 && (
+              <div className="enemy-contacts">
+                <h3>Обнаруженные контакты</h3>
+                <div className="contact-list">
+                  {enemyContacts.map((contact) => {
+                    const phaseLabel = PHASE_NAMES[contact.phase as GamePhase] || contact.phase;
+                    const taskForceLabel = contact.task_force && contact.task_force !== 'нет'
+                      ? contact.task_force
+                      : 'нет';
+                    return (
+                      <div key={`${contact.hex_id}-${contact.detection_level}-${contact.last_seen_at}`} className="contact-item">
+                        <div className="contact-header">
+                          <span className="contact-hex">Hex {contact.hex_id}</span>
+                          <span className={`detection-tag ${contact.detection_level}`}>
+                            {contact.detection_level === 'shadowed' ? '🔴 Преследуется' : '🟠 Обнаружен'}
+                          </span>
+                        </div>
+                        <div className="contact-body">
+                          <span className="contact-summary">
+                            Обнаружено {contact.ship_count} корабль(ей)
+                            {contact.class_summary ? ` (${contact.class_summary})` : ''}
+                          </span>
+                          <span className="contact-task-force">
+                            Task force: {taskForceLabel}
+                          </span>
+                          <span className="contact-turn">
+                            Ход {contact.turn}, фаза {phaseLabel}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {loadingUnits ? (
               <div className="loading">Загрузка юнитов...</div>
             ) : gameUnits.filter(unit => unit.position && unit.position.trim() !== '').length > 0 ? (
@@ -1649,6 +1694,7 @@ const Game: React.FC = () => {
             activeHexes={activeHexes}
             gameUnits={gameUnits}
             taskForces={taskForces}
+            enemyContacts={enemyContacts}
             selectedUnit={selectedUnit}
             expandedStackHex={expandedStackHex}
             gameId={currentGame?.id || undefined}
@@ -1672,6 +1718,7 @@ const Game: React.FC = () => {
                     if (unitsResponse.data.task_forces) {
                       setTaskForces(unitsResponse.data.task_forces);
                     }
+                  setEnemyContacts(unitsResponse.data.enemy_contacts || []);
                   }
                   
                   // Обновляем маркеры через getSearchFactors
@@ -1780,6 +1827,7 @@ const Game: React.FC = () => {
             activeHexes={[]}
             gameUnits={gameUnits}
             taskForces={taskForces}
+            enemyContacts={enemyContacts}
             mapStructures={mapStructures}
             selectedUnit={selectedUnit}
             expandedStackHex={expandedStackHex}
@@ -1798,6 +1846,7 @@ const Game: React.FC = () => {
                     if (response.data.task_forces) {
                       setTaskForces(response.data.task_forces);
                     }
+                    setEnemyContacts(response.data.enemy_contacts || []);
                   }
                 });
                 // Маркеры загружаются через getSearchFactors (см. calculateSearchFactors выше)

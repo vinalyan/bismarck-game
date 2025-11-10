@@ -6,7 +6,7 @@ import { Hex } from './Hex';
 import Tooltip from './Tooltip';
 import CreateTaskForceDialog from './CreateTaskForceDialog';
 import PatrolDialog from './PatrolDialog';
-import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate, MapStructure } from '../types/mapTypes';
+import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate, MapStructure, EnemyContactSummary } from '../types/mapTypes';
 import { MovementHex } from '../utils/movementUtils';
 import { ActiveHex } from '../utils/activeHexesUtils';
 import { 
@@ -14,7 +14,7 @@ import {
 } from '../utils/hexUtils';
 import { phaseAPI } from '../services/api/phaseAPI';
 import { gameEventAPI } from '../services/api/gameEventAPI';
-import { unitsAPI } from '../services/api/unitsAPI';
+import { unitsAPI, EnemyContact } from '../services/api/unitsAPI';
 import { gameAPI } from '../services/api/gameAPI';
 import { searchAPI, HexMarkers } from '../services/api/searchAPI';
 import './HexMap.css';
@@ -31,6 +31,7 @@ interface HexMapProps {
   activeHexes?: ActiveHex[];
   gameUnits?: any[]; // Единый источник данных юнитов
   taskForces?: any[]; // Данные Task Forces  
+  enemyContacts?: EnemyContact[];
   mapStructures?: MapStructure | null;
   selectedUnit?: string | null;
   expandedStackHex?: string | null;
@@ -66,6 +67,7 @@ const HexMap: React.FC<HexMapProps> = ({
   activeHexes = [],
   gameUnits = [],
   taskForces = [],
+  enemyContacts = [],
   mapStructures = null,
   selectedUnit = null,
   expandedStackHex = null,
@@ -88,19 +90,6 @@ const HexMap: React.FC<HexMapProps> = ({
   hexMarkers = {},
   isFog = false
 }) => {
-  // Отладка: логируем isFog и fogAreas при изменении
-  useEffect(() => {
-    if (isFog) {
-      console.log('🌫️ Fog is active, fog hexes should be highlighted');
-      if (mapStructures?.fogAreas) {
-        console.log('🌫️ Fog areas loaded:', mapStructures.fogAreas.length, 'areas');
-        const totalFogHexes = mapStructures.fogAreas.reduce((sum, area) => sum + (area.hexIds?.length || 0), 0);
-        console.log('🌫️ Total fog hexes:', totalFogHexes);
-      } else {
-        console.warn('⚠️ Fog is active but fogAreas not loaded in mapStructures');
-      }
-    }
-  }, [isFog, mapStructures]);
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
   const [isCreateTFMode, setIsCreateTFMode] = useState(false);
@@ -532,6 +521,16 @@ const HexMap: React.FC<HexMapProps> = ({
   // Генерируем координаты гексов
   const hexes = useMemo(() => {
     const newHexes = new Map<string, HexData>();
+    const contactsByHex = new Map<string, EnemyContactSummary[]>();
+
+    enemyContacts.forEach(contact => {
+      if (!contact || !contact.hex_id) {
+        return;
+      }
+      const existing = contactsByHex.get(contact.hex_id) || [];
+      existing.push(contact);
+      contactsByHex.set(contact.hex_id, existing);
+    });
     
     // Создаем гексы используя offset координаты (col, row)
     for (let row = 0; row < height; row++) {
@@ -674,13 +673,14 @@ const HexMap: React.FC<HexMapProps> = ({
           weather: 'clear',
           hexType,
           isRestrictedDD,
-          isFogHex
+          isFogHex,
+          enemyContacts: contactsByHex.get(hexId) || []
         });
       }
     }
     
     return newHexes;
-  }, [width, height, gameUnits, taskForces, mapStructures, isFog]);
+  }, [width, height, gameUnits, taskForces, enemyContacts, mapStructures, isFog]);
 
   // Обработчики событий
   const handleHexClick = (coordinate: HexCoordinate) => {

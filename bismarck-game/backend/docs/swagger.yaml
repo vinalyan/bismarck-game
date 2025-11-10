@@ -65,6 +65,49 @@ definitions:
     - password
     - username
     type: object
+  bismarck-game_backend_internal_game_models.EnemyContact:
+    properties:
+      class_summary:
+        description: Сводка по обнаруженным классам кораблей (например, BB×2, CV×1)
+        type: string
+      detection_level:
+        allOf:
+        - $ref: '#/definitions/bismarck-game_backend_internal_game_models.DetectionLevel'
+        enum:
+        - sighted
+        - shadowed
+      enemy_nationality:
+        allOf:
+        - $ref: '#/definitions/bismarck-game_backend_internal_game_models.PlayerSide'
+      hex_id:
+        description: Координата гекса, где обнаружен контакт
+        type: string
+      last_seen_at:
+        description: Время последнего подтвержденного наблюдения
+        format: date-time
+        type: string
+      phase:
+        description: Фаза, в которой была зафиксирована информация
+        type: string
+      searching_side:
+        allOf:
+        - $ref: '#/definitions/bismarck-game_backend_internal_game_models.PlayerSide'
+        description: Сторона, выполнившая поиск
+      ship_count:
+        description: Количество обнаруженных кораблей
+        type: integer
+      task_force:
+        description: Название обнаруженной Task Force или 'нет'
+        type: string
+      task_force_list:
+        description: Подробный список обнаруженных TF
+        items:
+          type: string
+        type: array
+      turn:
+        description: Номер хода
+        type: integer
+    type: object
   bismarck-game_backend_internal_game_models.GameSettings:
     properties:
       allow_spectators:
@@ -390,8 +433,26 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
             type: object
+            properties:
+              success:
+                type: boolean
+              data:
+                type: object
+                properties:
+                  units:
+                    type: array
+                    items:
+                      type: object
+                  task_forces:
+                    type: array
+                    items:
+                      type: object
+                  enemy_contacts:
+                    type: array
+                    description: Aggregated enemy contacts visible to the requesting player
+                    items:
+                      $ref: '#/definitions/bismarck-game_backend_internal_game_models.EnemyContact'
         "400":
           description: Bad Request
           schema:

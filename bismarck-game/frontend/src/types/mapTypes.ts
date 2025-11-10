@@ -86,6 +86,20 @@ export type WeatherType = 'clear' | 'storm' | 'fog' | 'ice';
 // Состояние юнита для визуальной подсветки
 export type UnitState = 'idle' | 'selected' | 'active' | 'cannot-move' | 'emergency-fuel';
 
+export interface EnemyContactSummary {
+  hex_id: string;
+  detection_level: 'sighted' | 'shadowed';
+  ship_count: number;
+  class_summary: string;
+  task_force: string;
+  task_force_list: string[];
+  enemy_nationality: PlayerSide;
+  searching_side: PlayerSide;
+  turn: number;
+  phase: string;
+  last_seen_at: string;
+}
+
 // Данные гекса
 export interface HexData {
   coordinate: HexCoordinate;
@@ -98,6 +112,7 @@ export interface HexData {
   unitSide?: PlayerSide | null; // Сторона юнита/Task Force
   units?: any[];             // Массив отдельных юнитов в гексе (не в Task Forces)
   taskForces?: any[];        // Массив Task Forces в гексе
+  enemyContacts?: EnemyContactSummary[];
   weather: WeatherType;      // Погода на гексе
   hexType: 'water' | 'land' | 'non_game'; // Тип гекса для движения
   isRestrictedDD?: boolean;  // Разрешен ли гекс для немецких DD

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -549,6 +550,286 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 	}
 
 	return visibleUnits, nil
+}
+
+// GetEnemyContacts возвращает сводную информацию об обнаруженных силах противника
+func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyContact, error) {
+	const gameQuery = `
+		SELECT player1_id, player2_id, turn_number, current_phase
+		FROM games
+		WHERE id = $1
+	`
+
+	var (
+		player1ID, player2ID sql.NullString
+		turnNumber           sql.NullInt64
+		currentPhase         sql.NullString
+	)
+
+	if err := s.db.QueryRow(gameQuery, gameID).Scan(&player1ID, &player2ID, &turnNumber, &currentPhase); err != nil {
+		return nil, fmt.Errorf("failed to get game info: %w", err)
+	}
+
+	if !player1ID.Valid || !player2ID.Valid {
+		return []models.EnemyContact{}, nil
+	}
+
+	var playerSide, opponentSide, opponentID string
+
+	switch playerID {
+	case player1ID.String:
+		playerSide = "german"
+		opponentSide = "allied"
+		opponentID = player2ID.String
+	case player2ID.String:
+		playerSide = "allied"
+		opponentSide = "german"
+		opponentID = player1ID.String
+	default:
+		return nil, fmt.Errorf("player %s is not part of game %s", playerID, gameID)
+	}
+
+	type tfInfo struct {
+		Name           string
+		Units          []string
+		Position       string
+		DetectionLevel models.DetectionLevel
+	}
+
+	tfMap := make(map[string]tfInfo)
+
+	const tfQuery = `
+		SELECT id, name, units, position, detection_level
+		FROM task_forces
+		WHERE game_id = $1
+		  AND owner = $2
+	`
+
+	tfRows, err := s.db.Query(tfQuery, gameID, opponentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query task forces: %w", err)
+	}
+	defer tfRows.Close()
+
+	for tfRows.Next() {
+		var (
+			id        string
+			name      string
+			unitsJSON []byte
+			position  sql.NullString
+			detection sql.NullString
+		)
+
+		if err := tfRows.Scan(&id, &name, &unitsJSON, &position, &detection); err != nil {
+			s.logger.Warn("GetEnemyContacts: failed to scan task force", "error", err)
+			continue
+		}
+
+		var unitsList []string
+		if len(unitsJSON) > 0 {
+			if err := json.Unmarshal(unitsJSON, &unitsList); err != nil {
+				s.logger.Warn("GetEnemyContacts: failed to unmarshal task force units", "task_force_id", id, "error", err)
+			}
+		}
+
+		level := models.DetectionLevelNone
+		if detection.Valid {
+			level = models.DetectionLevel(detection.String)
+		}
+
+		tfMap[id] = tfInfo{
+			Name:           name,
+			Units:          unitsList,
+			Position:       position.String,
+			DetectionLevel: level,
+		}
+	}
+
+	if err := tfRows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate task forces: %w", err)
+	}
+
+	const visibilityQuery = `
+		SELECT 
+			uv.unit_id,
+			uv.visibility,
+			NULLIF(COALESCE(uv.last_known_hex, ''), '') AS last_hex,
+			uv.last_seen_at,
+			nu.type,
+			nu.task_force_id,
+			nu.nationality,
+			nu.status,
+			nu.position
+		FROM unit_visibility uv
+		JOIN naval_units nu ON nu.id = uv.unit_id
+		WHERE uv.game_id = $1
+		  AND uv.player_id = $2
+		  AND uv.visibility IN ($3, $4)
+		  AND nu.owner = $5
+	`
+
+	rows, err := s.db.Query(
+		visibilityQuery,
+		gameID,
+		playerID,
+		string(models.DetectionLevelSighted),
+		string(models.DetectionLevelShadowed),
+		opponentID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query enemy visibility: %w", err)
+	}
+	defer rows.Close()
+
+	type accumulator struct {
+		shipTypes      map[string]int
+		shipCount      int
+		taskForceIDs   map[string]struct{}
+		detectionLevel models.DetectionLevel
+		lastSeenAt     time.Time
+		nationality    string
+	}
+
+	contactsMap := make(map[string]*accumulator)
+
+	for rows.Next() {
+		var (
+			unitID      string
+			visibility  sql.NullString
+			lastHex     sql.NullString
+			lastSeen    sql.NullTime
+			unitType    sql.NullString
+			taskForceID sql.NullString
+			nationality sql.NullString
+			status      sql.NullString
+			currentPos  sql.NullString
+		)
+
+		if err := rows.Scan(
+			&unitID,
+			&visibility,
+			&lastHex,
+			&lastSeen,
+			&unitType,
+			&taskForceID,
+			&nationality,
+			&status,
+			&currentPos,
+		); err != nil {
+			s.logger.Warn("GetEnemyContacts: failed to scan visibility row", "error", err)
+			continue
+		}
+
+		if status.Valid && status.String == string(models.UnitStatusSunk) {
+			continue
+		}
+
+		hexID := strings.TrimSpace(lastHex.String)
+		if hexID == "" {
+			hexID = strings.TrimSpace(currentPos.String)
+		}
+		if hexID == "" {
+			continue
+		}
+
+		acc, exists := contactsMap[hexID]
+		if !exists {
+			acc = &accumulator{
+				shipTypes:      make(map[string]int),
+				taskForceIDs:   make(map[string]struct{}),
+				detectionLevel: models.DetectionLevelSighted,
+			}
+			contactsMap[hexID] = acc
+		}
+
+		if unitType.Valid {
+			acc.shipTypes[unitType.String]++
+			acc.shipCount++
+		}
+
+		sideValue := opponentSide
+		if nationality.Valid {
+			switch strings.ToLower(nationality.String) {
+			case "german":
+				sideValue = "german"
+			case "allied", "british", "royal navy":
+				sideValue = "allied"
+			default:
+				sideValue = opponentSide
+			}
+		}
+		acc.nationality = sideValue
+
+		if taskForceID.Valid && taskForceID.String != "" {
+			acc.taskForceIDs[taskForceID.String] = struct{}{}
+		}
+
+		if lastSeen.Valid {
+			if acc.lastSeenAt.IsZero() || lastSeen.Time.After(acc.lastSeenAt) {
+				acc.lastSeenAt = lastSeen.Time
+			}
+		}
+
+		if visibility.Valid && models.DetectionLevel(visibility.String) == models.DetectionLevelShadowed {
+			acc.detectionLevel = models.DetectionLevelShadowed
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate enemy visibility: %w", err)
+	}
+
+	contacts := make([]models.EnemyContact, 0, len(contactsMap))
+
+	for hexID, acc := range contactsMap {
+		if acc.shipCount == 0 {
+			continue
+		}
+
+		classPairs := make([]string, 0, len(acc.shipTypes))
+		for unitType, count := range acc.shipTypes {
+			classPairs = append(classPairs, fmt.Sprintf("%s×%d", unitType, count))
+		}
+		sort.Strings(classPairs)
+
+		taskForceNames := make([]string, 0, len(acc.taskForceIDs))
+		for tfID := range acc.taskForceIDs {
+			if tf, ok := tfMap[tfID]; ok {
+				taskForceNames = append(taskForceNames, tf.Name)
+				if tf.DetectionLevel == models.DetectionLevelShadowed {
+					acc.detectionLevel = models.DetectionLevelShadowed
+				}
+			}
+		}
+		sort.Strings(taskForceNames)
+
+		taskForceSummary := "нет"
+		if len(taskForceNames) > 0 {
+			taskForceSummary = strings.Join(taskForceNames, ", ")
+		}
+
+		contact := models.EnemyContact{
+			HexID:            hexID,
+			DetectionLevel:   acc.detectionLevel,
+			ShipCount:        acc.shipCount,
+			ClassSummary:     strings.Join(classPairs, ", "),
+			TaskForce:        taskForceSummary,
+			TaskForceList:    taskForceNames,
+			EnemyNationality: acc.nationality,
+			SearchingSide:    playerSide,
+			Turn:             int(turnNumber.Int64),
+			Phase:            currentPhase.String,
+			LastSeenAt:       acc.lastSeenAt,
+		}
+
+		contacts = append(contacts, contact)
+	}
+
+	sort.Slice(contacts, func(i, j int) bool {
+		return contacts[i].HexID < contacts[j].HexID
+	})
+
+	return contacts, nil
 }
 
 // GetUnitsWithExpiredEmergencyFuel возвращает корабли с истекшим аварийным топливом

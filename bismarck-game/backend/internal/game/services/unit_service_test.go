@@ -563,6 +563,77 @@ func TestRecordSearch(t *testing.T) {
 	})
 }
 
+func TestUnitService_GetEnemyContacts(t *testing.T) {
+	db, err := testutil.SetupTestDatabase()
+	require.NoError(t, err)
+	defer db.Close()
+
+	log, err := logger.New(logger.INFO, "text", "stdout")
+	require.NoError(t, err)
+
+	service := NewUnitService(db, log)
+
+	gameID := "11111111-1111-1111-1111-111111111111"
+	playerGerman := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+	playerAllied := "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+	unitID := "cccccccc-cccc-cccc-cccc-cccccccccccc"
+
+	_, err = db.GetConnection().Exec(`
+		INSERT INTO users (id, username, email, password_hash)
+		VALUES 
+			($1, 'german-player', 'german@example.com', 'hash'),
+			($2, 'allied-player', 'allied@example.com', 'hash')
+	`, playerGerman, playerAllied)
+	require.NoError(t, err)
+
+	_, err = db.GetConnection().Exec(`
+		INSERT INTO games (id, name, status, player1_id, player2_id, turn_number, current_phase)
+		VALUES ($1, 'Enemy Contact Test', 'active', $2, $3, 2, 'search')
+	`, gameID, playerGerman, playerAllied)
+	require.NoError(t, err)
+
+	_, err = db.GetConnection().Exec(`
+		INSERT INTO naval_units (
+			id, game_id, name, type, class, owner, nationality, position, setup_hex,
+			evasion, base_evasion, speed_rating, fuel, max_fuel, hull_boxes, current_hull,
+			status, detection_level, created_at, updated_at
+		)
+		VALUES (
+			$1, $2, 'Ark Royal', 'CV', 'CV', $3, 'allied', 'A10', 'A10',
+			10, 10, 'F', 5, 5, 9, 9,
+			'active', 'shadowed', NOW(), NOW()
+		)
+	`, unitID, gameID, playerAllied)
+	require.NoError(t, err)
+
+	_, err = db.GetConnection().Exec(`
+		INSERT INTO unit_visibility (
+			id, game_id, unit_id, player_id, visibility, last_known_hex,
+			last_seen_at, created_at, updated_at
+		)
+		VALUES (
+			$1, $2, $3, $4, 'shadowed', 'A10',
+			NOW(), NOW(), NOW()
+		)
+	`, "dddddddd-dddd-dddd-dddd-dddddddddddd", gameID, unitID, playerGerman)
+	require.NoError(t, err)
+
+	contacts, err := service.GetEnemyContacts(gameID, playerGerman)
+	require.NoError(t, err)
+	require.Len(t, contacts, 1)
+
+	contact := contacts[0]
+	assert.Equal(t, "A10", contact.HexID)
+	assert.Equal(t, models.DetectionLevelShadowed, contact.DetectionLevel)
+	assert.Equal(t, 1, contact.ShipCount)
+	assert.Equal(t, "CV×1", contact.ClassSummary)
+	assert.Equal(t, "нет", contact.TaskForce)
+	assert.Equal(t, "allied", contact.EnemyNationality)
+	assert.Equal(t, "german", contact.SearchingSide)
+	assert.Equal(t, 2, contact.Turn)
+	assert.Equal(t, "search", contact.Phase)
+}
+
 func TestGetUnitsByPosition(t *testing.T) {
 	db, err := testutil.SetupTestDatabase()
 	require.NoError(t, err)

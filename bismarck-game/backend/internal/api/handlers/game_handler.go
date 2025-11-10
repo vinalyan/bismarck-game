@@ -992,9 +992,16 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("GetGameUnits: Got %d units and %d task forces", len(units), len(taskForces))
 
+	enemyContacts, err := h.unitService.GetEnemyContacts(gameID, userID)
+	if err != nil {
+		log.Printf("Error getting enemy contacts: %v", err)
+		enemyContacts = []models.EnemyContact{}
+	}
+
 	pkgutils.WriteSuccess(w, map[string]interface{}{
-		"units":       units,
-		"task_forces": taskForces,
+		"units":          units,
+		"task_forces":    taskForces,
+		"enemy_contacts": enemyContacts,
 	})
 }
 

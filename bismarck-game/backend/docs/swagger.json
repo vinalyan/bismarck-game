@@ -44,7 +44,35 @@
                         "description": "OK",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": true
+                            "properties": {
+                                "success": {
+                                    "type": "boolean"
+                                },
+                                "data": {
+                                    "type": "object",
+                                    "properties": {
+                                        "units": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "task_forces": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object"
+                                            }
+                                        },
+                                        "enemy_contacts": {
+                                            "type": "array",
+                                            "description": "Aggregated enemy contacts visible to the requesting player",
+                                            "items": {
+                                                "$ref": "#/definitions/bismarck-game_backend_internal_game_models.EnemyContact"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     },
                     "400": {
@@ -2005,6 +2033,73 @@
                     "type": "string",
                     "maxLength": 50,
                     "minLength": 3
+                }
+            }
+        },
+        "bismarck-game_backend_internal_game_models.EnemyContact": {
+            "type": "object",
+            "properties": {
+                "class_summary": {
+                    "type": "string",
+                    "description": "Сводка по обнаруженным классам кораблей (например, BB×2, CV×1)"
+                },
+                "detection_level": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/bismarck-game_backend_internal_game_models.DetectionLevel"
+                        }
+                    ],
+                    "enum": [
+                        "sighted",
+                        "shadowed"
+                    ]
+                },
+                "enemy_nationality": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/bismarck-game_backend_internal_game_models.PlayerSide"
+                        }
+                    ]
+                },
+                "hex_id": {
+                    "type": "string",
+                    "description": "Координата гекса, где обнаружен контакт"
+                },
+                "last_seen_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Время последнего подтвержденного наблюдения"
+                },
+                "phase": {
+                    "type": "string",
+                    "description": "Фаза, в которой была зафиксирована информация"
+                },
+                "searching_side": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/bismarck-game_backend_internal_game_models.PlayerSide"
+                        }
+                    ],
+                    "description": "Сторона, выполнившая поиск"
+                },
+                "ship_count": {
+                    "type": "integer",
+                    "description": "Количество обнаруженных кораблей"
+                },
+                "task_force": {
+                    "type": "string",
+                    "description": "Название обнаруженной Task Force или 'нет'"
+                },
+                "task_force_list": {
+                    "type": "array",
+                    "description": "Подробный список обнаруженных TF",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "turn": {
+                    "type": "integer",
+                    "description": "Номер хода"
                 }
             }
         },

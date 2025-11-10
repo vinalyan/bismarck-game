@@ -70,11 +70,26 @@ export interface TaskForce {
 }
 
 // Интерфейс для ответа API
+export interface EnemyContact {
+  hex_id: string;
+  detection_level: 'sighted' | 'shadowed';
+  ship_count: number;
+  class_summary: string;
+  task_force: string;
+  task_force_list: string[];
+  enemy_nationality: 'german' | 'allied';
+  searching_side: 'german' | 'allied';
+  turn: number;
+  phase: string;
+  last_seen_at: string;
+}
+
 export interface UnitsResponse {
   success: boolean;
   data: {
     units: GameUnit[];
     task_forces?: TaskForce[];
+    enemy_contacts?: EnemyContact[];
   };
   error?: string;
 }
@@ -113,6 +128,7 @@ export const unitsAPI = {
       if (raw && raw.data) {
         raw.data.task_forces = raw.data.task_forces || [];
         raw.data.units = raw.data.units || [];
+        raw.data.enemy_contacts = raw.data.enemy_contacts || [];
       }
       return raw;
     } catch (error: any) {

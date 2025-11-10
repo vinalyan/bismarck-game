@@ -436,6 +436,57 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
     return 'idle';
   };
 
+  const renderEnemyContact = () => {
+    const contacts = hexData.enemyContacts || [];
+    if (contacts.length === 0) {
+      return null;
+    }
+
+    const contact = contacts.reduce((best, current) => {
+      if (!best) {
+        return current;
+      }
+      if (best.detection_level === 'shadowed') {
+        return best;
+      }
+      return current.detection_level === 'shadowed' ? current : best;
+    }, contacts[0]);
+    const iconName = contact.detection_level === 'shadowed' ? 'shadowed' : 'Sighted';
+    const nationality = contact.enemy_nationality === 'german' ? 'german' : 'allied';
+    const iconPath = `/assets/units/${nationality}/naval/${iconName}.svg`;
+
+    const badgeX = center.x - size * 0.55;
+    const badgeY = center.y - size * 0.55;
+    const badgeRadius = size * 0.35;
+
+    const classSummary = contact.class_summary ? ` (${contact.class_summary})` : '';
+    const taskForceInfo = contact.task_force && contact.task_force !== 'нет' ? `. Task force: ${contact.task_force}` : '. Task force: нет';
+    const detectionLabel = contact.detection_level.toUpperCase();
+    const tooltip = `Search «hex ${contact.hex_id}: обнаружено ${contact.ship_count} корабль(ей)${classSummary}${taskForceInfo}. Detection=${detectionLabel}»`;
+
+    return (
+      <g className={`enemy-contact ${contact.detection_level}`} transform={`translate(${badgeX}, ${badgeY})`}>
+        <title>{tooltip}</title>
+        <circle
+          cx={badgeRadius}
+          cy={badgeRadius}
+          r={badgeRadius}
+          className="enemy-contact-background"
+        />
+        <image
+          href={iconPath}
+          x={badgeRadius - (badgeRadius * 0.9)}
+          y={badgeRadius - (badgeRadius * 0.9)}
+          width={badgeRadius * 1.8}
+          height={badgeRadius * 1.8}
+          preserveAspectRatio="xMidYMid meet"
+          className="enemy-contact-icon"
+          style={{ pointerEvents: 'none' }}
+        />
+      </g>
+    );
+  };
+
   // Функция рендеринга юнитов
   const renderUnits = () => {
     // Собираем все объекты в гексе для стекирования
@@ -758,6 +809,7 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
       
       {/* Юниты на гексе */}
       {renderUnits()}
+      {renderEnemyContact()}
       
       {/* Погодные эффекты */}
       {hexData.weather === 'storm' && (

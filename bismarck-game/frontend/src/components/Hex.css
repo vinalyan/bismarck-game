@@ -262,6 +262,30 @@
   filter: drop-shadow(0 0 6px rgba(248, 113, 113, 0.75));
 }
 
+.enemy-contact {
+  pointer-events: none;
+}
+
+.enemy-contact-background {
+  fill: rgba(251, 146, 60, 0.18);
+  stroke: rgba(251, 146, 60, 0.7);
+  stroke-width: 2px;
+}
+
+.enemy-contact.sighted .enemy-contact-background {
+  fill: rgba(251, 146, 60, 0.18);
+  stroke: rgba(251, 146, 60, 0.7);
+}
+
+.enemy-contact.shadowed .enemy-contact-background {
+  fill: rgba(248, 113, 113, 0.22);
+  stroke: rgba(248, 113, 113, 0.78);
+}
+
+.enemy-contact-icon {
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.4));
+}
+
 /* ===== СТЕКИРОВАНИЕ ЮНИТОВ ===== */
 
 /* Контейнер свернутого стека */
