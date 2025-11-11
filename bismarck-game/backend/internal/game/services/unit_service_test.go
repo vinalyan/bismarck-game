@@ -634,6 +634,67 @@ func TestUnitService_GetEnemyContacts(t *testing.T) {
 	assert.Equal(t, "search", contact.Phase)
 }
 
+func TestUnitService_GetVisibleUnits_UsesUnitVisibility(t *testing.T) {
+	db, err := testutil.SetupTestDatabase()
+	require.NoError(t, err)
+	defer db.Close()
+
+	log, err := logger.New(logger.INFO, "text", "stdout")
+	require.NoError(t, err)
+
+	service := NewUnitService(db, log)
+
+	gameID := "22222222-2222-2222-2222-222222222222"
+	playerGerman := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+	playerAllied := "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+	unitID := "cccccccc-cccc-cccc-cccc-cccccccccccc"
+
+	_, err = db.GetConnection().Exec(`
+		INSERT INTO users (id, username, email, password_hash)
+		VALUES 
+			($1, 'german-player', 'german@example.com', 'hash'),
+			($2, 'allied-player', 'allied@example.com', 'hash')
+	`, playerGerman, playerAllied)
+	require.NoError(t, err)
+
+	_, err = db.GetConnection().Exec(`
+		INSERT INTO games (id, name, status, player1_id, player2_id, current_turn, current_phase)
+		VALUES ($1, 'Visible Units Test', 'active', $2, $3, 7, 'movement')
+	`, gameID, playerGerman, playerAllied)
+	require.NoError(t, err)
+
+	_, err = db.GetConnection().Exec(`
+		INSERT INTO naval_units (
+			id, game_id, name, type, class, owner, nationality, position, setup_hex,
+			evasion, base_evasion, speed_rating, fuel, max_fuel, hull_boxes, current_hull,
+			status, detection_level, created_at, updated_at
+		)
+		VALUES (
+			$1, $2, 'Edinburgh', 'CL', 'CL', $3, 'allied', 'B9', 'B9',
+			10, 10, 'F', 7, 7, 4, 4,
+			'active', 'none', NOW(), NOW()
+		)
+	`, unitID, gameID, playerAllied)
+	require.NoError(t, err)
+
+	_, err = db.GetConnection().Exec(`
+		INSERT INTO unit_visibility (
+			id, game_id, unit_id, player_id, visibility, last_known_hex,
+			last_seen_at, created_at, updated_at
+		)
+		VALUES (
+			$1, $2, $3, $4, 'shadowed', 'B9',
+			NOW(), NOW(), NOW()
+		)
+	`, "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", gameID, unitID, playerGerman)
+	require.NoError(t, err)
+
+	visibleUnits, err := service.GetVisibleUnits(gameID, playerAllied)
+	require.NoError(t, err)
+	require.Len(t, visibleUnits, 1)
+	assert.Equal(t, models.DetectionLevelShadowed, visibleUnits[0].DetectionLevel)
+}
+
 func TestGetUnitsByPosition(t *testing.T) {
 	db, err := testutil.SetupTestDatabase()
 	require.NoError(t, err)

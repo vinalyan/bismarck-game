@@ -549,6 +549,80 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 		// TODO: Добавить логику для обнаруженных вражеских юнитов
 	}
 
+	if len(visibleUnits) == 0 {
+		return visibleUnits, nil
+	}
+
+	unitIDs := make([]string, 0, len(visibleUnits))
+	for _, unit := range visibleUnits {
+		unitIDs = append(unitIDs, unit.ID)
+	}
+
+	const visibilityQuery = `
+		SELECT unit_id, visibility
+		FROM unit_visibility
+		WHERE game_id = $1
+		  AND unit_id = ANY($2)
+		  AND player_id <> $3
+	`
+
+	rows, err := s.db.Query(visibilityQuery, gameID, pq.Array(unitIDs), playerID)
+	if err != nil {
+		s.logger.Warn("GetVisibleUnits: failed to query unit visibility states", "error", err)
+		return visibleUnits, nil
+	}
+	defer rows.Close()
+
+	type rank int
+	const (
+		rankNone     rank = 0
+		rankSighted  rank = 1
+		rankShadowed rank = 2
+	)
+
+	detectionRanks := map[models.DetectionLevel]rank{
+		models.DetectionLevelNone:     rankNone,
+		models.DetectionLevelSighted:  rankSighted,
+		models.DetectionLevelShadowed: rankShadowed,
+	}
+
+	visibilityMap := make(map[string]models.DetectionLevel)
+
+	for rows.Next() {
+		var (
+			unitID     string
+			visibility string
+		)
+		if err := rows.Scan(&unitID, &visibility); err != nil {
+			s.logger.Warn("GetVisibleUnits: failed to scan visibility row", "error", err)
+			continue
+		}
+
+		var level models.DetectionLevel
+		switch models.UnitVisibility(visibility) {
+		case models.VisibilityShadowed:
+			level = models.DetectionLevelShadowed
+		case models.VisibilitySighted:
+			level = models.DetectionLevelSighted
+		default:
+			level = models.DetectionLevelNone
+		}
+
+		if current, exists := visibilityMap[unitID]; !exists || detectionRanks[level] > detectionRanks[current] {
+			visibilityMap[unitID] = level
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		s.logger.Warn("GetVisibleUnits: iteration error while reading visibility rows", "error", err)
+	}
+
+	for idx := range visibleUnits {
+		if level, exists := visibilityMap[visibleUnits[idx].ID]; exists {
+			visibleUnits[idx].DetectionLevel = level
+		}
+	}
+
 	return visibleUnits, nil
 }
 
