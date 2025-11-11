@@ -1405,7 +1405,43 @@ const Game: React.FC = () => {
         <div className="game-sidebar">
           {/* Информация о юнитах игрока */}
           <div className="units-info">
-            <h3>Ваши юниты</h3>
+            {enemyContacts.length > 0 && (
+              <div className="enemy-contacts">
+                <h3>Обнаруженные контакты</h3>
+                <div className="contact-list">
+                  {enemyContacts.map((contact) => {
+                    const phaseLabel = PHASE_NAMES[contact.phase as GamePhase] || contact.phase;
+                    const taskForceLabel = contact.task_force && contact.task_force !== 'нет'
+                      ? contact.task_force
+                      : 'нет';
+                    return (
+                      <div key={`${contact.hex_id}-${contact.detection_level}-${contact.last_seen_at}`} className="contact-item">
+                        <div className="contact-header">
+                          <span className="contact-hex">Hex {contact.hex_id}</span>
+                          <span className={`detection-tag ${contact.detection_level}`}>
+                            {contact.detection_level === 'shadowed' ? '🔴 Преследуется' : '🟠 Обнаружен'}
+                          </span>
+                        </div>
+                        <div className="contact-body">
+                          <span className="contact-summary">
+                            Обнаружено {contact.ship_count} корабль(ей)
+                            {contact.class_summary ? ` (${contact.class_summary})` : ''}
+                          </span>
+                          <span className="contact-task-force">
+                            Task force: {taskForceLabel}
+                          </span>
+                          <span className="contact-turn">
+                            Ход {contact.turn}, фаза {phaseLabel}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <h3 style={{ marginTop: enemyContacts.length > 0 ? 24 : 0 }}>Ваши юниты</h3>
             {/* Раздел Task Force */}
             {taskForces && taskForces.filter(tf => tf.position && tf.position.trim() !== '').length > 0 && (
               <div className="unit-list" style={{ marginBottom: 16 }}>
@@ -1505,41 +1541,6 @@ const Game: React.FC = () => {
                       </div>
                     );
                   })}
-              </div>
-            )}
-            {enemyContacts.length > 0 && (
-              <div className="enemy-contacts">
-                <h3>Обнаруженные контакты</h3>
-                <div className="contact-list">
-                  {enemyContacts.map((contact) => {
-                    const phaseLabel = PHASE_NAMES[contact.phase as GamePhase] || contact.phase;
-                    const taskForceLabel = contact.task_force && contact.task_force !== 'нет'
-                      ? contact.task_force
-                      : 'нет';
-                    return (
-                      <div key={`${contact.hex_id}-${contact.detection_level}-${contact.last_seen_at}`} className="contact-item">
-                        <div className="contact-header">
-                          <span className="contact-hex">Hex {contact.hex_id}</span>
-                          <span className={`detection-tag ${contact.detection_level}`}>
-                            {contact.detection_level === 'shadowed' ? '🔴 Преследуется' : '🟠 Обнаружен'}
-                          </span>
-                        </div>
-                        <div className="contact-body">
-                          <span className="contact-summary">
-                            Обнаружено {contact.ship_count} корабль(ей)
-                            {contact.class_summary ? ` (${contact.class_summary})` : ''}
-                          </span>
-                          <span className="contact-task-force">
-                            Task force: {taskForceLabel}
-                          </span>
-                          <span className="contact-turn">
-                            Ход {contact.turn}, фаза {phaseLabel}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             )}
             {loadingUnits ? (
