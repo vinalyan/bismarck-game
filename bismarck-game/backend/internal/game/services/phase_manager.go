@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"bismarck-game/backend/internal/game/models"
@@ -34,6 +35,27 @@ func (pm *PhaseManager) SetVisibilityService(service *VisibilityService) {
 // SetMapStructureService регистрирует сервис структур карты
 func (pm *PhaseManager) SetMapStructureService(service *MapStructureService) {
 	pm.mapStructureService = service
+}
+
+func (pm *PhaseManager) getPlayerIDForSide(gameID string, side string) (string, error) {
+	var player1ID, player2ID sql.NullString
+	err := pm.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch players for game %s: %w", gameID, err)
+	}
+
+	switch strings.ToLower(side) {
+	case "german":
+		if player1ID.Valid {
+			return player1ID.String, nil
+		}
+	case "allied":
+		if player2ID.Valid {
+			return player2ID.String, nil
+		}
+	}
+
+	return "", fmt.Errorf("player for side %s not found in game %s", side, gameID)
 }
 
 func NewPhaseManager(db *sql.DB, unitService *UnitService, taskForceService *TaskForceService, searchService *SearchService, eventService *GameEventService, wsHub *websocket.Hub, apiBaseURL string) *PhaseManager {

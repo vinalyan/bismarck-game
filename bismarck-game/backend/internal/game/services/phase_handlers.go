@@ -775,10 +775,30 @@ func logDetectionTransitions(pm *PhaseManager, gameID string, turn int, phaseNam
 		return
 	}
 
+	levelToVisibility := func(level models.DetectionLevel) models.UnitVisibility {
+		switch level {
+		case models.DetectionLevelShadowed:
+			return models.VisibilityShadowed
+		case models.DetectionLevelSighted:
+			return models.VisibilitySighted
+		default:
+			return models.VisibilityUnknown
+		}
+	}
+
 	for _, target := range targets {
 		viewerSide := opponentSide(target.Owner)
 		if viewerSide == "" {
 			continue
+		}
+
+		var viewerID string
+		if pm.visibilityService != nil {
+			if id, err := pm.getPlayerIDForSide(gameID, viewerSide); err == nil {
+				viewerID = id
+			} else {
+				log.Printf("Detection logging - failed to resolve viewer id for side %s: %v", viewerSide, err)
+			}
 		}
 
 		if err := pm.eventService.LogDetectionTransitionEvent(gameID, turn, phaseName, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason, viewerSide); err != nil {
@@ -805,6 +825,25 @@ func logDetectionTransitions(pm *PhaseManager, gameID string, turn int, phaseNam
 
 		if err := pm.eventService.LogDetectionWarningEvent(gameID, turn, phaseName, target.Owner, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason, shipNames); err != nil {
 			log.Printf("Detection logging - failed to log warning for %s %s: %v", target.Type, target.ID, err)
+		}
+
+		if pm.visibilityService == nil || viewerID == "" {
+			continue
+		}
+
+		switch toLevel {
+		case models.DetectionLevelShadowed:
+			if err := pm.visibilityService.SetUnitShadowed(gameID, target.ID, viewerID, target.Position); err != nil {
+				log.Printf("Detection logging - failed to set shadowed visibility for unit %s: %v", target.ID, err)
+			}
+		case models.DetectionLevelSighted:
+			if err := pm.visibilityService.SetUnitSighted(gameID, target.ID, viewerID, target.Position); err != nil {
+				log.Printf("Detection logging - failed to set sighted visibility for unit %s: %v", target.ID, err)
+			}
+		default:
+			if err := pm.visibilityService.UpdateUnitVisibility(gameID, target.ID, viewerID, levelToVisibility(toLevel)); err != nil {
+				log.Printf("Detection logging - failed to update visibility for unit %s: %v", target.ID, err)
+			}
 		}
 	}
 }
