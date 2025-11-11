@@ -274,19 +274,24 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
     const tfName = taskForce.name || 'TF';
     const nationality = taskForce.nationality === 'german' ? 'german' : 'allied';
     const unitCount = taskForce.units?.length || 0;
-    const svgPath = `/assets/units/${nationality}/TF/TF.svg`;
+    const defaultSvgPath = `/assets/units/${nationality}/TF/TF.svg`;
+    const iconPath = taskForce.iconPath || defaultSvgPath;
     const tfState = getTaskForceState(taskForce);
+    const isEnemyContact = Boolean(taskForce.isEnemyContact);
     
     return (
       <g 
         className={`task-force-container ${nationality} ${tfState}`}
         onClick={(e) => {
+          if (isEnemyContact) {
+            return;
+          }
           e.stopPropagation();
           if (onUnitClick) {
             onUnitClick(taskForce.id, taskForce);
           }
         }}
-        style={{ cursor: 'pointer' }}
+        style={{ cursor: isEnemyContact ? 'default' : 'pointer' }}
       >
         {/* Фоновый кружок для лучшей видимости */}
         <circle
@@ -318,8 +323,9 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
           y={center.y - size * 0.5}
           width={size * 1.0}
           height={size * 1.0}
-          href={svgPath}
+          href={iconPath}
           className={`task-force-icon ${nationality}`}
+          style={isEnemyContact ? { pointerEvents: 'none' } : undefined}
         />
         
         {/* Имя Task Force */}
@@ -346,16 +352,22 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
       return renderTaskForce(item);
     } else {
       const unitState = getUnitState(item);
+      const isEnemyContact = Boolean(item.isEnemyContact);
+      const iconHref = item.iconPath || getUnitIcon(item.type, item.nationality === 'german' ? 'german' : 'allied');
+
       return (
         <g 
           className={`unit-container ${unitState}`}
           onClick={(e) => {
+            if (isEnemyContact) {
+              return;
+            }
             e.stopPropagation();
             if (onUnitClick) {
               onUnitClick(item.id, item);
             }
           }}
-          style={{ cursor: 'pointer' }}
+          style={{ cursor: isEnemyContact ? 'default' : 'pointer' }}
         >
           {/* Фоновый кружок для лучшей видимости */}
           <circle
@@ -380,13 +392,14 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
           
           {/* Иконка юнита */}
           <image
-            href={getUnitIcon(item.type, item.nationality === 'german' ? 'german' : 'allied')}
+            href={iconHref}
             x={center.x - size * 0.5}
             y={center.y - size * 0.5}
             width={size * 1.0}
             height={size * 1.0}
             className="unit-icon"
             preserveAspectRatio="xMidYMid meet"
+            style={isEnemyContact ? { pointerEvents: 'none' } : undefined}
           />
         </g>
       );
@@ -455,34 +468,47 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
     const nationality = contact.enemy_nationality === 'german' ? 'german' : 'allied';
     const iconPath = `/assets/units/${nationality}/naval/${iconName}.svg`;
 
-    const badgeX = center.x - size * 0.55;
-    const badgeY = center.y - size * 0.55;
-    const badgeRadius = size * 0.35;
-
     const classSummary = contact.class_summary ? ` (${contact.class_summary})` : '';
     const taskForceInfo = contact.task_force && contact.task_force !== 'нет' ? `. Task force: ${contact.task_force}` : '. Task force: нет';
     const detectionLabel = contact.detection_level.toUpperCase();
     const tooltip = `Search «hex ${contact.hex_id}: обнаружено ${contact.ship_count} корабль(ей)${classSummary}${taskForceInfo}. Detection=${detectionLabel}»`;
 
+    const baseProps = {
+      id: `enemy-contact-${contact.hex_id}`,
+      detection_level: contact.detection_level,
+      nationality: contact.enemy_nationality === 'german' ? 'german' : 'allied',
+      iconPath,
+      isEnemyContact: true,
+    };
+
+    if (contact.task_force && contact.task_force !== 'нет') {
+      const fakeTaskForce = {
+        ...baseProps,
+        name: contact.task_force,
+        units: contact.task_force_list || [],
+      };
+
+      return (
+        <g className={`enemy-contact ${contact.detection_level}`}>
+          <title>{tooltip}</title>
+          {renderTaskForce(fakeTaskForce)}
+        </g>
+      );
+    }
+
+    const fakeUnit = {
+      ...baseProps,
+      isTaskForce: false,
+      type: iconName.toLowerCase(),
+      fuel: 1,
+      last_move_turn: -1,
+      no_movement_turns_left: 0,
+    };
+
     return (
-      <g className={`enemy-contact ${contact.detection_level}`} transform={`translate(${badgeX}, ${badgeY})`}>
+      <g className={`enemy-contact ${contact.detection_level}`}>
         <title>{tooltip}</title>
-        <circle
-          cx={badgeRadius}
-          cy={badgeRadius}
-          r={badgeRadius}
-          className="enemy-contact-background"
-        />
-        <image
-          href={iconPath}
-          x={badgeRadius - (badgeRadius * 0.9)}
-          y={badgeRadius - (badgeRadius * 0.9)}
-          width={badgeRadius * 1.8}
-          height={badgeRadius * 1.8}
-          preserveAspectRatio="xMidYMid meet"
-          className="enemy-contact-icon"
-          style={{ pointerEvents: 'none' }}
-        />
+        {renderSingleUnit(fakeUnit)}
       </g>
     );
   };

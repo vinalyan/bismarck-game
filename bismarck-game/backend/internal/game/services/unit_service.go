@@ -555,7 +555,7 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 // GetEnemyContacts возвращает сводную информацию об обнаруженных силах противника
 func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyContact, error) {
 	const gameQuery = `
-		SELECT player1_id, player2_id, turn_number, current_phase
+		SELECT player1_id, player2_id, current_turn, current_phase
 		FROM games
 		WHERE id = $1
 	`
@@ -867,7 +867,7 @@ func (s *UnitService) GetUnitsWithExpiredEmergencyFuel(gameID string, currentTur
 
 // getCurrentTurn получает текущий ход игры
 func (s *UnitService) getCurrentTurn(gameID string) int {
-	query := `SELECT turn_number FROM games WHERE id = $1`
+	query := `SELECT current_turn FROM games WHERE id = $1`
 	var turn int
 	err := s.db.QueryRow(query, gameID).Scan(&turn)
 	if err != nil {

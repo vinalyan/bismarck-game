@@ -587,7 +587,7 @@ func TestUnitService_GetEnemyContacts(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = db.GetConnection().Exec(`
-		INSERT INTO games (id, name, status, player1_id, player2_id, turn_number, current_phase)
+		INSERT INTO games (id, name, status, player1_id, player2_id, current_turn, current_phase)
 		VALUES ($1, 'Enemy Contact Test', 'active', $2, $3, 2, 'search')
 	`, gameID, playerGerman, playerAllied)
 	require.NoError(t, err)
