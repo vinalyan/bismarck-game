@@ -215,7 +215,7 @@ func (s *GameStateService) InvalidateGameModel(gameID string) {
 
 // loadFromDatabase загружает GameModel из БД
 // Сначала пытается загрузить из game_models (новая архитектура)
-// Если версии нет, создает из существующих таблиц (для миграции)
+// Если версии нет, создает из существующих таблиц (для миграции/обратной совместимости)
 func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, error) {
 	// Проверяем, что игра существует
 	gameExistsQuery := `SELECT id FROM games WHERE id = $1`
@@ -237,9 +237,24 @@ func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, e
 		return model, nil
 	}
 
-	// Если версии нет в game_models, загружаем из старых таблиц (для миграции)
+	// Если версии нет в game_models, загружаем из старых таблиц (для миграции/обратной совместимости)
+	// Это позволяет системе работать во время миграции
 	s.logger.Info("No GameModel found in game_models, loading from legacy tables", "game_id", gameID)
-	return s.loadFromLegacyTables(gameID)
+	legacyModel, err := s.loadFromLegacyTables(gameID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Автоматически сохраняем в game_models для миграции
+	legacyModel.Version = 1
+	if saveErr := s.SaveGameModelToDatabase(gameID, legacyModel); saveErr != nil {
+		s.logger.Warn("Failed to auto-save legacy model to game_models", "game_id", gameID, "error", saveErr)
+		// Продолжаем работу, возвращаем модель из старых таблиц
+	} else {
+		s.logger.Info("Legacy model auto-saved to game_models", "game_id", gameID, "version", legacyModel.Version)
+	}
+
+	return legacyModel, nil
 }
 
 // loadFromLegacyTables загружает GameModel из старых таблиц (для миграции)
