@@ -182,21 +182,6 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
     
     const isGameNotStarted = turnNumber === 0 && phase === 'setup';
     
-    console.log('PhasePanel canStartTurn check:', {
-      currentUserId,
-      player1Id: currentGame.player1_id,
-      isPlayer1,
-      isGameReady,
-      turnNumber,
-      phase,
-      isGameNotStarted,
-      currentGameTurn: currentGame.current_turn,
-      currentGamePhase: currentGame.current_phase,
-      currentTurnNumber: currentTurn?.turn_number,
-      currentTurnPhase: currentTurn?.current_phase,
-      canStart: isPlayer1 && isGameReady && isGameNotStarted
-    });
-    
     return isPlayer1 && isGameReady && isGameNotStarted;
   };
 
@@ -205,15 +190,6 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
   const turnNumber = currentTurn?.turn_number ?? currentGame?.current_turn ?? 0;
   const phase = currentTurn?.current_phase ?? currentGame?.current_phase ?? 'setup';
   const shouldShowStartTurnButton = turnNumber === 0 && phase === 'setup';
-
-  console.log('PhasePanel shouldShowStartTurnButton check:', {
-    hasCurrentTurn: !!currentTurn,
-    currentTurnNumber: currentTurn?.turn_number,
-    currentTurnPhase: currentTurn?.current_phase,
-    shouldShowStartTurnButton,
-    canStartTurn: canStartTurn(),
-    finalShouldShow: shouldShowStartTurnButton && canStartTurn()
-  });
 
   if (shouldShowStartTurnButton && canStartTurn()) {
     return (

@@ -1,6 +1,6 @@
 // Основной компонент игры "Погоня за Бисмарком"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { ViewType, GamePhase, PlayerSide, NotificationType } from '../types/gameTypes';
 import { HexCoordinate } from '../types/mapTypes';
@@ -1668,7 +1668,6 @@ const Game: React.FC = () => {
             }
           }}
         >
-          
           <HexMap
             width={MAP_CONSTANTS.HEX_GRID_WIDTH}
             height={MAP_CONSTANTS.HEX_GRID_HEIGHT}
@@ -1769,31 +1768,17 @@ const Game: React.FC = () => {
             onStartFirstTurn={handleStartFirstTurn}
             isRefuelDisabled={!currentGame || gameUnits.length === 0}
             isCompletePhaseDisabled={!currentTurn || getTurnData(currentTurn)?.current_phase !== 'movement'}
-            isStartFirstTurnVisible={(() => {
+            isStartFirstTurnVisible={useMemo(() => {
               const isGermanPlayer = currentGame?.player1_id === user?.id;
               const isGameReady = currentGame?.status === 'active' && !!currentGame?.player2_id;
               const turnData = getTurnData(currentTurn);
               // Кнопка должна появляться когда turn: 0 и phase: "setup" (игра еще не начата)
-              // Используем currentTurn напрямую, если он установлен, иначе используем currentGame
               const turnNumber = turnData?.turn_number ?? currentGame?.current_turn ?? 0;
               const phase = turnData?.current_phase ?? currentGame?.current_phase ?? 'setup';
               const isGameNotStarted = turnNumber === 0 && phase === 'setup';
               
-              console.log('Game.tsx isStartFirstTurnVisible check:', {
-                isGermanPlayer,
-                isGameReady,
-                turnNumber,
-                phase,
-                isGameNotStarted,
-                currentGameTurn: currentGame?.current_turn,
-                currentGamePhase: currentGame?.current_phase,
-                turnDataNumber: turnData?.turn_number,
-                turnDataPhase: turnData?.current_phase,
-                shouldShow: isGermanPlayer && isGameReady && isGameNotStarted
-              });
-              
               return !!(isGermanPlayer && isGameReady && isGameNotStarted);
-            })()}
+            }, [currentGame?.player1_id, currentGame?.status, currentGame?.player2_id, currentGame?.current_turn, currentGame?.current_phase, currentTurn, user?.id])}
             currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
             searchFactorHexes={searchFactorHexes}
             visibilityLevel={getTurnData(currentTurn)?.visibility_level ?? currentGame?.visibility_level ?? 1}
