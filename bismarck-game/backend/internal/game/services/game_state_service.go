@@ -1,9 +1,10 @@
 package services
 
 import (
-	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -61,7 +62,7 @@ func NewGameStateService(
 		wsHub:               wsHub,
 		gameService:         gameService,
 		memoryCache:         make(map[string]*models.GameModel),
-		maxMemoryGames:      50, // По умолчанию
+		maxMemoryGames:      50,             // По умолчанию
 		redisTTL:            24 * time.Hour, // По умолчанию 24 часа
 	}
 }
@@ -186,12 +187,30 @@ func (s *GameStateService) InvalidateGameModel(gameID string) {
 // loadFromDatabase загружает GameModel из БД через существующие сервисы
 func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, error) {
 	// Получаем информацию об игре
+	// Используем sql.NullInt32 и sql.NullString для обработки NULL значений
 	query := `SELECT current_turn, current_phase FROM games WHERE id = $1`
-	var turn int
-	var phase string
+	var turn sql.NullInt32
+	var phase sql.NullString
 	err := s.db.GetConnection().QueryRow(query, gameID).Scan(&turn, &phase)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.Warn("Game not found in database", "game_id", gameID)
+			return nil, fmt.Errorf("game not found: %s", gameID)
+		}
+		s.logger.Error("Failed to get game info from database", "game_id", gameID, "error", err)
 		return nil, fmt.Errorf("failed to get game info: %w", err)
+	}
+
+	s.logger.Debug("Game found in database", "game_id", gameID, "turn", turn, "phase", phase)
+
+	// Используем значения по умолчанию, если они NULL
+	turnNumber := 0
+	if turn.Valid {
+		turnNumber = int(turn.Int32)
+	}
+	phaseName := string(models.PhaseSetup)
+	if phase.Valid && phase.String != "" {
+		phaseName = phase.String
 	}
 
 	// Загружаем юниты
@@ -228,16 +247,47 @@ func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, e
 		taskForcesMap[tfModel.ID] = tfModel
 	}
 
-	// Загружаем события (последние 100)
-	events, err := s.eventService.GetGameEvents(gameID, "german", 100)
-	if err != nil {
-		s.logger.Warn("Failed to get game events", "error", err)
-		events = []models.GameEvent{}
+	// Загружаем события для обеих сторон (последние 100 для каждой)
+	// Это гарантирует, что мы получим все события, включая те, что видны только одной стороне
+	germanEvents, err1 := s.eventService.GetGameEvents(gameID, "german", 100)
+	alliedEvents, err2 := s.eventService.GetGameEvents(gameID, "allied", 100)
+
+	if err1 != nil {
+		s.logger.Warn("Failed to get german events", "error", err1)
+		germanEvents = []models.GameEvent{}
+	}
+	if err2 != nil {
+		s.logger.Warn("Failed to get allied events", "error", err2)
+		alliedEvents = []models.GameEvent{}
 	}
 
-	eventsModel := make([]*models.GameEventModel, 0, len(events))
-	for i := range events {
-		eventModel := models.ConvertGameEventToGameEventModel(&events[i])
+	// Объединяем события и убираем дубликаты (публичные события будут в обоих списках)
+	eventsMap := make(map[string]*models.GameEvent)
+	for i := range germanEvents {
+		eventsMap[germanEvents[i].ID] = &germanEvents[i]
+	}
+	for i := range alliedEvents {
+		eventsMap[alliedEvents[i].ID] = &alliedEvents[i]
+	}
+
+	// Преобразуем map обратно в slice и сортируем по времени создания (DESC)
+	allEvents := make([]*models.GameEvent, 0, len(eventsMap))
+	for _, event := range eventsMap {
+		allEvents = append(allEvents, event)
+	}
+
+	// Сортируем по времени создания (самые свежие первыми)
+	// и ограничиваем до 100 самых свежих
+	sort.Slice(allEvents, func(i, j int) bool {
+		return allEvents[i].CreatedAt.After(allEvents[j].CreatedAt)
+	})
+	if len(allEvents) > 100 {
+		allEvents = allEvents[:100]
+	}
+
+	eventsModel := make([]*models.GameEventModel, 0, len(allEvents))
+	for _, event := range allEvents {
+		eventModel := models.ConvertGameEventToGameEventModel(event)
 		eventsModel = append(eventsModel, eventModel)
 	}
 
@@ -266,14 +316,14 @@ func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, e
 		// Получаем контакты для обеих сторон
 		germanContacts, err1 := s.unitService.GetEnemyContacts(gameID, player1ID)
 		alliedContacts, err2 := s.unitService.GetEnemyContacts(gameID, player2ID)
-		
+
 		if err1 != nil {
 			s.logger.Warn("Failed to get german contacts", "error", err1)
 		}
 		if err2 != nil {
 			s.logger.Warn("Failed to get allied contacts", "error", err2)
 		}
-		
+
 		enemyContacts = make([]*models.EnemyContactModel, 0, len(germanContacts)+len(alliedContacts))
 		for i := range germanContacts {
 			contactModel := models.ConvertEnemyContactToEnemyContactModel(&germanContacts[i])
@@ -291,22 +341,78 @@ func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, e
 	// Загружаем собственные факторы поиска
 	intrinsicSearchHexes := s.mapStructureService.GetIntrinsicSearchHexes()
 
+	// Собираем все уникальные гексы для расчета факторов поиска
+	relevantHexes := make(map[string]bool)
+
+	// Добавляем гексы из позиций юнитов
+	for _, unit := range units {
+		if unit.Position != "" {
+			relevantHexes[unit.Position] = true
+		}
+	}
+
+	// Добавляем гексы из позиций Task Forces
+	for _, tf := range taskForcesMap {
+		if tf.Position != "" {
+			relevantHexes[tf.Position] = true
+		}
+	}
+
+	// Добавляем гексы с маркерами
+	for hexID := range hexMarkers {
+		relevantHexes[hexID] = true
+	}
+
+	// Добавляем гексы с собственными факторами поиска
+	for hexID := range intrinsicSearchHexes {
+		relevantHexes[hexID] = true
+	}
+
+	// Рассчитываем факторы поиска для каждого релевантного гекса
+	// Сохраняем факторы для каждой стороны отдельно
+	searchFactors := make(map[string]models.SearchFactorsBySide)
+	for hexID := range relevantHexes {
+		if hexID == "" {
+			continue
+		}
+
+		// Рассчитываем факторы для немецкой стороны
+		germanFactors, err1 := s.searchService.CalculateSearchFactors(gameID, hexID, "german")
+		if err1 != nil {
+			s.logger.Warn("Failed to calculate search factors for german side", "hex_id", hexID, "error", err1)
+			germanFactors = 0
+		}
+
+		// Рассчитываем факторы для союзной стороны
+		alliedFactors, err2 := s.searchService.CalculateSearchFactors(gameID, hexID, "allied")
+		if err2 != nil {
+			s.logger.Warn("Failed to calculate search factors for allied side", "hex_id", hexID, "error", err2)
+			alliedFactors = 0
+		}
+
+		// Сохраняем факторы для обеих сторон
+		searchFactors[hexID] = models.SearchFactorsBySide{
+			German: germanFactors,
+			Allied: alliedFactors,
+		}
+	}
+
 	// Создаем GameModel
 	model := &models.GameModel{
-		GameID:              gameID,
-		Version:              1,
-		LastUpdated:         time.Now(),
-		History:             []*models.GameModelSnapshot{}, // Пустой массив в этой фазе
+		GameID:      gameID,
+		Version:     1,
+		LastUpdated: time.Now(),
+		History:     []*models.GameModelSnapshot{}, // Пустой массив в этой фазе
 		CurrentTurn: &models.GameTurnModel{
-			Turn:  turn,
-			Phase: models.GamePhase(phase),
+			Turn:  turnNumber,
+			Phase: models.GamePhase(phaseName),
 		},
 		Units:                units,
-		TaskForces:          taskForcesMap,
-		EnemyContacts:       enemyContacts,
-		SearchFactors:        make(map[string]int), // Будет заполняться при расчете поиска
-		HexMarkers:          hexMarkers,
-		Events:              eventsModel,
+		TaskForces:           taskForcesMap,
+		EnemyContacts:        enemyContacts,
+		SearchFactors:        searchFactors,
+		HexMarkers:           hexMarkers,
+		Events:               eventsModel,
 		IntrinsicSearchHexes: intrinsicSearchHexes,
 	}
 
@@ -337,12 +443,7 @@ func (s *GameStateService) saveToRedis(gameID string, model *models.GameModel) e
 		return fmt.Errorf("failed to marshal GameModel: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	// Используем SetCache через прямой доступ к Redis клиенту
-	// Но сначала нужно проверить, есть ли метод SetCache в redis.Client
-	// Если нет, используем SetGameState
 	return s.redis.SetCache(key, string(data), s.redisTTL)
 }
 
@@ -378,3 +479,30 @@ func (s *GameStateService) sendWebSocketUpdate(gameID string, model *models.Game
 	s.wsHub.BroadcastGameUpdate(gameID, update)
 }
 
+// GetGameModelForPlayer возвращает GameModel для указанного игрока
+// Фильтрация по видимости будет реализована в рамках следующей задачи
+func (s *GameStateService) GetGameModelForPlayer(gameID string, playerID string) (*models.GameModel, error) {
+	// Проверяем, что игра существует и пользователь является участником
+	query := `SELECT player1_id, player2_id FROM games WHERE id = $1`
+	var player1ID, player2ID sql.NullString
+
+	err := s.db.GetConnection().QueryRow(query, gameID).Scan(&player1ID, &player2ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.Warn("Game not found", "game_id", gameID, "player_id", playerID)
+			return nil, fmt.Errorf("game not found: %s", gameID)
+		}
+		s.logger.Error("Failed to check game access", "game_id", gameID, "player_id", playerID, "error", err)
+		return nil, fmt.Errorf("failed to check game access: %w", err)
+	}
+
+	// Проверяем, что пользователь является участником игры
+	if (!player1ID.Valid || player1ID.String != playerID) && (!player2ID.Valid || player2ID.String != playerID) {
+		s.logger.Warn("Player is not part of game", "game_id", gameID, "player_id", playerID)
+		return nil, fmt.Errorf("player %s is not part of game %s", playerID, gameID)
+	}
+
+	// Загружаем полный GameModel без фильтрации
+	// Фильтрация по видимости будет добавлена позже
+	return s.LoadGameModel(gameID)
+}

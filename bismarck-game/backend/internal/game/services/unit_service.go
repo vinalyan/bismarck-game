@@ -11,6 +11,7 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
+
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
@@ -208,9 +209,12 @@ func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, erro
 		return []models.AirUnit{}, nil
 	}
 
+	// В миграции таблица air_units создается БЕЗ колонки name
+	// Используем type и id для генерации имени
 	query := `
-		SELECT id, game_id, name, type, owner, position, base_position,
-			   max_speed, endurance, status, created_at, updated_at
+		SELECT id, game_id, type || ' ' || SUBSTRING(id::text, 1, 8) as name,
+		       type, owner, position, base_position,
+		       max_speed, endurance, status, created_at, updated_at
 		FROM air_units
 		WHERE game_id = $1
 		ORDER BY created_at`

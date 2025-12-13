@@ -28,7 +28,8 @@ type GameModel struct {
 	EnemyContacts []*EnemyContactModel `json:"enemy_contacts"`
 
 	// Факторы поиска (только для релевантных гексов)
-	SearchFactors map[string]int `json:"search_factors"` // hex_id -> factor
+	// Хранит факторы для каждой стороны отдельно
+	SearchFactors map[string]SearchFactorsBySide `json:"search_factors"` // hex_id -> SearchFactorsBySide
 
 	// Маркеры гексов
 	HexMarkers map[string]HexMarkersModel `json:"hex_markers"` // hex_id -> markers
@@ -43,11 +44,11 @@ type GameModel struct {
 
 // GameModelSnapshot представляет снимок состояния для истории (для Issue #41)
 type GameModelSnapshot struct {
-	Version     int       `json:"version"`
-	Timestamp   time.Time `json:"timestamp"`
-	GameModel   *GameModel `json:"game_model"`
-	ActionType  string    `json:"action_type"`  // "movement", "search", etc.
-	ActionData  map[string]interface{} `json:"action_data"`
+	Version    int                    `json:"version"`
+	Timestamp  time.Time              `json:"timestamp"`
+	GameModel  *GameModel             `json:"game_model"`
+	ActionType string                 `json:"action_type"` // "movement", "search", etc.
+	ActionData map[string]interface{} `json:"action_data"`
 }
 
 // GameTurnModel представляет текущий ход и фазу
@@ -64,7 +65,7 @@ type UnitModel struct {
 	Type        UnitType     `json:"type"`
 	Category    UnitCategory `json:"category"` // "naval" или "air"
 	Owner       string       `json:"owner"`
-	Nationality string      `json:"nationality"`
+	Nationality string       `json:"nationality"`
 	Position    string       `json:"position"`
 	Status      string       `json:"status"` // UnitStatus для naval, AirUnitStatus для air
 
@@ -80,35 +81,35 @@ type UnitModel struct {
 
 // NavalUnitData представляет данные морского юнита
 type NavalUnitData struct {
-	Class                  string         `json:"class"`
-	SetupHex               string         `json:"setup_hex"`
-	Evasion                int            `json:"evasion"`
-	BaseEvasion            int            `json:"base_evasion"`
-	SpeedRating            SpeedType       `json:"speed_rating"`
-	Fuel                   int            `json:"fuel"`
-	MaxFuel                int            `json:"max_fuel"`
-	HullBoxes              int            `json:"hull_boxes"`
-	CurrentHull             int            `json:"current_hull"`
-	PrimaryArmamentBow     int            `json:"primary_armament_bow"`
-	PrimaryArmamentStern   int            `json:"primary_armament_stern"`
-	SecondaryArmament       int            `json:"secondary_armament"`
-	BasePrimaryArmamentBow  int            `json:"base_primary_armament_bow"`
-	BasePrimaryArmamentStern int          `json:"base_primary_armament_stern"`
-	BaseSecondaryArmament   int            `json:"base_secondary_armament"`
-	Torpedoes               int            `json:"torpedoes"`
-	MaxTorpedoes            int            `json:"max_torpedoes"`
-	RadarLevel              int            `json:"radar_level"`
-	DetectionLevel          DetectionLevel `json:"detection_level"`
-	LastKnownPos            *string        `json:"last_known_pos"`
-	TaskForceID             *string        `json:"task_force_id"`
-	Damage                  []Damage       `json:"damage"`
-	PreviousTurnMovedHexes  int            `json:"previous_turn_moved_hexes"`
-	LastMoveTurn            int            `json:"last_move_turn"`
-	NoMovementTurnsLeft     int            `json:"no_movement_turns_left"`
-	IsActivated             bool           `json:"is_activated"`
-	IsEmergencyFuel         bool           `json:"is_emergency_fuel"`
-	EmergencyTurn           int            `json:"emergency_turn"`
-	IsPatrolling            bool           `json:"is_patrolling"`
+	Class                    string         `json:"class"`
+	SetupHex                 string         `json:"setup_hex"`
+	Evasion                  int            `json:"evasion"`
+	BaseEvasion              int            `json:"base_evasion"`
+	SpeedRating              SpeedType      `json:"speed_rating"`
+	Fuel                     int            `json:"fuel"`
+	MaxFuel                  int            `json:"max_fuel"`
+	HullBoxes                int            `json:"hull_boxes"`
+	CurrentHull              int            `json:"current_hull"`
+	PrimaryArmamentBow       int            `json:"primary_armament_bow"`
+	PrimaryArmamentStern     int            `json:"primary_armament_stern"`
+	SecondaryArmament        int            `json:"secondary_armament"`
+	BasePrimaryArmamentBow   int            `json:"base_primary_armament_bow"`
+	BasePrimaryArmamentStern int            `json:"base_primary_armament_stern"`
+	BaseSecondaryArmament    int            `json:"base_secondary_armament"`
+	Torpedoes                int            `json:"torpedoes"`
+	MaxTorpedoes             int            `json:"max_torpedoes"`
+	RadarLevel               int            `json:"radar_level"`
+	DetectionLevel           DetectionLevel `json:"detection_level"`
+	LastKnownPos             *string        `json:"last_known_pos"`
+	TaskForceID              *string        `json:"task_force_id"`
+	Damage                   []Damage       `json:"damage"`
+	PreviousTurnMovedHexes   int            `json:"previous_turn_moved_hexes"`
+	LastMoveTurn             int            `json:"last_move_turn"`
+	NoMovementTurnsLeft      int            `json:"no_movement_turns_left"`
+	IsActivated              bool           `json:"is_activated"`
+	IsEmergencyFuel          bool           `json:"is_emergency_fuel"`
+	EmergencyTurn            int            `json:"emergency_turn"`
+	IsPatrolling             bool           `json:"is_patrolling"`
 }
 
 // AirUnitData представляет данные воздушного юнита
@@ -155,8 +156,14 @@ type EnemyContactModel struct {
 
 // HexMarkersModel представляет маркеры гекса
 type HexMarkersModel struct {
-	HexID      string         `json:"hex_id"`
-	Markers    map[string]int `json:"markers"` // marker_type -> count
+	HexID   string         `json:"hex_id"`
+	Markers map[string]int `json:"markers"` // marker_type -> count
+}
+
+// SearchFactorsBySide представляет факторы поиска для каждой стороны
+type SearchFactorsBySide struct {
+	German int `json:"german"` // Факторы поиска для немецкой стороны
+	Allied int `json:"allied"` // Факторы поиска для союзной стороны
 }
 
 // GameEventModel представляет событие игры
@@ -189,35 +196,35 @@ func ConvertNavalUnitToUnitModel(unit *NavalUnit) *UnitModel {
 		Position:    unit.Position,
 		Status:      string(unit.Status),
 		NavalData: &NavalUnitData{
-			Class:                  unit.Class,
-			SetupHex:               unit.SetupHex,
-			Evasion:                unit.Evasion,
-			BaseEvasion:            unit.BaseEvasion,
-			SpeedRating:            unit.SpeedRating,
-			Fuel:                   unit.Fuel,
-			MaxFuel:                unit.MaxFuel,
-			HullBoxes:              unit.HullBoxes,
-			CurrentHull:             unit.CurrentHull,
-			PrimaryArmamentBow:     unit.PrimaryArmamentBow,
-			PrimaryArmamentStern:   unit.PrimaryArmamentStern,
-			SecondaryArmament:      unit.SecondaryArmament,
-			BasePrimaryArmamentBow: unit.BasePrimaryArmamentBow,
+			Class:                    unit.Class,
+			SetupHex:                 unit.SetupHex,
+			Evasion:                  unit.Evasion,
+			BaseEvasion:              unit.BaseEvasion,
+			SpeedRating:              unit.SpeedRating,
+			Fuel:                     unit.Fuel,
+			MaxFuel:                  unit.MaxFuel,
+			HullBoxes:                unit.HullBoxes,
+			CurrentHull:              unit.CurrentHull,
+			PrimaryArmamentBow:       unit.PrimaryArmamentBow,
+			PrimaryArmamentStern:     unit.PrimaryArmamentStern,
+			SecondaryArmament:        unit.SecondaryArmament,
+			BasePrimaryArmamentBow:   unit.BasePrimaryArmamentBow,
 			BasePrimaryArmamentStern: unit.BasePrimaryArmamentStern,
-			BaseSecondaryArmament:  unit.BaseSecondaryArmament,
-			Torpedoes:              unit.Torpedoes,
-			MaxTorpedoes:            unit.MaxTorpedoes,
-			RadarLevel:             unit.RadarLevel,
-			DetectionLevel:         unit.DetectionLevel,
-			LastKnownPos:           unit.LastKnownPos,
-			TaskForceID:            unit.TaskForceID,
-			Damage:                 unit.Damage,
-			PreviousTurnMovedHexes: unit.PreviousTurnMovedHexes,
-			LastMoveTurn:           unit.LastMoveTurn,
-			NoMovementTurnsLeft:    unit.NoMovementTurnsLeft,
-			IsActivated:            unit.IsActivated,
-			IsEmergencyFuel:        unit.IsEmergencyFuel,
-			EmergencyTurn:          unit.EmergencyTurn,
-			IsPatrolling:           unit.IsPatrolling,
+			BaseSecondaryArmament:    unit.BaseSecondaryArmament,
+			Torpedoes:                unit.Torpedoes,
+			MaxTorpedoes:             unit.MaxTorpedoes,
+			RadarLevel:               unit.RadarLevel,
+			DetectionLevel:           unit.DetectionLevel,
+			LastKnownPos:             unit.LastKnownPos,
+			TaskForceID:              unit.TaskForceID,
+			Damage:                   unit.Damage,
+			PreviousTurnMovedHexes:   unit.PreviousTurnMovedHexes,
+			LastMoveTurn:             unit.LastMoveTurn,
+			NoMovementTurnsLeft:      unit.NoMovementTurnsLeft,
+			IsActivated:              unit.IsActivated,
+			IsEmergencyFuel:          unit.IsEmergencyFuel,
+			EmergencyTurn:            unit.EmergencyTurn,
+			IsPatrolling:             unit.IsPatrolling,
 		},
 		CreatedAt: unit.CreatedAt,
 		UpdatedAt: unit.UpdatedAt,
@@ -238,8 +245,8 @@ func ConvertAirUnitToUnitModel(unit *AirUnit) *UnitModel {
 		Status:      string(unit.Status),
 		AirData: &AirUnitData{
 			BasePosition:          unit.BasePosition,
-			MaxSpeed:             unit.MaxSpeed,
-			Endurance:            unit.Endurance,
+			MaxSpeed:              unit.MaxSpeed,
+			Endurance:             unit.Endurance,
 			FlightPathSearchHexes: unit.FlightPathSearchHexes,
 		},
 		CreatedAt: unit.CreatedAt,
@@ -303,4 +310,3 @@ func ConvertGameEventToGameEventModel(event *GameEvent) *GameEventModel {
 		CreatedAt:   event.CreatedAt,
 	}
 }
-

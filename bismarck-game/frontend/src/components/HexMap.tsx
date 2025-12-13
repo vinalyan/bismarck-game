@@ -174,15 +174,13 @@ const HexMap: React.FC<HexMapProps> = ({
     try {
       console.log('🔄 Refreshing game data...');
       
-      // 1. Обновляем текущую фазу
-      console.log('📋 Fetching current phase...');
-      await phaseAPI.getCurrentPhase(gameId);
+      // Удален вызов phaseAPI.getCurrentPhase - информация о текущей фазе теперь приходит через GameModel
       
-      // 2. Обновляем события игры
+      // 1. Обновляем события игры
       console.log('📝 Fetching game events...');
       await gameEventAPI.getGameEvents(gameId, playerSide, 15);
       
-      // 3. Обновляем юниты
+      // 2. Обновляем юниты (GameModel содержит информацию о текущей фазе)
       console.log('⚔️ Fetching game units...');
       await unitsAPI.getGameUnits(gameId, authToken);
       
@@ -746,39 +744,11 @@ const HexMap: React.FC<HexMapProps> = ({
   };
 
   // Обработчик для кнопки "показать фактор поиска"
+  // Удален вызов searchAPI.getSearchFactors - факторы поиска теперь приходят через GameModel
   const handleShowSearchFactors = async () => {
-    if (!gameId || !authToken || !playerSide) return;
-    
-    setIsLoadingSearchFactors(true);
-    try {
-      // Просто берем все hexIds из существующих hexes
-      const allHexIds = Array.from(hexes.keys());
-      
-      const response = await searchAPI.getSearchFactors(
-        gameId,
-        allHexIds,
-        playerSide as 'german' | 'allied',
-        authToken
-      );
-
-      // Сохраняем результаты факторов поиска
-      const factorsMap = new Map<string, number>();
-      Object.entries(response.hex_factors || {}).forEach(([hexId, factorValue]) => {
-        factorsMap.set(hexId, factorValue);
-      });
-      
-      console.log('🔍 Search factors loaded:', factorsMap.size, 'hexes');
-      console.log('🔍 Visibility level:', visibilityLevel);
-      // Логируем несколько примеров для отладки
-      const exampleHexes = Array.from(factorsMap.entries()).slice(0, 10);
-      console.log('🔍 Example factors:', exampleHexes);
-      
-      setDisplaySearchFactors(factorsMap);
-    } catch (error: any) {
-      console.error('Error fetching search factors:', error);
-    } finally {
-      setIsLoadingSearchFactors(false);
-    }
+    // Факторы поиска теперь загружаются через GameModel и должны быть переданы как пропсы
+    // или извлечены из данных игры
+    console.warn('handleShowSearchFactors: факторы поиска должны приходить через GameModel');
   };
 
   // Обработчики для подсказки гекса

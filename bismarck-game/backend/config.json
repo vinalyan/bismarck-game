@@ -27,7 +27,13 @@
     "turn_duration": "30s",
     "game_start_delay": "10s",
     "max_games": 1000,
-    "cleanup_interval": "5m"
+    "cleanup_interval": "5m",
+    "game_state": {
+      "use_game_model": true,
+      "redis_ttl": "24h",
+      "max_memory_games": 50,
+      "enable_metrics": false
+    }
   },
   "log": {
     "level": "info",
