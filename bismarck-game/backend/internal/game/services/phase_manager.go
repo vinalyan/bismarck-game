@@ -320,10 +320,13 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 		SET current_phase = $1, updated_at = $2
 		WHERE game_id = $3 AND turn_number = $4
 	`
-	_, err = pm.db.Exec(query, phase, now, gameID, turnNumber)
+	result, err := pm.db.Exec(query, phase, now, gameID, turnNumber)
 	if err != nil {
 		return fmt.Errorf("failed to update current phase: %v", err)
 	}
+	rowsAffected, _ := result.RowsAffected()
+	log.Printf("✅ StartPhase: Updated game_turns.current_phase to %s for game %s turn %d (rows affected: %d)", 
+		phase, gameID, turnNumber, rowsAffected)
 
 	// Обновляем текущую фазу в основной таблице games
 	query = `
@@ -679,12 +682,29 @@ func (pm *PhaseManager) NextPhase(gameID string) error {
 
 	// Переходим к следующей фазе
 	nextPhase := phases[currentIndex+1]
+	log.Printf("🔄 NextPhase: About to start phase %s for game %s turn %d (from %s)", 
+		nextPhase, gameID, turn.TurnNumber, turn.CurrentPhase)
+	
 	err = pm.StartPhase(gameID, turn.TurnNumber, nextPhase)
 	if err != nil {
 		return fmt.Errorf("failed to start next phase: %v", err)
 	}
 
-	log.Printf("Advanced to next phase %s for game %s turn %d", nextPhase, gameID, turn.TurnNumber)
+	log.Printf("✅ NextPhase: Advanced to next phase %s for game %s turn %d", nextPhase, gameID, turn.TurnNumber)
+	
+	// Проверяем, что фаза действительно обновилась в БД
+	verifyTurn, verifyErr := pm.GetCurrentPhase(gameID)
+	if verifyErr == nil && verifyTurn != nil {
+		if verifyTurn.CurrentPhase != nextPhase {
+			log.Printf("⚠️ NextPhase: WARNING - Phase mismatch! Expected %s but got %s for game %s turn %d", 
+				nextPhase, verifyTurn.CurrentPhase, gameID, turn.TurnNumber)
+		} else {
+			log.Printf("✅ NextPhase: Verified - Phase correctly updated to %s for game %s turn %d", 
+				nextPhase, gameID, turn.TurnNumber)
+		}
+	} else if verifyErr != nil {
+		log.Printf("⚠️ NextPhase: Failed to verify phase update: %v", verifyErr)
+	}
 
 	// Отправляем WebSocket уведомление о переходе к следующей фазе
 	if pm.wsHub != nil {

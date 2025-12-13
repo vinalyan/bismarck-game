@@ -306,14 +306,20 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Обновляем GameModel после движения Task Force
+		// Используем UpdateGameModelWithRetry для атомарности
 		if h.gameStateService != nil {
-			model, err := h.gameStateService.LoadGameModel(gameID)
-			if err == nil {
-				if updateErr := h.gameStateService.UpdateGameModel(gameID, model); updateErr != nil {
-					h.logger.Warn("Failed to update GameModel after Task Force movement", "error", updateErr)
+			if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+				// Движение уже выполнено в БД, просто перезагружаем модель
+				// Это гарантирует, что модель синхронизирована с БД
+				updatedModel, err := h.gameStateService.LoadGameModel(gameID)
+				if err != nil {
+					return err
 				}
-			} else {
-				h.logger.Warn("Failed to load GameModel after Task Force movement", "error", err)
+				// Копируем обновленные данные в текущую модель
+				*model = *updatedModel
+				return nil
+			}, 3); err != nil {
+				h.logger.Warn("Failed to update GameModel after Task Force movement", "error", err)
 			}
 		}
 
@@ -360,14 +366,20 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Обновляем GameModel после движения
+	// Используем UpdateGameModelWithRetry для атомарности
 	if h.gameStateService != nil {
-		model, err := h.gameStateService.LoadGameModel(gameID)
-		if err == nil {
-			if updateErr := h.gameStateService.UpdateGameModel(gameID, model); updateErr != nil {
-				h.logger.Warn("Failed to update GameModel after movement", "error", updateErr)
+		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			// Движение уже выполнено в БД, просто перезагружаем модель
+			// Это гарантирует, что модель синхронизирована с БД
+			updatedModel, err := h.gameStateService.LoadGameModel(gameID)
+			if err != nil {
+				return err
 			}
-		} else {
-			h.logger.Warn("Failed to load GameModel after movement", "error", err)
+			// Копируем обновленные данные в текущую модель
+			*model = *updatedModel
+			return nil
+		}, 3); err != nil {
+			h.logger.Warn("Failed to update GameModel after movement", "error", err)
 		}
 	}
 

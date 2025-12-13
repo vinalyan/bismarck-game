@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"bismarck-game/backend/internal/api/middleware"
+	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/utils"
@@ -16,8 +17,9 @@ import (
 
 // SearchHandler обрабатывает запросы для работы с поиском
 type SearchHandler struct {
-	searchService *services.SearchService
-	logger        *logger.Logger
+	searchService   *services.SearchService
+	gameStateService *services.GameStateService
+	logger          *logger.Logger
 }
 
 // NewSearchHandler создает новый обработчик поиска
@@ -26,6 +28,11 @@ func NewSearchHandler(searchService *services.SearchService, logger *logger.Logg
 		searchService: searchService,
 		logger:        logger,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService
+func (h *SearchHandler) SetGameStateService(gameStateService *services.GameStateService) {
+	h.gameStateService = gameStateService
 }
 
 // RegisterRoutes регистрирует маршруты для поиска
@@ -306,6 +313,21 @@ func (h *SearchHandler) AddHexMarker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Обновляем GameModel после добавления маркера
+	if h.gameStateService != nil {
+		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			updatedModel, err := h.gameStateService.LoadGameModel(gameID)
+			if err != nil {
+				return err
+			}
+			model.HexMarkers = updatedModel.HexMarkers
+			model.SearchFactors = updatedModel.SearchFactors
+			return nil
+		}, 3); err != nil {
+			h.logger.Warn("Failed to update GameModel after adding hex marker", "error", err)
+		}
+	}
+
 	response := map[string]interface{}{
 		"message":     "Hex marker added successfully",
 		"hex_id":      req.HexID,
@@ -343,6 +365,21 @@ func (h *SearchHandler) RemoveHexMarker(w http.ResponseWriter, r *http.Request) 
 		h.logger.Error("Failed to remove hex marker", "game_id", gameID, "hex_id", hexID, "marker_type", markerType, "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to remove hex marker")
 		return
+	}
+
+	// Обновляем GameModel после удаления маркера
+	if h.gameStateService != nil {
+		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			updatedModel, err := h.gameStateService.LoadGameModel(gameID)
+			if err != nil {
+				return err
+			}
+			model.HexMarkers = updatedModel.HexMarkers
+			model.SearchFactors = updatedModel.SearchFactors
+			return nil
+		}, 3); err != nil {
+			h.logger.Warn("Failed to update GameModel after removing hex marker", "error", err)
+		}
 	}
 
 	response := map[string]interface{}{

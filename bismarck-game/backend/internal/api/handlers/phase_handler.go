@@ -178,10 +178,18 @@ func (h *PhaseHandler) StartPhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Инвалидируем кэш GameModel после смены фазы
+	// Обновляем GameModel после смены фазы
 	if h.gameStateService != nil {
-		h.gameStateService.InvalidateGameModel(req.GameID)
-		log.Printf("GameModel cache invalidated for game: %s", req.GameID)
+		if err := h.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
+			updatedModel, err := h.gameStateService.LoadGameModel(req.GameID)
+			if err != nil {
+				return err
+			}
+			model.CurrentTurn = updatedModel.CurrentTurn
+			return nil
+		}, 3); err != nil {
+			log.Printf("Failed to update GameModel after phase start: %v", err)
+		}
 	}
 
 	log.Printf("✅ API: Phase %s started successfully for game %s turn %d", phase, req.GameID, req.Turn)
@@ -290,18 +298,22 @@ func (h *PhaseHandler) NextPhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Инвалидируем кэш GameModel после смены фазы
-	// Важно: инвалидация происходит ПОСЛЕ того, как все транзакции БД завершены
+	// Обновляем GameModel после смены фазы
+	// Используем UpdateGameModelWithRetry для атомарности
 	if h.gameStateService != nil {
-		h.gameStateService.InvalidateGameModel(req.GameID)
-		log.Printf("GameModel cache invalidated for game: %s", req.GameID)
-		
-		// Для отладки: загружаем модель сразу после инвалидации, чтобы убедиться, что данные обновились
-		if model, loadErr := h.gameStateService.LoadGameModel(req.GameID); loadErr == nil {
-			log.Printf("GameModel reloaded after invalidation: turn=%d, phase=%s", 
-				model.CurrentTurn.Turn, model.CurrentTurn.Phase)
+		if err := h.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
+			// Фаза уже обновлена в БД через PhaseManager, перезагружаем модель
+			updatedModel, err := h.gameStateService.LoadGameModel(req.GameID)
+			if err != nil {
+				return err
+			}
+			// Обновляем CurrentTurn в модели
+			model.CurrentTurn = updatedModel.CurrentTurn
+			return nil
+		}, 3); err != nil {
+			log.Printf("Failed to update GameModel after phase change: %v", err)
 		} else {
-			log.Printf("Failed to reload GameModel after invalidation: %v", loadErr)
+			log.Printf("GameModel updated after phase change for game: %s", req.GameID)
 		}
 	}
 
@@ -350,10 +362,18 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Инвалидируем кэш GameModel после создания нового хода
+	// Обновляем GameModel после создания нового хода
 	if h.gameStateService != nil {
-		h.gameStateService.InvalidateGameModel(req.GameID)
-		log.Printf("GameModel cache invalidated for game: %s", req.GameID)
+		if err := h.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
+			updatedModel, err := h.gameStateService.LoadGameModel(req.GameID)
+			if err != nil {
+				return err
+			}
+			model.CurrentTurn = updatedModel.CurrentTurn
+			return nil
+		}, 3); err != nil {
+			log.Printf("Failed to update GameModel after turn start: %v", err)
+		}
 	}
 
 	log.Printf("Turn started successfully: %+v", turn)

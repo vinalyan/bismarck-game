@@ -25,6 +25,7 @@ type GameHandler struct {
 	shipConfigService *services.ShipConfigService
 	phaseManager      *services.PhaseManager
 	taskForceService  *services.TaskForceService
+	gameStateService  *services.GameStateService
 }
 
 // NewGameHandler создает новый обработчик игр
@@ -36,6 +37,11 @@ func NewGameHandler(db *database.Database, unitService *services.UnitService, sh
 		phaseManager:      phaseManager,
 		taskForceService:  taskForceService,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService
+func (h *GameHandler) SetGameStateService(gameStateService *services.GameStateService) {
+	h.gameStateService = gameStateService
 }
 
 // getUserIDFromRequest безопасно извлекает user_id из контекста запроса
@@ -265,6 +271,22 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 				// Не прерываем создание игры, но логируем ошибку
 			} else {
 				log.Printf("Starting task forces created successfully for game %s", game.ID)
+			}
+
+			// Создаем начальный GameModel для новой игры
+			if h.gameStateService != nil {
+				initialModel, err := h.gameStateService.LoadGameModel(game.ID)
+				if err == nil {
+					initialModel.Version = 1
+					if err := h.gameStateService.SaveGameModelToDatabase(game.ID, initialModel); err != nil {
+						log.Printf("Error creating initial GameModel: %v", err)
+						// Не прерываем создание игры, но логируем ошибку
+					} else {
+						log.Printf("Initial GameModel created successfully for game %s", game.ID)
+					}
+				} else {
+					log.Printf("Error loading GameModel for initialization: %v", err)
+				}
 			}
 		}
 	}

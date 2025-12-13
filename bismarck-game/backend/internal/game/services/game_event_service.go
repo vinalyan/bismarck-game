@@ -15,8 +15,9 @@ import (
 )
 
 type GameEventService struct {
-	db     *database.Database
-	logger *logger.Logger
+	db              *database.Database
+	logger          *logger.Logger
+	gameStateService *GameStateService // Опционально, для обновления GameModel
 }
 
 func NewGameEventService(db *database.Database, logger *logger.Logger) *GameEventService {
@@ -24,6 +25,11 @@ func NewGameEventService(db *database.Database, logger *logger.Logger) *GameEven
 		db:     db,
 		logger: logger,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService для обновления GameModel
+func (s *GameEventService) SetGameStateService(gameStateService *GameStateService) {
+	s.gameStateService = gameStateService
 }
 
 // LogMovementEvent логирует событие движения
@@ -409,6 +415,23 @@ func (s *GameEventService) saveEvent(event *models.GameEvent) error {
 		"event_type", event.EventType,
 		"description", event.Description,
 	)
+
+	// Обновляем GameModel после сохранения события
+	// Ограничиваем размер Events массива до 100 последних событий
+	if s.gameStateService != nil {
+		if err := s.gameStateService.UpdateGameModelWithRetry(event.GameID, func(model *models.GameModel) error {
+			// Перезагружаем модель, чтобы получить актуальные события
+			updatedModel, err := s.gameStateService.LoadGameModel(event.GameID)
+			if err != nil {
+				return err
+			}
+			// Обновляем Events в модели (уже ограничены до 100 в loadFromLegacyTables)
+			model.Events = updatedModel.Events
+			return nil
+		}, 3); err != nil {
+			s.logger.Warn("Failed to update GameModel after event creation", "error", err)
+		}
+	}
 
 	return nil
 }

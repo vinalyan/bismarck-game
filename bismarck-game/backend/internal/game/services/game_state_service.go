@@ -125,6 +125,8 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 	s.logger.Info("GameModel loaded from database",
 		"game_id", gameID,
 		"version", model.Version,
+		"turn", model.CurrentTurn.Turn,
+		"phase", model.CurrentTurn.Phase,
 		"duration", time.Since(startTime),
 	)
 
@@ -135,14 +137,23 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 func (s *GameStateService) UpdateGameModel(gameID string, model *models.GameModel) error {
 	startTime := time.Now()
 
+	// Валидируем модель перед обновлением
+	validator := NewGameModelValidator(s.logger)
+	if err := validator.ValidateModel(model); err != nil {
+		s.logger.Error("GameModel validation failed", "game_id", gameID, "error", err)
+		return fmt.Errorf("model validation failed: %w", err)
+	}
+
 	// Увеличиваем версию
 	model.Version++
 	model.LastUpdated = time.Now()
 
-	// Сохраняем в БД (через существующие сервисы)
-	// В этой фазе мы не сохраняем GameModel напрямую в БД,
-	// так как данные уже обновляются через существующие сервисы
-	// Здесь мы только обновляем кэш
+	// Сохраняем в БД через SaveGameModelToDatabase
+	// Валидация уже выполнена выше
+	if err := s.SaveGameModelToDatabase(gameID, model); err != nil {
+		s.logger.Error("Failed to save GameModel to database", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to save GameModel to database: %w", err)
+	}
 
 	// Сохраняем в Redis
 	if err := s.saveToRedis(gameID, model); err != nil {
@@ -192,9 +203,19 @@ func (s *GameStateService) InvalidateGameModel(gameID string) {
 		"was_in_memory", wasInMemory,
 		"redis_deleted", redisDeleted,
 	)
+	
+	// Для отладки: сразу после инвалидации проверяем, что данные действительно удалены
+	s.memoryCacheMutex.RLock()
+	stillInMemory := s.memoryCache[gameID] != nil
+	s.memoryCacheMutex.RUnlock()
+	if stillInMemory {
+		s.logger.Warn("GameModel still in memory after invalidation!", "game_id", gameID)
+	}
 }
 
-// loadFromDatabase загружает GameModel из БД через существующие сервисы
+// loadFromDatabase загружает GameModel из БД
+// Сначала пытается загрузить из game_models (новая архитектура)
+// Если версии нет, создает из существующих таблиц (для миграции)
 func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, error) {
 	// Проверяем, что игра существует
 	gameExistsQuery := `SELECT id FROM games WHERE id = $1`
@@ -209,6 +230,20 @@ func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, e
 		return nil, fmt.Errorf("failed to check game existence: %w", err)
 	}
 
+	// Пытаемся загрузить из game_models (новая архитектура)
+	model, err := s.LoadGameModelFromDatabase(gameID)
+	if err == nil {
+		s.logger.Info("GameModel loaded from game_models table", "game_id", gameID, "version", model.Version)
+		return model, nil
+	}
+
+	// Если версии нет в game_models, загружаем из старых таблиц (для миграции)
+	s.logger.Info("No GameModel found in game_models, loading from legacy tables", "game_id", gameID)
+	return s.loadFromLegacyTables(gameID)
+}
+
+// loadFromLegacyTables загружает GameModel из старых таблиц (для миграции)
+func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameModel, error) {
 	// Загружаем текущий активный ход из таблицы game_turns
 	// Это источник истины для текущего хода и фазы
 	turnQuery := `
@@ -220,7 +255,7 @@ func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, e
 	`
 	var turnNumber int
 	var phaseName string
-	err = s.db.GetConnection().QueryRow(turnQuery, gameID).Scan(&turnNumber, &phaseName)
+	err := s.db.GetConnection().QueryRow(turnQuery, gameID).Scan(&turnNumber, &phaseName)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// Нет активного хода - игра еще не начата
@@ -527,4 +562,216 @@ func (s *GameStateService) GetGameModelForPlayer(gameID string, playerID string)
 	// Загружаем полный GameModel без фильтрации
 	// Фильтрация по видимости будет добавлена позже
 	return s.LoadGameModel(gameID)
+}
+
+// SaveGameModelToDatabase сохраняет новую версию GameModel в БД
+func (s *GameStateService) SaveGameModelToDatabase(gameID string, model *models.GameModel) error {
+	// Валидируем модель перед сохранением
+	validator := NewGameModelValidator(s.logger)
+	if err := validator.ValidateModel(model); err != nil {
+		s.logger.Error("GameModel validation failed", "game_id", gameID, "error", err)
+		return fmt.Errorf("model validation failed: %w", err)
+	}
+
+	modelJSON, err := json.Marshal(model)
+	if err != nil {
+		return fmt.Errorf("failed to marshal GameModel: %w", err)
+	}
+
+	query := `
+		INSERT INTO game_models (game_id, version, model_data, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (game_id, version) DO UPDATE SET
+			model_data = EXCLUDED.model_data,
+			updated_at = EXCLUDED.updated_at
+	`
+
+	now := time.Now()
+	_, err = s.db.GetConnection().Exec(query, gameID, model.Version, modelJSON, now, now)
+	if err != nil {
+		s.logger.Error("Failed to save GameModel to database", "game_id", gameID, "version", model.Version, "error", err)
+		return fmt.Errorf("failed to save GameModel to database: %w", err)
+	}
+
+	s.logger.Info("GameModel saved to database", "game_id", gameID, "version", model.Version)
+	return nil
+}
+
+// LoadGameModelFromDatabase загружает последнюю версию GameModel из БД
+func (s *GameStateService) LoadGameModelFromDatabase(gameID string) (*models.GameModel, error) {
+	query := `
+		SELECT model_data, version, created_at, updated_at
+		FROM game_models
+		WHERE game_id = $1
+		ORDER BY version DESC
+		LIMIT 1
+	`
+
+	var modelJSON []byte
+	var version int
+	var createdAt, updatedAt time.Time
+
+	err := s.db.GetConnection().QueryRow(query, gameID).Scan(&modelJSON, &version, &createdAt, &updatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("no GameModel found for game %s", gameID)
+		}
+		s.logger.Error("Failed to load GameModel from database", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to load GameModel from database: %w", err)
+	}
+
+	var model models.GameModel
+	if err := json.Unmarshal(modelJSON, &model); err != nil {
+		s.logger.Error("Failed to unmarshal GameModel from database", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to unmarshal GameModel: %w", err)
+	}
+
+	s.logger.Info("GameModel loaded from database", "game_id", gameID, "version", version)
+	return &model, nil
+}
+
+// GetGameModelHistory загружает историю версий GameModel из БД
+func (s *GameStateService) GetGameModelHistory(gameID string, limit int) ([]*models.GameModel, error) {
+	if limit <= 0 {
+		limit = 10 // По умолчанию
+	}
+	if limit > 100 {
+		limit = 100 // Максимум
+	}
+
+	query := `
+		SELECT model_data, version, created_at, updated_at
+		FROM game_models
+		WHERE game_id = $1
+		ORDER BY version DESC
+		LIMIT $2
+	`
+
+	rows, err := s.db.GetConnection().Query(query, gameID, limit)
+	if err != nil {
+		s.logger.Error("Failed to load GameModel history from database", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to load GameModel history: %w", err)
+	}
+	defer rows.Close()
+
+	var history []*models.GameModel
+	for rows.Next() {
+		var modelJSON []byte
+		var version int
+		var createdAt, updatedAt time.Time
+
+		if err := rows.Scan(&modelJSON, &version, &createdAt, &updatedAt); err != nil {
+			s.logger.Warn("Failed to scan GameModel history row", "error", err)
+			continue
+		}
+
+		var model models.GameModel
+		if err := json.Unmarshal(modelJSON, &model); err != nil {
+			s.logger.Warn("Failed to unmarshal GameModel from history", "version", version, "error", err)
+			continue
+		}
+
+		history = append(history, &model)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating GameModel history: %w", err)
+	}
+
+	s.logger.Info("GameModel history loaded from database", "game_id", gameID, "count", len(history))
+	return history, nil
+}
+
+// UpdateGameModelWithRetry обновляет GameModel с оптимистичной блокировкой и автоматическим retry
+// Использует версию для обнаружения конфликтов и повторяет попытку при конфликте
+func (s *GameStateService) UpdateGameModelWithRetry(
+	gameID string,
+	updateFunc func(*models.GameModel) error,
+	maxRetries int,
+) error {
+	if maxRetries <= 0 {
+		maxRetries = 3 // По умолчанию 3 попытки
+	}
+	if maxRetries > 10 {
+		maxRetries = 10 // Максимум 10 попыток
+	}
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		// Загружаем актуальную модель из БД (или кэша)
+		model, err := s.LoadGameModel(gameID)
+		if err != nil {
+			return fmt.Errorf("failed to load model: %w", err)
+		}
+
+		// Сохраняем версию перед изменениями
+		originalVersion := model.Version
+
+		// Применяем изменения через updateFunc
+		if err := updateFunc(model); err != nil {
+			return fmt.Errorf("update function failed: %w", err)
+		}
+
+		// Валидируем модель после изменений
+		validator := NewGameModelValidator(s.logger)
+		if err := validator.ValidateModel(model); err != nil {
+			s.logger.Error("GameModel validation failed after update", "game_id", gameID, "error", err)
+			return fmt.Errorf("model validation failed: %w", err)
+		}
+
+		// Увеличиваем версию
+		model.Version = originalVersion + 1
+		model.LastUpdated = time.Now()
+
+		// Пытаемся сохранить с проверкой версии (оптимистичная блокировка)
+		modelJSON, err := json.Marshal(model)
+		if err != nil {
+			return fmt.Errorf("failed to marshal GameModel: %w", err)
+		}
+
+		query := `
+			INSERT INTO game_models (game_id, version, model_data, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (game_id, version) DO NOTHING
+		`
+
+		now := time.Now()
+		result, err := s.db.GetConnection().Exec(query, gameID, model.Version, modelJSON, now, now)
+		if err != nil {
+			// Ошибка БД - не retry, возвращаем ошибку
+			s.logger.Error("Failed to save GameModel to database", "game_id", gameID, "version", model.Version, "error", err)
+			return fmt.Errorf("failed to save GameModel to database: %w", err)
+		}
+
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected > 0 {
+			// Успешно сохранили - обновляем кэш
+			s.saveToMemory(gameID, model)
+			if err := s.saveToRedis(gameID, model); err != nil {
+				s.logger.Warn("Failed to save to Redis after successful DB save", "game_id", gameID, "error", err)
+			}
+			s.sendWebSocketUpdate(gameID, model)
+
+			s.logger.Info("GameModel updated successfully with retry",
+				"game_id", gameID,
+				"version", model.Version,
+				"attempt", attempt+1,
+			)
+			return nil
+		}
+
+		// Конфликт версий - повторяем попытку
+		if attempt < maxRetries-1 {
+			backoff := time.Duration(attempt+1) * 10 * time.Millisecond // Exponential backoff: 10ms, 20ms, 30ms...
+			s.logger.Warn("Version conflict detected, retrying",
+				"game_id", gameID,
+				"expected_version", originalVersion,
+				"attempt", attempt+1,
+				"max_retries", maxRetries,
+				"backoff_ms", backoff.Milliseconds(),
+			)
+			time.Sleep(backoff)
+		}
+	}
+
+	return fmt.Errorf("failed to update model after %d retries (concurrent modifications)", maxRetries)
 }
