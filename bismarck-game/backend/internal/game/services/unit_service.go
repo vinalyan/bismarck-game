@@ -192,29 +192,56 @@ func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error)
 // GetNavalUnitByIDFromGameModel возвращает морской юнит по ID из GameModel
 func (s *UnitService) GetNavalUnitByIDFromGameModel(gameID, unitID string) (*models.NavalUnit, error) {
 	if s.gameStateService == nil {
+		s.logger.Error("gameStateService is nil in GetNavalUnitByIDFromGameModel", "game_id", gameID, "unit_id", unitID)
 		return nil, fmt.Errorf("gameStateService is required for GetNavalUnitByIDFromGameModel")
 	}
 
 	// Загружаем GameModel
 	model, err := s.gameStateService.LoadGameModel(gameID)
 	if err != nil {
-		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
+		s.logger.Error("Failed to load GameModel", "game_id", gameID, "unit_id", unitID, "error", err)
 		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Проверяем, что Units не nil
+	if model.Units == nil {
+		s.logger.Error("Units map is nil in GameModel", "game_id", gameID, "unit_id", unitID)
+		return nil, fmt.Errorf("units map is nil in GameModel")
 	}
 
 	// Ищем юнит в модели
 	unitModel, exists := model.Units[unitID]
 	if !exists {
+		s.logger.Warn("Unit not found in GameModel", "game_id", gameID, "unit_id", unitID, "total_units", len(model.Units))
+		// Логируем доступные ID юнитов для отладки
+		unitIDs := make([]string, 0, len(model.Units))
+		for id := range model.Units {
+			unitIDs = append(unitIDs, id)
+		}
+		s.logger.Debug("Available unit IDs in GameModel", "unit_ids", unitIDs)
 		return nil, fmt.Errorf("naval unit not found")
+	}
+
+	// Проверяем, что это морской юнит
+	if unitModel.Category != models.UnitCategoryNaval {
+		s.logger.Error("Unit is not a naval unit", "game_id", gameID, "unit_id", unitID, "category", unitModel.Category)
+		return nil, fmt.Errorf("unit is not a naval unit (category: %s)", unitModel.Category)
+	}
+
+	// Проверяем, что NavalData не nil
+	if unitModel.NavalData == nil {
+		s.logger.Error("NavalData is nil for naval unit", "game_id", gameID, "unit_id", unitID)
+		return nil, fmt.Errorf("naval data is missing for unit")
 	}
 
 	// Конвертируем UnitModel в NavalUnit
 	navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
 	if err != nil {
-		s.logger.Error("Failed to convert UnitModel to NavalUnit", "unit_id", unitID, "error", err)
+		s.logger.Error("Failed to convert UnitModel to NavalUnit", "game_id", gameID, "unit_id", unitID, "error", err)
 		return nil, fmt.Errorf("failed to convert unit: %w", err)
 	}
 
+	s.logger.Debug("Successfully converted UnitModel to NavalUnit", "game_id", gameID, "unit_id", unitID, "unit_name", navalUnit.Name)
 	return navalUnit, nil
 }
 
@@ -307,6 +334,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 			unitModel.NavalData.EmergencyTurn = unit.EmergencyTurn
 			unitModel.NavalData.LastMoveTurn = unit.LastMoveTurn
 			unitModel.NavalData.IsPatrolling = unit.IsPatrolling
+			unitModel.NavalData.PreviousTurnMovedHexes = unit.PreviousTurnMovedHexes
 		}
 		unitModel.UpdatedAt = unit.UpdatedAt
 

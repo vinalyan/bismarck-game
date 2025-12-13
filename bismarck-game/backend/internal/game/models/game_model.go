@@ -341,8 +341,18 @@ func ConvertUnitModelToNavalUnit(unitModel *UnitModel) (*NavalUnit, error) {
 		IsEmergencyFuel:          unitModel.NavalData.IsEmergencyFuel,
 		EmergencyTurn:            unitModel.NavalData.EmergencyTurn,
 		IsPatrolling:             unitModel.NavalData.IsPatrolling,
-		CreatedAt:                unitModel.CreatedAt,
-		UpdatedAt:                unitModel.UpdatedAt,
+		// Поля для тактического боя (инициализируем значениями по умолчанию)
+		TacticalPosition:    nil,
+		TacticalFacing:      nil,
+		TacticalSpeed:       nil,
+		EvasionEffects:      []int{},
+		TacticalDamageTaken: []Damage{},
+		HasFired:            false,
+		TargetAcquired:      nil,
+		TorpedoesUsed:       0,
+		MovementUsed:        0, // MovementUsed не хранится в GameModel, инициализируем 0
+		CreatedAt:           unitModel.CreatedAt,
+		UpdatedAt:           unitModel.UpdatedAt,
 	}
 
 	return navalUnit, nil
