@@ -3,24 +3,37 @@ package services
 import (
 	"fmt"
 
+	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
 )
 
 // EmergencyFuelService предоставляет методы для управления аварийным топливом
 type EmergencyFuelService struct {
-	db          *database.Database
-	logger      *logger.Logger
-	phaseManager *PhaseManager
+	db               *database.Database
+	logger           *logger.Logger
+	phaseManager     *PhaseManager
+	gameStateService *GameStateService
+	unitService      *UnitService
 }
 
 // NewEmergencyFuelService создает новый сервис аварийного топлива
 func NewEmergencyFuelService(db *database.Database, logger *logger.Logger, phaseManager *PhaseManager) *EmergencyFuelService {
 	return &EmergencyFuelService{
-		db:          db,
-		logger:      logger,
+		db:           db,
+		logger:       logger,
 		phaseManager: phaseManager,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService для работы с GameModel
+func (s *EmergencyFuelService) SetGameStateService(gameStateService *GameStateService) {
+	s.gameStateService = gameStateService
+}
+
+// SetUnitService устанавливает UnitService для работы с юнитами
+func (s *EmergencyFuelService) SetUnitService(unitService *UnitService) {
+	s.unitService = unitService
 }
 
 // getCurrentTurn получает текущий ход игры
@@ -39,18 +52,29 @@ func (s *EmergencyFuelService) getCurrentTurn(gameID string) int {
 	return turn.TurnNumber
 }
 
-// updateEmergencyFuelStatus обновляет статус аварийного топлива в базе данных
+// updateEmergencyFuelStatus обновляет статус аварийного топлива в GameModel
 func (s *EmergencyFuelService) updateEmergencyFuelStatus(unitID, gameID string, isEmergency bool, emergencyTurn int) error {
-	query := `
-		UPDATE naval_units SET
-			is_emergency_fuel = $1,
-			emergency_turn = $2,
-			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3 AND game_id = $4`
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for updateEmergencyFuelStatus")
+	}
 
-	_, err := s.db.Exec(query, isEmergency, emergencyTurn, unitID, gameID)
-	if err != nil {
-		s.logger.Error("Failed to update emergency fuel status", "error", err, "unit_id", unitID)
+	// Обновляем статус аварийного топлива в GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		unit, exists := model.Units[unitID]
+		if !exists {
+			return fmt.Errorf("unit not found: %s", unitID)
+		}
+
+		if unit.NavalData == nil {
+			return fmt.Errorf("naval data is missing for unit: %s", unitID)
+		}
+
+		unit.NavalData.IsEmergencyFuel = isEmergency
+		unit.NavalData.EmergencyTurn = emergencyTurn
+
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to update emergency fuel status in GameModel", "error", err, "unit_id", unitID)
 		return fmt.Errorf("failed to update emergency fuel status: %w", err)
 	}
 
@@ -59,20 +83,24 @@ func (s *EmergencyFuelService) updateEmergencyFuelStatus(unitID, gameID string, 
 
 // ActivateIfNeeded проверяет и активирует аварийное топливо при необходимости
 func (s *EmergencyFuelService) ActivateIfNeeded(gameID, unitID string, currentFuel int) error {
-	// Проверяем текущий статус аварийного топлива
-	query := `SELECT is_emergency_fuel FROM naval_units WHERE id = $1 AND game_id = $2`
-	var isEmergencyFuel bool
-	err := s.db.QueryRow(query, unitID, gameID).Scan(&isEmergencyFuel)
-	if err != nil {
-		return fmt.Errorf("failed to get emergency fuel status: %w", err)
+	if s.unitService == nil {
+		return fmt.Errorf("unitService is required for ActivateIfNeeded")
 	}
+
+	// Получаем текущий статус аварийного топлива из GameModel
+	unit, err := s.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		return fmt.Errorf("failed to get unit from GameModel: %w", err)
+	}
+
+	isEmergencyFuel := unit.IsEmergencyFuel
 
 	// Проверяем, нужно ли активировать аварийное топливо
 	if currentFuel <= 0 && !isEmergencyFuel {
 		currentTurn := s.getCurrentTurn(gameID)
 		emergencyTurn := currentTurn + 10
 
-		// Обновляем в базе данных
+		// Обновляем в GameModel
 		if err := s.updateEmergencyFuelStatus(unitID, gameID, true, emergencyTurn); err != nil {
 			return fmt.Errorf("failed to update emergency fuel status: %w", err)
 		}
@@ -90,14 +118,18 @@ func (s *EmergencyFuelService) ActivateIfNeeded(gameID, unitID string, currentFu
 
 // ClearIfRefueled проверяет и очищает статус аварийного топлива при заправке
 func (s *EmergencyFuelService) ClearIfRefueled(gameID, unitID string) error {
-	// Получаем текущее топливо и статус аварийного топлива
-	query := `SELECT fuel, is_emergency_fuel FROM naval_units WHERE id = $1 AND game_id = $2`
-	var currentFuel int
-	var isEmergencyFuel bool
-	err := s.db.QueryRow(query, unitID, gameID).Scan(&currentFuel, &isEmergencyFuel)
-	if err != nil {
-		return fmt.Errorf("failed to get fuel status: %w", err)
+	if s.unitService == nil {
+		return fmt.Errorf("unitService is required for ClearIfRefueled")
 	}
+
+	// Получаем текущее топливо и статус аварийного топлива из GameModel
+	unit, err := s.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		return fmt.Errorf("failed to get unit from GameModel: %w", err)
+	}
+
+	currentFuel := unit.Fuel
+	isEmergencyFuel := unit.IsEmergencyFuel
 
 	// Если топливо > 0 и аварийное топливо активно, снимаем статус
 	if currentFuel > 0 && isEmergencyFuel {
@@ -112,4 +144,3 @@ func (s *EmergencyFuelService) ClearIfRefueled(gameID, unitID string) error {
 
 	return nil
 }
-

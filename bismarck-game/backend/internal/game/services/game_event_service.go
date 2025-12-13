@@ -15,8 +15,9 @@ import (
 )
 
 type GameEventService struct {
-	db     *database.Database
-	logger *logger.Logger
+	db               *database.Database
+	logger           *logger.Logger
+	gameStateService *GameStateService // Опционально, для обновления GameModel
 }
 
 func NewGameEventService(db *database.Database, logger *logger.Logger) *GameEventService {
@@ -24,6 +25,11 @@ func NewGameEventService(db *database.Database, logger *logger.Logger) *GameEven
 		db:     db,
 		logger: logger,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService для обновления GameModel
+func (s *GameEventService) SetGameStateService(gameStateService *GameStateService) {
+	s.gameStateService = gameStateService
 }
 
 // LogMovementEvent логирует событие движения
@@ -371,8 +377,13 @@ func (s *GameEventService) GetGameEvents(gameID, playerSide string, limit int) (
 	return events, nil
 }
 
-// saveEvent сохраняет событие в базу данных
+// saveEvent сохраняет событие в GameModel
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *GameEventService) saveEvent(event *models.GameEvent) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for saveEvent")
+	}
+
 	// Генерируем ID если он не установлен
 	if event.ID == "" {
 		event.ID = uuid.New().String()
@@ -383,23 +394,19 @@ func (s *GameEventService) saveEvent(event *models.GameEvent) error {
 		event.CreatedAt = time.Now()
 	}
 
-	dataJSON, _ := json.Marshal(event.Data)
-	visibilityJSON, _ := json.Marshal(event.Visibility)
-
-	query := `
-		INSERT INTO game_events (id, game_id, turn, phase, event_type, actor_id, actor_name,
-		                       target_id, target_name, description, data, visibility, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-	`
-
-	_, err := s.db.Exec(query,
-		event.ID, event.GameID, event.Turn, event.Phase,
-		event.EventType, event.ActorID, event.ActorName,
-		event.TargetID, event.TargetName, event.Description,
-		dataJSON, visibilityJSON, event.CreatedAt,
-	)
-
-	if err != nil {
+	// Добавляем событие в GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(event.GameID, func(model *models.GameModel) error {
+		// Добавляем новое событие в модель
+		eventModel := models.ConvertGameEventToGameEventModel(event)
+		// Добавляем в начало массива (новые события первыми)
+		model.Events = append([]*models.GameEventModel{eventModel}, model.Events...)
+		// Ограничиваем до 100 последних событий
+		if len(model.Events) > 100 {
+			model.Events = model.Events[:100]
+		}
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to save game event in GameModel", "error", err)
 		return fmt.Errorf("failed to save game event: %w", err)
 	}
 

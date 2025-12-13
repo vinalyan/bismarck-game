@@ -25,6 +25,7 @@ type GameHandler struct {
 	shipConfigService *services.ShipConfigService
 	phaseManager      *services.PhaseManager
 	taskForceService  *services.TaskForceService
+	gameStateService  *services.GameStateService
 }
 
 // NewGameHandler создает новый обработчик игр
@@ -36,6 +37,11 @@ func NewGameHandler(db *database.Database, unitService *services.UnitService, sh
 		phaseManager:      phaseManager,
 		taskForceService:  taskForceService,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService
+func (h *GameHandler) SetGameStateService(gameStateService *services.GameStateService) {
+	h.gameStateService = gameStateService
 }
 
 // getUserIDFromRequest безопасно извлекает user_id из контекста запроса
@@ -265,6 +271,22 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 				// Не прерываем создание игры, но логируем ошибку
 			} else {
 				log.Printf("Starting task forces created successfully for game %s", game.ID)
+			}
+
+			// Создаем начальный GameModel для новой игры
+			if h.gameStateService != nil {
+				initialModel, err := h.gameStateService.CreateInitialGameModel(game.ID)
+				if err != nil {
+					log.Printf("Error creating initial GameModel: %v", err)
+					// Не прерываем создание игры, но логируем ошибку
+				} else {
+					if err := h.gameStateService.SaveGameModelToDatabase(game.ID, initialModel); err != nil {
+						log.Printf("Error saving initial GameModel to database: %v", err)
+						// Не прерываем создание игры, но логируем ошибку
+					} else {
+						log.Printf("Initial GameModel created and saved successfully for game %s (version %d)", game.ID, initialModel.Version)
+					}
+				}
 			}
 		}
 	}
@@ -692,6 +714,22 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 				// Не прерываем присоединение к игре, но логируем ошибку
 			} else {
 				log.Printf("Starting task forces created successfully after join for game %s", gameID)
+			}
+
+			// Создаем начальный GameModel для игры (когда оба игрока присоединились)
+			if h.gameStateService != nil {
+				initialModel, err := h.gameStateService.CreateInitialGameModel(gameID)
+				if err != nil {
+					log.Printf("Error creating initial GameModel after join: %v", err)
+					// Не прерываем присоединение к игре, но логируем ошибку
+				} else {
+					if err := h.gameStateService.SaveGameModelToDatabase(gameID, initialModel); err != nil {
+						log.Printf("Error saving initial GameModel to database after join: %v", err)
+						// Не прерываем присоединение к игре, но логируем ошибку
+					} else {
+						log.Printf("Initial GameModel created and saved successfully after join for game %s (version %d)", gameID, initialModel.Version)
+					}
+				}
 			}
 
 			// Автоматически запускаем setup фазу (размещение кораблей)

@@ -182,7 +182,6 @@ func (s *Server) setupRoutes() {
 	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService, phaseManager, taskForceService)
 	shipConfigLogger, _ := logger.New(logger.INFO, "ship-config-service", "stdout")
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService, unitService, shipConfigLogger)
-	phaseHandler := handlers.NewPhaseHandler(phaseManager)
 	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, unitService, taskForceService, movementLogger)
 	emergencyFuelHandler := handlers.NewEmergencyFuelHandler(s.db, movementLogger, movementService, unitService)
 	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService)
@@ -192,6 +191,70 @@ func (s *Server) setupRoutes() {
 	unitHandler := handlers.NewUnitHandler(unitService, movementService, taskForceService, unitHandlerLogger)
 	searchHandlerLogger, _ := logger.New(logger.INFO, "search-handler", "stdout")
 	searchHandler := handlers.NewSearchHandler(searchService, searchHandlerLogger)
+
+	// Создаем GameStateService
+	gameStateLogger, _ := logger.New(logger.INFO, "game-state-service", "stdout")
+	gameStateService := services.NewGameStateService(
+		s.db,
+		s.redis,
+		gameStateLogger,
+		unitService,
+		taskForceService,
+		eventService,
+		searchService,
+		mapStructureService,
+		s.wsHub,
+		gameService,
+	)
+
+	// Настраиваем конфигурацию GameStateService
+	if s.config.Game.GameState.UseGameModel {
+		maxMemoryGames := s.config.Game.GameState.MaxMemoryGames
+		if maxMemoryGames == 0 {
+			maxMemoryGames = 50 // По умолчанию
+		}
+		redisTTL := s.config.Game.GameState.RedisTTL.ToDuration()
+		if redisTTL == 0 {
+			redisTTL = 24 * time.Hour // По умолчанию
+		}
+		gameStateService.SetConfig(maxMemoryGames, redisTTL)
+	}
+
+	// Устанавливаем gameStateService и unitService в emergencyFuelService
+	emergencyFuelService.SetGameStateService(gameStateService)
+	emergencyFuelService.SetUnitService(unitService)
+
+	// Создаем GameStateHandler
+	gameStateHandler := handlers.NewGameStateHandler(gameStateService)
+
+	// Создаем PhaseHandler с GameStateService для инвалидации кэша
+	phaseHandler := handlers.NewPhaseHandler(phaseManager, gameStateService)
+
+	// Устанавливаем GameStateService в MovementHandler
+	movementHandler.SetGameStateService(gameStateService)
+
+	// Устанавливаем GameStateService в SearchHandler
+	searchHandler.SetGameStateService(gameStateService)
+
+	// Устанавливаем GameStateService в GameEventService для обновления GameModel при создании событий
+	eventService.SetGameStateService(gameStateService)
+
+	// Устанавливаем GameStateService в GameHandler для инициализации GameModel при создании игры
+	gameHandler.SetGameStateService(gameStateService)
+
+	// Устанавливаем GameStateService в UnitService и TaskForceService для обновления GameModel
+	unitService.SetGameStateService(gameStateService)
+	taskForceService.SetGameStateService(gameStateService)
+
+	// Устанавливаем GameStateService в SearchService для обновления GameModel при работе с маркерами
+	searchService.SetGameStateService(gameStateService)
+
+	// Устанавливаем GameStateService в PhaseManager для обновления GameModel при смене фаз
+	phaseManager.SetGameStateService(gameStateService)
+
+	// Устанавливаем GameStateService и TaskForceService в MovementService для работы с Task Forces
+	movementService.SetGameStateService(gameStateService)
+	movementService.SetTaskForceService(taskForceService)
 
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
@@ -214,6 +277,9 @@ func (s *Server) setupRoutes() {
 
 	// Маршруты для событий игры
 	s.router.HandleFunc("/api/game-events", gameEventHandler.GetGameEvents).Methods("GET")
+
+	// Маршруты для GameState (внутренний эндпоинт для тестирования)
+	gameStateHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 
 	// WebSocket маршрут
 	s.router.HandleFunc("/ws", s.handleWebSocket)

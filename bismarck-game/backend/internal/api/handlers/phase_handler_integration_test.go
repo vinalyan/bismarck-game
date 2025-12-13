@@ -41,7 +41,7 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 	gameService := services.NewGameService(db, log)
 	searchService := services.NewSearchService(db, log, unitService, gameService)
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
-	phaseHandler := NewPhaseHandler(phaseManager)
+	phaseHandler := NewPhaseHandler(phaseManager, nil)
 
 	// Создаем тестовую игру
 	gameID := "550e8400-e29b-41d4-a716-446655440001"
@@ -245,7 +245,7 @@ func TestPhaseSequenceAPI(t *testing.T) {
 	gameService := services.NewGameService(db, log)
 	searchService := services.NewSearchService(db, log, unitService, gameService)
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
-	phaseHandler := NewPhaseHandler(phaseManager)
+	phaseHandler := NewPhaseHandler(phaseManager, nil)
 
 	// Создаем тестовую игру
 	gameID := "550e8400-e29b-41d4-a716-446655440002"
@@ -382,7 +382,7 @@ func TestPhaseValidationAPI(t *testing.T) {
 	gameService := services.NewGameService(db, log)
 	searchService := services.NewSearchService(db, log, unitService, gameService)
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
-	phaseHandler := NewPhaseHandler(phaseManager)
+	phaseHandler := NewPhaseHandler(phaseManager, nil)
 
 	// Тест 1: Отсутствующий game_id
 	t.Run("MissingGameID", func(t *testing.T) {

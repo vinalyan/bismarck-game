@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -13,12 +14,14 @@ import (
 )
 
 type PhaseHandler struct {
-	phaseManager *services.PhaseManager
+	phaseManager     *services.PhaseManager
+	gameStateService *services.GameStateService
 }
 
-func NewPhaseHandler(phaseManager *services.PhaseManager) *PhaseHandler {
+func NewPhaseHandler(phaseManager *services.PhaseManager, gameStateService *services.GameStateService) *PhaseHandler {
 	return &PhaseHandler{
-		phaseManager: phaseManager,
+		phaseManager:     phaseManager,
+		gameStateService: gameStateService,
 	}
 }
 
@@ -50,25 +53,25 @@ func (h *PhaseHandler) GetCurrentPhase(w http.ResponseWriter, r *http.Request) {
 		// Не критично, продолжаем без информации о видимости
 		visibilityInfo = &services.GameVisibility{
 			VisibilityLevel: 1,
-			IsFog:          false,
-			WeatherTrack:   0,
+			IsFog:           false,
+			WeatherTrack:    0,
 		}
 	}
 
 	// Создаем расширенный ответ с информацией о видимости
 	responseData := map[string]interface{}{
-		"id":            turn.ID,
-		"game_id":       turn.GameID,
-		"turn_number":   turn.TurnNumber,
-		"current_phase": turn.CurrentPhase,
-		"status":        turn.Status,
-		"start_time":    turn.StartTime,
-		"end_time":      turn.EndTime,
-		"created_at":    turn.CreatedAt,
-		"updated_at":    turn.UpdatedAt,
+		"id":               turn.ID,
+		"game_id":          turn.GameID,
+		"turn_number":      turn.TurnNumber,
+		"current_phase":    turn.CurrentPhase,
+		"status":           turn.Status,
+		"start_time":       turn.StartTime,
+		"end_time":         turn.EndTime,
+		"created_at":       turn.CreatedAt,
+		"updated_at":       turn.UpdatedAt,
 		"visibility_level": visibilityInfo.VisibilityLevel,
-		"is_fog":          visibilityInfo.IsFog,
-		"weather_track":  visibilityInfo.WeatherTrack,
+		"is_fog":           visibilityInfo.IsFog,
+		"weather_track":    visibilityInfo.WeatherTrack,
 	}
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -176,6 +179,26 @@ func (h *PhaseHandler) StartPhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Обновляем GameModel после смены фазы
+	if h.gameStateService != nil {
+		if err := h.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
+			// Получаем текущую фазу из PhaseManager
+			currentPhase, err := h.phaseManager.GetCurrentPhase(req.GameID)
+			if err != nil {
+				return fmt.Errorf("failed to get current phase: %w", err)
+			}
+			// Обновляем CurrentTurn в модели напрямую
+			if model.CurrentTurn == nil {
+				model.CurrentTurn = &models.GameTurnModel{}
+			}
+			model.CurrentTurn.Turn = currentPhase.TurnNumber
+			model.CurrentTurn.Phase = currentPhase.CurrentPhase
+			return nil
+		}, 3); err != nil {
+			log.Printf("Failed to update GameModel after phase start: %v", err)
+		}
+	}
+
 	log.Printf("✅ API: Phase %s started successfully for game %s turn %d", phase, req.GameID, req.Turn)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -231,6 +254,12 @@ func (h *PhaseHandler) CompletePhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Инвалидируем кэш GameModel после завершения фазы
+	if h.gameStateService != nil {
+		h.gameStateService.InvalidateGameModel(req.GameID)
+		log.Printf("GameModel cache invalidated for game: %s", req.GameID)
+	}
+
 	log.Printf("✅ API: Phase %s completed successfully for game %s turn %d", phase, req.GameID, req.Turn)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -276,6 +305,29 @@ func (h *PhaseHandler) NextPhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Обновляем GameModel после смены фазы
+	// Используем UpdateGameModelWithRetry для атомарности
+	if h.gameStateService != nil {
+		if err := h.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
+			// Получаем текущую фазу из PhaseManager
+			currentPhase, err := h.phaseManager.GetCurrentPhase(req.GameID)
+			if err != nil {
+				return fmt.Errorf("failed to get current phase: %w", err)
+			}
+			// Обновляем CurrentTurn в модели напрямую
+			if model.CurrentTurn == nil {
+				model.CurrentTurn = &models.GameTurnModel{}
+			}
+			model.CurrentTurn.Turn = currentPhase.TurnNumber
+			model.CurrentTurn.Phase = currentPhase.CurrentPhase
+			return nil
+		}, 3); err != nil {
+			log.Printf("Failed to update GameModel after phase change: %v", err)
+		} else {
+			log.Printf("GameModel updated after phase change for game: %s", req.GameID)
+		}
+	}
+
 	log.Printf("✅ API: NextPhase completed successfully for game %s", req.GameID)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -319,6 +371,21 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to start turn: %v", err)
 		utils.WriteInternalError(w, "Failed to start turn: "+err.Error())
 		return
+	}
+
+	// Обновляем GameModel после создания нового хода
+	if h.gameStateService != nil {
+		if err := h.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
+			// Обновляем CurrentTurn в модели напрямую из результата StartTurn
+			if model.CurrentTurn == nil {
+				model.CurrentTurn = &models.GameTurnModel{}
+			}
+			model.CurrentTurn.Turn = turn.TurnNumber
+			model.CurrentTurn.Phase = turn.CurrentPhase
+			return nil
+		}, 3); err != nil {
+			log.Printf("Failed to update GameModel after turn start: %v", err)
+		}
 	}
 
 	log.Printf("Turn started successfully: %+v", turn)

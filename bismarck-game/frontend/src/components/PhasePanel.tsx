@@ -89,22 +89,15 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
       setLoading(true);
       await phaseAPI.nextPhase({ game_id: gameId });
       
-      // Обновляем информацию о текущем ходе
-      const updatedTurn = await phaseAPI.getCurrentPhase(gameId);
-      
-      if (updatedTurn && onPhaseChange) {
-        onPhaseChange(updatedTurn.current_phase);
-      }
+      // Удален вызов phaseAPI.getCurrentPhase - информация о текущей фазе теперь приходит через GameModel
+      // Родительский компонент должен обновить currentTurn из GameModel
       
       // Уведомляем родительский компонент об обновлении хода
-      if (updatedTurn) {
-        window.dispatchEvent(new CustomEvent('turnUpdated', { detail: updatedTurn }));
-      }
+      // Информация о текущей фазе будет обновлена через GameModel
+      window.dispatchEvent(new CustomEvent('turnUpdated'));
       
-      // Перезагружаем записи о фазах
-      if (updatedTurn && updatedTurn.turn_number) {
-        await loadPhaseRecords(updatedTurn.turn_number);
-      } else if (currentTurn) {
+      // Перезагружаем записи о фазах (используем текущий ход, если он есть)
+      if (currentTurn && currentTurn.turn_number) {
         await loadPhaseRecords(currentTurn.turn_number);
       }
     } catch (err) {
@@ -143,13 +136,10 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
         await loadPhaseRecords(1);
       }
       
-      // Обновляем информацию о текущем ходе
-      const updatedTurn = await phaseAPI.getCurrentPhase(gameId);
-      if (updatedTurn) {
-        // Уведомляем родительский компонент об обновлении хода
-        // Это нужно для обновления состояния в Game.tsx
-        window.dispatchEvent(new CustomEvent('turnUpdated', { detail: updatedTurn }));
-      }
+      // Удален вызов phaseAPI.getCurrentPhase - информация о текущей фазе теперь приходит через GameModel
+      // Уведомляем родительский компонент об обновлении хода
+      // Родительский компонент должен обновить currentTurn из GameModel
+      window.dispatchEvent(new CustomEvent('turnUpdated'));
     } catch (err) {
       setError('Ошибка начала хода');
       console.error('Error starting turn:', err);
@@ -183,44 +173,47 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
     // Только немецкий игрок (Player1) может начать первый ход
     const isPlayer1 = currentGame.player1_id === currentUserId;
     const isGameReady = currentGame.status === 'active' && !!currentGame.player2_id;
-    const hasNoActiveTurn = !currentTurn;
     
-    // Проверяем, что игра в фазе setup и готова к началу первого хода
-    const isSetupPhase = currentGame.current_phase === 'setup';
-    const isFirstTurn = isSetupPhase && currentGame.current_turn === 1;
+    // Проверяем, что игра еще не начата (turn: 0, phase: "setup")
+    // Используем currentTurn напрямую, если он установлен, иначе используем currentGame
+    // Кнопка должна появляться когда turn: 0 и phase: "setup"
+    const turnNumber = currentTurn?.turn_number ?? currentGame.current_turn ?? 0;
+    const phase = currentTurn?.current_phase ?? currentGame.current_phase ?? 'setup';
     
-    console.log('PhasePanel canStartTurn check:', {
-      currentUserId,
-      player1Id: currentGame.player1_id,
-      isPlayer1,
-      isGameReady,
-      hasNoActiveTurn,
-      isFirstTurn,
-      currentTurn: currentGame.current_turn,
-      canStart: isPlayer1 && isGameReady && hasNoActiveTurn && isFirstTurn
-    });
+    const isGameNotStarted = turnNumber === 0 && phase === 'setup';
     
-    return isPlayer1 && isGameReady && hasNoActiveTurn && isFirstTurn;
+    return isPlayer1 && isGameReady && isGameNotStarted;
   };
+
+  // Проверяем, нужно ли показать кнопку "Начать ход 1"
+  // Кнопка должна появляться когда turn: 0 и phase: "setup" (игра еще не начата)
+  const turnNumber = currentTurn?.turn_number ?? currentGame?.current_turn ?? 0;
+  const phase = currentTurn?.current_phase ?? currentGame?.current_phase ?? 'setup';
+  const shouldShowStartTurnButton = turnNumber === 0 && phase === 'setup';
+
+  if (shouldShowStartTurnButton && canStartTurn()) {
+    return (
+      <div className="phase-panel">
+        <h3>Фазы игры</h3>
+        <div className="start-turn-section">
+          <p>Игра готова к началу. Нажмите кнопку, чтобы начать первый ход.</p>
+          <button
+            className="action-button start-turn-button"
+            onClick={handleStartTurn}
+            disabled={loading}
+          >
+            Начать ход 1
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentTurn) {
     return (
       <div className="phase-panel">
         <h3>Фазы игры</h3>
-        {canStartTurn() ? (
-          <div className="start-turn-section">
-            <p>Игра готова к началу. Нажмите кнопку, чтобы начать первый ход.</p>
-            <button
-              className="action-button start-turn-button"
-              onClick={handleStartTurn}
-              disabled={loading}
-            >
-              Начать ход 1
-            </button>
-          </div>
-        ) : (
-          <p>Ожидание начала хода...</p>
-        )}
+        <p>Ожидание начала хода...</p>
       </div>
     );
   }

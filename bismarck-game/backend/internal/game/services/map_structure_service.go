@@ -180,3 +180,14 @@ func (s *MapStructureService) ClassifyHex(hexId string) models.HexClassification
 
 	return classification
 }
+
+// GetIntrinsicSearchHexes возвращает гексы с собственными факторами поиска из конфигурации карты
+// Возвращает map[hex_id]search_factor
+// В текущей реализации возвращает пустую карту, так как в конфигурации карты нет информации о собственных факторах поиска
+// Это может быть расширено в будущем, если в конфигурацию будут добавлены соответствующие данные
+func (s *MapStructureService) GetIntrinsicSearchHexes() map[string]int {
+	// TODO: Если в будущем в конфигурацию карты будут добавлены собственные факторы поиска,
+	// здесь нужно будет загрузить их из mapStructures
+	// Пока возвращаем пустую карту
+	return make(map[string]int)
+}

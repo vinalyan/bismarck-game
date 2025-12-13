@@ -429,29 +429,31 @@ func (h *SearchPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
 }
 
 func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
-	log.Printf("Search phase started for game %s turn %d", gameID, turn)
+	log.Printf("🔍 SearchPhaseHandler.Start called for game %s turn %d", gameID, turn)
 
 	pm, ok := h.phaseManager.(*PhaseManager)
 	if !ok || pm == nil {
-		log.Printf("Warning: phase manager is not available in SearchPhaseHandler.Start")
+		log.Printf("❌ Warning: phase manager is not available in SearchPhaseHandler.Start")
 		h.scheduleNextPhase(gameID)
 		return nil
 	}
 
 	ctx, err := h.getGameSearchContext(pm, gameID)
 	if err != nil {
-		log.Printf("Search phase - failed to load game context: %v", err)
+		log.Printf("❌ Search phase - failed to load game context: %v", err)
 		h.cleanupFlightPathMarkers(pm, gameID)
 		h.scheduleNextPhase(gameID)
 		return nil
 	}
 
 	if ctx.visibilityLevel >= 10 {
-		log.Printf("Search phase - visibility level %d blocks search", ctx.visibilityLevel)
+		log.Printf("❌ Search phase - visibility level %d blocks search", ctx.visibilityLevel)
 		h.cleanupFlightPathMarkers(pm, gameID)
 		h.scheduleNextPhase(gameID)
 		return nil
 	}
+
+	log.Printf("✅ Search phase proceeding normally for game %s", gameID)
 
 	// В начале фазы поиска: Shadowed -> Sighted (очищаем результаты предыдущего поиска)
 	turnNumberForLogging, phaseLabel := getTurnAndPhase(pm, gameID, models.PhaseSearch)
@@ -492,7 +494,9 @@ func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
 		h.executeSearchForSide(pm, gameID, ctx.visibilityLevel, ctx.isFog, side)
 	}
 
+	log.Printf("🔍 About to call cleanupFlightPathMarkers in Start method")
 	h.cleanupFlightPathMarkers(pm, gameID)
+	log.Printf("🔍 cleanupFlightPathMarkers completed in Start method")
 	h.scheduleNextPhase(gameID)
 	return nil
 }
@@ -502,7 +506,16 @@ func (h *SearchPhaseHandler) CanComplete(gameID string, turn int) (bool, error) 
 }
 
 func (h *SearchPhaseHandler) Complete(gameID string, turn int) error {
-	// Заглушка - завершение поиска
+	log.Printf("🔍 SearchPhaseHandler.Complete called for game %s turn %d", gameID, turn)
+
+	// Удаляем маркеры пути полета поиска при завершении фазы
+	pm, ok := h.phaseManager.(*PhaseManager)
+	if ok && pm != nil {
+		h.cleanupFlightPathMarkers(pm, gameID)
+	} else {
+		log.Printf("❌ PhaseManager is not available in SearchPhaseHandler.Complete")
+	}
+
 	return nil
 }
 
@@ -1140,17 +1153,30 @@ func (h *SearchPhaseHandler) isHexFogged(pm *PhaseManager, hexID string) bool {
 }
 
 func (h *SearchPhaseHandler) cleanupFlightPathMarkers(pm *PhaseManager, gameID string) {
+	log.Printf("🔍 cleanupFlightPathMarkers called for game %s", gameID)
 	if pm.searchService == nil {
+		log.Printf("❌ SearchService is nil, cannot remove flight path markers")
 		return
 	}
+	log.Printf("✅ Calling RemoveAllFlightPathSearchMarkers for game %s", gameID)
 	if err := pm.searchService.RemoveAllFlightPathSearchMarkers(gameID); err != nil {
-		log.Printf("Search phase - failed to clean flight path markers: %v", err)
+		log.Printf("❌ Search phase - failed to clean flight path markers: %v", err)
+	} else {
+		log.Printf("✅ Successfully cleaned flight path markers for game %s", gameID)
 	}
 }
 
 func (h *SearchPhaseHandler) scheduleNextPhase(gameID string) {
 	go func() {
 		time.Sleep(1 * time.Second)
+
+		// Убеждаемся, что маркеры удалены перед переходом к следующей фазе
+		pm, ok := h.phaseManager.(*PhaseManager)
+		if ok && pm != nil {
+			log.Printf("🔍 scheduleNextPhase: calling cleanupFlightPathMarkers before NextPhase")
+			h.cleanupFlightPathMarkers(pm, gameID)
+		}
+
 		if h.phaseManager != nil {
 			if err := h.phaseManager.NextPhase(gameID); err != nil {
 				log.Printf("Failed to advance to next phase after search: %v", err)
@@ -1331,6 +1357,7 @@ type AdminPhaseHandler struct {
 	unitService      *UnitService
 	taskForceService *TaskForceService
 	searchService    *SearchService
+	gameStateService *GameStateService
 }
 
 // NewAdminPhaseHandler создает новый обработчик админской фазы
@@ -1340,6 +1367,11 @@ func NewAdminPhaseHandler(unitService *UnitService, taskForceService *TaskForceS
 		taskForceService: taskForceService,
 		searchService:    searchService,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService для обновления GameModel
+func (h *AdminPhaseHandler) SetGameStateService(gameStateService *GameStateService) {
+	h.gameStateService = gameStateService
 }
 
 func (h *AdminPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
@@ -1365,13 +1397,8 @@ func (h *AdminPhaseHandler) Start(gameID string, turn int) error {
 		}
 	}
 
-	// Удаляем все маркеры пути полета поиска согласно правилам игры (фаза администрирования)
-	if h.searchService != nil {
-		err := h.searchService.RemoveAllHexMarkersByType(gameID, string(models.MarkerTypeFlightPathSearch))
-		if err != nil {
-			log.Printf("Failed to remove flight path search markers: %v", err)
-		}
-	}
+	// НЕ удаляем маркеры пути полета поиска здесь - они удаляются в конце фазы поиска
+	// согласно правилам игры (Правила.md, строка 322: "B. Убрать маркеры Пути полета Поиска")
 
 	// Проверяем истечение аварийного топлива
 	if h.unitService != nil {
@@ -1404,7 +1431,37 @@ func (h *AdminPhaseHandler) CanComplete(gameID string, turn int) (bool, error) {
 }
 
 func (h *AdminPhaseHandler) Complete(gameID string, turn int) error {
-	// Заглушка - завершение административной фазы
+	log.Printf("🔄 ADMIN PHASE: Completing admin phase for game %s turn %d", gameID, turn)
+
+	// В фазе администрирования обновляем PreviousTurnMovedHexes = MovementUsed и сбрасываем MovementUsed = 0
+	if h.gameStateService != nil {
+		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			// Обновляем данные о движении для всех морских юнитов
+			for _, unit := range model.Units {
+				if unit.NavalData != nil {
+					// Сохраняем текущее значение MovementUsed в PreviousTurnMovedHexes
+					oldMovementUsed := unit.NavalData.MovementUsed
+					unit.NavalData.PreviousTurnMovedHexes = oldMovementUsed
+					// Сбрасываем MovementUsed для следующего хода
+					unit.NavalData.MovementUsed = 0
+					// Сбрасываем LastMoveTurn
+					unit.NavalData.LastMoveTurn = 0
+
+					log.Printf("🔄 ADMIN PHASE: Updated movement data for unit %s: PreviousTurnMovedHexes=%d (was MovementUsed), MovementUsed=0",
+						unit.ID, oldMovementUsed)
+				}
+			}
+			return nil
+		}, 3); err != nil {
+			log.Printf("❌ ADMIN PHASE: Failed to update movement data in admin phase: %v", err)
+			return fmt.Errorf("failed to update movement data: %w", err)
+		} else {
+			log.Printf("✅ ADMIN PHASE: Movement data updated successfully for game %s turn %d", gameID, turn)
+		}
+	} else {
+		log.Printf("⚠️ ADMIN PHASE: gameStateService is nil, skipping movement data update")
+	}
+
 	return nil
 }
 

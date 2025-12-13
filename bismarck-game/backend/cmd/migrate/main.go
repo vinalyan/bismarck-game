@@ -1036,6 +1036,69 @@ func getMigrations() []Migration {
 				DROP COLUMN IF EXISTS settings;
 			`,
 		},
+		{
+			Version:     "025_create_game_models_table",
+			Description: "Create game_models table for storing GameModel versions as JSONB",
+			SQL: `
+				-- Таблица для хранения всех версий GameModel
+				CREATE TABLE IF NOT EXISTS game_models (
+					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+					game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+					version INTEGER NOT NULL CHECK (version >= 1),
+					model_data JSONB NOT NULL,
+					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+					UNIQUE(game_id, version)
+				);
+
+				-- Индекс для быстрого получения последней версии
+				CREATE INDEX IF NOT EXISTS idx_game_models_game_id_version 
+					ON game_models(game_id, version DESC);
+
+				-- Индекс для поиска по game_id
+				CREATE INDEX IF NOT EXISTS idx_game_models_game_id 
+					ON game_models(game_id);
+
+				-- GIN индекс для поиска внутри JSONB (опционально, для будущего использования)
+				CREATE INDEX IF NOT EXISTS idx_game_models_model_data_gin 
+					ON game_models USING GIN (model_data);
+
+				-- Комментарии
+				COMMENT ON TABLE game_models IS 'Хранит все версии GameModel для каждой игры. Каждая версия - отдельная запись.';
+				COMMENT ON COLUMN game_models.version IS 'Версия GameModel (начинается с 1, увеличивается при каждом изменении)';
+				COMMENT ON COLUMN game_models.model_data IS 'Полное состояние игры в формате JSONB';
+			`,
+			RollbackSQL: `
+				DROP INDEX IF EXISTS idx_game_models_model_data_gin;
+				DROP INDEX IF EXISTS idx_game_models_game_id;
+				DROP INDEX IF EXISTS idx_game_models_game_id_version;
+				DROP TABLE IF EXISTS game_models;
+			`,
+		},
+		{
+			Version:     "026_drop_old_tables",
+			Description: "Drop old game state tables after migration to game_models",
+			SQL: `
+				-- Удаление старых таблиц после полной миграции на game_models
+				-- GameModel теперь является единственным источником истины
+				
+				DROP TABLE IF EXISTS unit_searches CASCADE;
+				DROP TABLE IF EXISTS movements CASCADE;
+				DROP TABLE IF EXISTS unit_movements CASCADE;
+				DROP TABLE IF EXISTS naval_units CASCADE;
+				DROP TABLE IF EXISTS air_units CASCADE;
+				DROP TABLE IF EXISTS task_forces CASCADE;
+				DROP TABLE IF EXISTS game_events CASCADE;
+				DROP TABLE IF EXISTS hex_markers CASCADE;
+				DROP TABLE IF EXISTS unit_visibility CASCADE;
+				DROP TABLE IF EXISTS game_turns CASCADE;
+				DROP TABLE IF EXISTS phase_records CASCADE;
+			`,
+			RollbackSQL: `
+				-- Откат не поддерживается - таблицы удалены
+				-- Для восстановления нужно выполнить миграции заново
+			`,
+		},
 	}
 }
 

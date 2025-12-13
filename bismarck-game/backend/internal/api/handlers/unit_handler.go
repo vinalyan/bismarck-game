@@ -409,7 +409,7 @@ func (h *UnitHandler) CreateTaskForce(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем первый юнит для определения владельца и позиции
-	firstUnit, err := h.unitService.GetNavalUnitByID(req.UnitIDs[0])
+	firstUnit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, req.UnitIDs[0])
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "First unit not found")
 		return
@@ -464,7 +464,7 @@ func (h *UnitHandler) AddUnitToTaskForce(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Проверяем, что юнит принадлежит игре
-	unit, err := h.unitService.GetNavalUnitByID(req.UnitID)
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, req.UnitID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
 		return
@@ -508,7 +508,7 @@ func (h *UnitHandler) RemoveUnitFromTaskForce(w http.ResponseWriter, r *http.Req
 	}
 
 	// Проверяем, что юнит принадлежит игре
-	unit, err := h.unitService.GetNavalUnitByID(req.UnitID)
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, req.UnitID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
 		return
@@ -723,8 +723,8 @@ func (h *UnitHandler) SetPatrol(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем юнит для проверки принадлежности игре
-	unit, err := h.unitService.GetNavalUnitByID(unitID)
+	// Получаем юнит для проверки принадлежности игре из GameModel
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
 		return
@@ -737,15 +737,15 @@ func (h *UnitHandler) SetPatrol(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Устанавливаем патруль
-	err = h.unitService.SetPatrol(unitID, req.IsPatrolling)
+	err = h.unitService.SetPatrol(gameID, unitID, req.IsPatrolling)
 	if err != nil {
 		h.logger.Error("Failed to set patrol", "unit_id", unitID, "error", err)
 		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Получаем обновленный юнит
-	updatedUnit, err := h.unitService.GetNavalUnitByID(unitID)
+	// Получаем обновленный юнит из GameModel
+	updatedUnit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get updated unit")
 		return

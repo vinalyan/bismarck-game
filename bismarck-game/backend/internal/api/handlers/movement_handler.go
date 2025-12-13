@@ -20,6 +20,7 @@ type MovementHandler struct {
 	visibilityService *services.VisibilityService
 	unitService       *services.UnitService
 	taskForceService  *services.TaskForceService
+	gameStateService  *services.GameStateService
 	logger            *logger.Logger
 }
 
@@ -32,6 +33,11 @@ func NewMovementHandler(movementService *services.MovementService, visibilitySer
 		taskForceService:  taskForceService,
 		logger:            logger,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService
+func (h *MovementHandler) SetGameStateService(gameStateService *services.GameStateService) {
+	h.gameStateService = gameStateService
 }
 
 // GetAvailableMoves возвращает доступные ходы для юнита
@@ -68,7 +74,7 @@ func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Reque
 		}
 
 		// Получаем Task Force для логирования и ответа
-		taskForce, err := h.taskForceService.GetTaskForceByID(unitID)
+		taskForce, err := h.taskForceService.GetTaskForceByIDFromGameModel(gameID, unitID)
 		if err != nil {
 			h.logger.Error("Failed to get task force for response", "error", err, "task_force_id", unitID)
 			http.Error(w, "Failed to get task force", http.StatusInternalServerError)
@@ -299,6 +305,29 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Обновляем GameModel после движения Task Force
+		// Используем UpdateGameModelWithRetry для атомарности
+		if h.gameStateService != nil {
+			if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+				// Обновляем Task Force в модели напрямую
+				// Движение уже выполнено, обновляем позицию Task Force в модели
+				if tfModel, exists := model.TaskForces[taskForce.ID]; exists {
+					tfModel.Position = taskForce.Position
+					tfModel.LastMoveTurn = taskForce.LastMoveTurn
+					tfModel.IsActivated = taskForce.IsActivated
+				}
+				// Обновляем позиции юнитов в Task Force
+				for _, unitID := range taskForce.Units {
+					if unitModel, exists := model.Units[unitID]; exists && unitModel.NavalData != nil {
+						unitModel.Position = "" // Юниты в TF не имеют собственной позиции
+					}
+				}
+				return nil
+			}, 3); err != nil {
+				h.logger.Warn("Failed to update GameModel after Task Force movement", "error", err)
+			}
+		}
+
 		response := models.MovementResponse{
 			Success:     true,
 			Message:     "Task Force moved successfully",
@@ -339,6 +368,30 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(response)
 		return
+	}
+
+	// Обновляем GameModel после движения
+	// Используем UpdateGameModelWithRetry для атомарности
+	if h.gameStateService != nil {
+		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			// Обновляем юнит в модели напрямую
+			// Движение уже выполнено, обновляем позицию и топливо юнита в модели
+			if unitModel, exists := model.Units[unit.ID]; exists {
+				unitModel.Position = unit.Position
+				if unitModel.NavalData != nil {
+					unitModel.NavalData.Fuel = unit.Fuel
+					unitModel.NavalData.LastMoveTurn = unit.LastMoveTurn
+					unitModel.NavalData.NoMovementTurnsLeft = unit.NoMovementTurnsLeft
+					unitModel.NavalData.IsActivated = unit.IsActivated
+					unitModel.NavalData.IsEmergencyFuel = unit.IsEmergencyFuel
+					unitModel.NavalData.EmergencyTurn = unit.EmergencyTurn
+					unitModel.NavalData.IsPatrolling = unit.IsPatrolling
+				}
+			}
+			return nil
+		}, 3); err != nil {
+			h.logger.Warn("Failed to update GameModel after movement", "error", err)
+		}
 	}
 
 	// Успешный ответ
@@ -531,10 +584,10 @@ func (h *MovementHandler) UpdateVisibility(w http.ResponseWriter, r *http.Reques
 // Вспомогательные методы
 
 func (h *MovementHandler) getUnit(gameID, unitID string) (*models.NavalUnit, error) {
-	// Получаем юнит из базы данных через unitService
-	unit, err := h.unitService.GetNavalUnitByID(unitID)
+	// Получаем юнит из GameModel через unitService
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 	if err != nil {
-		h.logger.Error("Failed to get unit from database", "error", err, "unit_id", unitID)
+		h.logger.Error("Failed to get unit from GameModel", "error", err, "game_id", gameID, "unit_id", unitID)
 		return nil, fmt.Errorf("failed to get unit: %w", err)
 	}
 
@@ -544,7 +597,7 @@ func (h *MovementHandler) getUnit(gameID, unitID string) (*models.NavalUnit, err
 		return nil, fmt.Errorf("unit does not belong to game")
 	}
 
-	h.logger.Info("Unit loaded from database",
+	h.logger.Info("Unit loaded from GameModel",
 		"unit_id", unit.ID,
 		"name", unit.Name,
 		"speed_rating", unit.SpeedRating,
@@ -570,7 +623,7 @@ func (h *MovementHandler) getMovementHistory(gameID, unitID string, _ int) ([]*m
 
 // isTaskForce проверяет, является ли переданный ID Task Force
 func (h *MovementHandler) isTaskForce(gameID, unitID string) bool {
-	taskForce, err := h.taskForceService.GetTaskForceByID(unitID)
+	taskForce, err := h.taskForceService.GetTaskForceByIDFromGameModel(gameID, unitID)
 	if err != nil {
 		return false
 	}
@@ -581,8 +634,8 @@ func (h *MovementHandler) isTaskForce(gameID, unitID string) bool {
 
 // getTaskForceAvailableMoves рассчитывает доступные ходы для Task Force
 func (h *MovementHandler) getTaskForceAvailableMoves(taskForceID, gameID string) ([]string, map[string]int, error) {
-	// Получаем Task Force
-	taskForce, err := h.taskForceService.GetTaskForceByID(taskForceID)
+	// Получаем Task Force из GameModel
+	taskForce, err := h.taskForceService.GetTaskForceByIDFromGameModel(gameID, taskForceID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get task force: %w", err)
 	}
@@ -611,7 +664,7 @@ func (h *MovementHandler) getTaskForceAvailableMoves(taskForceID, gameID string)
 	allFuelCosts := make(map[string]int)
 
 	for _, unitID := range taskForce.Units {
-		unit, err := h.unitService.GetNavalUnitByID(unitID)
+		unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 		if err != nil {
 			h.logger.Warn("Failed to get unit in task force", "unit_id", unitID, "error", err)
 			continue
