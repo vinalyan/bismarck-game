@@ -1077,31 +1077,26 @@ func getMigrations() []Migration {
 		},
 		{
 			Version:     "026_drop_old_tables",
-			Description: "Drop old game state tables after migration to game_models (EXECUTE ONLY AFTER TESTING)",
+			Description: "Drop old game state tables after migration to game_models",
 			SQL: `
-				-- ВАЖНО: Эта миграция удаляет старые таблицы после полной миграции на game_models
-				-- Выполнять ТОЛЬКО после тестирования и проверки целостности данных
-				-- 
-				-- Комментируем удаление таблиц для безопасности
-				-- Раскомментируйте после полного тестирования:
+				-- Удаление старых таблиц после полной миграции на game_models
+				-- GameModel теперь является единственным источником истины
 				
-				-- DROP TABLE IF EXISTS naval_units CASCADE;
-				-- DROP TABLE IF EXISTS air_units CASCADE;
-				-- DROP TABLE IF EXISTS task_forces CASCADE;
-				-- DROP TABLE IF EXISTS game_events CASCADE;
-				-- DROP TABLE IF EXISTS enemy_contacts CASCADE;
-				-- DROP TABLE IF EXISTS hex_markers CASCADE;
-				-- DROP TABLE IF EXISTS game_turns CASCADE;
-				-- DROP TABLE IF EXISTS phase_records CASCADE;
-				
-				-- Пока что просто создаем комментарий для документации
-				DO $$
-				BEGIN
-					RAISE NOTICE 'Migration 026: Old tables removal is commented out for safety. Uncomment after full testing.';
-				END $$;
+				DROP TABLE IF EXISTS unit_searches CASCADE;
+				DROP TABLE IF EXISTS movements CASCADE;
+				DROP TABLE IF EXISTS unit_movements CASCADE;
+				DROP TABLE IF EXISTS naval_units CASCADE;
+				DROP TABLE IF EXISTS air_units CASCADE;
+				DROP TABLE IF EXISTS task_forces CASCADE;
+				DROP TABLE IF EXISTS game_events CASCADE;
+				DROP TABLE IF EXISTS hex_markers CASCADE;
+				DROP TABLE IF EXISTS unit_visibility CASCADE;
+				DROP TABLE IF EXISTS game_turns CASCADE;
+				DROP TABLE IF EXISTS phase_records CASCADE;
 			`,
 			RollbackSQL: `
-				-- Откат не требуется, так как таблицы не удаляются
+				-- Откат не поддерживается - таблицы удалены
+				-- Для восстановления нужно выполнить миграции заново
 			`,
 		},
 	}

@@ -86,21 +86,19 @@ func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 	}
 
 	s.logger.Info("Created naval unit", "unit_id", unit.ID, "name", unit.Name, "no_movement_turns_left", unit.NoMovementTurnsLeft)
-	
+
 	// Обновляем GameModel после создания юнита (опционально)
 	if s.gameStateService != nil {
 		if err := s.gameStateService.UpdateGameModelWithRetry(unit.GameID, func(model *models.GameModel) error {
-			updatedModel, err := s.gameStateService.LoadGameModel(unit.GameID)
-			if err != nil {
-				return err
-			}
-			model.Units = updatedModel.Units
+			// Добавляем новый юнит в модель напрямую
+			unitModel := models.ConvertNavalUnitToUnitModel(unit)
+			model.Units[unitModel.ID] = unitModel
 			return nil
 		}, 3); err != nil {
 			s.logger.Warn("Failed to update GameModel after creating naval unit", "error", err)
 		}
 	}
-	
+
 	return nil
 }
 

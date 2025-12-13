@@ -7,15 +7,16 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
+
 	"github.com/lib/pq"
 )
 
 // TaskForceService предоставляет методы для работы с оперативными соединениями
 type TaskForceService struct {
-	db              *database.Database
-	logger          *logger.Logger
-	unitService     *UnitService
-	movementService *MovementService
+	db               *database.Database
+	logger           *logger.Logger
+	unitService      *UnitService
+	movementService  *MovementService
 	gameStateService *GameStateService // Опционально, для обновления GameModel
 }
 
@@ -176,22 +177,26 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 	}
 
 	s.logger.Info("Created task force", "task_force_id", taskForce.ID, "name", taskForce.Name, "nationality", taskForce.Nationality)
-	
+
 	// Обновляем GameModel после создания Task Force (опционально)
 	if s.gameStateService != nil {
 		if err := s.gameStateService.UpdateGameModelWithRetry(taskForce.GameID, func(model *models.GameModel) error {
-			updatedModel, err := s.gameStateService.LoadGameModel(taskForce.GameID)
-			if err != nil {
-				return err
+			// Добавляем новый Task Force в модель напрямую
+			tfModel := models.ConvertTaskForceToTaskForceModel(taskForce)
+			model.TaskForces[tfModel.ID] = tfModel
+			// Обновляем юниты в модели - устанавливаем task_force_id и очищаем позицию
+			for _, unitID := range taskForce.Units {
+				if unitModel, exists := model.Units[unitID]; exists && unitModel.NavalData != nil {
+					unitModel.NavalData.TaskForceID = &taskForce.ID
+					unitModel.Position = "" // Юниты в TF не имеют собственной позиции
+				}
 			}
-			model.TaskForces = updatedModel.TaskForces
-			model.Units = updatedModel.Units // Юниты тоже обновились (task_force_id)
 			return nil
 		}, 3); err != nil {
 			s.logger.Warn("Failed to update GameModel after creating task force", "error", err)
 		}
 	}
-	
+
 	return nil
 }
 

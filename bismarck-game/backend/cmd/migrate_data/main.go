@@ -98,9 +98,9 @@ func main() {
 		}
 
 		// Загружаем GameModel из старых таблиц
-		model, err := gameStateService.LoadGameModel(gameID)
+		model, err := gameStateService.LoadFromLegacyTables(gameID)
 		if err != nil {
-			fmt.Printf("  ❌ Failed to load GameModel: %v\n", err)
+			fmt.Printf("  ❌ Failed to load GameModel from legacy tables: %v\n", err)
 			errorCount++
 			continue
 		}

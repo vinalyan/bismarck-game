@@ -17,9 +17,9 @@ import (
 
 // SearchHandler обрабатывает запросы для работы с поиском
 type SearchHandler struct {
-	searchService   *services.SearchService
+	searchService    *services.SearchService
 	gameStateService *services.GameStateService
-	logger          *logger.Logger
+	logger           *logger.Logger
 }
 
 // NewSearchHandler создает новый обработчик поиска
@@ -41,12 +41,12 @@ func (h *SearchHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	searchRouter.Use(middleware.AuthMiddleware(jwtSecret))
 
 	searchRouter.HandleFunc("/{gameId}/search/factors", h.GetSearchFactorsByHexes).Methods("GET")
-	
+
 	// Старые маршруты для обратной совместимости (временно)
 	searchRouter.HandleFunc("/{gameId}/flight-path-search/markers", h.AddFlightPathSearchMarker).Methods("POST")
 	searchRouter.HandleFunc("/{gameId}/flight-path-search/markers", h.GetFlightPathSearchMarkers).Methods("GET")
 	searchRouter.HandleFunc("/{gameId}/flight-path-search/markers/{hexId}", h.RemoveFlightPathSearchMarker).Methods("DELETE")
-	
+
 	// Новые универсальные маршруты для работы с маркерами
 	searchRouter.HandleFunc("/{gameId}/hex-markers", h.GetHexMarkers).Methods("GET")
 	searchRouter.HandleFunc("/{gameId}/hex-markers", h.AddHexMarker).Methods("POST")
@@ -87,7 +87,7 @@ func (h *SearchHandler) GetSearchFactorsByHexes(w http.ResponseWriter, r *http.R
 	hexMarkersInfo := make(map[string]map[string]int) // hexId -> markerType -> count
 	totalHexes := len(hexIDs)
 	nonZeroCount := 0
-	
+
 	for i, hexID := range hexIDs {
 		if hexID == "" {
 			continue
@@ -109,21 +109,21 @@ func (h *SearchHandler) GetSearchFactorsByHexes(w http.ResponseWriter, r *http.R
 		} else {
 			hexMarkersInfo[hexID] = markersCount
 		}
-		
+
 		if hexFactors[hexID] > 0 {
 			nonZeroCount++
 			// Логируем гексы с ненулевыми факторами
 			h.logger.Info("🔍 Search factors", "hex_id", hexID, "factors", hexFactors[hexID], "player_side", playerSide, "progress", fmt.Sprintf("%d/%d", i+1, totalHexes))
 		}
-		
+
 		// Логируем для первых нескольких гексов для отладки
 		if i < 5 {
 			h.logger.Info("📍 First hexes", "hex_id", hexID, "factors", hexFactors[hexID], "player_side", playerSide)
 		}
 	}
-	
-	h.logger.Info("📊 Search factors calculation completed", 
-		"total_hexes", totalHexes, 
+
+	h.logger.Info("📊 Search factors calculation completed",
+		"total_hexes", totalHexes,
 		"non_zero_factors", nonZeroCount,
 		"player_side", playerSide)
 
@@ -316,12 +316,19 @@ func (h *SearchHandler) AddHexMarker(w http.ResponseWriter, r *http.Request) {
 	// Обновляем GameModel после добавления маркера
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-			updatedModel, err := h.gameStateService.LoadGameModel(gameID)
-			if err != nil {
-				return err
+			// Обновляем маркеры в модели напрямую
+			// Получаем текущие маркеры для этого гекса
+			if model.HexMarkers == nil {
+				model.HexMarkers = make(map[string]models.HexMarkersModel)
 			}
-			model.HexMarkers = updatedModel.HexMarkers
-			model.SearchFactors = updatedModel.SearchFactors
+			hexMarkers := model.HexMarkers[req.HexID]
+			if hexMarkers.Markers == nil {
+				hexMarkers.Markers = make(map[string]int)
+			}
+			hexMarkers.HexID = req.HexID
+			hexMarkers.Markers[req.MarkerType]++
+			model.HexMarkers[req.HexID] = hexMarkers
+			// TODO: Пересчитать SearchFactors для этого гекса
 			return nil
 		}, 3); err != nil {
 			h.logger.Warn("Failed to update GameModel after adding hex marker", "error", err)
@@ -370,12 +377,17 @@ func (h *SearchHandler) RemoveHexMarker(w http.ResponseWriter, r *http.Request) 
 	// Обновляем GameModel после удаления маркера
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-			updatedModel, err := h.gameStateService.LoadGameModel(gameID)
-			if err != nil {
-				return err
+			// Обновляем маркеры в модели напрямую
+			if hexMarkers, exists := model.HexMarkers[hexID]; exists {
+				if hexMarkers.Markers[markerType] > 0 {
+					hexMarkers.Markers[markerType]--
+					if hexMarkers.Markers[markerType] == 0 {
+						delete(hexMarkers.Markers, markerType)
+					}
+					model.HexMarkers[hexID] = hexMarkers
+				}
 			}
-			model.HexMarkers = updatedModel.HexMarkers
-			model.SearchFactors = updatedModel.SearchFactors
+			// TODO: Пересчитать SearchFactors для этого гекса
 			return nil
 		}, 3); err != nil {
 			h.logger.Warn("Failed to update GameModel after removing hex marker", "error", err)
@@ -390,4 +402,3 @@ func (h *SearchHandler) RemoveHexMarker(w http.ResponseWriter, r *http.Request) 
 
 	utils.WriteSuccessResponse(w, response)
 }
-

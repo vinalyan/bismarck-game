@@ -203,7 +203,7 @@ func (s *GameStateService) InvalidateGameModel(gameID string) {
 		"was_in_memory", wasInMemory,
 		"redis_deleted", redisDeleted,
 	)
-	
+
 	// Для отладки: сразу после инвалидации проверяем, что данные действительно удалены
 	s.memoryCacheMutex.RLock()
 	stillInMemory := s.memoryCache[gameID] != nil
@@ -214,8 +214,8 @@ func (s *GameStateService) InvalidateGameModel(gameID string) {
 }
 
 // loadFromDatabase загружает GameModel из БД
-// Сначала пытается загрузить из game_models (новая архитектура)
-// Если версии нет, создает из существующих таблиц (для миграции/обратной совместимости)
+// Загружает только из game_models (новая архитектура)
+// Если GameModel не найден, но игра существует, создает его автоматически (для существующих игр)
 func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, error) {
 	// Проверяем, что игра существует
 	gameExistsQuery := `SELECT id FROM games WHERE id = $1`
@@ -230,34 +230,62 @@ func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, e
 		return nil, fmt.Errorf("failed to check game existence: %w", err)
 	}
 
-	// Пытаемся загрузить из game_models (новая архитектура)
+	// Загружаем из game_models (единственный источник истины)
 	model, err := s.LoadGameModelFromDatabase(gameID)
-	if err == nil {
-		s.logger.Info("GameModel loaded from game_models table", "game_id", gameID, "version", model.Version)
-		return model, nil
-	}
-
-	// Если версии нет в game_models, загружаем из старых таблиц (для миграции/обратной совместимости)
-	// Это позволяет системе работать во время миграции
-	s.logger.Info("No GameModel found in game_models, loading from legacy tables", "game_id", gameID)
-	legacyModel, err := s.loadFromLegacyTables(gameID)
 	if err != nil {
-		return nil, err
+		// Если GameModel не найден, но игра существует, создаем пустую модель
+		// Это нужно для существующих игр, которые были созданы до добавления логики GameModel
+		s.logger.Info("GameModel not found in game_models table, creating empty model", "game_id", gameID)
+		initialModel, createErr := s.CreateInitialGameModel(gameID)
+		if createErr != nil {
+			s.logger.Error("Failed to create empty GameModel", "game_id", gameID, "error", createErr)
+			return nil, fmt.Errorf("game model not initialized: %s (game exists but GameModel not found and failed to create: %w)", gameID, createErr)
+		}
+
+		// Сохраняем созданный GameModel в БД
+		if saveErr := s.SaveGameModelToDatabase(gameID, initialModel); saveErr != nil {
+			s.logger.Error("Failed to save auto-created GameModel", "game_id", gameID, "error", saveErr)
+			return nil, fmt.Errorf("failed to save auto-created GameModel: %w", saveErr)
+		}
+
+		s.logger.Info("GameModel auto-created and saved", "game_id", gameID, "version", initialModel.Version)
+		return initialModel, nil
 	}
 
-	// Автоматически сохраняем в game_models для миграции
-	legacyModel.Version = 1
-	if saveErr := s.SaveGameModelToDatabase(gameID, legacyModel); saveErr != nil {
-		s.logger.Warn("Failed to auto-save legacy model to game_models", "game_id", gameID, "error", saveErr)
-		// Продолжаем работу, возвращаем модель из старых таблиц
-	} else {
-		s.logger.Info("Legacy model auto-saved to game_models", "game_id", gameID, "version", legacyModel.Version)
+	s.logger.Info("GameModel loaded from game_models table", "game_id", gameID, "version", model.Version, "units_count", len(model.Units))
+	return model, nil
+}
+
+// CreateInitialGameModel создает начальный пустой GameModel для новой игры
+// GameModel теперь является единственным источником истины, старые таблицы удалены
+func (s *GameStateService) CreateInitialGameModel(gameID string) (*models.GameModel, error) {
+	// Создаем пустую модель для новой игры
+	model := &models.GameModel{
+		GameID:      gameID,
+		Version:     1,
+		LastUpdated: time.Now(),
+		History:     []*models.GameModelSnapshot{}, // Пустой массив
+		CurrentTurn: &models.GameTurnModel{
+			Turn:  0,
+			Phase: models.PhaseSetup,
+		},
+		Units:                make(map[string]*models.UnitModel),
+		TaskForces:           make(map[string]*models.TaskForceModel),
+		EnemyContacts:        []*models.EnemyContactModel{},
+		SearchFactors:        make(map[string]models.SearchFactorsBySide),
+		HexMarkers:           make(map[string]models.HexMarkersModel),
+		Events:               []*models.GameEventModel{},
+		IntrinsicSearchHexes: s.mapStructureService.GetIntrinsicSearchHexes(),
 	}
 
-	return legacyModel, nil
+	s.logger.Info("Created empty initial GameModel", "game_id", gameID)
+	return model, nil
 }
 
 // loadFromLegacyTables загружает GameModel из старых таблиц (для миграции)
+// УДАЛЕНО: Старые таблицы больше не используются, GameModel является единственным источником истины
+// Этот метод оставлен только для скрипта миграции данных (cmd/migrate_data/main.go)
+// После завершения миграции этот метод должен быть удален
 func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameModel, error) {
 	// Загружаем текущий активный ход из таблицы game_turns
 	// Это источник истины для текущего хода и фазы
@@ -290,22 +318,27 @@ func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameMode
 	if err != nil {
 		return nil, fmt.Errorf("failed to get naval units: %w", err)
 	}
+	s.logger.Info("Loaded naval units from database", "game_id", gameID, "count", len(navalUnits))
 
 	airUnits, err := s.unitService.GetAirUnitsByGameID(gameID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get air units: %w", err)
 	}
+	s.logger.Info("Loaded air units from database", "game_id", gameID, "count", len(airUnits))
 
 	// Конвертируем юниты в UnitModel
 	units := make(map[string]*models.UnitModel)
 	for i := range navalUnits {
 		unitModel := models.ConvertNavalUnitToUnitModel(&navalUnits[i])
 		units[unitModel.ID] = unitModel
+		s.logger.Debug("Converted naval unit to UnitModel", "unit_id", unitModel.ID, "name", unitModel.Name, "owner", unitModel.Owner)
 	}
 	for i := range airUnits {
 		unitModel := models.ConvertAirUnitToUnitModel(&airUnits[i])
 		units[unitModel.ID] = unitModel
+		s.logger.Debug("Converted air unit to UnitModel", "unit_id", unitModel.ID, "name", unitModel.Name, "owner", unitModel.Owner)
 	}
+	s.logger.Info("Total units in GameModel", "game_id", gameID, "count", len(units))
 
 	// Загружаем Task Forces
 	taskForces, err := s.taskForceService.GetTaskForcesByGameID(gameID)

@@ -309,14 +309,19 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		// Используем UpdateGameModelWithRetry для атомарности
 		if h.gameStateService != nil {
 			if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-				// Движение уже выполнено в БД, просто перезагружаем модель
-				// Это гарантирует, что модель синхронизирована с БД
-				updatedModel, err := h.gameStateService.LoadGameModel(gameID)
-				if err != nil {
-					return err
+				// Обновляем Task Force в модели напрямую
+				// Движение уже выполнено, обновляем позицию Task Force в модели
+				if tfModel, exists := model.TaskForces[taskForce.ID]; exists {
+					tfModel.Position = taskForce.Position
+					tfModel.LastMoveTurn = taskForce.LastMoveTurn
+					tfModel.IsActivated = taskForce.IsActivated
 				}
-				// Копируем обновленные данные в текущую модель
-				*model = *updatedModel
+				// Обновляем позиции юнитов в Task Force
+				for _, unitID := range taskForce.Units {
+					if unitModel, exists := model.Units[unitID]; exists && unitModel.NavalData != nil {
+						unitModel.Position = "" // Юниты в TF не имеют собственной позиции
+					}
+				}
 				return nil
 			}, 3); err != nil {
 				h.logger.Warn("Failed to update GameModel after Task Force movement", "error", err)
@@ -369,14 +374,20 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	// Используем UpdateGameModelWithRetry для атомарности
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-			// Движение уже выполнено в БД, просто перезагружаем модель
-			// Это гарантирует, что модель синхронизирована с БД
-			updatedModel, err := h.gameStateService.LoadGameModel(gameID)
-			if err != nil {
-				return err
+			// Обновляем юнит в модели напрямую
+			// Движение уже выполнено, обновляем позицию и топливо юнита в модели
+			if unitModel, exists := model.Units[unit.ID]; exists {
+				unitModel.Position = unit.Position
+				if unitModel.NavalData != nil {
+					unitModel.NavalData.Fuel = unit.Fuel
+					unitModel.NavalData.LastMoveTurn = unit.LastMoveTurn
+					unitModel.NavalData.NoMovementTurnsLeft = unit.NoMovementTurnsLeft
+					unitModel.NavalData.IsActivated = unit.IsActivated
+					unitModel.NavalData.IsEmergencyFuel = unit.IsEmergencyFuel
+					unitModel.NavalData.EmergencyTurn = unit.EmergencyTurn
+					unitModel.NavalData.IsPatrolling = unit.IsPatrolling
+				}
 			}
-			// Копируем обновленные данные в текущую модель
-			*model = *updatedModel
 			return nil
 		}, 3); err != nil {
 			h.logger.Warn("Failed to update GameModel after movement", "error", err)

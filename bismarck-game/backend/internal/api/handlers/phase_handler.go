@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -13,13 +14,13 @@ import (
 )
 
 type PhaseHandler struct {
-	phaseManager    *services.PhaseManager
+	phaseManager     *services.PhaseManager
 	gameStateService *services.GameStateService
 }
 
 func NewPhaseHandler(phaseManager *services.PhaseManager, gameStateService *services.GameStateService) *PhaseHandler {
 	return &PhaseHandler{
-		phaseManager:    phaseManager,
+		phaseManager:     phaseManager,
 		gameStateService: gameStateService,
 	}
 }
@@ -52,25 +53,25 @@ func (h *PhaseHandler) GetCurrentPhase(w http.ResponseWriter, r *http.Request) {
 		// Не критично, продолжаем без информации о видимости
 		visibilityInfo = &services.GameVisibility{
 			VisibilityLevel: 1,
-			IsFog:          false,
-			WeatherTrack:   0,
+			IsFog:           false,
+			WeatherTrack:    0,
 		}
 	}
 
 	// Создаем расширенный ответ с информацией о видимости
 	responseData := map[string]interface{}{
-		"id":            turn.ID,
-		"game_id":       turn.GameID,
-		"turn_number":   turn.TurnNumber,
-		"current_phase": turn.CurrentPhase,
-		"status":        turn.Status,
-		"start_time":    turn.StartTime,
-		"end_time":      turn.EndTime,
-		"created_at":    turn.CreatedAt,
-		"updated_at":    turn.UpdatedAt,
+		"id":               turn.ID,
+		"game_id":          turn.GameID,
+		"turn_number":      turn.TurnNumber,
+		"current_phase":    turn.CurrentPhase,
+		"status":           turn.Status,
+		"start_time":       turn.StartTime,
+		"end_time":         turn.EndTime,
+		"created_at":       turn.CreatedAt,
+		"updated_at":       turn.UpdatedAt,
 		"visibility_level": visibilityInfo.VisibilityLevel,
-		"is_fog":          visibilityInfo.IsFog,
-		"weather_track":  visibilityInfo.WeatherTrack,
+		"is_fog":           visibilityInfo.IsFog,
+		"weather_track":    visibilityInfo.WeatherTrack,
 	}
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -181,11 +182,17 @@ func (h *PhaseHandler) StartPhase(w http.ResponseWriter, r *http.Request) {
 	// Обновляем GameModel после смены фазы
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
-			updatedModel, err := h.gameStateService.LoadGameModel(req.GameID)
+			// Получаем текущую фазу из PhaseManager
+			currentPhase, err := h.phaseManager.GetCurrentPhase(req.GameID)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get current phase: %w", err)
 			}
-			model.CurrentTurn = updatedModel.CurrentTurn
+			// Обновляем CurrentTurn в модели напрямую
+			if model.CurrentTurn == nil {
+				model.CurrentTurn = &models.GameTurnModel{}
+			}
+			model.CurrentTurn.Turn = currentPhase.TurnNumber
+			model.CurrentTurn.Phase = currentPhase.CurrentPhase
 			return nil
 		}, 3); err != nil {
 			log.Printf("Failed to update GameModel after phase start: %v", err)
@@ -302,13 +309,17 @@ func (h *PhaseHandler) NextPhase(w http.ResponseWriter, r *http.Request) {
 	// Используем UpdateGameModelWithRetry для атомарности
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
-			// Фаза уже обновлена в БД через PhaseManager, перезагружаем модель
-			updatedModel, err := h.gameStateService.LoadGameModel(req.GameID)
+			// Получаем текущую фазу из PhaseManager
+			currentPhase, err := h.phaseManager.GetCurrentPhase(req.GameID)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get current phase: %w", err)
 			}
-			// Обновляем CurrentTurn в модели
-			model.CurrentTurn = updatedModel.CurrentTurn
+			// Обновляем CurrentTurn в модели напрямую
+			if model.CurrentTurn == nil {
+				model.CurrentTurn = &models.GameTurnModel{}
+			}
+			model.CurrentTurn.Turn = currentPhase.TurnNumber
+			model.CurrentTurn.Phase = currentPhase.CurrentPhase
 			return nil
 		}, 3); err != nil {
 			log.Printf("Failed to update GameModel after phase change: %v", err)
@@ -365,11 +376,12 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 	// Обновляем GameModel после создания нового хода
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
-			updatedModel, err := h.gameStateService.LoadGameModel(req.GameID)
-			if err != nil {
-				return err
+			// Обновляем CurrentTurn в модели напрямую из результата StartTurn
+			if model.CurrentTurn == nil {
+				model.CurrentTurn = &models.GameTurnModel{}
 			}
-			model.CurrentTurn = updatedModel.CurrentTurn
+			model.CurrentTurn.Turn = turn.TurnNumber
+			model.CurrentTurn.Phase = turn.CurrentPhase
 			return nil
 		}, 3); err != nil {
 			log.Printf("Failed to update GameModel after turn start: %v", err)
