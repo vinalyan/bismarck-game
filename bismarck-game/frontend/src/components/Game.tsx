@@ -13,7 +13,6 @@ import { shipsAPI } from '../services/api/shipsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
 import { mapService, MapStructure } from '../services/api/mapService';
-import { gameEventAPI } from '../services/api/gameEventAPI';
 import { searchAPI, HexMarkers } from '../services/api/searchAPI';
 import { GameTurnResponse, PHASE_NAMES } from '../types/phaseTypes';
 import wsClient from '../services/websocket/websocketClient';
@@ -461,32 +460,9 @@ const Game: React.FC = () => {
               return;
             }
             
-            const playerSide = getPlayerSideString();
-            if (playerSide === 'unknown') {
-              console.error('Unable to determine player side');
-              return;
-            }
-            
-            const results = await Promise.all([
-              phaseAPI.getCurrentPhase(currentGame.id),
-              gameEventAPI.getGameEvents(currentGame.id, playerSide as 'german' | 'allied', 15),
-              unitsAPI.getGameUnits(currentGame.id, authToken),
-              // Получаем маркеры через getSearchFactors
-              searchAPI.getSearchFactors(
-                currentGame.id,
-                getAllSeaHexes(),
-                playerSide as 'german' | 'allied',
-                authToken
-              )
-            ]);
-            
-            const updatedTurn = results[0];
-            const unitsResponse = results[2];
-            const searchResponse = results[3];
-            
-            if (updatedTurn) {
-              setCurrentTurn(updatedTurn);
-            }
+            // Удалены вызовы phaseAPI.getCurrentPhase, gameEventAPI.getGameEvents и searchAPI.getSearchFactors
+            // Информация о текущей фазе, событиях и факторах поиска теперь приходит через GameModel
+            const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
             
             // Обновляем юниты и TF, особенно важно после admin фазы (сброс патрулей)
             if (unitsResponse.success && unitsResponse.data) {
@@ -497,11 +473,52 @@ const Game: React.FC = () => {
                 setTaskForces(unitsResponse.data.task_forces);
               }
               setEnemyContacts(unitsResponse.data.enemy_contacts || []);
-            }
-
-            // Обновляем маркеры из ответа getSearchFactors
-            if (searchResponse.hex_markers) {
-              setHexMarkers(searchResponse.hex_markers);
+              
+              // Обновляем информацию о текущей фазе из GameModel
+              if (unitsResponse.data.current_turn) {
+                if (unitsResponse.data.current_turn.turn > 0) {
+                  // Обновляем currentGame в store с актуальными данными
+                  if (currentGame?.id) {
+                    updateGame(currentGame.id, {
+                      current_turn: unitsResponse.data.current_turn.turn,
+                      current_phase: unitsResponse.data.current_turn.phase,
+                    });
+                  }
+                  
+                  // Создаем объект GameTurn с минимальными данными из GameModel
+                  const turnData: GameTurn = {
+                    id: `turn-${unitsResponse.data.current_turn.turn}`,
+                    game_id: currentGame?.id || '',
+                    turn_number: unitsResponse.data.current_turn.turn,
+                    current_phase: unitsResponse.data.current_turn.phase as GamePhase,
+                    status: 'active',
+                    start_time: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    visibility_level: currentGame?.visibility_level,
+                    is_fog: currentGame?.is_fog,
+                  };
+                  setCurrentTurn(turnData);
+                } else {
+                  // Игра еще не начата - обновляем currentGame
+                  if (currentGame?.id) {
+                    updateGame(currentGame.id, {
+                      current_turn: 0,
+                      current_phase: 'setup',
+                    });
+                  }
+                  setCurrentTurn(null);
+                }
+              } else {
+                // current_turn отсутствует - обновляем currentGame
+                if (currentGame?.id) {
+                  updateGame(currentGame.id, {
+                    current_turn: 0,
+                    current_phase: 'setup',
+                  });
+                }
+                setCurrentTurn(null);
+              }
             }
             
             // Показываем уведомление
@@ -531,14 +548,9 @@ const Game: React.FC = () => {
               return;
             }
             
-            // Удалены вызовы phaseAPI.getCurrentPhase и searchAPI.getSearchFactors
-            // Информация о текущей фазе и факторах поиска теперь приходит через GameModel
-            const results = await Promise.all([
-              gameEventAPI.getGameEvents(currentGame.id, playerSide as 'german' | 'allied', 15),
-              unitsAPI.getGameUnits(currentGame.id, authToken)
-            ]);
-            
-            const unitsResponse = results[1];
+            // Удалены вызовы phaseAPI.getCurrentPhase, searchAPI.getSearchFactors и gameEventAPI.getGameEvents
+            // Информация о текущей фазе, факторах поиска и событиях теперь приходит через GameModel
+            const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
             
             // Информация о текущей фазе теперь приходит через GameModel в unitsAPI.getGameUnits
             // Маркеры также приходят через GameModel
@@ -1686,7 +1698,8 @@ const Game: React.FC = () => {
                 }
                 
                 try {
-                  // Загружаем юниты
+                  // Удалены вызовы phaseAPI.getCurrentPhase и searchAPI.getSearchFactors
+                  // Информация о текущей фазе, факторах поиска и маркерах теперь приходит через GameModel
                   const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
                   if (unitsResponse.success && unitsResponse.data) {
                     if (unitsResponse.data.units) {
@@ -1695,29 +1708,54 @@ const Game: React.FC = () => {
                     if (unitsResponse.data.task_forces) {
                       setTaskForces(unitsResponse.data.task_forces);
                     }
-                  setEnemyContacts(unitsResponse.data.enemy_contacts || []);
-                  }
-                  
-                  // Обновляем маркеры через getSearchFactors
-                  if (mapStructures) {
-                    const seaHexes = getAllSeaHexes();
-                    if (seaHexes.length > 0) {
-                      const searchResponse = await searchAPI.getSearchFactors(
-                        currentGame.id,
-                        seaHexes,
-                        playerSide as 'german' | 'allied',
-                        authToken
-                      );
-                      if (searchResponse.hex_markers) {
-                        console.log('🔄 Refreshed hex markers:', Object.keys(searchResponse.hex_markers).length, 'hexes');
-                        setHexMarkers(searchResponse.hex_markers);
+                    setEnemyContacts(unitsResponse.data.enemy_contacts || []);
+                    
+                    // Обновляем информацию о текущей фазе из GameModel
+                    if (unitsResponse.data.current_turn) {
+                      if (unitsResponse.data.current_turn.turn > 0) {
+                        // Обновляем currentGame в store с актуальными данными
+                        if (currentGame?.id) {
+                          updateGame(currentGame.id, {
+                            current_turn: unitsResponse.data.current_turn.turn,
+                            current_phase: unitsResponse.data.current_turn.phase,
+                          });
+                        }
+                        
+                        // Создаем объект GameTurn с минимальными данными из GameModel
+                        const turnData: GameTurn = {
+                          id: `turn-${unitsResponse.data.current_turn.turn}`,
+                          game_id: currentGame?.id || '',
+                          turn_number: unitsResponse.data.current_turn.turn,
+                          current_phase: unitsResponse.data.current_turn.phase as GamePhase,
+                          status: 'active',
+                          start_time: new Date().toISOString(),
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                          visibility_level: currentGame?.visibility_level,
+                          is_fog: currentGame?.is_fog,
+                        };
+                        setCurrentTurn(turnData);
+                      } else {
+                        // Игра еще не начата - обновляем currentGame
+                        if (currentGame?.id) {
+                          updateGame(currentGame.id, {
+                            current_turn: 0,
+                            current_phase: 'setup',
+                          });
+                        }
+                        setCurrentTurn(null);
                       }
+                    } else {
+                      // current_turn отсутствует - обновляем currentGame
+                      if (currentGame?.id) {
+                        updateGame(currentGame.id, {
+                          current_turn: 0,
+                          current_phase: 'setup',
+                        });
+                      }
+                      setCurrentTurn(null);
                     }
                   }
-                  
-                  // Загружаем текущую фазу
-                  const turn = await phaseAPI.getCurrentPhase(currentGame.id);
-                  setCurrentTurn(turn);
                 } catch (error) {
                   console.error('❌ Error refreshing data:', error);
                 }
@@ -1735,26 +1773,26 @@ const Game: React.FC = () => {
               const isGermanPlayer = currentGame?.player1_id === user?.id;
               const isGameReady = currentGame?.status === 'active' && !!currentGame?.player2_id;
               const turnData = getTurnData(currentTurn);
-              // Кнопка должна появляться когда turn: 1 и phase: "setup"
+              // Кнопка должна появляться когда turn: 0 и phase: "setup" (игра еще не начата)
               // Используем currentTurn напрямую, если он установлен, иначе используем currentGame
               const turnNumber = turnData?.turn_number ?? currentGame?.current_turn ?? 0;
               const phase = turnData?.current_phase ?? currentGame?.current_phase ?? 'setup';
-              const isFirstTurnSetup = turnNumber === 1 && phase === 'setup';
+              const isGameNotStarted = turnNumber === 0 && phase === 'setup';
               
               console.log('Game.tsx isStartFirstTurnVisible check:', {
                 isGermanPlayer,
                 isGameReady,
                 turnNumber,
                 phase,
-                isFirstTurnSetup,
+                isGameNotStarted,
                 currentGameTurn: currentGame?.current_turn,
                 currentGamePhase: currentGame?.current_phase,
                 turnDataNumber: turnData?.turn_number,
                 turnDataPhase: turnData?.current_phase,
-                shouldShow: isGermanPlayer && isGameReady && isFirstTurnSetup
+                shouldShow: isGermanPlayer && isGameReady && isGameNotStarted
               });
               
-              return !!(isGermanPlayer && isGameReady && isFirstTurnSetup);
+              return !!(isGermanPlayer && isGameReady && isGameNotStarted);
             })()}
             currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
             searchFactorHexes={searchFactorHexes}

@@ -182,7 +182,6 @@ func (s *Server) setupRoutes() {
 	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService, phaseManager, taskForceService)
 	shipConfigLogger, _ := logger.New(logger.INFO, "ship-config-service", "stdout")
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService, unitService, shipConfigLogger)
-	phaseHandler := handlers.NewPhaseHandler(phaseManager)
 	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, unitService, taskForceService, movementLogger)
 	emergencyFuelHandler := handlers.NewEmergencyFuelHandler(s.db, movementLogger, movementService, unitService)
 	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService)
@@ -223,6 +222,9 @@ func (s *Server) setupRoutes() {
 
 	// Создаем GameStateHandler
 	gameStateHandler := handlers.NewGameStateHandler(gameStateService)
+
+	// Создаем PhaseHandler с GameStateService для инвалидации кэша
+	phaseHandler := handlers.NewPhaseHandler(phaseManager, gameStateService)
 
 	// Устанавливаем GameStateService в MovementHandler
 	movementHandler.SetGameStateService(gameStateService)

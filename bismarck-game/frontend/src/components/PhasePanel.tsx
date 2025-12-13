@@ -174,13 +174,13 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
     const isPlayer1 = currentGame.player1_id === currentUserId;
     const isGameReady = currentGame.status === 'active' && !!currentGame.player2_id;
     
-    // Проверяем, что игра в фазе setup первого хода
+    // Проверяем, что игра еще не начата (turn: 0, phase: "setup")
     // Используем currentTurn напрямую, если он установлен, иначе используем currentGame
-    // Кнопка должна появляться когда turn: 1 и phase: "setup"
+    // Кнопка должна появляться когда turn: 0 и phase: "setup"
     const turnNumber = currentTurn?.turn_number ?? currentGame.current_turn ?? 0;
     const phase = currentTurn?.current_phase ?? currentGame.current_phase ?? 'setup';
     
-    const isFirstTurnSetup = turnNumber === 1 && phase === 'setup';
+    const isGameNotStarted = turnNumber === 0 && phase === 'setup';
     
     console.log('PhasePanel canStartTurn check:', {
       currentUserId,
@@ -189,23 +189,22 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
       isGameReady,
       turnNumber,
       phase,
-      isFirstTurnSetup,
+      isGameNotStarted,
       currentGameTurn: currentGame.current_turn,
       currentGamePhase: currentGame.current_phase,
       currentTurnNumber: currentTurn?.turn_number,
       currentTurnPhase: currentTurn?.current_phase,
-      canStart: isPlayer1 && isGameReady && isFirstTurnSetup
+      canStart: isPlayer1 && isGameReady && isGameNotStarted
     });
     
-    return isPlayer1 && isGameReady && isFirstTurnSetup;
+    return isPlayer1 && isGameReady && isGameNotStarted;
   };
 
   // Проверяем, нужно ли показать кнопку "Начать ход 1"
-  // Кнопка должна появляться когда:
-  // - currentTurn === null ИЛИ
-  // - currentTurn.turn_number === 1 && currentTurn.current_phase === 'setup'
-  const shouldShowStartTurnButton = !currentTurn || 
-    (currentTurn.turn_number === 1 && currentTurn.current_phase === 'setup');
+  // Кнопка должна появляться когда turn: 0 и phase: "setup" (игра еще не начата)
+  const turnNumber = currentTurn?.turn_number ?? currentGame?.current_turn ?? 0;
+  const phase = currentTurn?.current_phase ?? currentGame?.current_phase ?? 'setup';
+  const shouldShowStartTurnButton = turnNumber === 0 && phase === 'setup';
 
   console.log('PhasePanel shouldShowStartTurnButton check:', {
     hasCurrentTurn: !!currentTurn,

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { gameEventAPI, GameEvent } from '../services/api/gameEventAPI';
-import { phaseAPI } from '../services/api/phaseAPI';
+import { GameEvent } from '../services/api/gameEventAPI';
 import { useGameStore } from '../stores/gameStore';
 import './GameLog.css';
 
@@ -37,11 +36,9 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
     
     // Слушаем WebSocket события для мгновенного обновления
     const handleGameEvent = async () => {
-      // Загружаем и события, и текущую фазу
-      await Promise.all([
-        loadEvents(),
-        phaseAPI.getCurrentPhase(gameId).catch(err => console.error('Error loading current phase:', err))
-      ]);
+      // Удалены вызовы gameEventAPI.getGameEvents и phaseAPI.getCurrentPhase
+      // События и текущая фаза теперь приходят через GameModel
+      loadEvents();
     };
     
     // Слушаем события manual refresh для обновления лога
@@ -64,35 +61,11 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
     setLoading(true);
     setError(null);
     
-    const playerSide = getPlayerSide();
-    if (playerSide === 'unknown') {
-      setError('Unable to determine player side');
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      const response = await gameEventAPI.getGameEvents(gameId, playerSide, 15);
-      
-      if (response.success && response.data && response.data.events) {
-        // События уже приходят в правильном порядке (новые сверху)
-        setEvents(response.data.events);
-        // Автопрокрутка к новым событиям (они уже сверху)
-        setTimeout(() => {
-          if (logContentRef.current) {
-            logContentRef.current.scrollTop = 0;
-          }
-        }, 100);
-      } else {
-        setError(response.error || 'Failed to load events');
-        setEvents([]); // Убеждаемся, что events всегда массив
-      }
-    } catch (error) {
-      setError('Failed to load events');
-      setEvents([]); // Убеждаемся, что events всегда массив
-    } finally {
-      setLoading(false);
-    }
+    // Удален вызов gameEventAPI.getGameEvents - события теперь должны приходить через GameModel
+    // TODO: Получать события из GameModel через unitsAPI.getGameUnits или отдельный метод
+    // Пока оставляем пустой массив событий
+    setEvents([]);
+    setLoading(false);
   };
 
   const getEventIcon = (eventType: string): string => {

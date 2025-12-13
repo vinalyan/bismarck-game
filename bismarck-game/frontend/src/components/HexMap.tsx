@@ -13,7 +13,6 @@ import {
   Point, OffsetCoord, offsetToPixel, offsetPolygonCorners, calculateMapSize, MAP_CONSTANTS, getCubeNeighbors
 } from '../utils/hexUtils';
 import { phaseAPI } from '../services/api/phaseAPI';
-import { gameEventAPI } from '../services/api/gameEventAPI';
 import { unitsAPI, EnemyContact } from '../services/api/unitsAPI';
 import { gameAPI } from '../services/api/gameAPI';
 import { searchAPI, HexMarkers } from '../services/api/searchAPI';
@@ -174,13 +173,10 @@ const HexMap: React.FC<HexMapProps> = ({
     try {
       console.log('🔄 Refreshing game data...');
       
-      // Удален вызов phaseAPI.getCurrentPhase - информация о текущей фазе теперь приходит через GameModel
+      // Удалены вызовы phaseAPI.getCurrentPhase и gameEventAPI.getGameEvents
+      // Информация о текущей фазе и событиях теперь приходит через GameModel
       
-      // 1. Обновляем события игры
-      console.log('📝 Fetching game events...');
-      await gameEventAPI.getGameEvents(gameId, playerSide, 15);
-      
-      // 2. Обновляем юниты (GameModel содержит информацию о текущей фазе)
+      // Обновляем юниты (GameModel содержит информацию о текущей фазе и событиях)
       console.log('⚔️ Fetching game units...');
       await unitsAPI.getGameUnits(gameId, authToken);
       

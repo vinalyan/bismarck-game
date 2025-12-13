@@ -186,32 +186,44 @@ func (s *GameStateService) InvalidateGameModel(gameID string) {
 
 // loadFromDatabase загружает GameModel из БД через существующие сервисы
 func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, error) {
-	// Получаем информацию об игре
-	// Используем sql.NullInt32 и sql.NullString для обработки NULL значений
-	query := `SELECT current_turn, current_phase FROM games WHERE id = $1`
-	var turn sql.NullInt32
-	var phase sql.NullString
-	err := s.db.GetConnection().QueryRow(query, gameID).Scan(&turn, &phase)
+	// Проверяем, что игра существует
+	gameExistsQuery := `SELECT id FROM games WHERE id = $1`
+	var gameIDCheck string
+	err := s.db.GetConnection().QueryRow(gameExistsQuery, gameID).Scan(&gameIDCheck)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.Warn("Game not found in database", "game_id", gameID)
 			return nil, fmt.Errorf("game not found: %s", gameID)
 		}
-		s.logger.Error("Failed to get game info from database", "game_id", gameID, "error", err)
-		return nil, fmt.Errorf("failed to get game info: %w", err)
+		s.logger.Error("Failed to check game existence", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to check game existence: %w", err)
 	}
 
-	s.logger.Debug("Game found in database", "game_id", gameID, "turn", turn, "phase", phase)
+	// Загружаем текущий активный ход из таблицы game_turns
+	// Это источник истины для текущего хода и фазы
+	turnQuery := `
+		SELECT turn_number, current_phase
+		FROM game_turns
+		WHERE game_id = $1 AND status = 'active'
+		ORDER BY turn_number DESC
+		LIMIT 1
+	`
+	var turnNumber int
+	var phaseName string
+	err = s.db.GetConnection().QueryRow(turnQuery, gameID).Scan(&turnNumber, &phaseName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Нет активного хода - игра еще не начата
+			s.logger.Debug("No active turn found, game not started", "game_id", gameID)
+			turnNumber = 0
+			phaseName = string(models.PhaseSetup)
+		} else {
+			s.logger.Error("Failed to get current turn from game_turns", "game_id", gameID, "error", err)
+			return nil, fmt.Errorf("failed to get current turn: %w", err)
+		}
+	}
 
-	// Используем значения по умолчанию, если они NULL
-	turnNumber := 0
-	if turn.Valid {
-		turnNumber = int(turn.Int32)
-	}
-	phaseName := string(models.PhaseSetup)
-	if phase.Valid && phase.String != "" {
-		phaseName = phase.String
-	}
+	s.logger.Debug("Current turn loaded from game_turns", "game_id", gameID, "turn", turnNumber, "phase", phaseName)
 
 	// Загружаем юниты
 	navalUnits, err := s.unitService.GetNavalUnitsByGameID(gameID)
@@ -505,4 +517,39 @@ func (s *GameStateService) GetGameModelForPlayer(gameID string, playerID string)
 	// Загружаем полный GameModel без фильтрации
 	// Фильтрация по видимости будет добавлена позже
 	return s.LoadGameModel(gameID)
+}
+
+// InvalidateGameModel инвалидирует кэш GameModel для указанной игры
+// Удаляет модель из памяти и Redis, чтобы при следующем запросе она была перезагружена из БД
+func (s *GameStateService) InvalidateGameModel(gameID string) {
+	// Удаляем из памяти
+	s.memoryCacheMutex.Lock()
+	delete(s.memoryCache, gameID)
+	s.memoryCacheMutex.Unlock()
+
+	// Удаляем из Redis
+	key := fmt.Sprintf("game_model:%s", gameID)
+	if err := s.redis.DeleteCache(key); err != nil {
+		s.logger.Warn("Failed to delete GameModel from Redis", "game_id", gameID, "error", err)
+	} else {
+		s.logger.Debug("GameModel invalidated", "game_id", gameID)
+	}
+}
+
+// UpdateGameModel обновляет GameModel в кэше (память и Redis)
+func (s *GameStateService) UpdateGameModel(gameID string, model *models.GameModel) {
+	// Обновляем версию
+	model.Version++
+	model.LastUpdated = time.Now()
+
+	// Сохраняем в память
+	s.saveToMemory(gameID, model)
+
+	// Сохраняем в Redis
+	if err := s.saveToRedis(gameID, model); err != nil {
+		s.logger.Warn("Failed to save GameModel to Redis", "game_id", gameID, "error", err)
+	}
+
+	// Отправляем WebSocket уведомление
+	s.sendWebSocketUpdate(gameID, model)
 }

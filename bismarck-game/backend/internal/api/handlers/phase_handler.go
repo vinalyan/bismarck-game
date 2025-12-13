@@ -13,12 +13,14 @@ import (
 )
 
 type PhaseHandler struct {
-	phaseManager *services.PhaseManager
+	phaseManager    *services.PhaseManager
+	gameStateService *services.GameStateService
 }
 
-func NewPhaseHandler(phaseManager *services.PhaseManager) *PhaseHandler {
+func NewPhaseHandler(phaseManager *services.PhaseManager, gameStateService *services.GameStateService) *PhaseHandler {
 	return &PhaseHandler{
-		phaseManager: phaseManager,
+		phaseManager:    phaseManager,
+		gameStateService: gameStateService,
 	}
 }
 
@@ -176,6 +178,12 @@ func (h *PhaseHandler) StartPhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Инвалидируем кэш GameModel после смены фазы
+	if h.gameStateService != nil {
+		h.gameStateService.InvalidateGameModel(req.GameID)
+		log.Printf("GameModel cache invalidated for game: %s", req.GameID)
+	}
+
 	log.Printf("✅ API: Phase %s started successfully for game %s turn %d", phase, req.GameID, req.Turn)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -231,6 +239,12 @@ func (h *PhaseHandler) CompletePhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Инвалидируем кэш GameModel после завершения фазы
+	if h.gameStateService != nil {
+		h.gameStateService.InvalidateGameModel(req.GameID)
+		log.Printf("GameModel cache invalidated for game: %s", req.GameID)
+	}
+
 	log.Printf("✅ API: Phase %s completed successfully for game %s turn %d", phase, req.GameID, req.Turn)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -276,6 +290,12 @@ func (h *PhaseHandler) NextPhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Инвалидируем кэш GameModel после смены фазы
+	if h.gameStateService != nil {
+		h.gameStateService.InvalidateGameModel(req.GameID)
+		log.Printf("GameModel cache invalidated for game: %s", req.GameID)
+	}
+
 	log.Printf("✅ API: NextPhase completed successfully for game %s", req.GameID)
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
@@ -319,6 +339,12 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to start turn: %v", err)
 		utils.WriteInternalError(w, "Failed to start turn: "+err.Error())
 		return
+	}
+
+	// Инвалидируем кэш GameModel после создания нового хода
+	if h.gameStateService != nil {
+		h.gameStateService.InvalidateGameModel(req.GameID)
+		log.Printf("GameModel cache invalidated for game: %s", req.GameID)
 	}
 
 	log.Printf("Turn started successfully: %+v", turn)
