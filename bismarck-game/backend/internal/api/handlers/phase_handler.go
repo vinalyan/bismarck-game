@@ -291,9 +291,18 @@ func (h *PhaseHandler) NextPhase(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Инвалидируем кэш GameModel после смены фазы
+	// Важно: инвалидация происходит ПОСЛЕ того, как все транзакции БД завершены
 	if h.gameStateService != nil {
 		h.gameStateService.InvalidateGameModel(req.GameID)
 		log.Printf("GameModel cache invalidated for game: %s", req.GameID)
+		
+		// Для отладки: загружаем модель сразу после инвалидации, чтобы убедиться, что данные обновились
+		if model, loadErr := h.gameStateService.LoadGameModel(req.GameID); loadErr == nil {
+			log.Printf("GameModel reloaded after invalidation: turn=%d, phase=%s", 
+				model.CurrentTurn.Turn, model.CurrentTurn.Phase)
+		} else {
+			log.Printf("Failed to reload GameModel after invalidation: %v", loadErr)
+		}
 	}
 
 	log.Printf("✅ API: NextPhase completed successfully for game %s", req.GameID)

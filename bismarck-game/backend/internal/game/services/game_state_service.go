@@ -97,14 +97,16 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 		s.logger.Info("GameModel loaded from Redis",
 			"game_id", gameID,
 			"version", model.Version,
+			"turn", model.CurrentTurn.Turn,
+			"phase", model.CurrentTurn.Phase,
 			"duration", time.Since(startTime),
 		)
 		return model, nil
 	}
 
-	// Если Redis недоступен, логируем предупреждение, но продолжаем
+	// Если Redis недоступен или ключ не найден, логируем и продолжаем загрузку из БД
 	if err != nil {
-		s.logger.Warn("Failed to load from Redis, falling back to database",
+		s.logger.Debug("Failed to load from Redis, falling back to database",
 			"game_id", gameID,
 			"error", err,
 		)
@@ -170,18 +172,26 @@ func (s *GameStateService) UpdateGameModel(gameID string, model *models.GameMode
 func (s *GameStateService) InvalidateGameModel(gameID string) {
 	// Удаляем из памяти
 	s.memoryCacheMutex.Lock()
+	wasInMemory := s.memoryCache[gameID] != nil
 	delete(s.memoryCache, gameID)
 	s.memoryCacheMutex.Unlock()
 
 	// Удаляем из Redis
-	if err := s.redis.DeleteCache(fmt.Sprintf("game_model:%s", gameID)); err != nil {
+	key := fmt.Sprintf("game_model:%s", gameID)
+	redisDeleted := true
+	if err := s.redis.DeleteCache(key); err != nil {
 		s.logger.Warn("Failed to delete from Redis",
 			"game_id", gameID,
 			"error", err,
 		)
+		redisDeleted = false
 	}
 
-	s.logger.Info("GameModel cache invalidated", "game_id", gameID)
+	s.logger.Info("GameModel cache invalidated",
+		"game_id", gameID,
+		"was_in_memory", wasInMemory,
+		"redis_deleted", redisDeleted,
+	)
 }
 
 // loadFromDatabase загружает GameModel из БД через существующие сервисы
@@ -223,7 +233,7 @@ func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, e
 		}
 	}
 
-	s.logger.Debug("Current turn loaded from game_turns", "game_id", gameID, "turn", turnNumber, "phase", phaseName)
+	s.logger.Info("Current turn loaded from game_turns", "game_id", gameID, "turn", turnNumber, "phase", phaseName)
 
 	// Загружаем юниты
 	navalUnits, err := s.unitService.GetNavalUnitsByGameID(gameID)
