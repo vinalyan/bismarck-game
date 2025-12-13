@@ -449,10 +449,11 @@ func (s *SearchService) GetFlightPathSearchMarkers(gameID, playerID string) ([]s
 }
 
 // RemoveAllFlightPathSearchMarkers удаляет все маркеры пути полета поиска для игры
-// Используется в AdminPhaseHandler для очистки маркеров в конце хода
-// Использует новую универсальную таблицу hex_markers
+// Используется в SearchPhaseHandler для очистки маркеров в конце фазы поиска
+// согласно правилам игры (Правила.md: "B. Убрать маркеры Пути полета Поиска")
+// Работает с GameModel (старые таблицы удалены)
 func (s *SearchService) RemoveAllFlightPathSearchMarkers(gameID string) error {
-	// Используем универсальный метод RemoveAllHexMarkersByType для совместимости с новой системой
+	// Используем универсальный метод RemoveAllHexMarkersByType
 	return s.RemoveAllHexMarkersByType(gameID, string(models.MarkerTypeFlightPathSearch))
 }
 
@@ -639,22 +640,80 @@ func (s *SearchService) getHexMarkersInHex(gameID, hexID string, playerSide stri
 }
 
 // RemoveAllHexMarkersByType удаляет все маркеры указанного типа для игры
-// Используется в AdminPhaseHandler для очистки маркеров в конце хода
+// Используется в SearchPhaseHandler для очистки маркеров в конце фазы поиска
+// Теперь работает с GameModel (старые таблицы удалены)
 func (s *SearchService) RemoveAllHexMarkersByType(gameID string, markerType string) error {
-	query := `
-		DELETE FROM hex_markers
-		WHERE game_id = $1 AND marker_type = $2
-	`
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RemoveAllHexMarkersByType")
+	}
 
-	result, err := s.db.GetConnection().Exec(query, gameID, markerType)
-	if err != nil {
-		s.logger.Error("Failed to remove all hex markers by type", "game_id", gameID, "marker_type", markerType, "error", err)
+	s.logger.Info("Starting removal of hex markers by type", "game_id", gameID, "marker_type", markerType)
+
+	removedCount := 0
+	hexesToRemove := make([]string, 0)
+	hexesToUpdate := make(map[string]models.HexMarkersModel)
+
+	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		// Инициализируем HexMarkers если он nil
+		if model.HexMarkers == nil {
+			s.logger.Debug("HexMarkers is nil, nothing to remove", "game_id", gameID)
+			return nil
+		}
+
+		s.logger.Info("Processing hex markers", "game_id", gameID, "total_hexes", len(model.HexMarkers))
+
+		// Собираем информацию о том, что нужно удалить/обновить
+		for hexID, hexMarkers := range model.HexMarkers {
+			// Проверяем, есть ли маркер указанного типа в этом гексе
+			if count, exists := hexMarkers.Markers[markerType]; exists && count > 0 {
+				s.logger.Info("Found marker to remove", "game_id", gameID, "hex_id", hexID, "marker_type", markerType, "count", count)
+
+				// Создаем новую копию hexMarkers с удаленным маркером
+				newMarkers := make(map[string]int)
+				for mt, cnt := range hexMarkers.Markers {
+					if mt != markerType {
+						newMarkers[mt] = cnt
+					}
+				}
+
+				removedCount += count
+
+				// Если в гексе больше нет маркеров, помечаем для удаления
+				if len(newMarkers) == 0 {
+					hexesToRemove = append(hexesToRemove, hexID)
+					s.logger.Info("Marking hex for removal (no markers left)", "game_id", gameID, "hex_id", hexID)
+				} else {
+					// Иначе обновляем маркеры
+					hexMarkers.Markers = newMarkers
+					hexesToUpdate[hexID] = hexMarkers
+					s.logger.Info("Marking hex for update", "game_id", gameID, "hex_id", hexID, "remaining_markers", len(newMarkers))
+				}
+			}
+		}
+
+		// Удаляем гексы без маркеров
+		for _, hexID := range hexesToRemove {
+			delete(model.HexMarkers, hexID)
+			s.logger.Info("Removed hex from HexMarkers", "game_id", gameID, "hex_id", hexID)
+		}
+
+		// Обновляем гексы с оставшимися маркерами
+		for hexID, hexMarkers := range hexesToUpdate {
+			model.HexMarkers[hexID] = hexMarkers
+			s.logger.Info("Updated hex markers", "game_id", gameID, "hex_id", hexID)
+		}
+
+		s.logger.Info("Completed marker removal in update function", "game_id", gameID, "removed_count", removedCount, "hexes_removed", len(hexesToRemove), "hexes_updated", len(hexesToUpdate))
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to remove all hex markers by type from GameModel", "game_id", gameID, "marker_type", markerType, "error", err)
 		return fmt.Errorf("failed to remove all hex markers by type: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected > 0 {
-		s.logger.Info("Removed all hex markers by type", "game_id", gameID, "marker_type", markerType, "count", rowsAffected)
+	if removedCount > 0 {
+		s.logger.Info("Successfully removed all hex markers by type", "game_id", gameID, "marker_type", markerType, "count", removedCount)
+	} else {
+		s.logger.Warn("No hex markers of type found to remove", "game_id", gameID, "marker_type", markerType)
 	}
 
 	return nil
