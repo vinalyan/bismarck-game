@@ -16,6 +16,7 @@ type TaskForceService struct {
 	logger          *logger.Logger
 	unitService     *UnitService
 	movementService *MovementService
+	gameStateService *GameStateService // Опционально, для обновления GameModel
 }
 
 // NewTaskForceService создает новый сервис Task Forces
@@ -26,6 +27,11 @@ func NewTaskForceService(db *database.Database, logger *logger.Logger, unitServi
 		unitService:     unitService,
 		movementService: movementService,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService для обновления GameModel
+func (s *TaskForceService) SetGameStateService(gameStateService *GameStateService) {
+	s.gameStateService = gameStateService
 }
 
 // CreateTaskForce создает новое оперативное соединение
@@ -170,6 +176,22 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 	}
 
 	s.logger.Info("Created task force", "task_force_id", taskForce.ID, "name", taskForce.Name, "nationality", taskForce.Nationality)
+	
+	// Обновляем GameModel после создания Task Force (опционально)
+	if s.gameStateService != nil {
+		if err := s.gameStateService.UpdateGameModelWithRetry(taskForce.GameID, func(model *models.GameModel) error {
+			updatedModel, err := s.gameStateService.LoadGameModel(taskForce.GameID)
+			if err != nil {
+				return err
+			}
+			model.TaskForces = updatedModel.TaskForces
+			model.Units = updatedModel.Units // Юниты тоже обновились (task_force_id)
+			return nil
+		}, 3); err != nil {
+			s.logger.Warn("Failed to update GameModel after creating task force", "error", err)
+		}
+	}
+	
 	return nil
 }
 

@@ -238,6 +238,10 @@ func (s *Server) setupRoutes() {
 	// Устанавливаем GameStateService в GameHandler для инициализации GameModel при создании игры
 	gameHandler.SetGameStateService(gameStateService)
 
+	// Устанавливаем GameStateService в UnitService и TaskForceService для обновления GameModel
+	unitService.SetGameStateService(gameStateService)
+	taskForceService.SetGameStateService(gameStateService)
+
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	gameHandler.RegisterRoutes(s.router, s.config.JWT.Secret)

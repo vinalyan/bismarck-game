@@ -25,6 +25,7 @@ type UnitService struct {
 	logger               *logger.Logger
 	onUnitSunk           UnitSunkHandler
 	emergencyFuelService *EmergencyFuelService
+	gameStateService     *GameStateService // Опционально, для обновления GameModel
 }
 
 // NewUnitService создает новый сервис юнитов
@@ -33,6 +34,11 @@ func NewUnitService(db *database.Database, logger *logger.Logger) *UnitService {
 		db:     db,
 		logger: logger,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService для обновления GameModel
+func (s *UnitService) SetGameStateService(gameStateService *GameStateService) {
+	s.gameStateService = gameStateService
 }
 
 // SetEmergencyFuelService устанавливает сервис аварийного топлива
@@ -80,6 +86,21 @@ func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 	}
 
 	s.logger.Info("Created naval unit", "unit_id", unit.ID, "name", unit.Name, "no_movement_turns_left", unit.NoMovementTurnsLeft)
+	
+	// Обновляем GameModel после создания юнита (опционально)
+	if s.gameStateService != nil {
+		if err := s.gameStateService.UpdateGameModelWithRetry(unit.GameID, func(model *models.GameModel) error {
+			updatedModel, err := s.gameStateService.LoadGameModel(unit.GameID)
+			if err != nil {
+				return err
+			}
+			model.Units = updatedModel.Units
+			return nil
+		}, 3); err != nil {
+			s.logger.Warn("Failed to update GameModel after creating naval unit", "error", err)
+		}
+	}
+	
 	return nil
 }
 
