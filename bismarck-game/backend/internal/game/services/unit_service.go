@@ -1303,9 +1303,13 @@ func (s *UnitService) UpdateUnitDetectionLevel(unitID string, level models.Detec
 
 // SetPatrol устанавливает или снимает патруль с морского юнита
 // Валидирует условия патруля согласно правилам игры
-func (s *UnitService) SetPatrol(unitID string, isPatrolling bool) error {
-	// Получаем юнит
-	unit, err := s.GetNavalUnitByID(unitID)
+func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for SetPatrol")
+	}
+
+	// Получаем юнит из GameModel
+	unit, err := s.GetNavalUnitByIDFromGameModel(gameID, unitID)
 	if err != nil {
 		return fmt.Errorf("unit not found: %w", err)
 	}
@@ -1347,15 +1351,57 @@ func (s *UnitService) SetPatrol(unitID string, isPatrolling bool) error {
 		}
 	}
 
-	// Обновляем патруль
-	query := `
-		UPDATE naval_units 
-		SET is_patrolling = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $2
-	`
-	_, err = s.db.Exec(query, isPatrolling, unitID)
+	// Обновляем патруль в GameModel и добавляем/удаляем маркер патруля
+	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		unitModel, exists := model.Units[unitID]
+		if !exists {
+			return fmt.Errorf("unit %s not found in GameModel", unitID)
+		}
+		if unitModel.NavalData == nil {
+			return fmt.Errorf("unit %s is not a naval unit", unitID)
+		}
+
+		// Инициализируем HexMarkers если нужно
+		if model.HexMarkers == nil {
+			model.HexMarkers = make(map[string]models.HexMarkersModel)
+		}
+
+		// Получаем позицию юнита для маркера патруля
+		hexID := unitModel.Position
+		if hexID == "" {
+			// Если юнит в таскфлите, используем позицию таскфлита
+			if unitModel.NavalData.TaskForceID != nil {
+				if tfModel, exists := model.TaskForces[*unitModel.NavalData.TaskForceID]; exists {
+					hexID = tfModel.Position
+				}
+			}
+		}
+
+		// Обновляем статус патруля
+		oldPatrolling := unitModel.NavalData.IsPatrolling
+		unitModel.NavalData.IsPatrolling = isPatrolling
+		unitModel.UpdatedAt = time.Now()
+
+		// Добавляем маркер патруля в гексе (только при установке патруля)
+		// При снятии патруля маркер не удаляется - удаление будет через отдельную функцию отмены
+		if hexID != "" && isPatrolling && !oldPatrolling {
+			hexMarkers := model.HexMarkers[hexID]
+			if hexMarkers.Markers == nil {
+				hexMarkers.Markers = make(map[string]int)
+			}
+			hexMarkers.HexID = hexID
+
+			patrolMarkerType := string(models.MarkerTypePatrol)
+			// Добавляем маркер патруля
+			hexMarkers.Markers[patrolMarkerType]++
+			model.HexMarkers[hexID] = hexMarkers
+		}
+
+		return nil
+	}, 3)
+
 	if err != nil {
-		s.logger.Error("Failed to set patrol", "unit_id", unitID, "is_patrolling", isPatrolling, "error", err)
+		s.logger.Error("Failed to update patrol status in GameModel", "unit_id", unitID, "is_patrolling", isPatrolling, "error", err)
 		return fmt.Errorf("failed to set patrol: %w", err)
 	}
 
