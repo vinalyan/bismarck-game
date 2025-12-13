@@ -86,6 +86,15 @@ type GameConfig struct {
 	GameStartDelay  Duration `json:"game_start_delay"`
 	MaxGames        int      `json:"max_games"`
 	CleanupInterval Duration `json:"cleanup_interval"`
+	GameState       GameStateConfig `json:"game_state"`
+}
+
+// GameStateConfig настройки GameModel и кэширования
+type GameStateConfig struct {
+	UseGameModel   bool     `json:"use_game_model"`   // Флаг включения GameModel
+	RedisTTL        Duration `json:"redis_ttl"`        // TTL для Redis (24 часа)
+	MaxMemoryGames  int      `json:"max_memory_games"` // Максимум игр в памяти (50)
+	EnableMetrics   bool     `json:"enable_metrics"`   // Включить метрики (для Issue #42)
 }
 
 // LogConfig настройки логирования

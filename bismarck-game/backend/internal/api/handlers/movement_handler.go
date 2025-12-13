@@ -20,6 +20,7 @@ type MovementHandler struct {
 	visibilityService *services.VisibilityService
 	unitService       *services.UnitService
 	taskForceService  *services.TaskForceService
+	gameStateService  *services.GameStateService
 	logger            *logger.Logger
 }
 
@@ -32,6 +33,11 @@ func NewMovementHandler(movementService *services.MovementService, visibilitySer
 		taskForceService:  taskForceService,
 		logger:            logger,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService
+func (h *MovementHandler) SetGameStateService(gameStateService *services.GameStateService) {
+	h.gameStateService = gameStateService
 }
 
 // GetAvailableMoves возвращает доступные ходы для юнита
@@ -299,6 +305,16 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Обновляем GameModel после движения Task Force
+		if h.gameStateService != nil {
+			model, err := h.gameStateService.LoadGameModel(gameID)
+			if err == nil {
+				h.gameStateService.UpdateGameModel(gameID, model)
+			} else {
+				h.logger.Warn("Failed to update GameModel after Task Force movement", "error", err)
+			}
+		}
+
 		response := models.MovementResponse{
 			Success:     true,
 			Message:     "Task Force moved successfully",
@@ -339,6 +355,16 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(response)
 		return
+	}
+
+	// Обновляем GameModel после движения
+	if h.gameStateService != nil {
+		model, err := h.gameStateService.LoadGameModel(gameID)
+		if err == nil {
+			h.gameStateService.UpdateGameModel(gameID, model)
+		} else {
+			h.logger.Warn("Failed to update GameModel after movement", "error", err)
+		}
 	}
 
 	// Успешный ответ

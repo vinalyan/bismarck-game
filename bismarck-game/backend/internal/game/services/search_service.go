@@ -656,3 +656,41 @@ func (s *SearchService) RemoveAllHexMarkersByType(gameID string, markerType stri
 	return nil
 }
 
+// GetAllMarkersByGameID возвращает все маркеры игры, сгруппированные по hex_id
+// Возвращает map[hex_id]map[marker_type]count
+func (s *SearchService) GetAllMarkersByGameID(gameID string) (map[string]map[string]int, error) {
+	query := `
+		SELECT hex_id, marker_type, COUNT(*) as count
+		FROM hex_markers
+		WHERE game_id = $1
+		GROUP BY hex_id, marker_type
+		ORDER BY hex_id, marker_type
+	`
+	
+	rows, err := s.db.GetConnection().Query(query, gameID)
+	if err != nil {
+		s.logger.Error("Failed to get all markers by game ID", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to get all markers by game ID: %w", err)
+	}
+	defer rows.Close()
+	
+	result := make(map[string]map[string]int)
+	for rows.Next() {
+		var hexID string
+		var markerType string
+		var count int
+		
+		if err := rows.Scan(&hexID, &markerType, &count); err != nil {
+			s.logger.Warn("Failed to scan marker", "error", err)
+			continue
+		}
+		
+		if result[hexID] == nil {
+			result[hexID] = make(map[string]int)
+		}
+		result[hexID][markerType] = count
+	}
+	
+	return result, rows.Err()
+}
+

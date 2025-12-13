@@ -193,6 +193,40 @@ func (s *Server) setupRoutes() {
 	searchHandlerLogger, _ := logger.New(logger.INFO, "search-handler", "stdout")
 	searchHandler := handlers.NewSearchHandler(searchService, searchHandlerLogger)
 
+	// Создаем GameStateService
+	gameStateLogger, _ := logger.New(logger.INFO, "game-state-service", "stdout")
+	gameStateService := services.NewGameStateService(
+		s.db,
+		s.redis,
+		gameStateLogger,
+		unitService,
+		taskForceService,
+		eventService,
+		searchService,
+		mapStructureService,
+		s.wsHub,
+		gameService,
+	)
+
+	// Настраиваем конфигурацию GameStateService
+	if s.config.Game.GameState.UseGameModel {
+		maxMemoryGames := s.config.Game.GameState.MaxMemoryGames
+		if maxMemoryGames == 0 {
+			maxMemoryGames = 50 // По умолчанию
+		}
+		redisTTL := s.config.Game.GameState.RedisTTL.ToDuration()
+		if redisTTL == 0 {
+			redisTTL = 24 * time.Hour // По умолчанию
+		}
+		gameStateService.SetConfig(maxMemoryGames, redisTTL)
+	}
+
+	// Создаем GameStateHandler
+	gameStateHandler := handlers.NewGameStateHandler(gameStateService)
+
+	// Устанавливаем GameStateService в MovementHandler
+	movementHandler.SetGameStateService(gameStateService)
+
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	gameHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
@@ -214,6 +248,9 @@ func (s *Server) setupRoutes() {
 
 	// Маршруты для событий игры
 	s.router.HandleFunc("/api/game-events", gameEventHandler.GetGameEvents).Methods("GET")
+
+	// Маршруты для GameState (внутренний эндпоинт для тестирования)
+	gameStateHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 
 	// WebSocket маршрут
 	s.router.HandleFunc("/ws", s.handleWebSocket)
