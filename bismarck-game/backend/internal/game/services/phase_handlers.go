@@ -1331,6 +1331,7 @@ type AdminPhaseHandler struct {
 	unitService      *UnitService
 	taskForceService *TaskForceService
 	searchService    *SearchService
+	gameStateService *GameStateService
 }
 
 // NewAdminPhaseHandler создает новый обработчик админской фазы
@@ -1340,6 +1341,11 @@ func NewAdminPhaseHandler(unitService *UnitService, taskForceService *TaskForceS
 		taskForceService: taskForceService,
 		searchService:    searchService,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService для обновления GameModel
+func (h *AdminPhaseHandler) SetGameStateService(gameStateService *GameStateService) {
+	h.gameStateService = gameStateService
 }
 
 func (h *AdminPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
@@ -1404,7 +1410,37 @@ func (h *AdminPhaseHandler) CanComplete(gameID string, turn int) (bool, error) {
 }
 
 func (h *AdminPhaseHandler) Complete(gameID string, turn int) error {
-	// Заглушка - завершение административной фазы
+	log.Printf("🔄 ADMIN PHASE: Completing admin phase for game %s turn %d", gameID, turn)
+
+	// В фазе администрирования обновляем PreviousTurnMovedHexes = MovementUsed и сбрасываем MovementUsed = 0
+	if h.gameStateService != nil {
+		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			// Обновляем данные о движении для всех морских юнитов
+			for _, unit := range model.Units {
+				if unit.NavalData != nil {
+					// Сохраняем текущее значение MovementUsed в PreviousTurnMovedHexes
+					oldMovementUsed := unit.NavalData.MovementUsed
+					unit.NavalData.PreviousTurnMovedHexes = oldMovementUsed
+					// Сбрасываем MovementUsed для следующего хода
+					unit.NavalData.MovementUsed = 0
+					// Сбрасываем LastMoveTurn
+					unit.NavalData.LastMoveTurn = 0
+
+					log.Printf("🔄 ADMIN PHASE: Updated movement data for unit %s: PreviousTurnMovedHexes=%d (was MovementUsed), MovementUsed=0",
+						unit.ID, oldMovementUsed)
+				}
+			}
+			return nil
+		}, 3); err != nil {
+			log.Printf("❌ ADMIN PHASE: Failed to update movement data in admin phase: %v", err)
+			return fmt.Errorf("failed to update movement data: %w", err)
+		} else {
+			log.Printf("✅ ADMIN PHASE: Movement data updated successfully for game %s turn %d", gameID, turn)
+		}
+	} else {
+		log.Printf("⚠️ ADMIN PHASE: gameStateService is nil, skipping movement data update")
+	}
+
 	return nil
 }
 

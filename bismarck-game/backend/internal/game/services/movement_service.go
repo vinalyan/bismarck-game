@@ -176,17 +176,30 @@ func (s *MovementService) ExecuteMovement(unit *models.NavalUnit, toHex string) 
 
 // executeMovementInternal выполняет внутреннюю логику движения
 func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex string) (*models.Movement, error) {
+	// Получаем информацию о топливе ПЕРЕД расчетом стоимости
+	// Это важно, так как getFuelTracking использует PreviousTurnMovedHexes для расчета
+	fuelTracking, err := s.getFuelTracking(unit.GameID, unit.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get fuel tracking: %w", err)
+	}
+
 	// Расчет стоимости топлива
 	fuelCost, err := s.CalculateFuelCost(unit, unit.Position, toHex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate fuel cost: %w", err)
 	}
 
+	s.logger.Info("Fuel cost calculated",
+		"unit_id", unit.ID,
+		"from_hex", unit.Position,
+		"to_hex", toHex,
+		"distance", s.hexCalculator.CalculateDistance(unit.Position, toHex),
+		"previous_turn_moved", fuelTracking.PreviousTurnMoved,
+		"fuel_cost", fuelCost,
+		"current_fuel", fuelTracking.CurrentFuel,
+		"is_emergency_fuel", fuelTracking.IsEmergencyFuel)
+
 	// Проверяем, достаточно ли топлива
-	fuelTracking, err := s.getFuelTracking(unit.GameID, unit.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get fuel tracking: %w", err)
-	}
 
 	if fuelTracking.CurrentFuel < fuelCost {
 		return nil, errors.New("insufficient fuel for movement")

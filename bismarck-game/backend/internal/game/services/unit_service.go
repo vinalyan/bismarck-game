@@ -334,6 +334,7 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 			unitModel.NavalData.EmergencyTurn = unit.EmergencyTurn
 			unitModel.NavalData.LastMoveTurn = unit.LastMoveTurn
 			unitModel.NavalData.IsPatrolling = unit.IsPatrolling
+			unitModel.NavalData.MovementUsed = unit.MovementUsed
 			unitModel.NavalData.PreviousTurnMovedHexes = unit.PreviousTurnMovedHexes
 		}
 		unitModel.UpdatedAt = unit.UpdatedAt

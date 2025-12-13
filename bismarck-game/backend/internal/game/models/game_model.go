@@ -104,7 +104,8 @@ type NavalUnitData struct {
 	LastKnownPos             *string        `json:"last_known_pos"`
 	TaskForceID              *string        `json:"task_force_id"`
 	Damage                   []Damage       `json:"damage"`
-	PreviousTurnMovedHexes   int            `json:"previous_turn_moved_hexes"`
+	MovementUsed             int            `json:"movement_used"`             // Количество гексов, пройденных в текущем ходу
+	PreviousTurnMovedHexes   int            `json:"previous_turn_moved_hexes"` // Количество гексов, пройденных в предыдущем ходу
 	LastMoveTurn             int            `json:"last_move_turn"`
 	NoMovementTurnsLeft      int            `json:"no_movement_turns_left"`
 	IsActivated              bool           `json:"is_activated"`
@@ -219,6 +220,7 @@ func ConvertNavalUnitToUnitModel(unit *NavalUnit) *UnitModel {
 			LastKnownPos:             unit.LastKnownPos,
 			TaskForceID:              unit.TaskForceID,
 			Damage:                   unit.Damage,
+			MovementUsed:             unit.MovementUsed,
 			PreviousTurnMovedHexes:   unit.PreviousTurnMovedHexes,
 			LastMoveTurn:             unit.LastMoveTurn,
 			NoMovementTurnsLeft:      unit.NoMovementTurnsLeft,
@@ -350,7 +352,7 @@ func ConvertUnitModelToNavalUnit(unitModel *UnitModel) (*NavalUnit, error) {
 		HasFired:            false,
 		TargetAcquired:      nil,
 		TorpedoesUsed:       0,
-		MovementUsed:        0, // MovementUsed не хранится в GameModel, инициализируем 0
+		MovementUsed:        unitModel.NavalData.MovementUsed, // Берем из GameModel
 		CreatedAt:           unitModel.CreatedAt,
 		UpdatedAt:           unitModel.UpdatedAt,
 	}

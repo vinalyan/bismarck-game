@@ -41,6 +41,10 @@ func (pm *PhaseManager) SetMapStructureService(service *MapStructureService) {
 // SetGameStateService устанавливает GameStateService для обновления GameModel
 func (pm *PhaseManager) SetGameStateService(gameStateService *GameStateService) {
 	pm.gameStateService = gameStateService
+	// Устанавливаем gameStateService в AdminPhaseHandler
+	if adminHandler, ok := pm.phaseHandlers[models.PhaseAdmin].(*AdminPhaseHandler); ok {
+		adminHandler.SetGameStateService(gameStateService)
+	}
 }
 
 func (pm *PhaseManager) getPlayerIDForSide(gameID string, side string) (string, error) {
@@ -311,29 +315,7 @@ func (pm *PhaseManager) CompletePhase(gameID string, turnNumber int, phase model
 
 	// Обновляем статус фазы в GameModel (если нужно)
 	// phase_records больше не используется - информация о фазах хранится в GameModel.CurrentTurn
-
-	// Если завершается фаза движения, сбрасываем previous_turn_moved_hexes в GameModel
-	if phase == models.PhaseMovement {
-		log.Printf("🔄 RESET: Completing movement phase for game %s turn %d", gameID, turnNumber)
-
-		if pm.gameStateService != nil {
-			if err := pm.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-				// Сбрасываем данные о движении для всех юнитов
-				for _, unit := range model.Units {
-					if unit.NavalData != nil {
-						// В GameModel нет movement_used, но есть PreviousTurnMovedHexes
-						// TODO: Если нужно отслеживать movement_used, добавить его в GameModel
-						unit.NavalData.PreviousTurnMovedHexes = 0 // Сбрасываем
-					}
-				}
-				return nil
-			}, 3); err != nil {
-				log.Printf("❌ RESET: Failed to reset movement data after movement phase: %v", err)
-			} else {
-				log.Printf("✅ RESET: Movement data reset after movement phase for game %s turn %d", gameID, turnNumber)
-			}
-		}
-	}
+	// Примечание: обновление PreviousTurnMovedHexes происходит в фазе администрирования, а не в фазе движения
 
 	log.Printf("Completed phase %s for game %s turn %d", phase, gameID, turnNumber)
 	return nil
