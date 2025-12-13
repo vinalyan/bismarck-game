@@ -173,47 +173,72 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
     // Только немецкий игрок (Player1) может начать первый ход
     const isPlayer1 = currentGame.player1_id === currentUserId;
     const isGameReady = currentGame.status === 'active' && !!currentGame.player2_id;
-    const hasNoActiveTurn = !currentTurn;
     
-    // Проверяем, что игра в фазе setup и готова к началу первого хода
-    // current_turn может быть 0 или null, если игра еще не начата
-    const isSetupPhase = currentGame.current_phase === 'setup' || !currentGame.current_phase;
-    const isFirstTurn = (currentGame.current_turn === 0 || currentGame.current_turn === 1 || !currentGame.current_turn);
+    // Проверяем, что игра в фазе setup первого хода
+    // Используем currentTurn напрямую, если он установлен, иначе используем currentGame
+    // Кнопка должна появляться когда turn: 1 и phase: "setup"
+    const turnNumber = currentTurn?.turn_number ?? currentGame.current_turn ?? 0;
+    const phase = currentTurn?.current_phase ?? currentGame.current_phase ?? 'setup';
+    
+    const isFirstTurnSetup = turnNumber === 1 && phase === 'setup';
     
     console.log('PhasePanel canStartTurn check:', {
       currentUserId,
       player1Id: currentGame.player1_id,
       isPlayer1,
       isGameReady,
-      hasNoActiveTurn,
-      isSetupPhase,
-      isFirstTurn,
+      turnNumber,
+      phase,
+      isFirstTurnSetup,
       currentGameTurn: currentGame.current_turn,
       currentGamePhase: currentGame.current_phase,
-      canStart: isPlayer1 && isGameReady && hasNoActiveTurn && isSetupPhase && isFirstTurn
+      currentTurnNumber: currentTurn?.turn_number,
+      currentTurnPhase: currentTurn?.current_phase,
+      canStart: isPlayer1 && isGameReady && isFirstTurnSetup
     });
     
-    return isPlayer1 && isGameReady && hasNoActiveTurn && isSetupPhase && isFirstTurn;
+    return isPlayer1 && isGameReady && isFirstTurnSetup;
   };
+
+  // Проверяем, нужно ли показать кнопку "Начать ход 1"
+  // Кнопка должна появляться когда:
+  // - currentTurn === null ИЛИ
+  // - currentTurn.turn_number === 1 && currentTurn.current_phase === 'setup'
+  const shouldShowStartTurnButton = !currentTurn || 
+    (currentTurn.turn_number === 1 && currentTurn.current_phase === 'setup');
+
+  console.log('PhasePanel shouldShowStartTurnButton check:', {
+    hasCurrentTurn: !!currentTurn,
+    currentTurnNumber: currentTurn?.turn_number,
+    currentTurnPhase: currentTurn?.current_phase,
+    shouldShowStartTurnButton,
+    canStartTurn: canStartTurn(),
+    finalShouldShow: shouldShowStartTurnButton && canStartTurn()
+  });
+
+  if (shouldShowStartTurnButton && canStartTurn()) {
+    return (
+      <div className="phase-panel">
+        <h3>Фазы игры</h3>
+        <div className="start-turn-section">
+          <p>Игра готова к началу. Нажмите кнопку, чтобы начать первый ход.</p>
+          <button
+            className="action-button start-turn-button"
+            onClick={handleStartTurn}
+            disabled={loading}
+          >
+            Начать ход 1
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentTurn) {
     return (
       <div className="phase-panel">
         <h3>Фазы игры</h3>
-        {canStartTurn() ? (
-          <div className="start-turn-section">
-            <p>Игра готова к началу. Нажмите кнопку, чтобы начать первый ход.</p>
-            <button
-              className="action-button start-turn-button"
-              onClick={handleStartTurn}
-              disabled={loading}
-            >
-              Начать ход 1
-            </button>
-          </div>
-        ) : (
-          <p>Ожидание начала хода...</p>
-        )}
+        <p>Ожидание начала хода...</p>
       </div>
     );
   }

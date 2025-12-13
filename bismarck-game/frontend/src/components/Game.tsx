@@ -1735,8 +1735,26 @@ const Game: React.FC = () => {
               const isGermanPlayer = currentGame?.player1_id === user?.id;
               const isGameReady = currentGame?.status === 'active' && !!currentGame?.player2_id;
               const turnData = getTurnData(currentTurn);
-              const isSetupTurn = turnData && turnData.turn_number === 0 && turnData.current_phase === 'setup';
-              return !!(isGermanPlayer && isGameReady && isSetupTurn);
+              // Кнопка должна появляться когда turn: 1 и phase: "setup"
+              // Используем currentTurn напрямую, если он установлен, иначе используем currentGame
+              const turnNumber = turnData?.turn_number ?? currentGame?.current_turn ?? 0;
+              const phase = turnData?.current_phase ?? currentGame?.current_phase ?? 'setup';
+              const isFirstTurnSetup = turnNumber === 1 && phase === 'setup';
+              
+              console.log('Game.tsx isStartFirstTurnVisible check:', {
+                isGermanPlayer,
+                isGameReady,
+                turnNumber,
+                phase,
+                isFirstTurnSetup,
+                currentGameTurn: currentGame?.current_turn,
+                currentGamePhase: currentGame?.current_phase,
+                turnDataNumber: turnData?.turn_number,
+                turnDataPhase: turnData?.current_phase,
+                shouldShow: isGermanPlayer && isGameReady && isFirstTurnSetup
+              });
+              
+              return !!(isGermanPlayer && isGameReady && isFirstTurnSetup);
             })()}
             currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
             searchFactorHexes={searchFactorHexes}
