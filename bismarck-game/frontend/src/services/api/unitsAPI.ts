@@ -94,6 +94,7 @@ export interface UnitsResponse {
       turn: number;
       phase: string;
     };
+    events?: any[]; // События из GameModel
   };
   error?: string;
 }
@@ -375,6 +376,8 @@ function convertGameModelToUnitsResponse(gameModel: GameModel): UnitsResponse {
       enemy_contacts: enemyContacts,
       // Добавляем информацию о текущей фазе из GameModel
       current_turn: gameModel.current_turn,
+      // Добавляем события из GameModel
+      events: gameModel.events || [],
     },
   };
 }

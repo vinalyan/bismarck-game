@@ -1288,6 +1288,20 @@ const Game: React.FC = () => {
     setCurrentView(ViewType.Login);
   };
 
+  // Вычисляем видимость кнопки "Начать ход 1" с помощью useMemo (должен быть до условного return)
+  const isStartFirstTurnVisible = useMemo(() => {
+    if (!currentGame || !user) return false;
+    const isGermanPlayer = currentGame.player1_id === user.id;
+    const isGameReady = currentGame.status === 'active' && !!currentGame.player2_id;
+    const turnData = getTurnData(currentTurn);
+    // Кнопка должна появляться когда turn: 0 и phase: "setup" (игра еще не начата)
+    const turnNumber = turnData?.turn_number ?? currentGame.current_turn ?? 0;
+    const phase = turnData?.current_phase ?? currentGame.current_phase ?? 'setup';
+    const isGameNotStarted = turnNumber === 0 && phase === 'setup';
+    
+    return !!(isGermanPlayer && isGameReady && isGameNotStarted);
+  }, [currentGame?.player1_id, currentGame?.status, currentGame?.player2_id, currentGame?.current_turn, currentGame?.current_phase, currentTurn, user?.id]);
+
   if (!currentGame || !user) {
     return (
       <div className="game-container">
@@ -1301,19 +1315,6 @@ const Game: React.FC = () => {
       </div>
     );
   }
-
-  // Вычисляем видимость кнопки "Начать ход 1" с помощью useMemo
-  const isStartFirstTurnVisible = useMemo(() => {
-    const isGermanPlayer = currentGame?.player1_id === user?.id;
-    const isGameReady = currentGame?.status === 'active' && !!currentGame?.player2_id;
-    const turnData = getTurnData(currentTurn);
-    // Кнопка должна появляться когда turn: 0 и phase: "setup" (игра еще не начата)
-    const turnNumber = turnData?.turn_number ?? currentGame?.current_turn ?? 0;
-    const phase = turnData?.current_phase ?? currentGame?.current_phase ?? 'setup';
-    const isGameNotStarted = turnNumber === 0 && phase === 'setup';
-    
-    return !!(isGermanPlayer && isGameReady && isGameNotStarted);
-  }, [currentGame?.player1_id, currentGame?.status, currentGame?.player2_id, currentGame?.current_turn, currentGame?.current_phase, currentTurn, user?.id]);
 
   return (
     <div className="game-container">

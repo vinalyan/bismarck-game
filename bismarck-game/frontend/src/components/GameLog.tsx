@@ -1,14 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GameEvent } from '../services/api/gameEventAPI';
 import { useGameStore } from '../stores/gameStore';
+import { unitsAPI } from '../services/api/unitsAPI';
 import './GameLog.css';
+
+// Интерфейс для события игры (перенесен из gameEventAPI)
+interface GameEvent {
+  id: string;
+  game_id: string;
+  turn: number;
+  phase: string;
+  event_type: string;
+  actor_name: string;
+  description: string;
+  data: any;
+  created_at: string;
+}
 
 interface GameLogProps {
   gameId: string;
 }
 
 const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
-  const { currentGame, user } = useGameStore();
+  const { currentGame, user, authToken } = useGameStore();
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,14 +71,46 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
   }, [gameId]);
 
   const loadEvents = async () => {
+    if (!gameId || !authToken) {
+      console.warn('Missing gameId or authToken for loading events');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
-    // Удален вызов gameEventAPI.getGameEvents - события теперь должны приходить через GameModel
-    // TODO: Получать события из GameModel через unitsAPI.getGameUnits или отдельный метод
-    // Пока оставляем пустой массив событий
-    setEvents([]);
-    setLoading(false);
+    try {
+      // Получаем события из GameModel через unitsAPI
+      const response = await unitsAPI.getGameUnits(gameId, authToken);
+      
+      if (response.success && response.data.events) {
+        // Преобразуем события из GameModel в формат GameEvent
+        const gameEvents: GameEvent[] = response.data.events.map((event: any) => ({
+          id: event.id || event.ID,
+          game_id: event.game_id || event.GameID || gameId,
+          turn: event.turn || event.Turn || 0,
+          phase: event.phase || event.Phase || '',
+          event_type: event.event_type || event.EventType || '',
+          actor_name: event.actor_name || event.ActorName || '',
+          description: event.description || event.Description || '',
+          data: event.data || event.Data || {},
+          created_at: event.created_at || event.CreatedAt || new Date().toISOString(),
+        }));
+        
+        // Сортируем по дате создания (новые сверху)
+        gameEvents.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        
+        setEvents(gameEvents);
+      } else {
+        setEvents([]);
+      }
+    } catch (err: any) {
+      console.error('Error loading game events:', err);
+      setError('Не удалось загрузить события игры');
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getEventIcon = (eventType: string): string => {
