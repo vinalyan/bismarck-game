@@ -52,53 +52,34 @@ func (s *UnitService) SetUnitSunkHandler(handler UnitSunkHandler) {
 }
 
 // CreateNavalUnit создает новый морской юнит
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
-	query := `
-		INSERT INTO naval_units (
-			game_id, name, type, category, class, owner, nationality, position, setup_hex,
-			evasion, base_evasion, speed_rating, fuel, max_fuel,
-			hull_boxes, current_hull, primary_armament_bow, primary_armament_stern,
-			secondary_armament, base_primary_armament_bow, base_primary_armament_stern,
-			base_secondary_armament, torpedoes, max_torpedoes, radar_level,
-			status, detection_level, damage, is_emergency_fuel, emergency_turn,
-			no_movement_turns_left, movement_used, last_move_turn
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-			$15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25,
-			$26, $27, $28, $29, $30, $31, $32, $33
-		) RETURNING id, created_at, updated_at`
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for CreateNavalUnit")
+	}
 
-	damageJSON, _ := json.Marshal(unit.Damage)
+	// Генерируем ID если не задан
+	if unit.ID == "" {
+		unit.ID = uuid.New().String()
+	}
 
-	err := s.db.QueryRow(query,
-		unit.GameID, unit.Name, unit.Type, unit.Category, unit.Class, unit.Owner, unit.Nationality, unit.Position, unit.SetupHex,
-		unit.Evasion, unit.BaseEvasion, unit.SpeedRating, unit.Fuel, unit.MaxFuel,
-		unit.HullBoxes, unit.CurrentHull, unit.PrimaryArmamentBow, unit.PrimaryArmamentStern,
-		unit.SecondaryArmament, unit.BasePrimaryArmamentBow, unit.BasePrimaryArmamentStern,
-		unit.BaseSecondaryArmament, unit.Torpedoes, unit.MaxTorpedoes, unit.RadarLevel,
-		unit.Status, unit.DetectionLevel, damageJSON, unit.IsEmergencyFuel, unit.EmergencyTurn,
-		unit.NoMovementTurnsLeft, unit.MovementUsed, unit.LastMoveTurn,
-	).Scan(&unit.ID, &unit.CreatedAt, &unit.UpdatedAt)
+	// Устанавливаем временные метки
+	now := time.Now()
+	unit.CreatedAt = now
+	unit.UpdatedAt = now
 
-	if err != nil {
-		s.logger.Error("Failed to create naval unit", "error", err)
+	// Добавляем юнит в GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(unit.GameID, func(model *models.GameModel) error {
+		// Добавляем новый юнит в модель
+		unitModel := models.ConvertNavalUnitToUnitModel(unit)
+		model.Units[unitModel.ID] = unitModel
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to create naval unit in GameModel", "error", err)
 		return fmt.Errorf("failed to create naval unit: %w", err)
 	}
 
 	s.logger.Info("Created naval unit", "unit_id", unit.ID, "name", unit.Name, "no_movement_turns_left", unit.NoMovementTurnsLeft)
-
-	// Обновляем GameModel после создания юнита (опционально)
-	if s.gameStateService != nil {
-		if err := s.gameStateService.UpdateGameModelWithRetry(unit.GameID, func(model *models.GameModel) error {
-			// Добавляем новый юнит в модель напрямую
-			unitModel := models.ConvertNavalUnitToUnitModel(unit)
-			model.Units[unitModel.ID] = unitModel
-			return nil
-		}, 3); err != nil {
-			s.logger.Warn("Failed to update GameModel after creating naval unit", "error", err)
-		}
-	}
-
 	return nil
 }
 
@@ -271,30 +252,54 @@ func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, erro
 }
 
 // UpdateNavalUnit обновляет морской юнит
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
-	// Получаем текущий статус для проверки изменения на 'sunk'
-	var currentStatus string
-	statusQuery := `SELECT status FROM naval_units WHERE id = $1`
-	err := s.db.QueryRow(statusQuery, unit.ID).Scan(&currentStatus)
-	if err != nil && err != sql.ErrNoRows {
-		s.logger.Error("Failed to get current unit status", "unit_id", unit.ID, "error", err)
-		// Продолжаем обновление, даже если не удалось получить текущий статус
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for UpdateNavalUnit")
 	}
 
-	query := `
-		UPDATE naval_units SET
-			position = $2, evasion = $3, fuel = $4,
-			current_hull = $5, torpedoes = $6, status = $7,
-			detection_level = $8, last_known_pos = $9,
-			task_force_id = $10, damage = $11,
-			no_movement_turns_left = $12, is_emergency_fuel = $13, emergency_turn = $14,
-			movement_used = $15, last_move_turn = $16, is_patrolling = $17,
-			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1`
+	// Обновляем UpdatedAt
+	unit.UpdatedAt = time.Now()
 
-	damageJSON, _ := json.Marshal(unit.Damage)
+	// Обновляем юнит в GameModel
+	var currentStatus string
+	if err := s.gameStateService.UpdateGameModelWithRetry(unit.GameID, func(model *models.GameModel) error {
+		// Получаем текущий юнит из модели
+		unitModel, exists := model.Units[unit.ID]
+		if !exists {
+			return fmt.Errorf("unit not found in GameModel: %s", unit.ID)
+		}
 
-	s.logger.Info("Updating naval unit in database",
+		// Сохраняем текущий статус для проверки изменения на 'sunk'
+		currentStatus = unitModel.Status
+
+		// Обновляем все поля юнита
+		unitModel.Position = unit.Position
+		unitModel.Status = string(unit.Status)
+		if unitModel.NavalData != nil {
+			unitModel.NavalData.Evasion = unit.Evasion
+			unitModel.NavalData.Fuel = unit.Fuel
+			unitModel.NavalData.CurrentHull = unit.CurrentHull
+			unitModel.NavalData.Torpedoes = unit.Torpedoes
+			unitModel.NavalData.DetectionLevel = unit.DetectionLevel
+			unitModel.NavalData.LastKnownPos = unit.LastKnownPos
+			unitModel.NavalData.TaskForceID = unit.TaskForceID
+			unitModel.NavalData.Damage = unit.Damage
+			unitModel.NavalData.NoMovementTurnsLeft = unit.NoMovementTurnsLeft
+			unitModel.NavalData.IsEmergencyFuel = unit.IsEmergencyFuel
+			unitModel.NavalData.EmergencyTurn = unit.EmergencyTurn
+			unitModel.NavalData.LastMoveTurn = unit.LastMoveTurn
+			unitModel.NavalData.IsPatrolling = unit.IsPatrolling
+		}
+		unitModel.UpdatedAt = unit.UpdatedAt
+
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to update naval unit in GameModel", "unit_id", unit.ID, "error", err)
+		return fmt.Errorf("failed to update naval unit: %w", err)
+	}
+
+	s.logger.Info("Updating naval unit",
 		"unit_id", unit.ID,
 		"position", unit.Position,
 		"no_movement_turns_left", unit.NoMovementTurnsLeft,
@@ -302,26 +307,12 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 		"old_status", currentStatus,
 		"new_status", unit.Status)
 
-	_, err = s.db.Exec(query,
-		unit.ID, unit.Position, unit.Evasion, unit.Fuel,
-		unit.CurrentHull, unit.Torpedoes, unit.Status,
-		unit.DetectionLevel, unit.LastKnownPos,
-		unit.TaskForceID, damageJSON, unit.NoMovementTurnsLeft,
-		unit.IsEmergencyFuel, unit.EmergencyTurn,
-		unit.MovementUsed, unit.LastMoveTurn, unit.IsPatrolling,
-	)
-	if err != nil {
-		s.logger.Error("Failed to update naval unit", "unit_id", unit.ID, "error", err)
-		return fmt.Errorf("failed to update naval unit: %w", err)
-	}
-
 	// Проверяем, не стал ли корабль затонувшим
 	if currentStatus != "sunk" && string(unit.Status) == "sunk" {
 		s.logger.Info("Unit status changed to sunk, handling sunk event", "unit_id", unit.ID)
 		// Обрабатываем потопление корабля (удаление из Task Force)
 		if s.onUnitSunk != nil {
-			err = s.onUnitSunk(unit.ID)
-			if err != nil {
+			if err := s.onUnitSunk(unit.ID); err != nil {
 				s.logger.Error("Failed to handle unit sunk event", "unit_id", unit.ID, "error", err)
 				// Не возвращаем ошибку, так как основная операция (обновление) уже выполнена
 			}

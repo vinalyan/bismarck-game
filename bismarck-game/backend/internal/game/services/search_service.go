@@ -10,10 +10,11 @@ import (
 
 // SearchService предоставляет методы для работы с поиском и обнаружением
 type SearchService struct {
-	db          *database.Database
-	logger      *logger.Logger
-	unitService *UnitService
-	gameService *GameService
+	db               *database.Database
+	logger           *logger.Logger
+	unitService      *UnitService
+	gameService      *GameService
+	gameStateService *GameStateService // Опционально, для обновления GameModel
 }
 
 // NewSearchService создает новый сервис поиска
@@ -24,6 +25,11 @@ func NewSearchService(db *database.Database, logger *logger.Logger, unitService 
 		unitService: unitService,
 		gameService: gameService,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService для обновления GameModel
+func (s *SearchService) SetGameStateService(gameStateService *GameStateService) {
+	s.gameStateService = gameStateService
 }
 
 // CalculateSearchFactors рассчитывает факторы поиска для гекса
@@ -58,7 +64,7 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 		s.logger.Warn("Failed to get task forces in hex", "game_id", gameID, "hex_id", hexID, "error", err)
 		taskForcesInHex = []string{}
 	}
-	
+
 	// Детальное логирование для отладки (особенно для E21)
 	if hexID == "E21" {
 		s.logger.Info("🔍 DEBUG E21",
@@ -123,7 +129,7 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 	} else {
 		totalFactors += flightPathMarkersCount * 2
 	}
-	
+
 	s.logger.Info("Calculated search factors",
 		"game_id", gameID,
 		"hex_id", hexID,
@@ -187,7 +193,7 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 	// Сначала определяем UUID пользователя для указанной стороны
 	var playerID string
 	var playerIDQuery string
-	
+
 	if playerSide == "german" {
 		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
 	} else if playerSide == "allied" {
@@ -195,18 +201,18 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 	} else {
 		return nil, fmt.Errorf("invalid player side: %s", playerSide)
 	}
-	
+
 	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
 	if err != nil {
 		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
 		return nil, fmt.Errorf("failed to get player ID: %w", err)
 	}
-	
+
 	if playerID == "" {
 		s.logger.Warn("Player ID is empty", "game_id", gameID, "player_side", playerSide)
 		return []string{}, nil
 	}
-	
+
 	query := `
 		SELECT id
 		FROM naval_units
@@ -216,13 +222,13 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 		AND is_patrolling = true
 		AND status != 'sunk'
 	`
-	
+
 	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get patrol markers: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var markerIDs []string
 	for rows.Next() {
 		var unitID string
@@ -232,12 +238,12 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 		}
 		markerIDs = append(markerIDs, unitID)
 	}
-	
+
 	// Логируем для отладки патрулей
 	if len(markerIDs) > 0 {
 		s.logger.Info("🎯 Found patrol markers in hex", "hex_id", hexID, "player_side", playerSide, "player_id", playerID, "count", len(markerIDs), "unit_ids", markerIDs)
 	}
-	
+
 	return markerIDs, rows.Err()
 }
 
@@ -256,13 +262,13 @@ func (s *SearchService) getTaskForcesInHex(gameID, hexID string, playerID string
 		AND owner = $3
 		-- TF дает фактор поиска независимо от is_activated (всегда учитываем TF)
 	`
-	
+
 	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task forces in hex: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var tfIDs []string
 	for rows.Next() {
 		var tfID string
@@ -272,7 +278,7 @@ func (s *SearchService) getTaskForcesInHex(gameID, hexID string, playerID string
 		}
 		tfIDs = append(tfIDs, tfID)
 	}
-	
+
 	// Детальное логирование для отладки E21
 	if hexID == "E21" {
 		// Проверяем, есть ли TF в этом гексе вообще (без фильтра по owner и is_activated)
@@ -297,7 +303,7 @@ func (s *SearchService) getTaskForcesInHex(gameID, hexID string, playerID string
 			s.logger.Info("🔍 DEBUG E21 - All TFs in hex", "all_task_forces", allTFs, "searching_player_id", playerID)
 		}
 	}
-	
+
 	return tfIDs, rows.Err()
 }
 
@@ -308,7 +314,7 @@ func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, pla
 	// Сначала определяем UUID пользователя для указанной стороны
 	var playerID string
 	var playerIDQuery string
-	
+
 	if playerSide == "german" {
 		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
 	} else if playerSide == "allied" {
@@ -316,18 +322,18 @@ func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, pla
 	} else {
 		return nil, fmt.Errorf("invalid player side: %s", playerSide)
 	}
-	
+
 	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
 	if err != nil {
 		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
 		return nil, fmt.Errorf("failed to get player ID: %w", err)
 	}
-	
+
 	if playerID == "" {
 		s.logger.Warn("Player ID is empty", "game_id", gameID, "player_side", playerSide)
 		return []string{}, nil
 	}
-	
+
 	query := `
 		SELECT id
 		FROM task_forces
@@ -336,13 +342,13 @@ func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, pla
 		AND owner = $3
 		AND is_patrolling = true
 	`
-	
+
 	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task force patrol markers: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var markerIDs []string
 	for rows.Next() {
 		var tfID string
@@ -352,12 +358,12 @@ func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, pla
 		}
 		markerIDs = append(markerIDs, tfID)
 	}
-	
+
 	// Логируем для отладки патрулей ТФ
 	if len(markerIDs) > 0 {
 		s.logger.Info("🎯 Found task force patrol markers in hex", "hex_id", hexID, "player_side", playerSide, "player_id", playerID, "count", len(markerIDs), "tf_ids", markerIDs)
 	}
-	
+
 	return markerIDs, rows.Err()
 }
 
@@ -370,7 +376,7 @@ func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSi
 	// Сначала определяем UUID пользователя для указанной стороны
 	var playerID string
 	var playerIDQuery string
-	
+
 	if playerSide == "german" {
 		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
 	} else if playerSide == "allied" {
@@ -378,31 +384,31 @@ func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSi
 	} else {
 		return nil, fmt.Errorf("invalid player side: %s", playerSide)
 	}
-	
+
 	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
 	if err != nil {
 		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
 		return nil, fmt.Errorf("failed to get player ID: %w", err)
 	}
-	
+
 	if playerID == "" {
 		s.logger.Warn("Player ID is empty", "game_id", gameID, "player_side", playerSide)
 		return []string{}, nil
 	}
-	
+
 	// Получаем маркеры из новой универсальной таблицы hex_markers
 	query := `
 		SELECT id
 		FROM hex_markers
 		WHERE game_id = $1 AND hex_id = $2 AND player_id = $3 AND marker_type = $4
 	`
-	
+
 	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID, string(models.MarkerTypeFlightPathSearch))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query flight path markers: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var markerIDs []string
 	for rows.Next() {
 		var markerID string
@@ -412,11 +418,11 @@ func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSi
 		}
 		markerIDs = append(markerIDs, markerID)
 	}
-	
+
 	if len(markerIDs) > 0 {
 		s.logger.Info("Found flight path markers in hex", "hex_id", hexID, "player_side", playerSide, "count", len(markerIDs))
 	}
-	
+
 	return markerIDs, rows.Err()
 }
 
@@ -452,7 +458,7 @@ func (s *SearchService) RemoveAllFlightPathSearchMarkers(gameID string) error {
 // getPlayerIDFromSide возвращает UUID игрока для указанной стороны
 func (s *SearchService) getPlayerIDFromSide(gameID, playerSide string) (string, error) {
 	var playerIDQuery string
-	
+
 	if playerSide == "german" {
 		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
 	} else if playerSide == "allied" {
@@ -460,14 +466,14 @@ func (s *SearchService) getPlayerIDFromSide(gameID, playerSide string) (string, 
 	} else {
 		return "", fmt.Errorf("invalid player side: %s", playerSide)
 	}
-	
+
 	var playerID string
 	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
 	if err != nil {
 		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
 		return "", fmt.Errorf("failed to get player ID: %w", err)
 	}
-	
+
 	return playerID, nil
 }
 
@@ -480,14 +486,14 @@ func (s *SearchService) GetHexMarkers(gameID, playerID string, markerType string
 		WHERE game_id = $1 AND player_id = $2 AND marker_type = $3
 		ORDER BY hex_id
 	`
-	
+
 	rows, err := s.db.GetConnection().Query(query, gameID, playerID, markerType)
 	if err != nil {
 		s.logger.Error("Failed to get hex markers", "game_id", gameID, "player_id", playerID, "marker_type", markerType, "error", err)
 		return nil, fmt.Errorf("failed to get hex markers: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var hexIDs []string
 	for rows.Next() {
 		var hexID string
@@ -497,63 +503,83 @@ func (s *SearchService) GetHexMarkers(gameID, playerID string, markerType string
 		}
 		hexIDs = append(hexIDs, hexID)
 	}
-	
+
 	return hexIDs, rows.Err()
 }
 
 // AddHexMarker добавляет маркер указанного типа в гекс
-// Поддерживает несколько маркеров одного типа в одном гексе (нет UNIQUE constraint)
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *SearchService) AddHexMarker(gameID, playerID, hexID, markerType string) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for AddHexMarker")
+	}
+
 	// Определяем сторону игрока и проверяем, что игрок является участником игры
 	playerSide, err := s.gameService.GetPlayerSide(gameID, playerID)
 	if err != nil {
 		s.logger.Error("Failed to get player side or player is not part of this game", "game_id", gameID, "player_id", playerID, "error", err)
 		return fmt.Errorf("player is not part of this game: %w", err)
 	}
-	
+
 	s.logger.Info("🔍 Adding hex marker", "game_id", gameID, "player_id", playerID, "player_side", playerSide, "hex_id", hexID, "marker_type", markerType)
-	
-	query := `
-		INSERT INTO hex_markers (game_id, player_id, hex_id, marker_type, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		RETURNING id
-	`
-	
-	var markerID string
-	err = s.db.GetConnection().QueryRow(query, gameID, playerID, hexID, markerType).Scan(&markerID)
-	if err != nil {
-		s.logger.Error("Failed to add hex marker", "game_id", gameID, "player_id", playerID, "player_side", playerSide, "hex_id", hexID, "marker_type", markerType, "error", err)
+
+	// Добавляем маркер в GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		// Инициализируем HexMarkers если нужно
+		if model.HexMarkers == nil {
+			model.HexMarkers = make(map[string]models.HexMarkersModel)
+		}
+
+		// Получаем текущие маркеры для этого гекса
+		hexMarkers := model.HexMarkers[hexID]
+		if hexMarkers.Markers == nil {
+			hexMarkers.Markers = make(map[string]int)
+		}
+
+		// Устанавливаем hexID и увеличиваем счетчик маркеров
+		hexMarkers.HexID = hexID
+		hexMarkers.Markers[markerType]++
+		model.HexMarkers[hexID] = hexMarkers
+
+		// TODO: Пересчитать SearchFactors для этого гекса
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to add hex marker in GameModel", "game_id", gameID, "player_id", playerID, "player_side", playerSide, "hex_id", hexID, "marker_type", markerType, "error", err)
 		return fmt.Errorf("failed to add hex marker: %w", err)
 	}
-	
-	s.logger.Info("✅ Added hex marker", "marker_id", markerID, "game_id", gameID, "player_id", playerID, "player_side", playerSide, "hex_id", hexID, "marker_type", markerType)
+
+	s.logger.Info("✅ Added hex marker", "game_id", gameID, "player_id", playerID, "player_side", playerSide, "hex_id", hexID, "marker_type", markerType)
 	return nil
 }
 
 // RemoveHexMarker удаляет один маркер указанного типа из гекса
-// Если в гексе несколько маркеров одного типа, удаляется только один
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *SearchService) RemoveHexMarker(gameID, playerID, hexID, markerType string) error {
-	query := `
-		DELETE FROM hex_markers
-		WHERE game_id = $1 AND player_id = $2 AND hex_id = $3 AND marker_type = $4
-		AND id = (
-			SELECT id FROM hex_markers
-			WHERE game_id = $1 AND player_id = $2 AND hex_id = $3 AND marker_type = $4
-			LIMIT 1
-		)
-	`
-	
-	result, err := s.db.GetConnection().Exec(query, gameID, playerID, hexID, markerType)
-	if err != nil {
-		s.logger.Error("Failed to remove hex marker", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "marker_type", markerType, "error", err)
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RemoveHexMarker")
+	}
+
+	// Удаляем маркер из GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		// Получаем текущие маркеры для этого гекса
+		if hexMarkers, exists := model.HexMarkers[hexID]; exists {
+			if hexMarkers.Markers[markerType] > 0 {
+				hexMarkers.Markers[markerType]--
+				if hexMarkers.Markers[markerType] == 0 {
+					delete(hexMarkers.Markers, markerType)
+				}
+				model.HexMarkers[hexID] = hexMarkers
+			}
+		}
+
+		// TODO: Пересчитать SearchFactors для этого гекса
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to remove hex marker in GameModel", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "marker_type", markerType, "error", err)
 		return fmt.Errorf("failed to remove hex marker: %w", err)
 	}
-	
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected > 0 {
-		s.logger.Info("Removed hex marker", "game_id", gameID, "hex_id", hexID, "marker_type", markerType)
-	}
-	
+
+	s.logger.Info("Removed hex marker", "game_id", gameID, "hex_id", hexID, "marker_type", markerType)
 	return nil
 }
 
@@ -565,26 +591,26 @@ func (s *SearchService) GetHexMarkersCount(gameID, hexID string, playerSide stri
 		s.logger.Warn("🔍 GetHexMarkersCount: Failed to get player ID", "game_id", gameID, "hex_id", hexID, "player_side", playerSide, "error", err)
 		return nil, err
 	}
-	
+
 	if playerID == "" {
 		s.logger.Warn("🔍 GetHexMarkersCount: Player ID is empty", "game_id", gameID, "hex_id", hexID, "player_side", playerSide)
 		return make(map[string]int), nil
 	}
-	
+
 	query := `
 		SELECT marker_type, COUNT(*) as count
 		FROM hex_markers
 		WHERE game_id = $1 AND hex_id = $2 AND player_id = $3
 		GROUP BY marker_type
 	`
-	
+
 	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
 	if err != nil {
 		s.logger.Error("Failed to get hex markers count", "game_id", gameID, "hex_id", hexID, "player_side", playerSide, "player_id", playerID, "error", err)
 		return nil, fmt.Errorf("failed to get hex markers count: %w", err)
 	}
 	defer rows.Close()
-	
+
 	result := make(map[string]int)
 	for rows.Next() {
 		var markerType string
@@ -595,12 +621,12 @@ func (s *SearchService) GetHexMarkersCount(gameID, hexID string, playerSide stri
 		}
 		result[markerType] = count
 	}
-	
+
 	// Логируем для отладки (только для гексов с маркерами или первых нескольких)
 	if len(result) > 0 || hexID == "A1" || hexID == "A10" || hexID == "B12" {
 		s.logger.Info("🔍 GetHexMarkersCount", "game_id", gameID, "hex_id", hexID, "player_side", playerSide, "player_id", playerID, "markers", result)
 	}
-	
+
 	return result, rows.Err()
 }
 
@@ -612,25 +638,25 @@ func (s *SearchService) getHexMarkersInHex(gameID, hexID string, playerSide stri
 		s.logger.Warn("Failed to get player ID from side", "game_id", gameID, "player_side", playerSide, "error", err)
 		return 0, err
 	}
-	
+
 	if playerID == "" {
 		s.logger.Warn("Player ID is empty", "game_id", gameID, "player_side", playerSide)
 		return 0, nil
 	}
-	
+
 	query := `
 		SELECT COUNT(*)
 		FROM hex_markers
 		WHERE game_id = $1 AND hex_id = $2 AND player_id = $3 AND marker_type = $4
 	`
-	
+
 	var count int
 	err = s.db.GetConnection().QueryRow(query, gameID, hexID, playerID, markerType).Scan(&count)
 	if err != nil {
 		s.logger.Warn("Failed to get hex markers count", "game_id", gameID, "hex_id", hexID, "player_side", playerSide, "marker_type", markerType, "error", err)
 		return 0, fmt.Errorf("failed to get hex markers count: %w", err)
 	}
-	
+
 	return count, nil
 }
 
@@ -641,18 +667,18 @@ func (s *SearchService) RemoveAllHexMarkersByType(gameID string, markerType stri
 		DELETE FROM hex_markers
 		WHERE game_id = $1 AND marker_type = $2
 	`
-	
+
 	result, err := s.db.GetConnection().Exec(query, gameID, markerType)
 	if err != nil {
 		s.logger.Error("Failed to remove all hex markers by type", "game_id", gameID, "marker_type", markerType, "error", err)
 		return fmt.Errorf("failed to remove all hex markers by type: %w", err)
 	}
-	
+
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected > 0 {
 		s.logger.Info("Removed all hex markers by type", "game_id", gameID, "marker_type", markerType, "count", rowsAffected)
 	}
-	
+
 	return nil
 }
 
@@ -666,31 +692,30 @@ func (s *SearchService) GetAllMarkersByGameID(gameID string) (map[string]map[str
 		GROUP BY hex_id, marker_type
 		ORDER BY hex_id, marker_type
 	`
-	
+
 	rows, err := s.db.GetConnection().Query(query, gameID)
 	if err != nil {
 		s.logger.Error("Failed to get all markers by game ID", "game_id", gameID, "error", err)
 		return nil, fmt.Errorf("failed to get all markers by game ID: %w", err)
 	}
 	defer rows.Close()
-	
+
 	result := make(map[string]map[string]int)
 	for rows.Next() {
 		var hexID string
 		var markerType string
 		var count int
-		
+
 		if err := rows.Scan(&hexID, &markerType, &count); err != nil {
 			s.logger.Warn("Failed to scan marker", "error", err)
 			continue
 		}
-		
+
 		if result[hexID] == nil {
 			result[hexID] = make(map[string]int)
 		}
 		result[hexID][markerType] = count
 	}
-	
+
 	return result, rows.Err()
 }
-

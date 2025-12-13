@@ -3,11 +3,13 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/database"
 	"bismarck-game/backend/pkg/logger"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
@@ -37,8 +39,6 @@ func (s *TaskForceService) SetGameStateService(gameStateService *GameStateServic
 
 // CreateTaskForce создает новое оперативное соединение
 func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
-	var err error
-
 	// Минимум 2 корабля для создания Task Force (но можно создать пустой TF для последующего добавления юнитов)
 	if len(taskForce.Units) > 0 && len(taskForce.Units) < 2 {
 		return fmt.Errorf("task force must contain at least 2 units")
@@ -134,69 +134,60 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 	taskForce.DetectionLevel = "none"
 	taskForce.IsVisible = true
 
-	query := `
-		INSERT INTO task_forces (
-			game_id, name, owner, nationality, position, speed, units, is_visible, detection_level, last_move_turn, is_activated, is_patrolling
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
-		) RETURNING id, created_at, updated_at`
+	// Проверяем, что gameStateService установлен
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for CreateTaskForce")
+	}
 
-	unitsJSON, _ := json.Marshal(taskForce.Units)
+	// Генерируем ID если не задан
+	if taskForce.ID == "" {
+		taskForce.ID = uuid.New().String()
+	}
 
-	err = s.db.QueryRow(query,
-		taskForce.GameID, taskForce.Name, taskForce.Owner, taskForce.Nationality,
-		taskForce.Position, taskForce.Speed, unitsJSON, taskForce.IsVisible,
-		taskForce.DetectionLevel, taskForce.LastMoveTurn, taskForce.IsActivated, taskForce.IsPatrolling,
-	).Scan(&taskForce.ID, &taskForce.CreatedAt, &taskForce.UpdatedAt)
+	// Устанавливаем временные метки
+	now := time.Now()
+	taskForce.CreatedAt = now
+	taskForce.UpdatedAt = now
 
-	if err != nil {
-		s.logger.Error("Failed to create task force", "error", err)
+	// Создаем Task Force и обновляем юниты в GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(taskForce.GameID, func(model *models.GameModel) error {
+		// Добавляем новый Task Force в модель
+		tfModel := models.ConvertTaskForceToTaskForceModel(taskForce)
+		model.TaskForces[tfModel.ID] = tfModel
+
+		// Обновляем юниты в модели - устанавливаем task_force_id и очищаем позицию
+		for _, unitID := range taskForce.Units {
+			unitModel, exists := model.Units[unitID]
+			if !exists {
+				return fmt.Errorf("unit %s not found in GameModel", unitID)
+			}
+			if unitModel.NavalData == nil {
+				return fmt.Errorf("unit %s is not a naval unit", unitID)
+			}
+
+			// Сохраняем текущее значение NoMovementTurnsLeft перед обновлением
+			noMovementTurnsLeft := unitModel.NavalData.NoMovementTurnsLeft
+
+			// Устанавливаем task_force_id и очищаем позицию
+			unitModel.NavalData.TaskForceID = &taskForce.ID
+			unitModel.Position = "" // Юниты в TF не имеют собственной позиции
+
+			// Восстанавливаем NoMovementTurnsLeft после изменения позиции
+			unitModel.NavalData.NoMovementTurnsLeft = noMovementTurnsLeft
+			unitModel.UpdatedAt = now
+
+			s.logger.Info("Unit added to task force and position cleared",
+				"unit_id", unitID, "unit_name", unitModel.Name, "task_force_id", taskForce.ID,
+				"no_movement_turns_left", unitModel.NavalData.NoMovementTurnsLeft)
+		}
+
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to create task force in GameModel", "error", err)
 		return fmt.Errorf("failed to create task force: %w", err)
 	}
 
-	// Обновляем юниты, добавляя их в Task Force
-	for _, unitID := range taskForce.Units {
-		unit, err := s.unitService.GetNavalUnitByID(unitID)
-		if err != nil {
-			s.logger.Warn("Failed to get unit when adding to task force", "unit_id", unitID, "error", err)
-			continue
-		}
-		if unit != nil {
-			// Сохраняем текущее значение NoMovementTurnsLeft перед обновлением
-			noMovementTurnsLeft := unit.NoMovementTurnsLeft
-			unit.TaskForceID = &taskForce.ID
-			// Обнуляем позицию корабля - теперь он перемещается только с Task Force
-			unit.Position = ""
-			// Восстанавливаем NoMovementTurnsLeft после изменения позиции
-			unit.NoMovementTurnsLeft = noMovementTurnsLeft
-			s.unitService.UpdateNavalUnit(unit)
-			s.logger.Info("Unit added to task force and position cleared",
-				"unit_id", unitID, "unit_name", unit.Name, "task_force_id", taskForce.ID,
-				"no_movement_turns_left", unit.NoMovementTurnsLeft)
-		}
-	}
-
 	s.logger.Info("Created task force", "task_force_id", taskForce.ID, "name", taskForce.Name, "nationality", taskForce.Nationality)
-
-	// Обновляем GameModel после создания Task Force (опционально)
-	if s.gameStateService != nil {
-		if err := s.gameStateService.UpdateGameModelWithRetry(taskForce.GameID, func(model *models.GameModel) error {
-			// Добавляем новый Task Force в модель напрямую
-			tfModel := models.ConvertTaskForceToTaskForceModel(taskForce)
-			model.TaskForces[tfModel.ID] = tfModel
-			// Обновляем юниты в модели - устанавливаем task_force_id и очищаем позицию
-			for _, unitID := range taskForce.Units {
-				if unitModel, exists := model.Units[unitID]; exists && unitModel.NavalData != nil {
-					unitModel.NavalData.TaskForceID = &taskForce.ID
-					unitModel.Position = "" // Юниты в TF не имеют собственной позиции
-				}
-			}
-			return nil
-		}, 3); err != nil {
-			s.logger.Warn("Failed to update GameModel after creating task force", "error", err)
-		}
-	}
-
 	return nil
 }
 

@@ -18,17 +18,17 @@ import (
 
 // MovementService предоставляет методы для работы с движением юнитов
 type MovementService struct {
-	db                  *database.Database
-	logger              *logger.Logger
-	visibilityService   *VisibilityService
-	phaseManager        *PhaseManager
-	unitService         *UnitService
-	hexCalculator       hexgrid.HexCalculator
-	validatorFactory    *validation.ValidatorFactory
-	mapStructureService *MapStructureService
-	eventService        *GameEventService
+	db                   *database.Database
+	logger               *logger.Logger
+	visibilityService    *VisibilityService
+	phaseManager         *PhaseManager
+	unitService          *UnitService
+	hexCalculator        hexgrid.HexCalculator
+	validatorFactory     *validation.ValidatorFactory
+	mapStructureService  *MapStructureService
+	eventService         *GameEventService
 	emergencyFuelService *EmergencyFuelService
-	gameService         *GameService
+	gameService          *GameService
 }
 
 // NewMovementService создает новый сервис движения
@@ -37,17 +37,17 @@ func NewMovementService(db *database.Database, logger *logger.Logger, visibility
 	validatorFactory := validation.NewValidatorFactory(hexCalculator)
 
 	return &MovementService{
-		db:                  db,
-		logger:              logger,
-		visibilityService:   visibilityService,
-		phaseManager:        phaseManager,
-		unitService:         unitService,
-		hexCalculator:       hexCalculator,
-		validatorFactory:    validatorFactory,
-		mapStructureService: mapStructureService,
-		eventService:        eventService,
+		db:                   db,
+		logger:               logger,
+		visibilityService:    visibilityService,
+		phaseManager:         phaseManager,
+		unitService:          unitService,
+		hexCalculator:        hexCalculator,
+		validatorFactory:     validatorFactory,
+		mapStructureService:  mapStructureService,
+		eventService:         eventService,
 		emergencyFuelService: emergencyFuelService,
-		gameService:         gameService,
+		gameService:          gameService,
 	}
 }
 
@@ -255,20 +255,14 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 		if err := s.emergencyFuelService.ActivateIfNeeded(unit.GameID, unit.ID, fuelTracking.CurrentFuel); err != nil {
 			s.logger.Warn("Failed to activate emergency fuel", "error", err, "unit_id", unit.ID)
 		}
-		// Получаем обновленный статус аварийного топлива из БД
-		query := `SELECT is_emergency_fuel, emergency_turn FROM naval_units WHERE id = $1 AND game_id = $2`
-		var isEmergencyFuel bool
-		var emergencyTurn sql.NullInt64
-		err := s.db.QueryRow(query, unit.ID, unit.GameID).Scan(&isEmergencyFuel, &emergencyTurn)
+		// Получаем обновленный статус аварийного топлива из GameModel через UnitService
+		// (старые таблицы удалены)
+		updatedUnit, err := s.unitService.GetNavalUnitByID(unit.ID)
 		if err == nil {
-			fuelTracking.IsEmergencyFuel = isEmergencyFuel
-			if emergencyTurn.Valid {
-				fuelTracking.EmergencyTurn = int(emergencyTurn.Int64)
-			}
-			unit.IsEmergencyFuel = isEmergencyFuel
-			if emergencyTurn.Valid {
-				unit.EmergencyTurn = int(emergencyTurn.Int64)
-			}
+			fuelTracking.IsEmergencyFuel = updatedUnit.IsEmergencyFuel
+			fuelTracking.EmergencyTurn = updatedUnit.EmergencyTurn
+			unit.IsEmergencyFuel = updatedUnit.IsEmergencyFuel
+			unit.EmergencyTurn = updatedUnit.EmergencyTurn
 		}
 	}
 
@@ -386,26 +380,24 @@ func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTr
 	}, nil
 }
 
+// updateFuelTracking обновляет информацию о топливе
+// Теперь работает только с GameModel (старые таблицы удалены)
+// Топливо обновляется через UnitService.UpdateNavalUnit, который работает с GameModel
 func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) error {
-	// Обновляем топливо в базе данных
-	query := `
-		UPDATE naval_units SET
-			fuel = $1,
-			is_emergency_fuel = $2,
-			emergency_turn = $3,
-			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $4 AND game_id = $5`
-
-	_, err := s.db.Exec(query,
-		fuelTracking.CurrentFuel,
-		fuelTracking.IsEmergencyFuel,
-		fuelTracking.EmergencyTurn,
-		fuelTracking.UnitID,
-		fuelTracking.GameID,
-	)
-
+	// Получаем юнит и обновляем его через UnitService
+	unit, err := s.unitService.GetNavalUnitByID(fuelTracking.UnitID)
 	if err != nil {
-		s.logger.Error("Failed to update fuel tracking", "error", err, "unit_id", fuelTracking.UnitID)
+		return fmt.Errorf("failed to get unit: %w", err)
+	}
+
+	// Обновляем топливо
+	unit.Fuel = fuelTracking.CurrentFuel
+	unit.IsEmergencyFuel = fuelTracking.IsEmergencyFuel
+	unit.EmergencyTurn = fuelTracking.EmergencyTurn
+
+	// Обновляем через UnitService (который работает с GameModel)
+	if err := s.unitService.UpdateNavalUnit(unit); err != nil {
+		s.logger.Error("Failed to update fuel tracking via UnitService", "error", err, "unit_id", fuelTracking.UnitID)
 		return fmt.Errorf("failed to update fuel tracking: %w", err)
 	}
 
@@ -417,31 +409,15 @@ func (s *MovementService) updateFuelTracking(fuelTracking *models.FuelTracking) 
 	return nil
 }
 
-
+// saveMovement сохраняет движение
+// Теперь работает только с GameModel (старые таблицы удалены)
+// Движения логируются через GameEventService, который сохраняет события в GameModel
 func (s *MovementService) saveMovement(movement *models.Movement) error {
-	// Сохраняем движение в базе данных
-	query := `
-		INSERT INTO movements (
-			id, game_id, unit_id, from_hex, to_hex, path, fuel_cost, 
-			hexes_moved, movement_type, turn, phase, created_at, updated_at
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
-		)`
+	// Движения больше не сохраняются в отдельную таблицу movements
+	// Они логируются через GameEventService.LogMovementEvent, который сохраняет события в GameModel
+	// Это упрощает архитектуру и устраняет дублирование данных
 
-	pathJSON, _ := json.Marshal(movement.Path)
-
-	_, err := s.db.Exec(query,
-		movement.ID, movement.GameID, movement.UnitID, movement.FromHex, movement.ToHex,
-		pathJSON, movement.FuelCost, movement.HexesMoved, movement.MovementType,
-		movement.Turn, movement.Phase, movement.CreatedAt, movement.UpdatedAt,
-	)
-
-	if err != nil {
-		s.logger.Error("Failed to save movement", "error", err, "movement_id", movement.ID)
-		return fmt.Errorf("failed to save movement: %w", err)
-	}
-
-	s.logger.Info("Movement saved", "movement_id", movement.ID, "unit_id", movement.UnitID)
+	s.logger.Info("Movement recorded (via GameEvent)", "movement_id", movement.ID, "unit_id", movement.UnitID)
 	return nil
 }
 
@@ -456,7 +432,6 @@ func (s *MovementService) notifyPlayersAboutMovement(unit *models.NavalUnit, mov
 		"unit_id", unit.ID,
 		"movement_id", movement.ID)
 }
-
 
 // CalculateDistance публичный метод для расчета расстояния
 func (s *MovementService) CalculateDistance(fromHex, toHex string) int {

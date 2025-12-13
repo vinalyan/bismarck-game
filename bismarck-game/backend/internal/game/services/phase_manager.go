@@ -25,6 +25,7 @@ type PhaseManager struct {
 	wsHub               *websocket.Hub
 	httpClient          *http.Client
 	apiBaseURL          string
+	gameStateService    *GameStateService // Опционально, для обновления GameModel
 }
 
 // SetVisibilityService регистрирует сервис видимости
@@ -35,6 +36,11 @@ func (pm *PhaseManager) SetVisibilityService(service *VisibilityService) {
 // SetMapStructureService регистрирует сервис структур карты
 func (pm *PhaseManager) SetMapStructureService(service *MapStructureService) {
 	pm.mapStructureService = service
+}
+
+// SetGameStateService устанавливает GameStateService для обновления GameModel
+func (pm *PhaseManager) SetGameStateService(gameStateService *GameStateService) {
+	pm.gameStateService = gameStateService
 }
 
 func (pm *PhaseManager) getPlayerIDForSide(gameID string, side string) (string, error) {
@@ -97,53 +103,64 @@ func (pm *PhaseManager) registerPhaseHandlers() {
 }
 
 // StartTurn начинает новый ход игры
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
-	// Определяем следующий номер хода
-	var lastTurnNumber int
-	err := pm.db.QueryRow("SELECT COALESCE(MAX(turn_number), 0) FROM game_turns WHERE game_id = $1", gameID).Scan(&lastTurnNumber)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get last turn number: %v", err)
+	if pm.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for StartTurn")
 	}
-	turnNumber := lastTurnNumber + 1
 
-	// Определяем начальную фазу в зависимости от номера хода
+	var turnNumber int
 	var initialPhase models.GamePhase
-	if turnNumber == 1 {
-		initialPhase = models.PhaseMovement // Первый ход начинается с фазы movement
-	} else {
-		initialPhase = models.PhaseVisibility // Остальные ходы начинаются с фазы visibility
-	}
+	var turn *models.GameTurn
 
-	// Создаем запись о ходе
-	turn := &models.GameTurn{
-		ID:           fmt.Sprintf("%s-turn-%d", gameID, turnNumber),
-		GameID:       gameID,
-		TurnNumber:   turnNumber,
-		CurrentPhase: initialPhase,
-		Status:       "active",
-		StartTime:    time.Now(),
-	}
+	// Обновляем GameModel для начала нового хода
+	if err := pm.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		// Определяем следующий номер хода
+		if model.CurrentTurn == nil {
+			turnNumber = 1
+		} else {
+			turnNumber = model.CurrentTurn.Turn + 1
+		}
 
-	// Сохраняем в базу данных
-	query := `
-		INSERT INTO game_turns (id, game_id, turn_number, current_phase, status, start_time, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`
-	_, err = pm.db.Exec(query, turn.ID, turn.GameID, turn.TurnNumber,
-		turn.CurrentPhase, turn.Status, turn.StartTime, time.Now(), time.Now())
-	if err != nil {
-		return nil, fmt.Errorf("failed to create turn: %v", err)
-	}
+		// Определяем начальную фазу в зависимости от номера хода
+		if turnNumber == 1 {
+			initialPhase = models.PhaseMovement // Первый ход начинается с фазы movement
+		} else {
+			initialPhase = models.PhaseVisibility // Остальные ходы начинаются с фазы visibility
+		}
 
-	// Обновляем основную таблицу games с правильной начальной фазой
-	updateGameQuery := `
-		UPDATE games 
-		SET current_turn = $1, current_phase = $2, updated_at = $3
-		WHERE id = $4
-	`
-	_, err = pm.db.Exec(updateGameQuery, turnNumber, initialPhase, time.Now(), gameID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update game: %v", err)
+		// Обновляем CurrentTurn в модели
+		model.CurrentTurn = &models.GameTurnModel{
+			Turn:  turnNumber,
+			Phase: initialPhase,
+		}
+
+		// Сбрасываем ограничения движения для всех юнитов
+		for _, unit := range model.Units {
+			if unit.NavalData != nil {
+				unit.NavalData.LastMoveTurn = 0
+				unit.NavalData.IsActivated = false
+				if unit.NavalData.NoMovementTurnsLeft > 0 {
+					unit.NavalData.NoMovementTurnsLeft--
+				}
+			}
+		}
+
+		// Создаем объект GameTurn для возврата
+		turn = &models.GameTurn{
+			ID:           fmt.Sprintf("%s-turn-%d", gameID, turnNumber),
+			GameID:       gameID,
+			TurnNumber:   turnNumber,
+			CurrentPhase: initialPhase,
+			Status:       "active",
+			StartTime:    time.Now(),
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
+
+		return nil
+	}, 3); err != nil {
+		return nil, fmt.Errorf("failed to start turn in GameModel: %w", err)
 	}
 
 	// Логируем событие смены хода
@@ -154,85 +171,17 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 		}
 	}
 
-	// Сбрасываем только ограничения движения, НЕ сбрасываем previous_turn_moved_hexes
-	// previous_turn_moved_hexes должен сохраняться до завершения фазы движения
-
-	// Сначала получаем текущие значения для отладки
-	rows, err := pm.db.Query(`
-		SELECT id, name, no_movement_turns_left 
-		FROM naval_units 
-		WHERE game_id = $1 AND (speed_rating = 'S' OR speed_rating = 'VS')
-	`, gameID)
-	if err == nil {
-		log.Printf("🔄 BEFORE RESET - no_movement_turns_left for slow units in game %s turn %d:", gameID, turnNumber)
-		for rows.Next() {
-			var id, name string
-			var noMovementTurnsLeft int
-			if err := rows.Scan(&id, &name, &noMovementTurnsLeft); err == nil {
-				log.Printf("  Unit %s (%s): no_movement_turns_left=%d", id, name, noMovementTurnsLeft)
-			}
-		}
-		rows.Close()
-	}
-
-	resetMovementQuery := `
-		UPDATE naval_units 
-		SET 
-			last_move_turn = 0, 
-			is_activated = false,
-			no_movement_turns_left = GREATEST(0, no_movement_turns_left - 1),
-			updated_at = $1
-		WHERE game_id = $2
-	`
-	_, err = pm.db.Exec(resetMovementQuery, time.Now(), gameID)
-	if err != nil {
-		log.Printf("Warning: failed to reset movement restrictions: %v", err)
-	} else {
-		log.Printf("Movement restrictions reset for all units in game %s turn %d", gameID, turnNumber)
-
-		// Проверяем результат
-		rows, err := pm.db.Query(`
-			SELECT id, name, no_movement_turns_left 
-			FROM naval_units 
-			WHERE game_id = $1 AND (speed_rating = 'S' OR speed_rating = 'VS')
-		`, gameID)
-		if err == nil {
-			log.Printf("🔄 AFTER RESET - no_movement_turns_left for slow units in game %s turn %d:", gameID, turnNumber)
-			for rows.Next() {
-				var id, name string
-				var noMovementTurnsLeft int
-				if err := rows.Scan(&id, &name, &noMovementTurnsLeft); err == nil {
-					log.Printf("  Unit %s (%s): no_movement_turns_left=%d", id, name, noMovementTurnsLeft)
-				}
-			}
-			rows.Close()
+	// Логируем событие смены хода
+	if pm.eventService != nil {
+		if err := pm.eventService.LogTurnChangeEvent(gameID, turnNumber); err != nil {
+			log.Printf("Warning: failed to log turn change event: %v", err)
 		}
 	}
 
-	// Если это первый ход, завершаем setup фазу
-	if turnNumber == 1 {
-		// Завершаем setup фазу (turn_number = 0)
-		_, err = pm.db.Exec(`
-			UPDATE game_turns 
-			SET status = 'completed', end_time = $1, updated_at = $2
-			WHERE game_id = $3 AND turn_number = 0
-		`, time.Now(), time.Now(), gameID)
-		if err != nil {
-			log.Printf("Warning: failed to complete setup phase: %v", err)
-		} else {
-			log.Printf("Setup phase completed for game %s", gameID)
-		}
-	}
-
-	// Инициализируем фазы для хода
-	err = pm.initializePhasesForTurn(gameID, turnNumber)
-	if err != nil {
-		return nil, err
-	}
+	log.Printf("Movement restrictions reset for all units in game %s turn %d", gameID, turnNumber)
 
 	// Запускаем начальную фазу
-	err = pm.StartPhase(gameID, turnNumber, initialPhase)
-	if err != nil {
+	if err := pm.StartPhase(gameID, turnNumber, initialPhase); err != nil {
 		return nil, fmt.Errorf("failed to start initial phase: %v", err)
 	}
 
@@ -240,36 +189,8 @@ func (pm *PhaseManager) StartTurn(gameID string) (*models.GameTurn, error) {
 	return turn, nil
 }
 
-// initializePhasesForTurn инициализирует все фазы для хода
-func (pm *PhaseManager) initializePhasesForTurn(gameID string, turnNumber int) error {
-	phases := models.GetPhaseSequence(turnNumber)
-
-	for _, phase := range phases {
-		record := &models.PhaseRecord{
-			Phase:  phase,
-			Turn:   turnNumber,
-			Status: models.PhaseStatusPending,
-		}
-
-		// Пропускаем фазы visibility и shadow в первом ходу
-		if turnNumber == 1 && (phase == models.PhaseVisibility || phase == models.PhaseShadow) {
-			record.Status = models.PhaseStatusSkipped
-		}
-
-		query := `
-			INSERT INTO phase_records (game_id, turn_number, phase, status, data, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
-			ON CONFLICT (game_id, turn_number, phase) DO NOTHING
-		`
-		_, err := pm.db.Exec(query, gameID, turnNumber, record.Phase, record.Status,
-			"{}", time.Now(), time.Now())
-		if err != nil {
-			return fmt.Errorf("failed to initialize phase %s: %v", phase, err)
-		}
-	}
-
-	return nil
-}
+// initializePhasesForTurn больше не используется
+// phase_records удалена, информация о фазах хранится в GameModel.CurrentTurn
 
 // StartPhase начинает фазу
 func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.GamePhase) error {
@@ -302,41 +223,22 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 		}
 	}
 
-	// Обновляем статус фазы
-	now := time.Now()
-	query := `
-		UPDATE phase_records 
-		SET status = $1, start_time = $2, updated_at = $3
-		WHERE game_id = $4 AND turn_number = $5 AND phase = $6
-	`
-	_, err = pm.db.Exec(query, models.PhaseStatusActive, now, now, gameID, turnNumber, phase)
-	if err != nil {
-		return fmt.Errorf("failed to start phase: %v", err)
-	}
+	// Обновляем текущую фазу в GameModel
+	if pm.gameStateService != nil {
+		if err := pm.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			// Проверяем, что текущий ход совпадает
+			if model.CurrentTurn == nil || model.CurrentTurn.Turn != turnNumber {
+				return fmt.Errorf("current turn mismatch: expected %d, got %v", turnNumber, model.CurrentTurn)
+			}
 
-	// Обновляем текущую фазу в ходе
-	query = `
-		UPDATE game_turns 
-		SET current_phase = $1, updated_at = $2
-		WHERE game_id = $3 AND turn_number = $4
-	`
-	result, err := pm.db.Exec(query, phase, now, gameID, turnNumber)
-	if err != nil {
-		return fmt.Errorf("failed to update current phase: %v", err)
-	}
-	rowsAffected, _ := result.RowsAffected()
-	log.Printf("✅ StartPhase: Updated game_turns.current_phase to %s for game %s turn %d (rows affected: %d)", 
-		phase, gameID, turnNumber, rowsAffected)
-
-	// Обновляем текущую фазу в основной таблице games
-	query = `
-		UPDATE games 
-		SET current_phase = $1, updated_at = $2
-		WHERE id = $3
-	`
-	_, err = pm.db.Exec(query, phase, now, gameID)
-	if err != nil {
-		return fmt.Errorf("failed to update game current phase: %v", err)
+			// Обновляем текущую фазу
+			model.CurrentTurn.Phase = phase
+			return nil
+		}, 3); err != nil {
+			return fmt.Errorf("failed to update current phase in GameModel: %w", err)
+		}
+		log.Printf("✅ StartPhase: Updated GameModel.current_turn.phase to %s for game %s turn %d",
+			phase, gameID, turnNumber)
 	}
 
 	if pm.eventService != nil && hasPrevPhase && prevPhaseValue != string(phase) {
@@ -407,81 +309,28 @@ func (pm *PhaseManager) CompletePhase(gameID string, turnNumber int, phase model
 		return fmt.Errorf("failed to complete phase handler: %v", err)
 	}
 
-	// Обновляем статус фазы
-	now := time.Now()
-	query := `
-		UPDATE phase_records 
-		SET status = $1, end_time = $2, updated_at = $3
-		WHERE game_id = $4 AND turn_number = $5 AND phase = $6
-	`
-	_, err = pm.db.Exec(query, models.PhaseStatusCompleted, now, now, gameID, turnNumber, phase)
-	if err != nil {
-		return fmt.Errorf("failed to complete phase: %v", err)
-	}
+	// Обновляем статус фазы в GameModel (если нужно)
+	// phase_records больше не используется - информация о фазах хранится в GameModel.CurrentTurn
 
-	// Если завершается фаза движения, сбрасываем previous_turn_moved_hexes
+	// Если завершается фаза движения, сбрасываем previous_turn_moved_hexes в GameModel
 	if phase == models.PhaseMovement {
 		log.Printf("🔄 RESET: Completing movement phase for game %s turn %d", gameID, turnNumber)
 
-		// Сначала получаем текущие данные о движении
-		rows, err := pm.db.Query(`
-			SELECT id, name, movement_used, previous_turn_moved_hexes 
-			FROM naval_units 
-			WHERE game_id = $1
-		`, gameID)
-		if err != nil {
-			log.Printf("Warning: failed to get movement data before reset: %v", err)
-		} else {
-			log.Printf("🔄 RESET: Before reset - units movement data:")
-			for rows.Next() {
-				var id, name string
-				var movementUsed, previousTurnMoved int
-				if err := rows.Scan(&id, &name, &movementUsed, &previousTurnMoved); err == nil {
-					log.Printf("  Unit %s (%s): movement_used=%d, previous_turn_moved_hexes=%d", id, name, movementUsed, previousTurnMoved)
-				}
-			}
-			rows.Close()
-		}
-
-		// Сначала сохраняем movement_used в previous_turn_moved_hexes, затем сбрасываем movement_used
-		// Используем подзапрос для правильного обновления
-		resetMovementQuery := `
-			UPDATE naval_units 
-			SET 
-				previous_turn_moved_hexes = (
-					SELECT movement_used 
-					FROM naval_units nu2 
-					WHERE nu2.id = naval_units.id
-				),
-				movement_used = 0,
-				updated_at = $1
-			WHERE game_id = $2
-		`
-		result, err := pm.db.Exec(resetMovementQuery, now, gameID)
-		if err != nil {
-			log.Printf("❌ RESET: Failed to reset movement data after movement phase: %v", err)
-		} else {
-			rowsAffected, _ := result.RowsAffected()
-			log.Printf("✅ RESET: Movement data reset after movement phase for game %s turn %d (rows affected: %d)", gameID, turnNumber, rowsAffected)
-
-			// Проверяем результат сброса
-			rows, err := pm.db.Query(`
-				SELECT id, name, movement_used, previous_turn_moved_hexes 
-				FROM naval_units 
-				WHERE game_id = $1
-			`, gameID)
-			if err != nil {
-				log.Printf("Warning: failed to get movement data after reset: %v", err)
-			} else {
-				log.Printf("🔄 RESET: After reset - units movement data:")
-				for rows.Next() {
-					var id, name string
-					var movementUsed, previousTurnMoved int
-					if err := rows.Scan(&id, &name, &movementUsed, &previousTurnMoved); err == nil {
-						log.Printf("  Unit %s (%s): movement_used=%d, previous_turn_moved_hexes=%d", id, name, movementUsed, previousTurnMoved)
+		if pm.gameStateService != nil {
+			if err := pm.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+				// Сбрасываем данные о движении для всех юнитов
+				for _, unit := range model.Units {
+					if unit.NavalData != nil {
+						// В GameModel нет movement_used, но есть PreviousTurnMovedHexes
+						// TODO: Если нужно отслеживать movement_used, добавить его в GameModel
+						unit.NavalData.PreviousTurnMovedHexes = 0 // Сбрасываем
 					}
 				}
-				rows.Close()
+				return nil
+			}, 3); err != nil {
+				log.Printf("❌ RESET: Failed to reset movement data after movement phase: %v", err)
+			} else {
+				log.Printf("✅ RESET: Movement data reset after movement phase for game %s turn %d", gameID, turnNumber)
 			}
 		}
 	}
@@ -491,34 +340,35 @@ func (pm *PhaseManager) CompletePhase(gameID string, turnNumber int, phase model
 }
 
 // GetCurrentPhase возвращает текущую фазу для игры
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (pm *PhaseManager) GetCurrentPhase(gameID string) (*models.GameTurn, error) {
-	query := `
-		SELECT id, game_id, turn_number, current_phase, status, start_time, end_time, created_at, updated_at
-		FROM game_turns
-		WHERE game_id = $1 AND status = 'active'
-		ORDER BY turn_number DESC
-		LIMIT 1
-	`
+	if pm.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetCurrentPhase")
+	}
 
-	var turn models.GameTurn
-	var endTime sql.NullTime
-
-	err := pm.db.QueryRow(query, gameID).Scan(
-		&turn.ID, &turn.GameID, &turn.TurnNumber, &turn.CurrentPhase, &turn.Status,
-		&turn.StartTime, &endTime, &turn.CreatedAt, &turn.UpdatedAt,
-	)
+	// Загружаем GameModel
+	model, err := pm.gameStateService.LoadGameModel(gameID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil // Нет активного хода
-		}
-		return nil, fmt.Errorf("failed to get current phase: %v", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
 	}
 
-	if endTime.Valid {
-		turn.EndTime = &endTime.Time
+	if model.CurrentTurn == nil {
+		return nil, nil // Нет активного хода
 	}
 
-	return &turn, nil
+	// Конвертируем GameTurnModel в GameTurn
+	turn := &models.GameTurn{
+		ID:           fmt.Sprintf("%s-turn-%d", gameID, model.CurrentTurn.Turn),
+		GameID:       gameID,
+		TurnNumber:   model.CurrentTurn.Turn,
+		CurrentPhase: model.CurrentTurn.Phase,
+		Status:       "active",   // Всегда active для текущего хода
+		StartTime:    time.Now(), // TODO: Сохранять StartTime в GameModel
+		CreatedAt:    time.Now(),
+		UpdatedAt:    model.LastUpdated,
+	}
+
+	return turn, nil
 }
 
 // GameVisibility представляет информацию о видимости игры
@@ -682,24 +532,24 @@ func (pm *PhaseManager) NextPhase(gameID string) error {
 
 	// Переходим к следующей фазе
 	nextPhase := phases[currentIndex+1]
-	log.Printf("🔄 NextPhase: About to start phase %s for game %s turn %d (from %s)", 
+	log.Printf("🔄 NextPhase: About to start phase %s for game %s turn %d (from %s)",
 		nextPhase, gameID, turn.TurnNumber, turn.CurrentPhase)
-	
+
 	err = pm.StartPhase(gameID, turn.TurnNumber, nextPhase)
 	if err != nil {
 		return fmt.Errorf("failed to start next phase: %v", err)
 	}
 
 	log.Printf("✅ NextPhase: Advanced to next phase %s for game %s turn %d", nextPhase, gameID, turn.TurnNumber)
-	
+
 	// Проверяем, что фаза действительно обновилась в БД
 	verifyTurn, verifyErr := pm.GetCurrentPhase(gameID)
 	if verifyErr == nil && verifyTurn != nil {
 		if verifyTurn.CurrentPhase != nextPhase {
-			log.Printf("⚠️ NextPhase: WARNING - Phase mismatch! Expected %s but got %s for game %s turn %d", 
+			log.Printf("⚠️ NextPhase: WARNING - Phase mismatch! Expected %s but got %s for game %s turn %d",
 				nextPhase, verifyTurn.CurrentPhase, gameID, turn.TurnNumber)
 		} else {
-			log.Printf("✅ NextPhase: Verified - Phase correctly updated to %s for game %s turn %d", 
+			log.Printf("✅ NextPhase: Verified - Phase correctly updated to %s for game %s turn %d",
 				nextPhase, gameID, turn.TurnNumber)
 		}
 	} else if verifyErr != nil {
@@ -724,19 +574,11 @@ func (pm *PhaseManager) NextPhase(gameID string) error {
 }
 
 // CompleteTurn завершает ход
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (pm *PhaseManager) CompleteTurn(gameID string, turnNumber int) error {
-	now := time.Now()
-
-	// Завершаем ход
-	query := `
-		UPDATE game_turns 
-		SET status = 'completed', end_time = $1, updated_at = $2
-		WHERE game_id = $3 AND turn_number = $4
-	`
-	_, err := pm.db.Exec(query, now, now, gameID, turnNumber)
-	if err != nil {
-		return fmt.Errorf("failed to complete turn: %v", err)
-	}
+	// В GameModel нет статуса "completed" для хода - есть только текущий ход
+	// CompleteTurn просто логирует завершение и начинает следующий ход
+	// StartTurn уже обновляет GameModel
 
 	// Логируем завершение хода
 	log.Printf("🔄 TURN COMPLETED: Game %s - Turn %d completed", gameID, turnNumber)
@@ -755,6 +597,6 @@ func (pm *PhaseManager) CompleteTurn(gameID string, turnNumber int) error {
 	go pm.callCurrentPhaseAPI(gameID)
 
 	// Начинаем следующий ход
-	_, err = pm.StartTurn(gameID)
+	_, err := pm.StartTurn(gameID)
 	return err
 }

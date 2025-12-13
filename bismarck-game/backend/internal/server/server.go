@@ -242,6 +242,12 @@ func (s *Server) setupRoutes() {
 	unitService.SetGameStateService(gameStateService)
 	taskForceService.SetGameStateService(gameStateService)
 
+	// Устанавливаем GameStateService в SearchService для обновления GameModel при работе с маркерами
+	searchService.SetGameStateService(gameStateService)
+
+	// Устанавливаем GameStateService в PhaseManager для обновления GameModel при смене фаз
+	phaseManager.SetGameStateService(gameStateService)
+
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	gameHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
