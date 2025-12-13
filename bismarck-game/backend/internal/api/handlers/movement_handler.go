@@ -309,9 +309,11 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 		if h.gameStateService != nil {
 			model, err := h.gameStateService.LoadGameModel(gameID)
 			if err == nil {
-				h.gameStateService.UpdateGameModel(gameID, model)
+				if updateErr := h.gameStateService.UpdateGameModel(gameID, model); updateErr != nil {
+					h.logger.Warn("Failed to update GameModel after Task Force movement", "error", updateErr)
+				}
 			} else {
-				h.logger.Warn("Failed to update GameModel after Task Force movement", "error", err)
+				h.logger.Warn("Failed to load GameModel after Task Force movement", "error", err)
 			}
 		}
 
@@ -361,9 +363,11 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	if h.gameStateService != nil {
 		model, err := h.gameStateService.LoadGameModel(gameID)
 		if err == nil {
-			h.gameStateService.UpdateGameModel(gameID, model)
+			if updateErr := h.gameStateService.UpdateGameModel(gameID, model); updateErr != nil {
+				h.logger.Warn("Failed to update GameModel after movement", "error", updateErr)
+			}
 		} else {
-			h.logger.Warn("Failed to update GameModel after movement", "error", err)
+			h.logger.Warn("Failed to load GameModel after movement", "error", err)
 		}
 	}
 

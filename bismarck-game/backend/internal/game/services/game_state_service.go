@@ -518,38 +518,3 @@ func (s *GameStateService) GetGameModelForPlayer(gameID string, playerID string)
 	// Фильтрация по видимости будет добавлена позже
 	return s.LoadGameModel(gameID)
 }
-
-// InvalidateGameModel инвалидирует кэш GameModel для указанной игры
-// Удаляет модель из памяти и Redis, чтобы при следующем запросе она была перезагружена из БД
-func (s *GameStateService) InvalidateGameModel(gameID string) {
-	// Удаляем из памяти
-	s.memoryCacheMutex.Lock()
-	delete(s.memoryCache, gameID)
-	s.memoryCacheMutex.Unlock()
-
-	// Удаляем из Redis
-	key := fmt.Sprintf("game_model:%s", gameID)
-	if err := s.redis.DeleteCache(key); err != nil {
-		s.logger.Warn("Failed to delete GameModel from Redis", "game_id", gameID, "error", err)
-	} else {
-		s.logger.Debug("GameModel invalidated", "game_id", gameID)
-	}
-}
-
-// UpdateGameModel обновляет GameModel в кэше (память и Redis)
-func (s *GameStateService) UpdateGameModel(gameID string, model *models.GameModel) {
-	// Обновляем версию
-	model.Version++
-	model.LastUpdated = time.Now()
-
-	// Сохраняем в память
-	s.saveToMemory(gameID, model)
-
-	// Сохраняем в Redis
-	if err := s.saveToRedis(gameID, model); err != nil {
-		s.logger.Warn("Failed to save GameModel to Redis", "game_id", gameID, "error", err)
-	}
-
-	// Отправляем WebSocket уведомление
-	s.sendWebSocketUpdate(gameID, model)
-}
