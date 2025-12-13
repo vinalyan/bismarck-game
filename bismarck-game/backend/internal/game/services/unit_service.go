@@ -172,33 +172,50 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 }
 
 // GetNavalUnitByID возвращает морской юнит по ID
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) GetNavalUnitByID(unitID string) (*models.NavalUnit, error) {
-	query := BuildNavalUnitSelectQuery(
-		[]string{}, // без дополнительных полей
-		"WHERE id = $1",
-	)
-
-	rows, err := s.db.Query(query, unitID)
-	if err != nil {
-		s.logger.Error("Failed to get naval unit", "unit_id", unitID, "error", err)
-		return nil, fmt.Errorf("failed to get naval unit: %w", err)
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetNavalUnitByID")
 	}
-	defer rows.Close()
 
-	if !rows.Next() {
-		if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("failed to get naval unit: %w", err)
-		}
+	// Ищем юнит во всех играх (так как у нас нет gameID)
+	// Для этого нужно перебрать все игры или добавить gameID в параметры
+	// Пока используем упрощенный подход: ищем в последней загруженной игре
+	// TODO: Добавить gameID в параметры метода или создать индекс для быстрого поиска
+
+	// Временное решение: ищем юнит через GameModel
+	// Для этого нужно знать gameID, но его нет в параметрах
+	// Поэтому возвращаем ошибку, если gameID не указан
+	return nil, fmt.Errorf("GetNavalUnitByID requires gameID - use GetNavalUnitByIDFromGameModel instead")
+}
+
+// GetNavalUnitByIDFromGameModel возвращает морской юнит по ID из GameModel
+func (s *UnitService) GetNavalUnitByIDFromGameModel(gameID, unitID string) (*models.NavalUnit, error) {
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetNavalUnitByIDFromGameModel")
+	}
+
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Ищем юнит в модели
+	unitModel, exists := model.Units[unitID]
+	if !exists {
 		return nil, fmt.Errorf("naval unit not found")
 	}
 
-	unit, err := ScanNavalUnitFromRow(rows, false, true, true) // includeCategory=false, useNullableDetectionLevel=true, useNullableEmergencyTurn=true
+	// Конвертируем UnitModel в NavalUnit
+	navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
 	if err != nil {
-		s.logger.Error("Failed to scan naval unit", "unit_id", unitID, "error", err)
-		return nil, fmt.Errorf("failed to get naval unit: %w", err)
+		s.logger.Error("Failed to convert UnitModel to NavalUnit", "unit_id", unitID, "error", err)
+		return nil, fmt.Errorf("failed to convert unit: %w", err)
 	}
 
-	return unit, nil
+	return navalUnit, nil
 }
 
 // GetAirUnitsByGameID возвращает все воздушные юниты игры

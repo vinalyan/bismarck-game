@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -290,6 +291,61 @@ func ConvertEnemyContactToEnemyContactModel(contact *EnemyContact) *EnemyContact
 		Phase:            contact.Phase,
 		LastSeenAt:       contact.LastSeenAt,
 	}
+}
+
+// ConvertUnitModelToNavalUnit конвертирует UnitModel в NavalUnit
+func ConvertUnitModelToNavalUnit(unitModel *UnitModel) (*NavalUnit, error) {
+	if unitModel.Category != UnitCategoryNaval {
+		return nil, fmt.Errorf("unit is not a naval unit")
+	}
+	if unitModel.NavalData == nil {
+		return nil, fmt.Errorf("naval data is missing")
+	}
+
+	navalUnit := &NavalUnit{
+		ID:                       unitModel.ID,
+		GameID:                   unitModel.GameID,
+		Name:                     unitModel.Name,
+		Type:                     unitModel.Type,
+		Category:                 unitModel.Category,
+		Class:                    unitModel.NavalData.Class,
+		Owner:                    unitModel.Owner,
+		Nationality:              unitModel.Nationality,
+		Position:                 unitModel.Position,
+		SetupHex:                 unitModel.NavalData.SetupHex,
+		Evasion:                  unitModel.NavalData.Evasion,
+		BaseEvasion:              unitModel.NavalData.BaseEvasion,
+		SpeedRating:              unitModel.NavalData.SpeedRating,
+		Fuel:                     unitModel.NavalData.Fuel,
+		MaxFuel:                  unitModel.NavalData.MaxFuel,
+		HullBoxes:                unitModel.NavalData.HullBoxes,
+		CurrentHull:              unitModel.NavalData.CurrentHull,
+		PrimaryArmamentBow:       unitModel.NavalData.PrimaryArmamentBow,
+		PrimaryArmamentStern:     unitModel.NavalData.PrimaryArmamentStern,
+		SecondaryArmament:        unitModel.NavalData.SecondaryArmament,
+		BasePrimaryArmamentBow:   unitModel.NavalData.BasePrimaryArmamentBow,
+		BasePrimaryArmamentStern: unitModel.NavalData.BasePrimaryArmamentStern,
+		BaseSecondaryArmament:    unitModel.NavalData.BaseSecondaryArmament,
+		Torpedoes:                unitModel.NavalData.Torpedoes,
+		MaxTorpedoes:             unitModel.NavalData.MaxTorpedoes,
+		RadarLevel:               unitModel.NavalData.RadarLevel,
+		Status:                   UnitStatus(unitModel.Status),
+		DetectionLevel:           unitModel.NavalData.DetectionLevel,
+		LastKnownPos:             unitModel.NavalData.LastKnownPos,
+		TaskForceID:              unitModel.NavalData.TaskForceID,
+		Damage:                   unitModel.NavalData.Damage,
+		PreviousTurnMovedHexes:   unitModel.NavalData.PreviousTurnMovedHexes,
+		LastMoveTurn:             unitModel.NavalData.LastMoveTurn,
+		NoMovementTurnsLeft:      unitModel.NavalData.NoMovementTurnsLeft,
+		IsActivated:              unitModel.NavalData.IsActivated,
+		IsEmergencyFuel:          unitModel.NavalData.IsEmergencyFuel,
+		EmergencyTurn:            unitModel.NavalData.EmergencyTurn,
+		IsPatrolling:             unitModel.NavalData.IsPatrolling,
+		CreatedAt:                unitModel.CreatedAt,
+		UpdatedAt:                unitModel.UpdatedAt,
+	}
+
+	return navalUnit, nil
 }
 
 // ConvertGameEventToGameEventModel конвертирует GameEvent в GameEventModel

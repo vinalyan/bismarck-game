@@ -584,10 +584,10 @@ func (h *MovementHandler) UpdateVisibility(w http.ResponseWriter, r *http.Reques
 // Вспомогательные методы
 
 func (h *MovementHandler) getUnit(gameID, unitID string) (*models.NavalUnit, error) {
-	// Получаем юнит из базы данных через unitService
-	unit, err := h.unitService.GetNavalUnitByID(unitID)
+	// Получаем юнит из GameModel через unitService
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 	if err != nil {
-		h.logger.Error("Failed to get unit from database", "error", err, "unit_id", unitID)
+		h.logger.Error("Failed to get unit from GameModel", "error", err, "game_id", gameID, "unit_id", unitID)
 		return nil, fmt.Errorf("failed to get unit: %w", err)
 	}
 
@@ -597,7 +597,7 @@ func (h *MovementHandler) getUnit(gameID, unitID string) (*models.NavalUnit, err
 		return nil, fmt.Errorf("unit does not belong to game")
 	}
 
-	h.logger.Info("Unit loaded from database",
+	h.logger.Info("Unit loaded from GameModel",
 		"unit_id", unit.ID,
 		"name", unit.Name,
 		"speed_rating", unit.SpeedRating,
@@ -664,7 +664,7 @@ func (h *MovementHandler) getTaskForceAvailableMoves(taskForceID, gameID string)
 	allFuelCosts := make(map[string]int)
 
 	for _, unitID := range taskForce.Units {
-		unit, err := h.unitService.GetNavalUnitByID(unitID)
+		unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 		if err != nil {
 			h.logger.Warn("Failed to get unit in task force", "unit_id", unitID, "error", err)
 			continue

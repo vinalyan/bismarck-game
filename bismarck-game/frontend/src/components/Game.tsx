@@ -1302,6 +1302,19 @@ const Game: React.FC = () => {
     );
   }
 
+  // Вычисляем видимость кнопки "Начать ход 1" с помощью useMemo
+  const isStartFirstTurnVisible = useMemo(() => {
+    const isGermanPlayer = currentGame?.player1_id === user?.id;
+    const isGameReady = currentGame?.status === 'active' && !!currentGame?.player2_id;
+    const turnData = getTurnData(currentTurn);
+    // Кнопка должна появляться когда turn: 0 и phase: "setup" (игра еще не начата)
+    const turnNumber = turnData?.turn_number ?? currentGame?.current_turn ?? 0;
+    const phase = turnData?.current_phase ?? currentGame?.current_phase ?? 'setup';
+    const isGameNotStarted = turnNumber === 0 && phase === 'setup';
+    
+    return !!(isGermanPlayer && isGameReady && isGameNotStarted);
+  }, [currentGame?.player1_id, currentGame?.status, currentGame?.player2_id, currentGame?.current_turn, currentGame?.current_phase, currentTurn, user?.id]);
+
   return (
     <div className="game-container">
       {/* Заголовок игры */}
@@ -1768,17 +1781,7 @@ const Game: React.FC = () => {
             onStartFirstTurn={handleStartFirstTurn}
             isRefuelDisabled={!currentGame || gameUnits.length === 0}
             isCompletePhaseDisabled={!currentTurn || getTurnData(currentTurn)?.current_phase !== 'movement'}
-            isStartFirstTurnVisible={useMemo(() => {
-              const isGermanPlayer = currentGame?.player1_id === user?.id;
-              const isGameReady = currentGame?.status === 'active' && !!currentGame?.player2_id;
-              const turnData = getTurnData(currentTurn);
-              // Кнопка должна появляться когда turn: 0 и phase: "setup" (игра еще не начата)
-              const turnNumber = turnData?.turn_number ?? currentGame?.current_turn ?? 0;
-              const phase = turnData?.current_phase ?? currentGame?.current_phase ?? 'setup';
-              const isGameNotStarted = turnNumber === 0 && phase === 'setup';
-              
-              return !!(isGermanPlayer && isGameReady && isGameNotStarted);
-            }, [currentGame?.player1_id, currentGame?.status, currentGame?.player2_id, currentGame?.current_turn, currentGame?.current_phase, currentTurn, user?.id])}
+            isStartFirstTurnVisible={isStartFirstTurnVisible}
             currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
             searchFactorHexes={searchFactorHexes}
             visibilityLevel={getTurnData(currentTurn)?.visibility_level ?? currentGame?.visibility_level ?? 1}
