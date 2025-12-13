@@ -220,6 +220,10 @@ func (s *Server) setupRoutes() {
 		gameStateService.SetConfig(maxMemoryGames, redisTTL)
 	}
 
+	// Устанавливаем gameStateService и unitService в emergencyFuelService
+	emergencyFuelService.SetGameStateService(gameStateService)
+	emergencyFuelService.SetUnitService(unitService)
+
 	// Создаем GameStateHandler
 	gameStateHandler := handlers.NewGameStateHandler(gameStateService)
 
