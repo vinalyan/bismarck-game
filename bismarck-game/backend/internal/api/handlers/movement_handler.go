@@ -74,7 +74,7 @@ func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Reque
 		}
 
 		// Получаем Task Force для логирования и ответа
-		taskForce, err := h.taskForceService.GetTaskForceByID(unitID)
+		taskForce, err := h.taskForceService.GetTaskForceByIDFromGameModel(gameID, unitID)
 		if err != nil {
 			h.logger.Error("Failed to get task force for response", "error", err, "task_force_id", unitID)
 			http.Error(w, "Failed to get task force", http.StatusInternalServerError)
@@ -623,7 +623,7 @@ func (h *MovementHandler) getMovementHistory(gameID, unitID string, _ int) ([]*m
 
 // isTaskForce проверяет, является ли переданный ID Task Force
 func (h *MovementHandler) isTaskForce(gameID, unitID string) bool {
-	taskForce, err := h.taskForceService.GetTaskForceByID(unitID)
+	taskForce, err := h.taskForceService.GetTaskForceByIDFromGameModel(gameID, unitID)
 	if err != nil {
 		return false
 	}
@@ -634,8 +634,8 @@ func (h *MovementHandler) isTaskForce(gameID, unitID string) bool {
 
 // getTaskForceAvailableMoves рассчитывает доступные ходы для Task Force
 func (h *MovementHandler) getTaskForceAvailableMoves(taskForceID, gameID string) ([]string, map[string]int, error) {
-	// Получаем Task Force
-	taskForce, err := h.taskForceService.GetTaskForceByID(taskForceID)
+	// Получаем Task Force из GameModel
+	taskForce, err := h.taskForceService.GetTaskForceByIDFromGameModel(gameID, taskForceID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get task force: %w", err)
 	}

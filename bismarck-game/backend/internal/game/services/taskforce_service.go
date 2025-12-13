@@ -46,21 +46,10 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 
 	// Если есть юниты, проверяем их
 	if len(taskForce.Units) > 0 {
-		// Проверяем, что все юниты принадлежат одному игроку
-		units, err := s.unitService.GetNavalUnitsByGameID(taskForce.GameID)
-		if err != nil {
-			return fmt.Errorf("failed to get units: %w", err)
-		}
-
-		unitMap := make(map[string]models.NavalUnit)
-		for _, unit := range units {
-			unitMap[unit.ID] = unit
-		}
-
 		// Получаем первый юнит для определения национальности и позиции
-		firstUnit, exists := unitMap[taskForce.Units[0]]
-		if !exists {
-			return fmt.Errorf("first unit not found")
+		firstUnit, err := s.unitService.GetNavalUnitByIDFromGameModel(taskForce.GameID, taskForce.Units[0])
+		if err != nil {
+			return fmt.Errorf("first unit not found: %w", err)
 		}
 
 		taskForce.Nationality = firstUnit.Nationality
@@ -69,9 +58,9 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 
 		// Проверяем юниты согласно правилам игры
 		for _, unitID := range taskForce.Units {
-			unit, exists := unitMap[unitID]
-			if !exists {
-				return fmt.Errorf("unit %s not found", unitID)
+			unit, err := s.unitService.GetNavalUnitByIDFromGameModel(taskForce.GameID, unitID)
+			if err != nil {
+				return fmt.Errorf("unit %s not found: %w", unitID, err)
 			}
 			if unit.Owner != taskForce.Owner {
 				return fmt.Errorf("unit %s does not belong to player %s", unitID, taskForce.Owner)
@@ -118,14 +107,14 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 
 	// Вычисляем скорость соединения (по самому медленному кораблю)
 	if len(taskForce.Units) > 0 {
-		units, err := s.unitService.GetNavalUnitsByGameID(taskForce.GameID)
-		if err != nil {
-			return fmt.Errorf("failed to get units for speed calculation: %w", err)
-		}
-
+		// Получаем юниты из GameModel для расчета скорости
 		unitMap := make(map[string]models.NavalUnit)
-		for _, unit := range units {
-			unitMap[unit.ID] = unit
+		for _, unitID := range taskForce.Units {
+			unit, err := s.unitService.GetNavalUnitByIDFromGameModel(taskForce.GameID, unitID)
+			if err != nil {
+				return fmt.Errorf("failed to get unit %s for speed calculation: %w", unitID, err)
+			}
+			unitMap[unit.ID] = *unit
 		}
 		taskForce.Speed = s.calculateTaskForceSpeed(taskForce.Units, unitMap)
 	} else {
@@ -252,36 +241,89 @@ func (s *TaskForceService) GetVisibleTaskForcesByGameID(gameID string, playerID 
 	return visibleTaskForces, nil
 }
 
-// GetTaskForceByID возвращает Task Force по ID
+// GetTaskForceByID возвращает Task Force по ID из GameModel
+// Ищет таскфлит во всех играх в памяти (неэффективно, но работает для обратной совместимости)
 func (s *TaskForceService) GetTaskForceByID(taskForceID string) (*models.TaskForce, error) {
-	query := `
-		SELECT id, game_id, name, owner, nationality, position, speed, units, is_visible,
-		       detection_level, last_move_turn, is_activated, is_patrolling, created_at, updated_at
-		FROM task_forces
-		WHERE id = $1`
-
-	var taskForce models.TaskForce
-	var unitsJSON []byte
-
-	err := s.db.QueryRow(query, taskForceID).Scan(
-		&taskForce.ID, &taskForce.GameID, &taskForce.Name, &taskForce.Owner,
-		&taskForce.Nationality, &taskForce.Position, &taskForce.Speed,
-		&unitsJSON, &taskForce.IsVisible, &taskForce.DetectionLevel,
-		&taskForce.LastMoveTurn, &taskForce.IsActivated, &taskForce.IsPatrolling,
-		&taskForce.CreatedAt, &taskForce.UpdatedAt,
-	)
-	if err != nil {
-		s.logger.Error("Failed to get task force", "task_force_id", taskForceID, "error", err)
-		return nil, fmt.Errorf("failed to get task force: %w", err)
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetTaskForceByID")
 	}
 
-	json.Unmarshal(unitsJSON, &taskForce.Units)
-	return &taskForce, nil
+	// Ищем таскфлит во всех играх в памяти
+	s.gameStateService.memoryCacheMutex.RLock()
+	defer s.gameStateService.memoryCacheMutex.RUnlock()
+
+	for _, model := range s.gameStateService.memoryCache {
+		if tfModel, exists := model.TaskForces[taskForceID]; exists {
+			// Конвертируем TaskForceModel в TaskForce
+			taskForce := &models.TaskForce{
+				ID:             tfModel.ID,
+				GameID:         tfModel.GameID,
+				Name:           tfModel.Name,
+				Owner:          tfModel.Owner,
+				Nationality:    tfModel.Nationality,
+				Position:       tfModel.Position,
+				Speed:          tfModel.Speed,
+				Units:          tfModel.Units,
+				IsVisible:      tfModel.IsVisible,
+				DetectionLevel: tfModel.DetectionLevel,
+				LastMoveTurn:   tfModel.LastMoveTurn,
+				IsActivated:    tfModel.IsActivated,
+				IsPatrolling:   tfModel.IsPatrolling,
+				CreatedAt:      tfModel.CreatedAt,
+				UpdatedAt:      tfModel.UpdatedAt,
+			}
+			return taskForce, nil
+		}
+	}
+
+	// Если не нашли в памяти, пробуем загрузить из Redis или БД
+	// Но для этого нужно знать gameID, которого у нас нет
+	return nil, fmt.Errorf("task force %s not found in memory cache. Use GetTaskForceByIDFromGameModel(gameID, taskForceID) instead", taskForceID)
+}
+
+// GetTaskForceByIDFromGameModel возвращает Task Force по ID из GameModel
+func (s *TaskForceService) GetTaskForceByIDFromGameModel(gameID, taskForceID string) (*models.TaskForce, error) {
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetTaskForceByIDFromGameModel")
+	}
+
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Ищем Task Force в модели
+	tfModel, exists := model.TaskForces[taskForceID]
+	if !exists {
+		return nil, fmt.Errorf("task force %s not found in GameModel", taskForceID)
+	}
+
+	// Конвертируем TaskForceModel в TaskForce
+	taskForce := &models.TaskForce{
+		ID:             tfModel.ID,
+		GameID:         tfModel.GameID,
+		Name:           tfModel.Name,
+		Owner:          tfModel.Owner,
+		Nationality:    tfModel.Nationality,
+		Position:       tfModel.Position,
+		Speed:          tfModel.Speed,
+		Units:          tfModel.Units,
+		IsVisible:      tfModel.IsVisible,
+		DetectionLevel: tfModel.DetectionLevel,
+		LastMoveTurn:   tfModel.LastMoveTurn,
+		IsActivated:    tfModel.IsActivated,
+		IsPatrolling:   tfModel.IsPatrolling,
+		CreatedAt:      tfModel.CreatedAt,
+		UpdatedAt:      tfModel.UpdatedAt,
+	}
+
+	return taskForce, nil
 }
 
 // AddUnitToTaskForce добавляет юнит в Task Force
 func (s *TaskForceService) AddUnitToTaskForce(taskForceID string, unitID string) error {
-	// Получаем Task Force
+	// Получаем Task Force (он найдет gameID автоматически)
 	taskForce, err := s.GetTaskForceByID(taskForceID)
 	if err != nil {
 		return fmt.Errorf("failed to get task force: %w", err)
@@ -292,8 +334,8 @@ func (s *TaskForceService) AddUnitToTaskForce(taskForceID string, unitID string)
 		return fmt.Errorf("cannot add unit to task force - it is sighted")
 	}
 
-	// Получаем юнит
-	unit, err := s.unitService.GetNavalUnitByID(unitID)
+	// Получаем юнит из GameModel
+	unit, err := s.unitService.GetNavalUnitByIDFromGameModel(taskForce.GameID, unitID)
 	if err != nil {
 		return fmt.Errorf("failed to get unit: %w", err)
 	}
@@ -321,27 +363,54 @@ func (s *TaskForceService) AddUnitToTaskForce(taskForceID string, unitID string)
 	// Добавляем юнит в Task Force
 	taskForce.AddUnit(unitID)
 
-	// Пересчитываем скорость после добавления юнита
-	units, err := s.unitService.GetNavalUnitsByGameID(taskForce.GameID)
-	if err == nil {
-		unitMap := make(map[string]models.NavalUnit)
-		for _, u := range units {
-			unitMap[u.ID] = u
+	// Проверяем, что gameStateService установлен
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for AddUnitToTaskForce")
+	}
+
+	// Обновляем Task Force и юнит в GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(taskForce.GameID, func(model *models.GameModel) error {
+		// Обновляем Task Force в модели
+		tfModel, exists := model.TaskForces[taskForceID]
+		if !exists {
+			return fmt.Errorf("task force %s not found in GameModel", taskForceID)
 		}
-		taskForce.Speed = s.calculateTaskForceSpeed(taskForce.Units, unitMap)
-	}
 
-	// Обновляем Task Force в базе данных
-	err = s.updateTaskForce(taskForce)
-	if err != nil {
-		return fmt.Errorf("failed to update task force: %w", err)
-	}
+		// Добавляем юнит в список
+		tfModel.Units = taskForce.Units
 
-	// Обновляем юнит
-	unit.TaskForceID = &taskForceID
-	err = s.unitService.UpdateNavalUnit(unit)
-	if err != nil {
-		return fmt.Errorf("failed to update unit: %w", err)
+		// Пересчитываем скорость после добавления юнита
+		unitMap := make(map[string]models.NavalUnit)
+		for _, uID := range taskForce.Units {
+			uModel, exists := model.Units[uID]
+			if !exists {
+				continue
+			}
+			u, err := models.ConvertUnitModelToNavalUnit(uModel)
+			if err == nil {
+				unitMap[u.ID] = *u
+			}
+		}
+		tfModel.Speed = s.calculateTaskForceSpeed(taskForce.Units, unitMap)
+		tfModel.UpdatedAt = time.Now()
+
+		// Обновляем юнит в модели
+		unitModel, exists := model.Units[unitID]
+		if !exists {
+			return fmt.Errorf("unit %s not found in GameModel", unitID)
+		}
+		if unitModel.NavalData == nil {
+			return fmt.Errorf("unit %s is not a naval unit", unitID)
+		}
+
+		// Устанавливаем task_force_id и очищаем позицию
+		unitModel.NavalData.TaskForceID = &taskForceID
+		unitModel.Position = "" // Юниты в TF не имеют собственной позиции
+		unitModel.UpdatedAt = time.Now()
+
+		return nil
+	}, 3); err != nil {
+		return fmt.Errorf("failed to update task force in GameModel: %w", err)
 	}
 
 	s.logger.Info("Added unit to task force", "task_force_id", taskForceID, "unit_id", unitID)
@@ -362,7 +431,7 @@ func (s *TaskForceService) RemoveUnitFromTaskForce(taskForceID string, unitID st
 	}
 
 	// 1) Назначаем позицию юниту равной позиции TF и снимаем привязку к TF ДО изменения состава TF
-	unit, err := s.unitService.GetNavalUnitByID(unitID)
+	unit, err := s.unitService.GetNavalUnitByIDFromGameModel(taskForce.GameID, unitID)
 	if err != nil {
 		return fmt.Errorf("failed to get unit: %w", err)
 	}
@@ -383,20 +452,38 @@ func (s *TaskForceService) RemoveUnitFromTaskForce(taskForceID string, unitID st
 			return fmt.Errorf("failed to delete task force with insufficient units: %w", err)
 		}
 	} else {
-		// Пересчитываем скорость после удаления юнита
-		units, err := s.unitService.GetNavalUnitsByGameID(taskForce.GameID)
-		if err == nil {
-			unitMap := make(map[string]models.NavalUnit)
-			for _, u := range units {
-				unitMap[u.ID] = u
-			}
-			taskForce.Speed = s.calculateTaskForceSpeed(taskForce.Units, unitMap)
+		// Пересчитываем скорость после удаления юнита и обновляем Task Force в GameModel
+		if s.gameStateService == nil {
+			return fmt.Errorf("gameStateService is required for RemoveUnitFromTaskForce")
 		}
 
-		// Обновляем Task Force в базе данных
-		err = s.updateTaskForce(taskForce)
+		err = s.gameStateService.UpdateGameModelWithRetry(taskForce.GameID, func(model *models.GameModel) error {
+			tfModel, exists := model.TaskForces[taskForceID]
+			if !exists {
+				return fmt.Errorf("task force %s not found in GameModel", taskForceID)
+			}
+
+			// Обновляем список юнитов
+			tfModel.Units = taskForce.Units
+
+			// Пересчитываем скорость
+			unitMap := make(map[string]models.NavalUnit)
+			for _, uID := range tfModel.Units {
+				if unitModel, exists := model.Units[uID]; exists && unitModel.NavalData != nil {
+					navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+					if err == nil {
+						unitMap[uID] = *navalUnit
+					}
+				}
+			}
+			tfModel.Speed = s.calculateTaskForceSpeed(tfModel.Units, unitMap)
+			tfModel.UpdatedAt = time.Now()
+
+			return nil
+		}, 3)
+
 		if err != nil {
-			return fmt.Errorf("failed to update task force: %w", err)
+			return fmt.Errorf("failed to update task force in GameModel: %w", err)
 		}
 	}
 
@@ -422,30 +509,45 @@ func (s *TaskForceService) MoveTaskForce(taskForceID string, to string, speed in
 	return nil
 }
 
-// DeleteTaskForce удаляет Task Force
+// DeleteTaskForce удаляет Task Force из GameModel
 func (s *TaskForceService) DeleteTaskForce(taskForceID string) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for DeleteTaskForce")
+	}
+
 	// Получаем Task Force
 	taskForce, err := s.GetTaskForceByID(taskForceID)
 	if err != nil {
 		return fmt.Errorf("failed to get task force: %w", err)
 	}
 
-	// Удаляем связь с юнитами И назначаем им позицию TF
-	for _, unitID := range taskForce.Units {
-		unit, err := s.unitService.GetNavalUnitByID(unitID)
-		if err != nil {
-			continue
-		}
-		unit.TaskForceID = nil
-		unit.Position = taskForce.Position
-		s.unitService.UpdateNavalUnit(unit)
-	}
+	gameID := taskForce.GameID
 
-	// Удаляем Task Force из базы данных
-	query := `DELETE FROM task_forces WHERE id = $1`
-	_, err = s.db.Exec(query, taskForceID)
+	// Удаляем Task Force и обновляем юниты в GameModel
+	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		// Проверяем, что Task Force существует
+		tfModel, exists := model.TaskForces[taskForceID]
+		if !exists {
+			return fmt.Errorf("task force %s not found in GameModel", taskForceID)
+		}
+
+		// Удаляем связь с юнитами и назначаем им позицию TF
+		for _, unitID := range tfModel.Units {
+			if unitModel, exists := model.Units[unitID]; exists && unitModel.NavalData != nil {
+				unitModel.NavalData.TaskForceID = nil
+				unitModel.Position = tfModel.Position
+				unitModel.UpdatedAt = time.Now()
+			}
+		}
+
+		// Удаляем Task Force из модели
+		delete(model.TaskForces, taskForceID)
+
+		return nil
+	}, 3)
+
 	if err != nil {
-		s.logger.Error("Failed to delete task force", "task_force_id", taskForceID, "error", err)
+		s.logger.Error("Failed to delete task force from GameModel", "task_force_id", taskForceID, "error", err)
 		return fmt.Errorf("failed to delete task force: %w", err)
 	}
 

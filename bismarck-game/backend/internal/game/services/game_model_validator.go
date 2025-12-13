@@ -123,10 +123,6 @@ func (v *GameModelValidator) validateUnit(unitID string, unit *models.UnitModel,
 		return fmt.Errorf("unit game_id mismatch: expected %s, got %s", model.GameID, unit.GameID)
 	}
 
-	if unit.Position == "" {
-		return fmt.Errorf("unit position is required")
-	}
-
 	if unit.Name == "" {
 		return fmt.Errorf("unit name is required")
 	}
@@ -138,6 +134,12 @@ func (v *GameModelValidator) validateUnit(unitID string, unit *models.UnitModel,
 		}
 
 		navalData := unit.NavalData
+
+		// Позиция обязательна только если юнит не в таскфлите
+		// Юниты в таскфлитах используют позицию таскфлита, поэтому их позиция пустая
+		if unit.Position == "" && navalData.TaskForceID == nil {
+			return fmt.Errorf("unit position is required (unit is not in a task force)")
+		}
 
 		// CHECK constraints
 		if navalData.Fuel < 0 {
@@ -257,4 +259,3 @@ func (v *GameModelValidator) validateEnemyContact(index int, contact *models.Ene
 
 	return nil
 }
-

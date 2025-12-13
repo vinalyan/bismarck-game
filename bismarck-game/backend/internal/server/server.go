@@ -252,6 +252,10 @@ func (s *Server) setupRoutes() {
 	// Устанавливаем GameStateService в PhaseManager для обновления GameModel при смене фаз
 	phaseManager.SetGameStateService(gameStateService)
 
+	// Устанавливаем GameStateService и TaskForceService в MovementService для работы с Task Forces
+	movementService.SetGameStateService(gameStateService)
+	movementService.SetTaskForceService(taskForceService)
+
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	gameHandler.RegisterRoutes(s.router, s.config.JWT.Secret)

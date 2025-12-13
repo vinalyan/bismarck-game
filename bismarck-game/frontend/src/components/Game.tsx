@@ -1546,10 +1546,10 @@ const Game: React.FC = () => {
             )}
             {loadingUnits ? (
               <div className="loading">Загрузка юнитов...</div>
-            ) : gameUnits.filter(unit => unit.position && unit.position.trim() !== '').length > 0 ? (
+            ) : gameUnits.filter(unit => unit.position && unit.position.trim() !== '' && !unit.task_force_id).length > 0 ? (
             <div className="unit-list">
                 {gameUnits
-                  .filter(unit => unit.position && unit.position.trim() !== '')
+                  .filter(unit => unit.position && unit.position.trim() !== '' && !unit.task_force_id)
                   .map((unit) => {
                     // Проверяем, может ли юнит двигаться
                     const currentPhase = getTurnData(currentTurn)?.current_phase;

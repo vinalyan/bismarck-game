@@ -409,7 +409,7 @@ func (h *UnitHandler) CreateTaskForce(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем первый юнит для определения владельца и позиции
-	firstUnit, err := h.unitService.GetNavalUnitByID(req.UnitIDs[0])
+	firstUnit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, req.UnitIDs[0])
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "First unit not found")
 		return
@@ -464,7 +464,7 @@ func (h *UnitHandler) AddUnitToTaskForce(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Проверяем, что юнит принадлежит игре
-	unit, err := h.unitService.GetNavalUnitByID(req.UnitID)
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, req.UnitID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
 		return
@@ -508,7 +508,7 @@ func (h *UnitHandler) RemoveUnitFromTaskForce(w http.ResponseWriter, r *http.Req
 	}
 
 	// Проверяем, что юнит принадлежит игре
-	unit, err := h.unitService.GetNavalUnitByID(req.UnitID)
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, req.UnitID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
 		return

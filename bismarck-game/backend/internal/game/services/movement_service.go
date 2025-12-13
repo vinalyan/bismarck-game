@@ -2,7 +2,6 @@ package services
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -29,6 +28,8 @@ type MovementService struct {
 	eventService         *GameEventService
 	emergencyFuelService *EmergencyFuelService
 	gameService          *GameService
+	gameStateService     *GameStateService // Для работы с GameModel
+	taskForceService     *TaskForceService // Для работы с Task Forces
 }
 
 // NewMovementService создает новый сервис движения
@@ -49,6 +50,16 @@ func NewMovementService(db *database.Database, logger *logger.Logger, visibility
 		emergencyFuelService: emergencyFuelService,
 		gameService:          gameService,
 	}
+}
+
+// SetGameStateService устанавливает GameStateService
+func (s *MovementService) SetGameStateService(gameStateService *GameStateService) {
+	s.gameStateService = gameStateService
+}
+
+// SetTaskForceService устанавливает TaskForceService
+func (s *MovementService) SetTaskForceService(taskForceService *TaskForceService) {
+	s.taskForceService = taskForceService
 }
 
 // ValidateMovementWithOwner проверяет возможность движения юнита с проверкой владельца
@@ -514,11 +525,13 @@ func (s *MovementService) CheckAndActivateEmergencyFuel(gameID, unitID string) e
 
 // GetTaskForceAvailableMoves рассчитывает доступные ходы для Task Force
 func (s *MovementService) GetTaskForceAvailableMoves(taskForceID string) ([]string, error) {
-	// Получаем Task Force из базы данных напрямую
+	// Получаем Task Force из GameModel
 	taskForce, err := s.getTaskForceByID(taskForceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task force: %w", err)
 	}
+
+	gameID := taskForce.GameID
 
 	if len(taskForce.Units) == 0 {
 		return []string{}, nil
@@ -528,7 +541,7 @@ func (s *MovementService) GetTaskForceAvailableMoves(taskForceID string) ([]stri
 	var allAvailableHexes [][]string
 
 	for _, unitID := range taskForce.Units {
-		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		unit, err := s.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 		if err != nil {
 			s.logger.Warn("Failed to get unit in task force", "unit_id", unitID, "error", err)
 			// Если корабль недоступен, считаем что у него нет доступных ходов
@@ -568,11 +581,13 @@ func (s *MovementService) GetTaskForceAvailableMoves(taskForceID string) ([]stri
 
 // ExecuteTaskForceMovement выполняет движение Task Force
 func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) error {
-	// Получаем Task Force
+	// Получаем Task Force из GameModel
 	taskForce, err := s.getTaskForceByID(taskForceID)
 	if err != nil {
 		return fmt.Errorf("failed to get task force: %w", err)
 	}
+
+	gameID := taskForce.GameID
 
 	// Проверяем, что Task Force может двигаться
 	if taskForce.DetectionLevel == "sighted" {
@@ -581,7 +596,7 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 
 	// Выполняем движение для каждого корабля в TF
 	for _, unitID := range taskForce.Units {
-		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		unit, err := s.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 		if err != nil {
 			s.logger.Warn("Failed to get unit for TF movement", "unit_id", unitID, "error", err)
 			continue
@@ -594,8 +609,8 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 		}
 	}
 
-	// Обновляем позицию Task Force
-	err = s.updateTaskForcePosition(taskForceID, toHex)
+	// Обновляем позицию Task Force в GameModel
+	err = s.updateTaskForcePosition(gameID, taskForceID, toHex)
 	if err != nil {
 		return fmt.Errorf("failed to update task force position: %w", err)
 	}
@@ -775,62 +790,45 @@ func (s *MovementService) executeTaskForceUnitMovement(unit *models.NavalUnit, f
 	return movement, nil
 }
 
-// getTaskForceByID получает Task Force по ID из базы данных
+// getTaskForceByID получает Task Force по ID из GameModel
 func (s *MovementService) getTaskForceByID(taskForceID string) (*models.TaskForce, error) {
-	query := `
-		SELECT id, game_id, name, owner, nationality, position, speed, units, is_visible,
-		       detection_level, last_move_turn, is_activated, created_at, updated_at
-		FROM task_forces
-		WHERE id = $1`
-
-	var taskForce models.TaskForce
-	var unitsJSON []byte
-
-	err := s.db.QueryRow(query, taskForceID).Scan(
-		&taskForce.ID, &taskForce.GameID, &taskForce.Name, &taskForce.Owner,
-		&taskForce.Nationality, &taskForce.Position, &taskForce.Speed,
-		&unitsJSON, &taskForce.IsVisible, &taskForce.DetectionLevel,
-		&taskForce.LastMoveTurn, &taskForce.IsActivated,
-		&taskForce.CreatedAt, &taskForce.UpdatedAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get task force: %w", err)
+	if s.taskForceService == nil {
+		return nil, fmt.Errorf("taskForceService is required for getTaskForceByID")
 	}
-
-	err = json.Unmarshal(unitsJSON, &taskForce.Units)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal task force units: %w", err)
-	}
-
-	return &taskForce, nil
+	// Используем TaskForceService, который ищет через все игры в памяти
+	return s.taskForceService.GetTaskForceByID(taskForceID)
 }
 
-// updateTaskForcePosition обновляет позицию Task Force в базе данных
-func (s *MovementService) updateTaskForcePosition(taskForceID, newPosition string) error {
-	// Сначала получаем Task Force чтобы узнать gameID
-	taskForce, err := s.getTaskForceByID(taskForceID)
-	if err != nil {
-		return fmt.Errorf("failed to get task force for position update: %w", err)
+// updateTaskForcePosition обновляет позицию Task Force в GameModel
+func (s *MovementService) updateTaskForcePosition(gameID, taskForceID, newPosition string) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for updateTaskForcePosition")
 	}
-
-	query := `
-		UPDATE task_forces SET
-			position = $2,
-			last_move_turn = $3,
-			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1`
 
 	currentTurn := 1 // fallback
 	if s.phaseManager != nil {
-		turn, err := s.phaseManager.GetCurrentPhase(taskForce.GameID)
+		turn, err := s.phaseManager.GetCurrentPhase(gameID)
 		if err == nil && turn != nil {
 			currentTurn = turn.TurnNumber
 		}
 	}
 
-	_, err = s.db.Exec(query, taskForceID, newPosition, currentTurn)
+	// Обновляем Task Force в GameModel
+	err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		tfModel, exists := model.TaskForces[taskForceID]
+		if !exists {
+			return fmt.Errorf("task force %s not found in GameModel", taskForceID)
+		}
+
+		tfModel.Position = newPosition
+		tfModel.LastMoveTurn = currentTurn
+		tfModel.UpdatedAt = time.Now()
+
+		return nil
+	}, 3)
+
 	if err != nil {
-		return fmt.Errorf("failed to update task force position: %w", err)
+		return fmt.Errorf("failed to update task force position in GameModel: %w", err)
 	}
 
 	s.logger.Info("Task Force position and last_move_turn updated",

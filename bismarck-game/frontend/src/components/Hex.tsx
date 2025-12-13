@@ -627,9 +627,12 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
 
             const itemState = item.isTaskForce ? getTaskForceState(item) : getUnitState(item);
 
+            // Используем уникальный ключ: для таскфлитов добавляем префикс, для юнитов - их ID
+            const uniqueKey = item.isTaskForce ? `tf-${item.id}` : `unit-${item.id}`;
+
             return (
               <g
-                key={item.id}
+                key={uniqueKey}
                 className={`stacked-unit ${itemState} ${item.isTaskForce ? 'task-force' : 'naval-unit'}`}
                 onClick={(e) => {
                   e.stopPropagation();
