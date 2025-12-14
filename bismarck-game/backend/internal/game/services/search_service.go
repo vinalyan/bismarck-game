@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/database"
@@ -39,20 +40,6 @@ func (s *SearchService) SetGameStateService(gameStateService *GameStateService) 
 func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPlayerSide string) (int, error) {
 	totalFactors := 0
 
-	// Конвертируем playerSide в UUID пользователя для сравнения
-	var searchingPlayerID string
-	if searchingPlayerSide == "german" {
-		err := s.db.GetConnection().QueryRow("SELECT player1_id FROM games WHERE id = $1", gameID).Scan(&searchingPlayerID)
-		if err != nil {
-			s.logger.Warn("Failed to get german player ID", "game_id", gameID, "error", err)
-		}
-	} else if searchingPlayerSide == "allied" {
-		err := s.db.GetConnection().QueryRow("SELECT player2_id FROM games WHERE id = $1", gameID).Scan(&searchingPlayerID)
-		if err != nil {
-			s.logger.Warn("Failed to get allied player ID", "game_id", gameID, "error", err)
-		}
-	}
-
 	// +1 за каждый корабль или Оперативное соединение в гексе (только своей стороны)
 	units, err := s.getUnitsInHex(gameID, hexID)
 	if err != nil {
@@ -60,7 +47,7 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 	}
 
 	// Получаем Task Forces напрямую из таблицы task_forces (TF дает +1 независимо от юнитов)
-	taskForcesInHex, err := s.getTaskForcesInHex(gameID, hexID, searchingPlayerID)
+	taskForcesInHex, err := s.getTaskForcesInHex(gameID, hexID, searchingPlayerSide)
 	if err != nil {
 		s.logger.Warn("Failed to get task forces in hex", "game_id", gameID, "hex_id", hexID, "error", err)
 		taskForcesInHex = []string{}
@@ -69,7 +56,7 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 	// Детальное логирование для отладки (особенно для E21)
 	if hexID == "E21" {
 		s.logger.Info("🔍 DEBUG E21",
-			"searching_player_id", searchingPlayerID,
+			"searching_player_side", searchingPlayerSide,
 			"units_found", len(units),
 			"task_forces_found", len(taskForcesInHex),
 			"task_force_ids", taskForcesInHex)
@@ -83,14 +70,19 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 		tfUnitsInHex[tfID] = true
 	}
 
+	// Получаем текущий ход для проверок исключений
+	currentTurn := s.getCurrentTurn(gameID)
+
 	for _, unit := range units {
-		// Учитываем только юниты той стороны, которая ищет (сравниваем по UUID пользователя)
-		if searchingPlayerID != "" && unit.Owner != searchingPlayerID {
+		// Учитываем только юниты той стороны, которая ищет (используем Nationality для определения стороны)
+		// Конвертируем searchingPlayerSide в nationality для сравнения
+		expectedNationality := searchingPlayerSide
+		if unit.Nationality != expectedNationality {
 			continue
 		}
 
 		// Проверяем, может ли юнит давать факторы поиска
-		if !s.canUnitContributeSearchFactors(unit) {
+		if !s.canUnitContributeSearchFactors(unit, gameID, currentTurn) {
 			continue
 		}
 
@@ -147,44 +139,396 @@ func (s *SearchService) CalculateSearchFactors(gameID, hexID string, searchingPl
 	return totalFactors, nil
 }
 
+// getCurrentTurn получает текущий номер хода из GameModel
+// Использует кэш напрямую, чтобы избежать рекурсивного вызова LoadGameModel
+func (s *SearchService) getCurrentTurn(gameID string) int {
+	if s.gameStateService == nil {
+		return 1 // fallback
+	}
+
+	// Пытаемся получить модель из кэша напрямую, чтобы избежать рекурсии
+	s.gameStateService.memoryCacheMutex.RLock()
+	if model, exists := s.gameStateService.memoryCache[gameID]; exists {
+		s.gameStateService.memoryCacheMutex.RUnlock()
+		if model.CurrentTurn != nil {
+			return model.CurrentTurn.Turn
+		}
+		return 1 // fallback
+	}
+	s.gameStateService.memoryCacheMutex.RUnlock()
+
+	// Если нет в кэше, пробуем загрузить из Redis без пересчета
+	if redisModel, err := s.gameStateService.loadFromRedisWithoutRecalculation(gameID); err == nil && redisModel != nil {
+		if redisModel.CurrentTurn != nil {
+			return redisModel.CurrentTurn.Turn
+		}
+		return 1 // fallback
+	}
+
+	// Если нет ни в кэше, ни в Redis, возвращаем значение по умолчанию
+	// Это предотвращает рекурсию при загрузке модели
+	s.logger.Debug("GameModel not in cache for current turn, using fallback", "game_id", gameID)
+	return 1 // fallback
+}
+
+// getUnitsInHex получает все морские юниты в указанном гексе из GameModel
+func (s *SearchService) getUnitsInHex(gameID, hexID string) ([]*models.NavalUnit, error) {
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for getUnitsInHex")
+	}
+
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	var units []*models.NavalUnit
+
+	// Проходим по всем юнитам в GameModel
+	for _, unitModel := range model.Units {
+		// Пропускаем, если это не морской юнит
+		if unitModel.NavalData == nil {
+			continue
+		}
+
+		// Пропускаем, если позиция не совпадает
+		if unitModel.Position != hexID {
+			continue
+		}
+
+		// Пропускаем потопленные юниты
+		if unitModel.Status == string(models.UnitStatusSunk) {
+			continue
+		}
+
+		// Конвертируем UnitModel в NavalUnit
+		navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+		if err != nil {
+			s.logger.Warn("Failed to convert unit model to naval unit", "unit_id", unitModel.ID, "error", err)
+			continue
+		}
+
+		units = append(units, navalUnit)
+	}
+
+	s.logger.Debug("Found units in hex", "game_id", gameID, "hex_id", hexID, "units_count", len(units))
+	return units, nil
+}
+
+// CalculateSearchHexData рассчитывает детализированные факторы поиска для гекса
+// searchingPlayerSide - сторона игрока, который проводит поиск ("german" или "allied")
+// Возвращает детализированную структуру SearchHexData с компонентами
+func (s *SearchService) CalculateSearchHexData(gameID, hexID string, searchingPlayerSide string) (*models.SearchHexData, error) {
+	// Получаем текущий ход для проверок исключений
+	currentTurn := s.getCurrentTurn(gameID)
+
+	// Получаем юниты в гексе
+	units, err := s.getUnitsInHex(gameID, hexID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get units in hex: %w", err)
+	}
+
+	// Получаем Task Forces в гексе
+	taskForcesInHex, err := s.getTaskForcesInHex(gameID, hexID, searchingPlayerSide)
+	if err != nil {
+		s.logger.Warn("Failed to get task forces in hex", "game_id", gameID, "hex_id", hexID, "error", err)
+		taskForcesInHex = []string{}
+	}
+
+	// Подсчитываем отдельные корабли (не в ТФ) и Task Forces
+	unitCount := 0
+	tfCount := len(taskForcesInHex)
+	tfUnitsInHex := make(map[string]bool)
+	for _, tfID := range taskForcesInHex {
+		tfUnitsInHex[tfID] = true
+	}
+
+	for _, unit := range units {
+		// Учитываем только юниты той стороны, которая ищет (используем Nationality для определения стороны)
+		// Конвертируем searchingPlayerSide в nationality для сравнения
+		expectedNationality := searchingPlayerSide
+		if unit.Nationality != expectedNationality {
+			continue
+		}
+
+		// Проверяем, может ли юнит давать факторы поиска
+		if !s.canUnitContributeSearchFactors(unit, gameID, currentTurn) {
+			continue
+		}
+
+		// Если юнит в ТФ - не считаем его отдельно (ТФ уже учтена выше)
+		// Если юнит не в ТФ - считаем его как отдельный корабль
+		if unit.TaskForceID == nil {
+			unitCount++
+		}
+	}
+
+	// Ships = количество одиночных кораблей + количество Task Forces
+	ships := unitCount + tfCount
+
+	// Получаем маркеры патруля (одиночные корабли)
+	patrolMarkers, err := s.getPatrolMarkersInHex(gameID, hexID, searchingPlayerSide)
+	if err != nil {
+		s.logger.Warn("Failed to get patrol markers", "game_id", gameID, "hex_id", hexID, "error", err)
+		patrolMarkers = []string{}
+	}
+
+	// Получаем патрулирующие Task Forces
+	tfPatrolMarkers, err := s.getTaskForcePatrolMarkersInHex(gameID, hexID, searchingPlayerSide)
+	if err != nil {
+		s.logger.Warn("Failed to get task force patrol markers", "game_id", gameID, "hex_id", hexID, "error", err)
+		tfPatrolMarkers = []string{}
+	}
+
+	// Patrol = количество маркеров патруля (одиночные корабли + патрулирующие ТФ)
+	patrol := len(patrolMarkers) + len(tfPatrolMarkers)
+
+	// Получаем маркеры пути полета поиска
+	airSearch, err := s.getHexMarkersInHex(gameID, hexID, searchingPlayerSide, string(models.MarkerTypeFlightPathSearch))
+	if err != nil {
+		s.logger.Warn("Failed to get flight path markers", "game_id", gameID, "hex_id", hexID, "error", err)
+		airSearch = 0
+	}
+
+	// Получаем собственные факторы поиска гекса (intrinsic)
+	// TODO: Получить через MapStructureService, пока оставляем 0
+	intrinsic := 0
+	if s.gameStateService != nil && s.gameStateService.mapStructureService != nil {
+		intrinsicHexes := s.gameStateService.mapStructureService.GetIntrinsicSearchHexes()
+		if value, exists := intrinsicHexes[hexID]; exists {
+			intrinsic = value
+		}
+	}
+
+	// Factor = ships*1 + patrol*3 + air_search*2 + intrinsic
+	factor := ships*1 + patrol*3 + airSearch*2 + intrinsic
+
+	result := &models.SearchHexData{
+		Factor:    factor,
+		Ships:     ships,
+		Patrol:    patrol,
+		AirSearch: airSearch,
+		Intrinsic: intrinsic,
+	}
+
+	s.logger.Info("Calculated search hex data",
+		"game_id", gameID,
+		"hex_id", hexID,
+		"searching_player_side", searchingPlayerSide,
+		"factor", factor,
+		"ships", ships,
+		"patrol", patrol,
+		"air_search", airSearch,
+		"intrinsic", intrinsic)
+
+	return result, nil
+}
+
 // canUnitContributeSearchFactors проверяет, может ли юнит давать факторы поиска
 // Исключения:
 // - Корабли, проводившие попытку преследования в этот ход
 // - Корабли, заправляющиеся (в море или в порту)
 // - Корабли, проводящие ремонт в море
-func (s *SearchService) canUnitContributeSearchFactors(unit *models.NavalUnit) bool {
-	// TODO: Проверка на преследование - нужно добавить поле или проверять через события
-	// TODO: Проверка на заправку/ремонт - нужно добавить поля или проверять через маркеры
+func (s *SearchService) canUnitContributeSearchFactors(unit *models.NavalUnit, gameID string, currentTurn int) bool {
+	// Базовая проверка: юнит должен быть живым
+	if unit.Status == models.UnitStatusSunk {
+		return false
+	}
 
-	// Пока возвращаем true для всех живых юнитов
-	return unit.Status != models.UnitStatusSunk
+	// Исключение 1: Корабли, проводившие попытку преследования в этот ход
+	// TODO: Реализовать проверку через события или добавить поле в NavalUnit
+	// Варианты реализации:
+	// - Проверять события типа "pursuit" или "chase" для этого юнита в текущем ходе
+	// - Добавить поле AttemptedPursuitThisTurn в NavalUnit
+	// - Проверять через MovementType или специальный флаг
+	if s.hasAttemptedPursuitThisTurn(unit.ID, gameID, currentTurn) {
+		return false
+	}
+
+	// Исключение 2: Корабли, заправляющиеся (в море или в порту)
+	// TODO: Реализовать проверку статуса заправки
+	// Варианты реализации:
+	// - Проверить unit.Status == models.UnitStatusRefueling
+	// - Дополнительно проверить, где происходит заправка (в море или в порту)
+	//   через проверку типа гекса (MapStructureService.IsLandHex)
+	if unit.Status == models.UnitStatusRefueling {
+		return false
+	}
+
+	// Исключение 3: Корабли, проводящие ремонт в море
+	// TODO: Реализовать проверку ремонта в море (не в порту)
+	// Варианты реализации:
+	// - Проверить unit.Status == models.UnitStatusRepairing
+	// - Дополнительно проверить, что ремонт происходит в море (не в порту)
+	//   через проверку типа гекса (MapStructureService.IsLandHex)
+	if unit.Status == models.UnitStatusRepairing {
+		// TODO: Проверить, что ремонт происходит в море, а не в порту
+		// Если ремонт в порту - юнит может давать факторы поиска
+		// Если ремонт в море - юнит НЕ может давать факторы поиска
+		if s.isRepairingAtSea(unit) {
+			return false
+		}
+	}
+
+	return true
 }
 
-// getUnitsInHex возвращает все юниты в указанном гексе
-func (s *SearchService) getUnitsInHex(gameID, hexID string) ([]*models.NavalUnit, error) {
-	query := BuildNavalUnitSelectQuery(
-		[]string{"category"}, // включаем поле category
-		"WHERE game_id = $1 AND position = $2 AND status != 'sunk'",
-	)
+// hasAttemptedPursuitThisTurn проверяет, проводил ли юнит попытку преследования в этот ход
+// TODO: Реализовать проверку через события или поле в NavalUnit
+func (s *SearchService) hasAttemptedPursuitThisTurn(unitID, gameID string, currentTurn int) bool {
+	// TODO: Реализация
+	// Вариант 1: Проверка через события
+	// query := `SELECT COUNT(*) FROM game_events 
+	//            WHERE game_id = $1 AND actor_id = $2 AND turn = $3 
+	//            AND (event_type = 'pursuit' OR (event_type = 'movement' AND data->>'pursuit_attempt' = 'true'))`
+	
+	// Вариант 2: Проверка через поле в NavalUnit
+	// if unit.AttemptedPursuitThisTurn && unit.LastPursuitTurn == currentTurn {
+	//     return true
+	// }
+	
+	return false
+}
 
-	rows, err := s.db.GetConnection().Query(query, gameID, hexID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query units in hex: %w", err)
+// isRepairingAtSea проверяет, происходит ли ремонт в море (не в порту)
+// TODO: Реализовать проверку типа гекса для определения порта
+func (s *SearchService) isRepairingAtSea(unit *models.NavalUnit) bool {
+	// TODO: Реализация
+	// Вариант 1: Проверка через MapStructureService
+	// if s.gameStateService != nil && s.gameStateService.mapStructureService != nil {
+	//     // Если гекс сухопутный - это порт, ремонт не в море
+	//     if s.gameStateService.mapStructureService.IsLandHex(unit.Position) {
+	//         return false
+	//     }
+	//     // Если гекс морской - ремонт в море
+	//     return true
+	// }
+	
+	// Вариант 2: Проверка через специальные гексы портов в конфигурации
+	// if s.isPortHex(unit.Position) {
+	//     return false
+	// }
+	
+	// По умолчанию считаем, что ремонт в море
+	return true
+}
+
+// RecalculateSearchDataForHex пересчитывает и сохраняет детализированные факторы поиска для гекса
+// Рассчитывает для обеих сторон (german и allied) и сохраняет в GameModel
+func (s *SearchService) RecalculateSearchDataForHex(gameID, hexID string) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RecalculateSearchDataForHex")
 	}
-	defer rows.Close()
 
-	var units []*models.NavalUnit
-	for rows.Next() {
-		unit, err := ScanNavalUnitFromRow(rows, true, false, false) // includeCategory=true, useNullableDetectionLevel=false, useNullableEmergencyTurn=false
-		if err != nil {
-			s.logger.Error("Failed to scan unit", "error", err)
-			continue
+	// Рассчитываем для немецкой стороны
+	germanData, err := s.CalculateSearchHexData(gameID, hexID, "german")
+	if err != nil {
+		s.logger.Warn("Failed to calculate search hex data for german side", "game_id", gameID, "hex_id", hexID, "error", err)
+		germanData = &models.SearchHexData{
+			Factor:    0,
+			Ships:     0,
+			Patrol:    0,
+			AirSearch: 0,
+			Intrinsic: 0,
+		}
+	}
+
+	// Рассчитываем для союзной стороны
+	alliedData, err := s.CalculateSearchHexData(gameID, hexID, "allied")
+	if err != nil {
+		s.logger.Warn("Failed to calculate search hex data for allied side", "game_id", gameID, "hex_id", hexID, "error", err)
+		alliedData = &models.SearchHexData{
+			Factor:    0,
+			Ships:     0,
+			Patrol:    0,
+			AirSearch: 0,
+			Intrinsic: 0,
+		}
+	}
+
+
+	// Проверяем, есть ли ненулевые значения для каждой стороны отдельно
+	germanHasData := germanData.Factor != 0 || germanData.Ships != 0 || germanData.Patrol != 0 || germanData.AirSearch != 0 || germanData.Intrinsic != 0
+	alliedHasData := alliedData.Factor != 0 || alliedData.Ships != 0 || alliedData.Patrol != 0 || alliedData.AirSearch != 0 || alliedData.Intrinsic != 0
+
+	// Если обе стороны имеют нулевые значения, удаляем запись полностью
+	if !germanHasData && !alliedHasData {
+		if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			if model.Search != nil {
+				if model.Search.German != nil {
+					delete(model.Search.German, hexID)
+				}
+				if model.Search.Allied != nil {
+					delete(model.Search.Allied, hexID)
+				}
+			}
+			return nil
+		}, 3); err != nil {
+			s.logger.Warn("Failed to remove empty search hex data", "game_id", gameID, "hex_id", hexID, "error", err)
+		}
+		s.logger.Debug("Skipped saving empty search hex data", "game_id", gameID, "hex_id", hexID)
+		return nil
+	}
+
+	// Сохраняем в GameModel только ненулевые значения для каждой стороны
+	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		// Инициализируем Search если нужно
+		if model.Search == nil {
+			model.Search = &models.SearchData{
+				German: make(map[string]models.SearchHexData),
+				Allied: make(map[string]models.SearchHexData),
+			}
 		}
 
-		units = append(units, unit)
+		// Инициализируем German если нужно
+		if model.Search.German == nil {
+			model.Search.German = make(map[string]models.SearchHexData)
+		}
+
+		// Инициализируем Allied если нужно
+		if model.Search.Allied == nil {
+			model.Search.Allied = make(map[string]models.SearchHexData)
+		}
+
+		// Сохраняем данные для немецкой стороны только если есть ненулевые значения
+		if germanHasData {
+			model.Search.German[hexID] = *germanData
+		} else {
+			// Удаляем запись для немецкой стороны, если все значения равны 0
+			delete(model.Search.German, hexID)
+		}
+
+		// Сохраняем данные для союзной стороны только если есть ненулевые значения
+		if alliedHasData {
+			model.Search.Allied[hexID] = *alliedData
+		} else {
+			// Удаляем запись для союзной стороны, если все значения равны 0
+			delete(model.Search.Allied, hexID)
+		}
+
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to update GameModel with search hex data", "game_id", gameID, "hex_id", hexID, "error", err)
+		return fmt.Errorf("failed to update GameModel: %w", err)
 	}
 
-	return units, nil
+
+	s.logger.Info("Recalculated search hex data",
+		"game_id", gameID,
+		"hex_id", hexID,
+		"german_factor", germanData.Factor,
+		"allied_factor", alliedData.Factor,
+		"german_ships", germanData.Ships,
+		"allied_ships", alliedData.Ships,
+		"german_patrol", germanData.Patrol,
+		"allied_patrol", alliedData.Patrol,
+		"german_air_search", germanData.AirSearch,
+		"allied_air_search", alliedData.AirSearch,
+		"german_intrinsic", germanData.Intrinsic,
+		"allied_intrinsic", alliedData.Intrinsic)
+
+	return nil
 }
 
 // getPatrolMarkersInHex возвращает маркеры патруля в гексе (только для указанной стороны)
@@ -226,6 +570,11 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 
 	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
 	if err != nil {
+		// Если таблица не существует, возвращаем пустой результат вместо ошибки
+		if strings.Contains(err.Error(), "does not exist") {
+			s.logger.Debug("Naval units table does not exist, returning empty result", "game_id", gameID, "hex_id", hexID)
+			return []string{}, nil
+		}
 		return nil, fmt.Errorf("failed to get patrol markers: %w", err)
 	}
 	defer rows.Close()
@@ -248,10 +597,11 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 	return markerIDs, rows.Err()
 }
 
-// getTaskForcesInHex возвращает все Task Forces в указанном гексе для указанного игрока
+// getTaskForcesInHex возвращает все Task Forces в указанном гексе для указанной стороны
 // Каждая TF дает +1 фактор поиска независимо от количества кораблей в ней
-func (s *SearchService) getTaskForcesInHex(gameID, hexID string, playerID string) ([]string, error) {
-	if playerID == "" {
+// playerSide может быть "german" или "allied"
+func (s *SearchService) getTaskForcesInHex(gameID, hexID string, playerSide string) ([]string, error) {
+	if playerSide == "" {
 		return []string{}, nil
 	}
 
@@ -260,12 +610,17 @@ func (s *SearchService) getTaskForcesInHex(gameID, hexID string, playerID string
 		FROM task_forces
 		WHERE game_id = $1 
 		AND position = $2 
-		AND owner = $3
+		AND nationality = $3
 		-- TF дает фактор поиска независимо от is_activated (всегда учитываем TF)
 	`
 
-	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
+	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerSide)
 	if err != nil {
+		// Если таблица не существует, возвращаем пустой результат вместо ошибки
+		if strings.Contains(err.Error(), "does not exist") {
+			s.logger.Debug("Task forces table does not exist, returning empty result", "game_id", gameID, "hex_id", hexID)
+			return []string{}, nil
+		}
 		return nil, fmt.Errorf("failed to get task forces in hex: %w", err)
 	}
 	defer rows.Close()
@@ -301,7 +656,7 @@ func (s *SearchService) getTaskForcesInHex(gameID, hexID string, playerID string
 					})
 				}
 			}
-			s.logger.Info("🔍 DEBUG E21 - All TFs in hex", "all_task_forces", allTFs, "searching_player_id", playerID)
+			s.logger.Info("🔍 DEBUG E21 - All TFs in hex", "all_task_forces", allTFs, "searching_player_side", playerSide)
 		}
 	}
 
@@ -346,6 +701,11 @@ func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, pla
 
 	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
 	if err != nil {
+		// Если таблица не существует, возвращаем пустой результат вместо ошибки
+		if strings.Contains(err.Error(), "does not exist") {
+			s.logger.Debug("Task forces table does not exist, returning empty result", "game_id", gameID, "hex_id", hexID)
+			return []string{}, nil
+		}
 		return nil, fmt.Errorf("failed to get task force patrol markers: %w", err)
 	}
 	defer rows.Close()
@@ -491,6 +851,11 @@ func (s *SearchService) GetHexMarkers(gameID, playerID string, markerType string
 
 	rows, err := s.db.GetConnection().Query(query, gameID, playerID, markerType)
 	if err != nil {
+		// Если таблица не существует, возвращаем пустой результат вместо ошибки
+		if strings.Contains(err.Error(), "does not exist") {
+			s.logger.Debug("Hex markers table does not exist, returning empty result", "game_id", gameID, "marker_type", markerType)
+			return []string{}, nil
+		}
 		return nil, fmt.Errorf("failed to query hex markers: %w", err)
 	}
 	defer rows.Close()
@@ -527,21 +892,22 @@ func (s *SearchService) AddHexMarker(gameID, playerID, hexID, markerType string)
 
 	s.logger.Info("🔍 Adding hex marker", "game_id", gameID, "player_id", playerID, "player_side", playerSide, "hex_id", hexID, "marker_type", markerType)
 
-	// Добавляем маркер в GameModel
-	// TODO: Пересчет SearchHexData для этого гекса будет реализован отдельно
-	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-		// Инициализируем Search если нужно
-		if model.Search == nil {
-			model.Search = &models.SearchData{
-				German: make(map[string]models.SearchHexData),
-				Allied: make(map[string]models.SearchHexData),
-			}
-		}
-		// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
-		return nil
-	}, 3); err != nil {
-		s.logger.Error("Failed to add hex marker in GameModel", "game_id", gameID, "player_id", playerID, "player_side", playerSide, "hex_id", hexID, "marker_type", markerType, "error", err)
+	// Добавляем маркер в БД
+	query := `
+		INSERT INTO hex_markers (id, game_id, player_id, hex_id, marker_type, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW(), NOW())
+	`
+
+	_, err = s.db.GetConnection().Exec(query, gameID, playerID, hexID, markerType)
+	if err != nil {
+		s.logger.Error("Failed to add hex marker to DB", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "marker_type", markerType, "error", err)
 		return fmt.Errorf("failed to add hex marker: %w", err)
+	}
+
+	// Пересчитываем SearchHexData для этого гекса
+	if err := s.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+		s.logger.Warn("Failed to recalculate search hex data after adding marker", "game_id", gameID, "hex_id", hexID, "error", err)
+		// Не возвращаем ошибку, так как маркер уже добавлен
 	}
 
 	s.logger.Info("✅ Added hex marker", "game_id", gameID, "player_id", playerID, "player_side", playerSide, "hex_id", hexID, "marker_type", markerType)
@@ -569,20 +935,11 @@ func (s *SearchService) RemoveHexMarker(gameID, playerID, hexID, markerType stri
 		s.logger.Warn("Failed to get rows affected", "error", err)
 	}
 
-	// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
-	if s.gameStateService != nil {
-		if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-			// Инициализируем Search если нужно
-			if model.Search == nil {
-				model.Search = &models.SearchData{
-					German: make(map[string]models.SearchHexData),
-					Allied: make(map[string]models.SearchHexData),
-				}
-			}
-			// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
-			return nil
-		}, 3); err != nil {
-			s.logger.Warn("Failed to update GameModel after removing hex marker", "error", err)
+	// Пересчитываем SearchHexData для этого гекса
+	if rowsAffected > 0 {
+		if err := s.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+			s.logger.Warn("Failed to recalculate search hex data after removing marker", "game_id", gameID, "hex_id", hexID, "error", err)
+			// Не возвращаем ошибку, так как маркер уже удален
 		}
 	}
 
@@ -685,6 +1042,11 @@ func (s *SearchService) getHexMarkersInHex(gameID, hexID string, playerSide stri
 	var count int
 	err = s.db.GetConnection().QueryRow(query, gameID, hexID, playerID, markerType).Scan(&count)
 	if err != nil {
+		// Если таблица не существует, возвращаем 0 вместо ошибки
+		if strings.Contains(err.Error(), "does not exist") {
+			s.logger.Debug("Hex markers table does not exist, returning 0", "game_id", gameID, "hex_id", hexID, "marker_type", markerType)
+			return 0, nil
+		}
 		s.logger.Warn("Failed to get hex markers count", "game_id", gameID, "hex_id", hexID, "marker_type", markerType, "error", err)
 		return 0, nil
 	}
@@ -702,27 +1064,62 @@ func (s *SearchService) RemoveAllHexMarkersByType(gameID string, markerType stri
 
 	s.logger.Info("Starting removal of hex markers by type", "game_id", gameID, "marker_type", markerType)
 
-	// TODO: Пересчет SearchHexData для всех затронутых гексов будет реализован отдельно
-	// Маркеры теперь хранятся в БД, а не в GameModel
-	removedCount := 0
-
-	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-		// Инициализируем Search если нужно
-		if model.Search == nil {
-			model.Search = &models.SearchData{
-				German: make(map[string]models.SearchHexData),
-				Allied: make(map[string]models.SearchHexData),
-			}
+	// Получаем список всех затронутых гексов перед удалением
+	hexesQuery := `
+		SELECT DISTINCT hex_id
+		FROM hex_markers
+		WHERE game_id = $1 AND marker_type = $2
+	`
+	hexRows, err := s.db.GetConnection().Query(hexesQuery, gameID, markerType)
+	if err != nil {
+		// Если таблица не существует, возвращаем nil (нет маркеров для удаления)
+		if strings.Contains(err.Error(), "does not exist") {
+			s.logger.Debug("Hex markers table does not exist, nothing to remove", "game_id", gameID, "marker_type", markerType)
+			return nil
 		}
-		// TODO: Пересчитать SearchHexData для всех гексов, где были удалены маркеры
-		return nil
-	}, 3); err != nil {
-		s.logger.Error("Failed to remove all hex markers by type from GameModel", "game_id", gameID, "marker_type", markerType, "error", err)
-		return fmt.Errorf("failed to remove all hex markers by type: %w", err)
+		s.logger.Error("Failed to get hexes with markers", "game_id", gameID, "marker_type", markerType, "error", err)
+		return fmt.Errorf("failed to get hexes with markers: %w", err)
+	}
+
+	var affectedHexes []string
+	for hexRows.Next() {
+		var hexID string
+		if err := hexRows.Scan(&hexID); err != nil {
+			s.logger.Warn("Failed to scan hex ID", "error", err)
+			continue
+		}
+		affectedHexes = append(affectedHexes, hexID)
+	}
+	hexRows.Close()
+
+	// Удаляем маркеры из БД
+	deleteQuery := `
+		DELETE FROM hex_markers
+		WHERE game_id = $1 AND marker_type = $2
+	`
+	result, err := s.db.GetConnection().Exec(deleteQuery, gameID, markerType)
+	if err != nil {
+		// Если таблица не существует, считаем что маркеры уже удалены
+		if strings.Contains(err.Error(), "does not exist") {
+			s.logger.Debug("Hex markers table does not exist, nothing to remove", "game_id", gameID, "marker_type", markerType)
+			return nil
+		}
+		s.logger.Error("Failed to remove hex markers from DB", "game_id", gameID, "marker_type", markerType, "error", err)
+		return fmt.Errorf("failed to remove hex markers: %w", err)
+	}
+
+	removedCount, _ := result.RowsAffected()
+
+	// Пересчитываем SearchHexData для всех затронутых гексов
+	for _, hexID := range affectedHexes {
+		if err := s.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+			s.logger.Warn("Failed to recalculate search hex data for hex", "game_id", gameID, "hex_id", hexID, "error", err)
+			// Продолжаем для остальных гексов
+		}
 	}
 
 	if removedCount > 0 {
-		s.logger.Info("Successfully removed all hex markers by type", "game_id", gameID, "marker_type", markerType, "count", removedCount)
+		s.logger.Info("Successfully removed all hex markers by type", "game_id", gameID, "marker_type", markerType, "count", removedCount, "affected_hexes", len(affectedHexes))
 	} else {
 		s.logger.Warn("No hex markers of type found to remove", "game_id", gameID, "marker_type", markerType)
 	}

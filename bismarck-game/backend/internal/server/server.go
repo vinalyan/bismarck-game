@@ -172,6 +172,15 @@ func (s *Server) setupRoutes() {
 	// Настраиваем сервис аварийного топлива для UnitService
 	unitService.SetEmergencyFuelService(emergencyFuelService)
 
+	// Настраиваем SearchService для UnitService (для пересчета факторов поиска)
+	unitService.SetSearchService(searchService)
+
+	// Настраиваем SearchService для MovementService (для пересчета факторов поиска)
+	movementService.SetSearchService(searchService)
+
+	// Настраиваем SearchService для TaskForceService (для пересчета факторов поиска)
+	taskForceService.SetSearchService(searchService)
+
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
 		logger.Error("Failed to load ship config", "error", err)

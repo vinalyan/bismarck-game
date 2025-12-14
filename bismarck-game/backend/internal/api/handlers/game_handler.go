@@ -274,6 +274,8 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Создаем начальный GameModel для новой игры
+			// CreateInitialGameModel автоматически загрузит данные из БД, если они есть,
+			// и пересчитает факторы поиска через loadFromLegacyTables
 			if h.gameStateService != nil {
 				initialModel, err := h.gameStateService.CreateInitialGameModel(game.ID)
 				if err != nil {
@@ -284,7 +286,9 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 						log.Printf("Error saving initial GameModel to database: %v", err)
 						// Не прерываем создание игры, но логируем ошибку
 					} else {
-						log.Printf("Initial GameModel created and saved successfully for game %s (version %d)", game.ID, initialModel.Version)
+						log.Printf("Initial GameModel created and saved successfully for game %s (version %d, units: %d, task_forces: %d)", 
+							game.ID, initialModel.Version, len(initialModel.Units), len(initialModel.TaskForces))
+						// Факторы поиска уже пересчитаны в loadFromLegacyTables (если данные были загружены)
 					}
 				}
 			}

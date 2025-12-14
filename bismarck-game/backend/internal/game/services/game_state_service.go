@@ -33,6 +33,10 @@ type GameStateService struct {
 	memoryCacheMutex sync.RWMutex
 	maxMemoryGames   int
 
+	// Флаг для предотвращения рекурсивного пересчета при загрузке
+	loadingGames      map[string]bool
+	loadingGamesMutex sync.RWMutex
+
 	// Конфигурация
 	redisTTL time.Duration
 }
@@ -62,6 +66,7 @@ func NewGameStateService(
 		wsHub:               wsHub,
 		gameService:         gameService,
 		memoryCache:         make(map[string]*models.GameModel),
+		loadingGames:        make(map[string]bool),
 		maxMemoryGames:      50,             // По умолчанию
 		redisTTL:            24 * time.Hour, // По умолчанию 24 часа
 	}
@@ -77,10 +82,80 @@ func (s *GameStateService) SetConfig(maxMemoryGames int, redisTTL time.Duration)
 func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, error) {
 	startTime := time.Now()
 
+	// Проверяем, не загружается ли уже эта игра (предотвращение рекурсии)
+	s.loadingGamesMutex.RLock()
+	isLoading := s.loadingGames[gameID]
+	s.loadingGamesMutex.RUnlock()
+
+	// Если игра уже загружается, не вызываем пересчет
+	if isLoading {
+		// Просто загружаем из памяти или Redis без пересчета
+		s.memoryCacheMutex.RLock()
+		if model, exists := s.memoryCache[gameID]; exists {
+			s.memoryCacheMutex.RUnlock()
+			return model, nil
+		}
+		s.memoryCacheMutex.RUnlock()
+		// Если нет в памяти, пробуем Redis без пересчета
+		if model, err := s.loadFromRedisWithoutRecalculation(gameID); err == nil && model != nil {
+			return model, nil
+		}
+		// Если нет ни в памяти, ни в Redis, загружаем из БД без пересчета
+		return s.loadFromDatabaseWithoutRecalculation(gameID)
+	}
+
+	// Устанавливаем флаг загрузки
+	s.loadingGamesMutex.Lock()
+	s.loadingGames[gameID] = true
+	s.loadingGamesMutex.Unlock()
+
+	// Снимаем флаг при выходе из функции
+	defer func() {
+		s.loadingGamesMutex.Lock()
+		delete(s.loadingGames, gameID)
+		s.loadingGamesMutex.Unlock()
+	}()
+
 	// 1. Проверяем кэш в памяти
 	s.memoryCacheMutex.RLock()
 	if model, exists := s.memoryCache[gameID]; exists {
 		s.memoryCacheMutex.RUnlock()
+		
+		// Инициализируем структуры search, если нужно
+		// Если search пустой, но есть юниты - это старая игра, нужно пересчитать
+		if s.searchService != nil {
+			if model.Search == nil {
+				model.Search = &models.SearchData{
+					German: make(map[string]models.SearchHexData),
+					Allied: make(map[string]models.SearchHexData),
+				}
+			}
+			if model.Search.German == nil {
+				model.Search.German = make(map[string]models.SearchHexData)
+			}
+			if model.Search.Allied == nil {
+				model.Search.Allied = make(map[string]models.SearchHexData)
+			}
+			
+			// Проверяем: если search пустой, но есть юниты - это старая игра, нужен пересчет
+			hasUnits := len(model.Units) > 0 || len(model.TaskForces) > 0
+			searchIsEmpty := len(model.Search.German) == 0 && len(model.Search.Allied) == 0
+			
+			if hasUnits && searchIsEmpty {
+				// Это старая игра без пересчитанных факторов поиска - пересчитываем
+				relevantHexes := s.collectRelevantHexes(model)
+				if len(relevantHexes) > 0 {
+					s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
+					// Перезагружаем модель из БД после пересчета
+					if updatedModel, err := s.loadFromDatabaseWithoutRecalculation(gameID); err == nil {
+						model = updatedModel
+						// Обновляем кэш
+						s.saveToMemory(gameID, model)
+					}
+				}
+			}
+		}
+		
 		s.logger.Debug("GameModel loaded from memory cache",
 			"game_id", gameID,
 			"duration", time.Since(startTime),
@@ -94,6 +169,43 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 	if err == nil && model != nil {
 		// Сохраняем в память
 		s.saveToMemory(gameID, model)
+		
+		// Инициализируем структуры search, если нужно
+		// Если search пустой, но есть юниты - это старая игра, нужно пересчитать
+		if s.searchService != nil {
+			if model.Search == nil {
+				model.Search = &models.SearchData{
+					German: make(map[string]models.SearchHexData),
+					Allied: make(map[string]models.SearchHexData),
+				}
+			}
+			if model.Search.German == nil {
+				model.Search.German = make(map[string]models.SearchHexData)
+			}
+			if model.Search.Allied == nil {
+				model.Search.Allied = make(map[string]models.SearchHexData)
+			}
+			
+			// Проверяем: если search пустой, но есть юниты - это старая игра, нужен пересчет
+			hasUnits := len(model.Units) > 0 || len(model.TaskForces) > 0
+			searchIsEmpty := len(model.Search.German) == 0 && len(model.Search.Allied) == 0
+			
+			if hasUnits && searchIsEmpty {
+				// Это старая игра без пересчитанных факторов поиска - пересчитываем
+				relevantHexes := s.collectRelevantHexes(model)
+				if len(relevantHexes) > 0 {
+					s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
+					// Перезагружаем модель из БД после пересчета
+					if updatedModel, err := s.loadFromDatabaseWithoutRecalculation(gameID); err == nil {
+						model = updatedModel
+						// Обновляем кэши
+						s.saveToMemory(gameID, model)
+						s.saveToRedis(gameID, model)
+					}
+				}
+			}
+		}
+		
 		s.logger.Info("GameModel loaded from Redis",
 			"game_id", gameID,
 			"version", model.Version,
@@ -116,6 +228,39 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 	model, err = s.loadFromDatabase(gameID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Инициализируем структуры search, если нужно
+	// Если search пустой, но есть юниты - это старая игра, нужно пересчитать
+	if s.searchService != nil {
+		if model.Search == nil {
+			model.Search = &models.SearchData{
+				German: make(map[string]models.SearchHexData),
+				Allied: make(map[string]models.SearchHexData),
+			}
+		}
+		if model.Search.German == nil {
+			model.Search.German = make(map[string]models.SearchHexData)
+		}
+		if model.Search.Allied == nil {
+			model.Search.Allied = make(map[string]models.SearchHexData)
+		}
+		
+		// Проверяем: если search пустой, но есть юниты - это старая игра, нужен пересчет
+		hasUnits := len(model.Units) > 0 || len(model.TaskForces) > 0
+		searchIsEmpty := len(model.Search.German) == 0 && len(model.Search.Allied) == 0
+		
+		if hasUnits && searchIsEmpty {
+			// Это старая игра без пересчитанных факторов поиска - пересчитываем
+			relevantHexes := s.collectRelevantHexes(model)
+			if len(relevantHexes) > 0 {
+				s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
+				// Перезагружаем модель из БД после пересчета
+				if updatedModel, err := s.loadFromDatabaseWithoutRecalculation(gameID); err == nil {
+					model = updatedModel
+				}
+			}
+		}
 	}
 
 	// Сохраняем в Redis и память
@@ -213,6 +358,46 @@ func (s *GameStateService) InvalidateGameModel(gameID string) {
 	}
 }
 
+// loadFromDatabaseWithoutRecalculation загружает GameModel из БД без пересчета
+func (s *GameStateService) loadFromDatabaseWithoutRecalculation(gameID string) (*models.GameModel, error) {
+	// Проверяем, что игра существует
+	gameExistsQuery := `SELECT id FROM games WHERE id = $1`
+	var gameIDCheck string
+	err := s.db.GetConnection().QueryRow(gameExistsQuery, gameID).Scan(&gameIDCheck)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.Warn("Game not found in database", "game_id", gameID)
+			return nil, fmt.Errorf("game not found: %s", gameID)
+		}
+		s.logger.Error("Failed to check game existence", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to check game existence: %w", err)
+	}
+
+	// Загружаем из game_models (единственный источник истины)
+	model, err := s.LoadGameModelFromDatabase(gameID)
+	if err != nil {
+		// Если GameModel не найден, но игра существует, создаем пустую модель
+		s.logger.Info("GameModel not found in game_models table, creating empty model", "game_id", gameID)
+		initialModel, createErr := s.CreateInitialGameModel(gameID)
+		if createErr != nil {
+			s.logger.Error("Failed to create empty GameModel", "game_id", gameID, "error", createErr)
+			return nil, fmt.Errorf("game model not initialized: %s (game exists but GameModel not found and failed to create: %w)", gameID, createErr)
+		}
+
+		// Сохраняем созданный GameModel в БД
+		if saveErr := s.SaveGameModelToDatabase(gameID, initialModel); saveErr != nil {
+			s.logger.Error("Failed to save auto-created GameModel", "game_id", gameID, "error", saveErr)
+			return nil, fmt.Errorf("failed to save auto-created GameModel: %w", saveErr)
+		}
+
+		s.logger.Info("GameModel auto-created and saved", "game_id", gameID, "version", initialModel.Version)
+		return initialModel, nil
+	}
+
+	s.logger.Info("GameModel loaded from game_models table", "game_id", gameID, "version", model.Version, "units_count", len(model.Units))
+	return model, nil
+}
+
 // loadFromDatabase загружает GameModel из БД
 // Загружает только из game_models (новая архитектура)
 // Если GameModel не найден, но игра существует, создает его автоматически (для существующих игр)
@@ -256,10 +441,33 @@ func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, e
 	return model, nil
 }
 
-// CreateInitialGameModel создает начальный пустой GameModel для новой игры
-// GameModel теперь является единственным источником истины, старые таблицы удалены
+// CreateInitialGameModel создает начальный GameModel для новой игры
+// Если в БД уже есть юниты или Task Forces, загружает их и пересчитывает факторы поиска
+// Если данных нет, создает пустую модель
 func (s *GameStateService) CreateInitialGameModel(gameID string) (*models.GameModel, error) {
-	// Создаем пустую модель для новой игры
+	// Проверяем, есть ли уже данные в БД (юниты или Task Forces)
+	navalUnits, err := s.unitService.GetNavalUnitsByGameID(gameID)
+	if err != nil {
+		s.logger.Warn("Failed to check for naval units, creating empty model", "game_id", gameID, "error", err)
+	} else if len(navalUnits) > 0 {
+		// Если есть юниты, загружаем полную модель с пересчетом факторов поиска
+		s.logger.Info("Found existing units in database, loading full GameModel", "game_id", gameID, "units_count", len(navalUnits))
+		return s.loadFromLegacyTables(gameID)
+	}
+
+	// Проверяем Task Forces
+	if s.taskForceService != nil {
+		taskForces, err := s.taskForceService.GetTaskForcesByGameID(gameID)
+		if err != nil {
+			s.logger.Warn("Failed to check for task forces, creating empty model", "game_id", gameID, "error", err)
+		} else if len(taskForces) > 0 {
+			// Если есть Task Forces, загружаем полную модель с пересчетом факторов поиска
+			s.logger.Info("Found existing task forces in database, loading full GameModel", "game_id", gameID, "task_forces_count", len(taskForces))
+			return s.loadFromLegacyTables(gameID)
+		}
+	}
+
+	// Если данных нет, создаем пустую модель для новой игры
 	model := &models.GameModel{
 		GameID:      gameID,
 		Version:     1,
@@ -469,7 +677,6 @@ func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameMode
 	}
 
 	// Инициализируем Search с пустыми map
-	// Расчеты и заполнение данных будут реализованы отдельно
 	// Создаем GameModel
 	model := &models.GameModel{
 		GameID:      gameID,
@@ -491,11 +698,108 @@ func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameMode
 		IntrinsicSearchHexes: intrinsicSearchHexes,
 	}
 
+	// Пересчитываем факторы поиска для всех релевантных гексов
+	if s.searchService != nil {
+		s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
+	}
+
 	return model, nil
 }
 
-// loadFromRedis загружает GameModel из Redis
-func (s *GameStateService) loadFromRedis(gameID string) (*models.GameModel, error) {
+// collectRelevantHexes собирает все релевантные гексы из GameModel
+func (s *GameStateService) collectRelevantHexes(model *models.GameModel) map[string]bool {
+	relevantHexes := make(map[string]bool)
+
+	// Добавляем гексы из позиций юнитов
+	for _, unit := range model.Units {
+		if unit.Position != "" {
+			relevantHexes[unit.Position] = true
+		}
+	}
+
+	// Добавляем гексы из позиций Task Forces
+	for _, tf := range model.TaskForces {
+		if tf.Position != "" {
+			relevantHexes[tf.Position] = true
+		}
+	}
+
+	// Добавляем гексы с собственными факторами поиска
+	for hexID := range model.IntrinsicSearchHexes {
+		relevantHexes[hexID] = true
+	}
+
+	// НЕ добавляем гексы из уже существующих записей в Search,
+	// чтобы избежать создания записей с нулями для гексов без юнитов
+
+	return relevantHexes
+}
+
+// recalculateSearchDataForAllRelevantHexes пересчитывает факторы поиска для всех релевантных гексов
+func (s *GameStateService) recalculateSearchDataForAllRelevantHexes(gameID string, relevantHexes map[string]bool) {
+	if s.searchService == nil {
+		s.logger.Warn("SearchService not available, skipping search data recalculation", "game_id", gameID)
+		return
+	}
+
+	s.logger.Info("Recalculating search data for all relevant hexes", "game_id", gameID, "hexes_count", len(relevantHexes))
+
+	hexCount := 0
+	errorCount := 0
+	for hexID := range relevantHexes {
+		hexCount++
+		if err := s.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+			errorCount++
+			s.logger.Warn("Failed to recalculate search data for hex", "game_id", gameID, "hex_id", hexID, "error", err)
+			// Продолжаем для остальных гексов
+		}
+	}
+}
+
+// InitializeSearchFactorsForGame пересчитывает факторы поиска для всех релевантных гексов при создании игры
+// Используется один раз при создании игры, после загрузки всех юнитов и Task Forces
+// Загружает модель из БД (которая уже содержит все юниты и Task Forces) и пересчитывает факторы поиска
+func (s *GameStateService) InitializeSearchFactorsForGame(gameID string) error {
+	if s.searchService == nil {
+		return fmt.Errorf("SearchService not available")
+	}
+
+	// Загружаем модель из БД (она уже должна содержать все юниты и Task Forces)
+	// Используем loadFromDatabaseWithoutRecalculation, чтобы избежать рекурсии
+	// Но если GameModel не найден, он создаст пустую модель - в этом случае нужно загрузить через loadFromLegacyTables
+	model, err := s.loadFromDatabaseWithoutRecalculation(gameID)
+		if err != nil {
+		return fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Если модель пустая (нет юнитов), значит GameModel был только что создан
+	// В этом случае нужно загрузить данные через loadFromLegacyTables, который уже пересчитает факторы
+	if len(model.Units) == 0 {
+		// Загружаем через loadFromLegacyTables, который загрузит все данные и пересчитает факторы
+		legacyModel, err := s.loadFromLegacyTables(gameID)
+		if err != nil {
+			return fmt.Errorf("failed to load model from legacy tables: %w", err)
+		}
+		// Сохраняем загруженную модель в БД
+		if saveErr := s.SaveGameModelToDatabase(gameID, legacyModel); saveErr != nil {
+			s.logger.Warn("Failed to save model loaded from legacy tables", "game_id", gameID, "error", saveErr)
+		}
+		s.logger.Info("Initialized search factors for game via loadFromLegacyTables", "game_id", gameID)
+		return nil
+	}
+
+	// Если модель уже содержит юниты, просто пересчитываем факторы поиска
+	relevantHexes := s.collectRelevantHexes(model)
+	if len(relevantHexes) > 0 {
+		s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
+		s.logger.Info("Initialized search factors for game", "game_id", gameID, "hexes_count", len(relevantHexes))
+	}
+
+	return nil
+}
+
+// loadFromRedisWithoutRecalculation загружает GameModel из Redis без пересчета
+func (s *GameStateService) loadFromRedisWithoutRecalculation(gameID string) (*models.GameModel, error) {
 	key := fmt.Sprintf("game_model:%s", gameID)
 	data, err := s.redis.GetCache(key)
 	if err != nil {
@@ -511,6 +815,33 @@ func (s *GameStateService) loadFromRedis(gameID string) (*models.GameModel, erro
 	s.migrateOldSearchFields(&model)
 
 	return &model, nil
+}
+
+// loadFromRedis загружает GameModel из Redis
+func (s *GameStateService) loadFromRedis(gameID string) (*models.GameModel, error) {
+	model, err := s.loadFromRedisWithoutRecalculation(gameID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Инициализируем структуры search, если нужно (без пересчета)
+	// Пересчет происходит только при создании игры или при движениях/изменениях маркеров
+	if s.searchService != nil {
+		if model.Search == nil {
+			model.Search = &models.SearchData{
+				German: make(map[string]models.SearchHexData),
+				Allied: make(map[string]models.SearchHexData),
+			}
+		}
+		if model.Search.German == nil {
+			model.Search.German = make(map[string]models.SearchHexData)
+		}
+		if model.Search.Allied == nil {
+			model.Search.Allied = make(map[string]models.SearchHexData)
+		}
+	}
+
+	return model, nil
 }
 
 // saveToRedis сохраняет GameModel в Redis

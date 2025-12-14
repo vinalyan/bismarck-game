@@ -26,6 +26,7 @@ type UnitService struct {
 	onUnitSunk           UnitSunkHandler
 	emergencyFuelService *EmergencyFuelService
 	gameStateService     *GameStateService // Опционально, для обновления GameModel
+	searchService        *SearchService     // Опционально, для пересчета факторов поиска
 }
 
 // NewUnitService создает новый сервис юнитов
@@ -44,6 +45,11 @@ func (s *UnitService) SetGameStateService(gameStateService *GameStateService) {
 // SetEmergencyFuelService устанавливает сервис аварийного топлива
 func (s *UnitService) SetEmergencyFuelService(service *EmergencyFuelService) {
 	s.emergencyFuelService = service
+}
+
+// SetSearchService устанавливает SearchService для пересчета факторов поиска
+func (s *UnitService) SetSearchService(service *SearchService) {
+	s.searchService = service
 }
 
 // SetUnitSunkHandler устанавливает обработчик для потопления корабля
@@ -1351,7 +1357,8 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 	}
 
-	// Обновляем патруль в GameModel и добавляем/удаляем маркер патруля
+	// Получаем hexID перед обновлением GameModel
+	var hexID string
 	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
 		unitModel, exists := model.Units[unitID]
 		if !exists {
@@ -1362,7 +1369,6 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 
 		// Инициализируем Search если нужно
-		// TODO: Пересчет SearchHexData для этого гекса будет реализован отдельно
 		if model.Search == nil {
 			model.Search = &models.SearchData{
 				German: make(map[string]models.SearchHexData),
@@ -1371,7 +1377,7 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 
 		// Получаем позицию юнита для маркера патруля
-		hexID := unitModel.Position
+		hexID = unitModel.Position
 		if hexID == "" {
 			// Если юнит в таскфлите, используем позицию таскфлита
 			if unitModel.NavalData.TaskForceID != nil {
@@ -1387,7 +1393,6 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 
 		// TODO: Добавление/удаление маркера патруля в БД будет реализовано отдельно
 		// Маркеры теперь хранятся в БД (таблица hex_markers), а не в GameModel
-		// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
 
 		return nil
 	}, 3)
@@ -1395,6 +1400,14 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 	if err != nil {
 		s.logger.Error("Failed to update patrol status in GameModel", "unit_id", unitID, "is_patrolling", isPatrolling, "error", err)
 		return fmt.Errorf("failed to set patrol: %w", err)
+	}
+
+	// Пересчитываем SearchHexData для гекса юнита/ТФ
+	if hexID != "" && s.searchService != nil {
+		if err := s.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+			s.logger.Warn("Failed to recalculate search hex data after setting patrol", "game_id", gameID, "hex_id", hexID, "error", err)
+			// Не возвращаем ошибку, так как патруль уже установлен
+		}
 	}
 
 	s.logger.Info("Set patrol", "unit_id", unitID, "is_patrolling", isPatrolling)

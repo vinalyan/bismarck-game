@@ -20,6 +20,7 @@ type TaskForceService struct {
 	unitService      *UnitService
 	movementService  *MovementService
 	gameStateService *GameStateService // Опционально, для обновления GameModel
+	searchService    *SearchService    // Для пересчета факторов поиска
 }
 
 // NewTaskForceService создает новый сервис Task Forces
@@ -35,6 +36,11 @@ func NewTaskForceService(db *database.Database, logger *logger.Logger, unitServi
 // SetGameStateService устанавливает GameStateService для обновления GameModel
 func (s *TaskForceService) SetGameStateService(gameStateService *GameStateService) {
 	s.gameStateService = gameStateService
+}
+
+// SetSearchService устанавливает SearchService для пересчета факторов поиска
+func (s *TaskForceService) SetSearchService(searchService *SearchService) {
+	s.searchService = searchService
 }
 
 // CreateTaskForce создает новое оперативное соединение
@@ -174,6 +180,13 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 	}, 3); err != nil {
 		s.logger.Error("Failed to create task force in GameModel", "error", err)
 		return fmt.Errorf("failed to create task force: %w", err)
+	}
+
+	// Пересчитываем факторы поиска для гекса Task Force
+	if s.searchService != nil && taskForce.Position != "" {
+		if err := s.searchService.RecalculateSearchDataForHex(taskForce.GameID, taskForce.Position); err != nil {
+			s.logger.Warn("Failed to recalculate search data after creating task force", "hex_id", taskForce.Position, "error", err)
+		}
 	}
 
 	s.logger.Info("Created task force", "task_force_id", taskForce.ID, "name", taskForce.Name, "nationality", taskForce.Nationality)
@@ -485,7 +498,15 @@ func (s *TaskForceService) RemoveUnitFromTaskForce(taskForceID string, unitID st
 		if err != nil {
 			return fmt.Errorf("failed to update task force in GameModel: %w", err)
 		}
+
+		// Пересчитываем факторы поиска для гекса Task Force
+		if s.searchService != nil && taskForce.Position != "" {
+			if err := s.searchService.RecalculateSearchDataForHex(taskForce.GameID, taskForce.Position); err != nil {
+				s.logger.Warn("Failed to recalculate search data after removing unit from task force", "hex_id", taskForce.Position, "error", err)
+			}
+		}
 	}
+	// Примечание: если Task Force был удален (len < 2), пересчет уже делается в DeleteTaskForce
 
 	s.logger.Info("Removed unit from task force", "task_force_id", taskForceID, "unit_id", unitID)
 	return nil
@@ -549,6 +570,13 @@ func (s *TaskForceService) DeleteTaskForce(taskForceID string) error {
 	if err != nil {
 		s.logger.Error("Failed to delete task force from GameModel", "task_force_id", taskForceID, "error", err)
 		return fmt.Errorf("failed to delete task force: %w", err)
+	}
+
+	// Пересчитываем факторы поиска для гекса, где был Task Force
+	if s.searchService != nil && taskForce.Position != "" {
+		if err := s.searchService.RecalculateSearchDataForHex(gameID, taskForce.Position); err != nil {
+			s.logger.Warn("Failed to recalculate search data after deleting task force", "hex_id", taskForce.Position, "error", err)
+		}
 	}
 
 	s.logger.Info("Deleted task force", "task_force_id", taskForceID)
