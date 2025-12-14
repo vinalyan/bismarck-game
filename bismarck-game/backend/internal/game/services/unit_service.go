@@ -1361,9 +1361,15 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 			return fmt.Errorf("unit %s is not a naval unit", unitID)
 		}
 
-		// Инициализируем HexMarkers если нужно
-		if model.HexMarkers == nil {
-			model.HexMarkers = make(map[string]models.HexMarkersModel)
+		// Инициализируем Search если нужно
+		if model.Search == nil {
+			model.Search = &models.SearchData{
+				Factors: make(map[string]models.SearchFactorsBySide),
+				Markers: make(map[string]models.HexMarkersModel),
+			}
+		}
+		if model.Search.Markers == nil {
+			model.Search.Markers = make(map[string]models.HexMarkersModel)
 		}
 
 		// Получаем позицию юнита для маркера патруля
@@ -1385,7 +1391,7 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		// Добавляем маркер патруля в гексе (только при установке патруля)
 		// При снятии патруля маркер не удаляется - удаление будет через отдельную функцию отмены
 		if hexID != "" && isPatrolling && !oldPatrolling {
-			hexMarkers := model.HexMarkers[hexID]
+			hexMarkers := model.Search.Markers[hexID]
 			if hexMarkers.Markers == nil {
 				hexMarkers.Markers = make(map[string]int)
 			}
@@ -1394,7 +1400,7 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 			patrolMarkerType := string(models.MarkerTypePatrol)
 			// Добавляем маркер патруля
 			hexMarkers.Markers[patrolMarkerType]++
-			model.HexMarkers[hexID] = hexMarkers
+			model.Search.Markers[hexID] = hexMarkers
 		}
 
 		return nil

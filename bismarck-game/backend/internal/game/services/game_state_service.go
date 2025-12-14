@@ -272,8 +272,10 @@ func (s *GameStateService) CreateInitialGameModel(gameID string) (*models.GameMo
 		Units:                make(map[string]*models.UnitModel),
 		TaskForces:           make(map[string]*models.TaskForceModel),
 		EnemyContacts:        []*models.EnemyContactModel{},
-		SearchFactors:        make(map[string]models.SearchFactorsBySide),
-		HexMarkers:           make(map[string]models.HexMarkersModel),
+		Search: &models.SearchData{
+			Factors: make(map[string]models.SearchFactorsBySide),
+			Markers: make(map[string]models.HexMarkersModel),
+		},
 		Events:               []*models.GameEventModel{},
 		IntrinsicSearchHexes: s.mapStructureService.GetIntrinsicSearchHexes(),
 	}
