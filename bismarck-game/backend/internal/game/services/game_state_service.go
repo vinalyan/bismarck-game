@@ -273,8 +273,8 @@ func (s *GameStateService) CreateInitialGameModel(gameID string) (*models.GameMo
 		TaskForces:           make(map[string]*models.TaskForceModel),
 		EnemyContacts:        []*models.EnemyContactModel{},
 		Search: &models.SearchData{
-			Factors: make(map[string]models.SearchFactorsBySide),
-			Markers: make(map[string]models.HexMarkersModel),
+			German: make(map[string]models.SearchHexData),
+			Allied: make(map[string]models.SearchHexData),
 		},
 		Events:               []*models.GameEventModel{},
 		IntrinsicSearchHexes: s.mapStructureService.GetIntrinsicSearchHexes(),
@@ -398,19 +398,12 @@ func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameMode
 		eventsModel = append(eventsModel, eventModel)
 	}
 
-	// Загружаем маркеры
+	// Загружаем маркеры (используется только для определения релевантных гексов)
+	// TODO: Пересчет SearchHexData будет реализован отдельно
 	markersMap, err := s.searchService.GetAllMarkersByGameID(gameID)
 	if err != nil {
 		s.logger.Warn("Failed to get markers", "error", err)
 		markersMap = make(map[string]map[string]int)
-	}
-
-	hexMarkers := make(map[string]models.HexMarkersModel)
-	for hexID, markers := range markersMap {
-		hexMarkers[hexID] = models.HexMarkersModel{
-			HexID:   hexID,
-			Markers: markers,
-		}
 	}
 
 	// Загружаем контакты противника
@@ -475,35 +468,8 @@ func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameMode
 		relevantHexes[hexID] = true
 	}
 
-	// Рассчитываем факторы поиска для каждого релевантного гекса
-	// Сохраняем факторы для каждой стороны отдельно
-	searchFactors := make(map[string]models.SearchFactorsBySide)
-	for hexID := range relevantHexes {
-		if hexID == "" {
-			continue
-		}
-
-		// Рассчитываем факторы для немецкой стороны
-		germanFactors, err1 := s.searchService.CalculateSearchFactors(gameID, hexID, "german")
-		if err1 != nil {
-			s.logger.Warn("Failed to calculate search factors for german side", "hex_id", hexID, "error", err1)
-			germanFactors = 0
-		}
-
-		// Рассчитываем факторы для союзной стороны
-		alliedFactors, err2 := s.searchService.CalculateSearchFactors(gameID, hexID, "allied")
-		if err2 != nil {
-			s.logger.Warn("Failed to calculate search factors for allied side", "hex_id", hexID, "error", err2)
-			alliedFactors = 0
-		}
-
-		// Сохраняем факторы для обеих сторон
-		searchFactors[hexID] = models.SearchFactorsBySide{
-			German: germanFactors,
-			Allied: alliedFactors,
-		}
-	}
-
+	// Инициализируем Search с пустыми map
+	// Расчеты и заполнение данных будут реализованы отдельно
 	// Создаем GameModel
 	model := &models.GameModel{
 		GameID:      gameID,
@@ -518,8 +484,8 @@ func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameMode
 		TaskForces:           taskForcesMap,
 		EnemyContacts:        enemyContacts,
 		Search: &models.SearchData{
-			Factors: searchFactors,
-			Markers: hexMarkers,
+			German: make(map[string]models.SearchHexData),
+			Allied: make(map[string]models.SearchHexData),
 		},
 		Events:               eventsModel,
 		IntrinsicSearchHexes: intrinsicSearchHexes,
@@ -700,8 +666,8 @@ func (s *GameStateService) migrateOldSearchFields(model *models.GameModel) {
 	// Старые поля search_factors и hex_markers уже потеряны при десериализации,
 	// так как их нет в структуре GameModel
 	model.Search = &models.SearchData{
-		Factors: make(map[string]models.SearchFactorsBySide),
-		Markers: make(map[string]models.HexMarkersModel),
+		German: make(map[string]models.SearchHexData),
+		Allied: make(map[string]models.SearchHexData),
 	}
 }
 

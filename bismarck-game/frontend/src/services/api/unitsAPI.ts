@@ -117,6 +117,15 @@ export interface UpdatePositionResponse {
   error?: string;
 }
 
+// Интерфейс для данных поиска гекса
+interface SearchHexData {
+  factor: number;
+  ships: number;
+  patrol: number;
+  air_search: number;
+  intrinsic: number;
+}
+
 // Интерфейс для GameModel (из бэкенда)
 interface GameModel {
   game_id: string;
@@ -130,8 +139,8 @@ interface GameModel {
   task_forces: { [key: string]: TaskForceModel };
   enemy_contacts: EnemyContactModel[];
   search?: {
-    factors: { [key: string]: { german: number; allied: number } };
-    markers: { [key: string]: { hex_id: string; markers: { [key: string]: number } } };
+    german?: { [hexId: string]: SearchHexData };
+    allied?: { [hexId: string]: SearchHexData };
   };
   events: any[];
   intrinsic_search_hexes?: { [key: string]: number };

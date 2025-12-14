@@ -152,25 +152,22 @@ type EnemyContactModel struct {
 	LastSeenAt       time.Time      `json:"last_seen_at"`
 }
 
-// HexMarkersModel представляет маркеры гекса
-type HexMarkersModel struct {
-	HexID   string         `json:"hex_id"`
-	Markers map[string]int `json:"markers"` // marker_type -> count
-}
-
-// SearchFactorsBySide представляет факторы поиска для каждой стороны
-type SearchFactorsBySide struct {
-	German int `json:"german"` // Факторы поиска для немецкой стороны
-	Allied int `json:"allied"` // Факторы поиска для союзной стороны
+// SearchHexData представляет детальную информацию о факторах поиска для гекса
+type SearchHexData struct {
+	Factor     int `json:"factor"`      // ships*1 + patrol*3 + air_search*2 + intrinsic
+	Ships      int `json:"ships"`       // количество кораблей и ТФ
+	Patrol     int `json:"patrol"`      // количество маркеров патруля
+	AirSearch  int `json:"air_search"` // количество маркеров воздушного патруля
+	Intrinsic  int `json:"intrinsic"`   // собственные факторы поиска гекса
 }
 
 // SearchData представляет объединенные данные поиска
 type SearchData struct {
-	// Факторы поиска для каждой стороны (только для релевантных гексов)
-	Factors map[string]SearchFactorsBySide `json:"factors"` // hex_id -> SearchFactorsBySide
+	// Данные поиска для немецкой стороны
+	German map[string]SearchHexData `json:"german"` // hex_id -> SearchHexData
 
-	// Маркеры гексов
-	Markers map[string]HexMarkersModel `json:"markers"` // hex_id -> HexMarkersModel
+	// Данные поиска для союзной стороны
+	Allied map[string]SearchHexData `json:"allied"` // hex_id -> SearchHexData
 }
 
 // GameEventModel представляет событие игры

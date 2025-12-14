@@ -1362,14 +1362,12 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 
 		// Инициализируем Search если нужно
+		// TODO: Пересчет SearchHexData для этого гекса будет реализован отдельно
 		if model.Search == nil {
 			model.Search = &models.SearchData{
-				Factors: make(map[string]models.SearchFactorsBySide),
-				Markers: make(map[string]models.HexMarkersModel),
+				German: make(map[string]models.SearchHexData),
+				Allied: make(map[string]models.SearchHexData),
 			}
-		}
-		if model.Search.Markers == nil {
-			model.Search.Markers = make(map[string]models.HexMarkersModel)
 		}
 
 		// Получаем позицию юнита для маркера патруля

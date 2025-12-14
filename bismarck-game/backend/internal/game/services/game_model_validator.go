@@ -79,19 +79,19 @@ func (v *GameModelValidator) ValidateModel(model *models.GameModel) error {
 	// Валидация Search блока
 	if model.Search == nil {
 		model.Search = &models.SearchData{
-			Factors: make(map[string]models.SearchFactorsBySide),
-			Markers: make(map[string]models.HexMarkersModel),
+			German: make(map[string]models.SearchHexData),
+			Allied: make(map[string]models.SearchHexData),
 		}
 	}
 
-	// Валидация SearchFactors
-	if model.Search.Factors == nil {
-		model.Search.Factors = make(map[string]models.SearchFactorsBySide)
+	// Валидация German
+	if model.Search.German == nil {
+		model.Search.German = make(map[string]models.SearchHexData)
 	}
 
-	// Валидация HexMarkers
-	if model.Search.Markers == nil {
-		model.Search.Markers = make(map[string]models.HexMarkersModel)
+	// Валидация Allied
+	if model.Search.Allied == nil {
+		model.Search.Allied = make(map[string]models.SearchHexData)
 	}
 
 	// Валидация Events
