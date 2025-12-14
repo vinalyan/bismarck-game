@@ -515,8 +515,10 @@ func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameMode
 		Units:                units,
 		TaskForces:           taskForcesMap,
 		EnemyContacts:        enemyContacts,
-		SearchFactors:        searchFactors,
-		HexMarkers:           hexMarkers,
+		Search: &models.SearchData{
+			Factors: searchFactors,
+			Markers: hexMarkers,
+		},
 		Events:               eventsModel,
 		IntrinsicSearchHexes: intrinsicSearchHexes,
 	}

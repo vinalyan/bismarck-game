@@ -129,8 +129,10 @@ interface GameModel {
   units: { [key: string]: UnitModel };
   task_forces: { [key: string]: TaskForceModel };
   enemy_contacts: EnemyContactModel[];
-  search_factors: { [key: string]: { german: number; allied: number } };
-  hex_markers: { [key: string]: { hex_id: string; markers: { [key: string]: number } } };
+  search?: {
+    factors: { [key: string]: { german: number; allied: number } };
+    markers: { [key: string]: { hex_id: string; markers: { [key: string]: number } } };
+  };
   events: any[];
   intrinsic_search_hexes?: { [key: string]: number };
 }

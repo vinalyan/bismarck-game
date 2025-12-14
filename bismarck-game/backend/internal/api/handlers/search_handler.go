@@ -316,18 +316,23 @@ func (h *SearchHandler) AddHexMarker(w http.ResponseWriter, r *http.Request) {
 	// Обновляем GameModel после добавления маркера
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-			// Обновляем маркеры в модели напрямую
-			// Получаем текущие маркеры для этого гекса
-			if model.HexMarkers == nil {
-				model.HexMarkers = make(map[string]models.HexMarkersModel)
+			// Инициализируем Search если нужно
+			if model.Search == nil {
+				model.Search = &models.SearchData{
+					Factors: make(map[string]models.SearchFactorsBySide),
+					Markers: make(map[string]models.HexMarkersModel),
+				}
 			}
-			hexMarkers := model.HexMarkers[req.HexID]
+			if model.Search.Markers == nil {
+				model.Search.Markers = make(map[string]models.HexMarkersModel)
+			}
+			hexMarkers := model.Search.Markers[req.HexID]
 			if hexMarkers.Markers == nil {
 				hexMarkers.Markers = make(map[string]int)
 			}
 			hexMarkers.HexID = req.HexID
 			hexMarkers.Markers[req.MarkerType]++
-			model.HexMarkers[req.HexID] = hexMarkers
+			model.Search.Markers[req.HexID] = hexMarkers
 			// TODO: Пересчитать SearchFactors для этого гекса
 			return nil
 		}, 3); err != nil {
@@ -377,14 +382,15 @@ func (h *SearchHandler) RemoveHexMarker(w http.ResponseWriter, r *http.Request) 
 	// Обновляем GameModel после удаления маркера
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-			// Обновляем маркеры в модели напрямую
-			if hexMarkers, exists := model.HexMarkers[hexID]; exists {
-				if hexMarkers.Markers[markerType] > 0 {
-					hexMarkers.Markers[markerType]--
-					if hexMarkers.Markers[markerType] == 0 {
-						delete(hexMarkers.Markers, markerType)
+			if model.Search != nil && model.Search.Markers != nil {
+				if hexMarkers, exists := model.Search.Markers[hexID]; exists {
+					if hexMarkers.Markers[markerType] > 0 {
+						hexMarkers.Markers[markerType]--
+						if hexMarkers.Markers[markerType] == 0 {
+							delete(hexMarkers.Markers, markerType)
+						}
+						model.Search.Markers[hexID] = hexMarkers
 					}
-					model.HexMarkers[hexID] = hexMarkers
 				}
 			}
 			// TODO: Пересчитать SearchFactors для этого гекса

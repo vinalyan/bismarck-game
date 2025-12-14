@@ -28,12 +28,8 @@ type GameModel struct {
 	// Контакты противника
 	EnemyContacts []*EnemyContactModel `json:"enemy_contacts"`
 
-	// Факторы поиска (только для релевантных гексов)
-	// Хранит факторы для каждой стороны отдельно
-	SearchFactors map[string]SearchFactorsBySide `json:"search_factors"` // hex_id -> SearchFactorsBySide
-
-	// Маркеры гексов
-	HexMarkers map[string]HexMarkersModel `json:"hex_markers"` // hex_id -> markers
+	// Блок поиска (объединенный)
+	Search *SearchData `json:"search,omitempty"`
 
 	// События игры
 	Events []*GameEventModel `json:"events"`
@@ -166,6 +162,15 @@ type HexMarkersModel struct {
 type SearchFactorsBySide struct {
 	German int `json:"german"` // Факторы поиска для немецкой стороны
 	Allied int `json:"allied"` // Факторы поиска для союзной стороны
+}
+
+// SearchData представляет объединенные данные поиска
+type SearchData struct {
+	// Факторы поиска для каждой стороны (только для релевантных гексов)
+	Factors map[string]SearchFactorsBySide `json:"factors"` // hex_id -> SearchFactorsBySide
+
+	// Маркеры гексов
+	Markers map[string]HexMarkersModel `json:"markers"` // hex_id -> HexMarkersModel
 }
 
 // GameEventModel представляет событие игры

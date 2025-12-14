@@ -494,10 +494,12 @@ func (s *SearchService) GetHexMarkers(gameID, playerID string, markerType string
 
 	var hexIDs []string
 	// Проходим по всем гексам с маркерами
-	for hexID, hexMarkers := range model.HexMarkers {
-		// Проверяем, есть ли маркер указанного типа в этом гексе
-		if count, exists := hexMarkers.Markers[markerType]; exists && count > 0 {
-			hexIDs = append(hexIDs, hexID)
+	if model.Search != nil && model.Search.Markers != nil {
+		for hexID, hexMarkers := range model.Search.Markers {
+			// Проверяем, есть ли маркер указанного типа в этом гексе
+			if count, exists := hexMarkers.Markers[markerType]; exists && count > 0 {
+				hexIDs = append(hexIDs, hexID)
+			}
 		}
 	}
 
@@ -599,11 +601,13 @@ func (s *SearchService) GetHexMarkersCount(gameID, hexID string, playerSide stri
 	result := make(map[string]int)
 
 	// Получаем маркеры для этого гекса
-	if hexMarkers, exists := model.HexMarkers[hexID]; exists {
-		// Копируем маркеры в результат
-		for markerType, count := range hexMarkers.Markers {
-			if count > 0 {
-				result[markerType] = count
+	if model.Search != nil && model.Search.Markers != nil {
+		if hexMarkers, exists := model.Search.Markers[hexID]; exists {
+			// Копируем маркеры в результат
+			for markerType, count := range hexMarkers.Markers {
+				if count > 0 {
+					result[markerType] = count
+				}
 			}
 		}
 	}
@@ -630,9 +634,11 @@ func (s *SearchService) getHexMarkersInHex(gameID, hexID string, playerSide stri
 	}
 
 	// Получаем маркеры для этого гекса
-	if hexMarkers, exists := model.HexMarkers[hexID]; exists {
-		if count, exists := hexMarkers.Markers[markerType]; exists {
-			return count, nil
+	if model.Search != nil && model.Search.Markers != nil {
+		if hexMarkers, exists := model.Search.Markers[hexID]; exists {
+			if count, exists := hexMarkers.Markers[markerType]; exists {
+				return count, nil
+			}
 		}
 	}
 
@@ -654,16 +660,16 @@ func (s *SearchService) RemoveAllHexMarkersByType(gameID string, markerType stri
 	hexesToUpdate := make(map[string]models.HexMarkersModel)
 
 	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-		// Инициализируем HexMarkers если он nil
-		if model.HexMarkers == nil {
-			s.logger.Debug("HexMarkers is nil, nothing to remove", "game_id", gameID)
+		// Проверяем наличие Search блока
+		if model.Search == nil || model.Search.Markers == nil {
+			s.logger.Debug("Search.Markers is nil, nothing to remove", "game_id", gameID)
 			return nil
 		}
 
-		s.logger.Info("Processing hex markers", "game_id", gameID, "total_hexes", len(model.HexMarkers))
+		s.logger.Info("Processing hex markers", "game_id", gameID, "total_hexes", len(model.Search.Markers))
 
 		// Собираем информацию о том, что нужно удалить/обновить
-		for hexID, hexMarkers := range model.HexMarkers {
+		for hexID, hexMarkers := range model.Search.Markers {
 			// Проверяем, есть ли маркер указанного типа в этом гексе
 			if count, exists := hexMarkers.Markers[markerType]; exists && count > 0 {
 				s.logger.Info("Found marker to remove", "game_id", gameID, "hex_id", hexID, "marker_type", markerType, "count", count)
@@ -693,13 +699,13 @@ func (s *SearchService) RemoveAllHexMarkersByType(gameID string, markerType stri
 
 		// Удаляем гексы без маркеров
 		for _, hexID := range hexesToRemove {
-			delete(model.HexMarkers, hexID)
-			s.logger.Info("Removed hex from HexMarkers", "game_id", gameID, "hex_id", hexID)
+			delete(model.Search.Markers, hexID)
+			s.logger.Info("Removed hex from Search.Markers", "game_id", gameID, "hex_id", hexID)
 		}
 
 		// Обновляем гексы с оставшимися маркерами
 		for hexID, hexMarkers := range hexesToUpdate {
-			model.HexMarkers[hexID] = hexMarkers
+			model.Search.Markers[hexID] = hexMarkers
 			s.logger.Info("Updated hex markers", "game_id", gameID, "hex_id", hexID)
 		}
 
