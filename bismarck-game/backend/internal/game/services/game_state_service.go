@@ -459,7 +459,7 @@ func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameMode
 	}
 
 	// Добавляем гексы с маркерами
-	for hexID := range hexMarkers {
+	for hexID := range markersMap {
 		relevantHexes[hexID] = true
 	}
 

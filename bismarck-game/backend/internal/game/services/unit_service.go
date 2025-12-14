@@ -1382,24 +1382,12 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 
 		// Обновляем статус патруля
-		oldPatrolling := unitModel.NavalData.IsPatrolling
 		unitModel.NavalData.IsPatrolling = isPatrolling
 		unitModel.UpdatedAt = time.Now()
 
-		// Добавляем маркер патруля в гексе (только при установке патруля)
-		// При снятии патруля маркер не удаляется - удаление будет через отдельную функцию отмены
-		if hexID != "" && isPatrolling && !oldPatrolling {
-			hexMarkers := model.Search.Markers[hexID]
-			if hexMarkers.Markers == nil {
-				hexMarkers.Markers = make(map[string]int)
-			}
-			hexMarkers.HexID = hexID
-
-			patrolMarkerType := string(models.MarkerTypePatrol)
-			// Добавляем маркер патруля
-			hexMarkers.Markers[patrolMarkerType]++
-			model.Search.Markers[hexID] = hexMarkers
-		}
+		// TODO: Добавление/удаление маркера патруля в БД будет реализовано отдельно
+		// Маркеры теперь хранятся в БД (таблица hex_markers), а не в GameModel
+		// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
 
 		return nil
 	}, 3)

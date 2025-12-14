@@ -479,34 +479,36 @@ func (s *SearchService) getPlayerIDFromSide(gameID, playerSide string) (string, 
 	return playerID, nil
 }
 
-// GetHexMarkers возвращает все маркеры указанного типа для игрока в игре из GameModel
+// GetHexMarkers возвращает все маркеры указанного типа для игрока в игре из БД
 // Возвращает список hex_id, где есть маркеры указанного типа
 func (s *SearchService) GetHexMarkers(gameID, playerID string, markerType string) ([]string, error) {
-	if s.gameStateService == nil {
-		return nil, fmt.Errorf("gameStateService is required for GetHexMarkers")
-	}
+	// Получаем маркеры из БД
+	query := `
+		SELECT DISTINCT hex_id
+		FROM hex_markers
+		WHERE game_id = $1 AND player_id = $2 AND marker_type = $3
+	`
 
-	// Загружаем GameModel
-	model, err := s.gameStateService.LoadGameModel(gameID)
+	rows, err := s.db.GetConnection().Query(query, gameID, playerID, markerType)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+		return nil, fmt.Errorf("failed to query hex markers: %w", err)
 	}
+	defer rows.Close()
 
 	var hexIDs []string
-	// Проходим по всем гексам с маркерами
-	if model.Search != nil && model.Search.Markers != nil {
-		for hexID, hexMarkers := range model.Search.Markers {
-			// Проверяем, есть ли маркер указанного типа в этом гексе
-			if count, exists := hexMarkers.Markers[markerType]; exists && count > 0 {
-				hexIDs = append(hexIDs, hexID)
-			}
+	for rows.Next() {
+		var hexID string
+		if err := rows.Scan(&hexID); err != nil {
+			s.logger.Warn("Failed to scan hex marker", "error", err)
+			continue
 		}
+		hexIDs = append(hexIDs, hexID)
 	}
 
 	// Сортируем для консистентности
 	sort.Strings(hexIDs)
 
-	return hexIDs, nil
+	return hexIDs, rows.Err()
 }
 
 // AddHexMarker добавляет маркер указанного типа в гекс
@@ -547,62 +549,96 @@ func (s *SearchService) AddHexMarker(gameID, playerID, hexID, markerType string)
 }
 
 // RemoveHexMarker удаляет один маркер указанного типа из гекса
-// Теперь работает только с GameModel (старые таблицы удалены)
+// Маркеры хранятся в БД, а не в GameModel
 func (s *SearchService) RemoveHexMarker(gameID, playerID, hexID, markerType string) error {
-	if s.gameStateService == nil {
-		return fmt.Errorf("gameStateService is required for RemoveHexMarker")
-	}
+	// Удаляем маркер из БД
+	query := `
+		DELETE FROM hex_markers
+		WHERE game_id = $1 AND player_id = $2 AND hex_id = $3 AND marker_type = $4
+		LIMIT 1
+	`
 
-	// Удаляем маркер из GameModel
-	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-		// Получаем текущие маркеры для этого гекса
-		if model.Search != nil && model.Search.Markers != nil {
-			if hexMarkers, exists := model.Search.Markers[hexID]; exists {
-				if hexMarkers.Markers[markerType] > 0 {
-					hexMarkers.Markers[markerType]--
-					if hexMarkers.Markers[markerType] == 0 {
-						delete(hexMarkers.Markers, markerType)
-					}
-					model.Search.Markers[hexID] = hexMarkers
-				}
-			}
-		}
-
-		// TODO: Пересчитать SearchFactors для этого гекса
-		return nil
-	}, 3); err != nil {
-		s.logger.Error("Failed to remove hex marker in GameModel", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "marker_type", markerType, "error", err)
+	result, err := s.db.GetConnection().Exec(query, gameID, playerID, hexID, markerType)
+	if err != nil {
+		s.logger.Error("Failed to remove hex marker from DB", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "marker_type", markerType, "error", err)
 		return fmt.Errorf("failed to remove hex marker: %w", err)
 	}
 
-	s.logger.Info("Removed hex marker", "game_id", gameID, "hex_id", hexID, "marker_type", markerType)
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		s.logger.Warn("Failed to get rows affected", "error", err)
+	}
+
+	// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
+	if s.gameStateService != nil {
+		if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			// Инициализируем Search если нужно
+			if model.Search == nil {
+				model.Search = &models.SearchData{
+					German: make(map[string]models.SearchHexData),
+					Allied: make(map[string]models.SearchHexData),
+				}
+			}
+			// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
+			return nil
+		}, 3); err != nil {
+			s.logger.Warn("Failed to update GameModel after removing hex marker", "error", err)
+		}
+	}
+
+	s.logger.Info("Removed hex marker", "game_id", gameID, "hex_id", hexID, "marker_type", markerType, "rows_affected", rowsAffected)
 	return nil
 }
 
-// GetHexMarkersCount возвращает количество маркеров каждого типа в гексе для указанной стороны из GameModel
+// GetHexMarkersCount возвращает количество маркеров каждого типа в гексе для указанной стороны из БД
 // Возвращает map: markerType -> count (например, {"flight_path_search": 2, "air_attack": 1})
 func (s *SearchService) GetHexMarkersCount(gameID, hexID string, playerSide string) (map[string]int, error) {
-	if s.gameStateService == nil {
-		return nil, fmt.Errorf("gameStateService is required for GetHexMarkersCount")
+	// Получаем playerID для указанной стороны
+	var playerID string
+	var playerIDQuery string
+
+	if playerSide == "german" {
+		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
+	} else if playerSide == "allied" {
+		playerIDQuery = "SELECT player2_id FROM games WHERE id = $1"
+	} else {
+		return nil, fmt.Errorf("invalid player side: %s", playerSide)
 	}
 
-	// Загружаем GameModel
-	model, err := s.gameStateService.LoadGameModel(gameID)
+	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
+		return make(map[string]int), nil
 	}
+
+	if playerID == "" {
+		return make(map[string]int), nil
+	}
+
+	// Получаем маркеры из БД
+	query := `
+		SELECT marker_type, COUNT(*) as count
+		FROM hex_markers
+		WHERE game_id = $1 AND hex_id = $2 AND player_id = $3
+		GROUP BY marker_type
+	`
+
+	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query hex markers: %w", err)
+	}
+	defer rows.Close()
 
 	result := make(map[string]int)
-
-	// Получаем маркеры для этого гекса
-	if model.Search != nil && model.Search.Markers != nil {
-		if hexMarkers, exists := model.Search.Markers[hexID]; exists {
-			// Копируем маркеры в результат
-			for markerType, count := range hexMarkers.Markers {
-				if count > 0 {
-					result[markerType] = count
-				}
-			}
+	for rows.Next() {
+		var markerType string
+		var count int
+		if err := rows.Scan(&markerType, &count); err != nil {
+			s.logger.Warn("Failed to scan hex marker", "error", err)
+			continue
+		}
+		if count > 0 {
+			result[markerType] = count
 		}
 	}
 
@@ -611,32 +647,49 @@ func (s *SearchService) GetHexMarkersCount(gameID, hexID string, playerSide stri
 		s.logger.Info("🔍 GetHexMarkersCount", "game_id", gameID, "hex_id", hexID, "player_side", playerSide, "markers", result)
 	}
 
-	return result, nil
+	return result, rows.Err()
 }
 
-// getHexMarkersInHex возвращает количество маркеров указанного типа в гексе из GameModel
+// getHexMarkersInHex возвращает количество маркеров указанного типа в гексе из БД
 // Используется для расчета факторов поиска
 func (s *SearchService) getHexMarkersInHex(gameID, hexID string, playerSide string, markerType string) (int, error) {
-	if s.gameStateService == nil {
-		return 0, fmt.Errorf("gameStateService is required for getHexMarkersInHex")
+	// Получаем playerID для указанной стороны
+	var playerID string
+	var playerIDQuery string
+
+	if playerSide == "german" {
+		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
+	} else if playerSide == "allied" {
+		playerIDQuery = "SELECT player2_id FROM games WHERE id = $1"
+	} else {
+		return 0, fmt.Errorf("invalid player side: %s", playerSide)
 	}
 
-	// Загружаем GameModel
-	model, err := s.gameStateService.LoadGameModel(gameID)
+	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to load GameModel: %w", err)
+		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
+		return 0, nil
 	}
 
-	// Получаем маркеры для этого гекса
-	if model.Search != nil && model.Search.Markers != nil {
-		if hexMarkers, exists := model.Search.Markers[hexID]; exists {
-			if count, exists := hexMarkers.Markers[markerType]; exists {
-				return count, nil
-			}
-		}
+	if playerID == "" {
+		return 0, nil
 	}
 
-	return 0, nil
+	// Получаем количество маркеров из БД
+	query := `
+		SELECT COUNT(*)
+		FROM hex_markers
+		WHERE game_id = $1 AND hex_id = $2 AND player_id = $3 AND marker_type = $4
+	`
+
+	var count int
+	err = s.db.GetConnection().QueryRow(query, gameID, hexID, playerID, markerType).Scan(&count)
+	if err != nil {
+		s.logger.Warn("Failed to get hex markers count", "game_id", gameID, "hex_id", hexID, "marker_type", markerType, "error", err)
+		return 0, nil
+	}
+
+	return count, nil
 }
 
 // RemoveAllHexMarkersByType удаляет все маркеры указанного типа для игры
