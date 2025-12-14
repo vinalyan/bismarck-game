@@ -118,37 +118,43 @@ func (s *UnitService) CreateAirUnit(unit *models.AirUnit) error {
 	return nil
 }
 
-// GetNavalUnitsByGameID возвращает все морские юниты игры
+// GetNavalUnitsByGameID возвращает все морские юниты игры из GameModel
 func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, error) {
 	// Валидируем UUID перед выполнением запроса
 	if _, err := uuid.Parse(gameID); err != nil {
-		// Для невалидного UUID возвращаем пустой список без ошибки
-		// Это соответствует ожиданиям теста и более корректному поведению
 		s.logger.Debug("Invalid game ID format, returning empty list", "game_id", gameID)
 		return []models.NavalUnit{}, nil
 	}
 
-	query := BuildNavalUnitSelectQuery(
-		[]string{}, // без дополнительных полей
-		"WHERE game_id = $1 AND status != 'sunk'\nORDER BY created_at",
-	)
-
-	rows, err := s.db.Query(query, gameID)
-	if err != nil {
-		s.logger.Error("Failed to get naval units", "game_id", gameID, "error", err)
-		return nil, fmt.Errorf("failed to get naval units: %w", err)
+	// Загружаем GameModel
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetNavalUnitsByGameID")
 	}
-	defer rows.Close()
 
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Конвертируем UnitModel в NavalUnit
 	var units []models.NavalUnit
-	for rows.Next() {
-		unit, err := ScanNavalUnitFromRow(rows, false, true, true) // includeCategory=false, useNullableDetectionLevel=true, useNullableEmergencyTurn=true
-		if err != nil {
-			s.logger.Error("Failed to scan naval unit", "error", err)
+	for _, unitModel := range model.Units {
+		// Пропускаем не морские юниты и потопленные
+		if unitModel.Category != models.UnitCategoryNaval {
+			continue
+		}
+		if unitModel.Status == string(models.UnitStatusSunk) {
 			continue
 		}
 
-		units = append(units, *unit)
+		navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+		if err != nil {
+			s.logger.Warn("Failed to convert UnitModel to NavalUnit", "unit_id", unitModel.ID, "error", err)
+			continue
+		}
+
+		units = append(units, *navalUnit)
 	}
 
 	// Автоматическая проверка и активация аварийного топлива для кораблей с 0 или отрицательным топливом
@@ -159,22 +165,12 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 				if err := s.emergencyFuelService.ActivateIfNeeded(units[i].GameID, units[i].ID, units[i].Fuel); err != nil {
 					s.logger.Warn("Failed to activate emergency fuel", "error", err, "unit_id", units[i].ID)
 				}
-				// Обновляем статус в объекте из БД
-				query := `SELECT is_emergency_fuel, emergency_turn FROM naval_units WHERE id = $1 AND game_id = $2`
-				var isEmergencyFuel bool
-				var emergencyTurn sql.NullInt64
-				err := s.db.QueryRow(query, units[i].ID, units[i].GameID).Scan(&isEmergencyFuel, &emergencyTurn)
-				if err == nil {
-					units[i].IsEmergencyFuel = isEmergencyFuel
-					if emergencyTurn.Valid {
-						units[i].EmergencyTurn = int(emergencyTurn.Int64)
-					}
-				}
+				// Данные уже обновлены в GameModel через EmergencyFuelService
 			}
 		}
 	}
 
-	return units, rows.Err()
+	return units, nil
 }
 
 // GetNavalUnitByID возвращает морской юнит по ID
@@ -251,7 +247,7 @@ func (s *UnitService) GetNavalUnitByIDFromGameModel(gameID, unitID string) (*mod
 	return navalUnit, nil
 }
 
-// GetAirUnitsByGameID возвращает все воздушные юниты игры
+// GetAirUnitsByGameID возвращает все воздушные юниты игры из GameModel
 func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, error) {
 	// Валидируем UUID перед выполнением запроса
 	if _, err := uuid.Parse(gameID); err != nil {
@@ -259,46 +255,35 @@ func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, erro
 		return []models.AirUnit{}, nil
 	}
 
-	// В миграции таблица air_units создается БЕЗ колонки name
-	// Используем type и id для генерации имени
-	query := `
-		SELECT id, game_id, type || ' ' || SUBSTRING(id::text, 1, 8) as name,
-		       type, owner, position, base_position,
-		       max_speed, endurance, status, created_at, updated_at
-		FROM air_units
-		WHERE game_id = $1
-		ORDER BY created_at`
-
-	rows, err := s.db.Query(query, gameID)
-	if err != nil {
-		s.logger.Error("Failed to get air units", "game_id", gameID, "error", err)
-		return nil, fmt.Errorf("failed to get air units: %w", err)
+	// Загружаем GameModel
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetAirUnitsByGameID")
 	}
-	defer rows.Close()
 
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Конвертируем UnitModel в AirUnit
 	var units []models.AirUnit
-	for rows.Next() {
-		var unit models.AirUnit
-
-		err := rows.Scan(
-			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Owner, &unit.Position, &unit.BasePosition,
-			&unit.MaxSpeed, &unit.Endurance, &unit.Status,
-			&unit.CreatedAt, &unit.UpdatedAt,
-		)
-		if err != nil {
-			s.logger.Error("Failed to scan air unit", "error", err)
+	for _, unitModel := range model.Units {
+		// Пропускаем не воздушные юниты
+		if unitModel.Category != models.UnitCategoryAir {
 			continue
 		}
 
-		// Инициализируем FlightPathSearchHexes пустым массивом
-		if unit.FlightPathSearchHexes == nil {
-			unit.FlightPathSearchHexes = []string{}
+		airUnit, err := models.ConvertUnitModelToAirUnit(unitModel)
+		if err != nil {
+			s.logger.Warn("Failed to convert UnitModel to AirUnit", "unit_id", unitModel.ID, "error", err)
+			continue
 		}
 
-		units = append(units, unit)
+		units = append(units, *airUnit)
 	}
 
-	return units, rows.Err()
+	return units, nil
 }
 
 // UpdateNavalUnit обновляет морской юнит

@@ -193,44 +193,43 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 	return nil
 }
 
-// GetTaskForcesByGameID возвращает все Task Forces игры
+// GetTaskForcesByGameID возвращает все Task Forces игры из GameModel
 func (s *TaskForceService) GetTaskForcesByGameID(gameID string) ([]models.TaskForce, error) {
-	query := `
-		SELECT id, game_id, name, owner, nationality, position, speed, units, is_visible, 
-		       detection_level, last_move_turn, is_activated, is_patrolling, created_at, updated_at
-		FROM task_forces
-		WHERE game_id = $1
-		ORDER BY created_at`
-
-	rows, err := s.db.Query(query, gameID)
-	if err != nil {
-		s.logger.Error("Failed to get task forces", "game_id", gameID, "error", err)
-		return nil, fmt.Errorf("failed to get task forces: %w", err)
+	// Загружаем GameModel
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetTaskForcesByGameID")
 	}
-	defer rows.Close()
 
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Конвертируем TaskForceModel в TaskForce
 	var taskForces []models.TaskForce
-	for rows.Next() {
-		var taskForce models.TaskForce
-		var unitsJSON []byte
-
-		err := rows.Scan(
-			&taskForce.ID, &taskForce.GameID, &taskForce.Name, &taskForce.Owner,
-			&taskForce.Nationality, &taskForce.Position, &taskForce.Speed,
-			&unitsJSON, &taskForce.IsVisible, &taskForce.DetectionLevel,
-			&taskForce.LastMoveTurn, &taskForce.IsActivated, &taskForce.IsPatrolling,
-			&taskForce.CreatedAt, &taskForce.UpdatedAt,
-		)
-		if err != nil {
-			s.logger.Error("Failed to scan task force", "error", err)
-			continue
+	for _, tfModel := range model.TaskForces {
+		taskForce := models.TaskForce{
+			ID:             tfModel.ID,
+			GameID:         tfModel.GameID,
+			Name:           tfModel.Name,
+			Owner:          tfModel.Owner,
+			Nationality:    tfModel.Nationality,
+			Position:       tfModel.Position,
+			Speed:          tfModel.Speed,
+			Units:          tfModel.Units,
+			IsVisible:      tfModel.IsVisible,
+			DetectionLevel: tfModel.DetectionLevel,
+			LastMoveTurn:   tfModel.LastMoveTurn,
+			IsActivated:    tfModel.IsActivated,
+			IsPatrolling:   tfModel.IsPatrolling,
+			CreatedAt:      tfModel.CreatedAt,
+			UpdatedAt:      tfModel.UpdatedAt,
 		}
-
-		json.Unmarshal(unitsJSON, &taskForce.Units)
 		taskForces = append(taskForces, taskForce)
 	}
 
-	return taskForces, rows.Err()
+	return taskForces, nil
 }
 
 // GetVisibleTaskForcesByGameID возвращает видимые Task Forces для игрока

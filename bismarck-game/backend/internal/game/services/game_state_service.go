@@ -442,32 +442,82 @@ func (s *GameStateService) loadFromDatabase(gameID string) (*models.GameModel, e
 }
 
 // CreateInitialGameModel создает начальный GameModel для новой игры
-// Если в БД уже есть юниты или Task Forces, загружает их и пересчитывает факторы поиска
-// Если данных нет, создает пустую модель
+// Правильный алгоритм:
+// 1. Загружает GameModel из БД (таблица game_models)
+// 2. Если модель существует и содержит юниты/TF → пересчитывает факторы поиска
+// 3. Если модели нет или она пустая → создает пустую модель
 func (s *GameStateService) CreateInitialGameModel(gameID string) (*models.GameModel, error) {
-	// Проверяем, есть ли уже данные в БД (юниты или Task Forces)
-	navalUnits, err := s.unitService.GetNavalUnitsByGameID(gameID)
-	if err != nil {
-		s.logger.Warn("Failed to check for naval units, creating empty model", "game_id", gameID, "error", err)
-	} else if len(navalUnits) > 0 {
-		// Если есть юниты, загружаем полную модель с пересчетом факторов поиска
-		s.logger.Info("Found existing units in database, loading full GameModel", "game_id", gameID, "units_count", len(navalUnits))
-		return s.loadFromLegacyTables(gameID)
-	}
-
-	// Проверяем Task Forces
-	if s.taskForceService != nil {
-		taskForces, err := s.taskForceService.GetTaskForcesByGameID(gameID)
-		if err != nil {
-			s.logger.Warn("Failed to check for task forces, creating empty model", "game_id", gameID, "error", err)
-		} else if len(taskForces) > 0 {
-			// Если есть Task Forces, загружаем полную модель с пересчетом факторов поиска
-			s.logger.Info("Found existing task forces in database, loading full GameModel", "game_id", gameID, "task_forces_count", len(taskForces))
-			return s.loadFromLegacyTables(gameID)
+	// 1. Пытаемся загрузить GameModel из БД напрямую (без кэша и пересчета)
+	// Используем прямой SQL запрос, чтобы избежать рекурсии через loadFromDatabase
+	// Загружаем последнюю версию модели
+	query := `
+		SELECT model_data, version
+		FROM game_models
+		WHERE game_id = $1
+		ORDER BY version DESC
+		LIMIT 1
+	`
+	var modelDataJSON []byte
+	var version int
+	err := s.db.GetConnection().QueryRow(query, gameID).Scan(&modelDataJSON, &version)
+	
+	if err == nil {
+		// GameModel найден в БД - десериализуем его
+		var model models.GameModel
+		if err := json.Unmarshal(modelDataJSON, &model); err != nil {
+			s.logger.Error("Failed to unmarshal GameModel from database", "game_id", gameID, "error", err)
+			return nil, fmt.Errorf("failed to unmarshal GameModel: %w", err)
 		}
+		
+		// Устанавливаем версию из БД
+		model.Version = version
+
+		// Инициализируем структуры search, если нужно
+		if model.Search == nil {
+			model.Search = &models.SearchData{
+				German: make(map[string]models.SearchHexData),
+				Allied: make(map[string]models.SearchHexData),
+			}
+		}
+		if model.Search.German == nil {
+			model.Search.German = make(map[string]models.SearchHexData)
+		}
+		if model.Search.Allied == nil {
+			model.Search.Allied = make(map[string]models.SearchHexData)
+		}
+
+		// 2. Если модель содержит юниты/TF, пересчитываем факторы поиска
+		hasUnits := len(model.Units) > 0 || len(model.TaskForces) > 0
+		searchIsEmpty := len(model.Search.German) == 0 && len(model.Search.Allied) == 0
+
+		if hasUnits && searchIsEmpty {
+			s.logger.Info("GameModel found with units but empty search, recalculating search factors", 
+				"game_id", gameID, "units_count", len(model.Units), "task_forces_count", len(model.TaskForces))
+			
+			// Собираем релевантные гексы и пересчитываем факторы поиска
+			relevantHexes := s.collectRelevantHexes(&model)
+			if len(relevantHexes) > 0 {
+				s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
+				// Перезагружаем модель из БД после пересчета
+				if updatedModel, err := s.loadFromDatabaseWithoutRecalculation(gameID); err == nil {
+					model = *updatedModel
+				}
+			}
+		}
+
+		s.logger.Info("GameModel loaded from database", "game_id", gameID, "version", model.Version, 
+			"units_count", len(model.Units), "task_forces_count", len(model.TaskForces))
+		return &model, nil
 	}
 
-	// Если данных нет, создаем пустую модель для новой игры
+	if err != sql.ErrNoRows {
+		// Ошибка при запросе (не "не найдено")
+		s.logger.Error("Failed to load GameModel from database", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// 3. GameModel не найден - создаем пустую модель для новой игры
+	s.logger.Info("GameModel not found, creating empty initial model", "game_id", gameID)
 	model := &models.GameModel{
 		GameID:      gameID,
 		Version:     1,
@@ -876,18 +926,9 @@ func (s *GameStateService) InitializeSearchFactorsForGame(gameID string) error {
 	}
 
 	// Если модель пустая (нет юнитов), значит GameModel был только что создан
-	// В этом случае нужно загрузить данные через loadFromLegacyTables, который уже пересчитает факторы
+	// В этом случае юниты еще не созданы, поэтому нечего пересчитывать
 	if len(model.Units) == 0 {
-		// Загружаем через loadFromLegacyTables, который загрузит все данные и пересчитает факторы
-		legacyModel, err := s.loadFromLegacyTables(gameID)
-		if err != nil {
-			return fmt.Errorf("failed to load model from legacy tables: %w", err)
-		}
-		// Сохраняем загруженную модель в БД
-		if saveErr := s.SaveGameModelToDatabase(gameID, legacyModel); saveErr != nil {
-			s.logger.Warn("Failed to save model loaded from legacy tables", "game_id", gameID, "error", saveErr)
-		}
-		s.logger.Info("Initialized search factors for game via loadFromLegacyTables", "game_id", gameID)
+		s.logger.Info("GameModel is empty, no units to calculate search factors for", "game_id", gameID)
 		return nil
 	}
 

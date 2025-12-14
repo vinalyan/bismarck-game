@@ -37,6 +37,11 @@ type GameModel struct {
 	// Гексы с собственными факторами поиска (из конфигурации карты)
 	// ВАЖНО: Загружать из MapStructureService или конфигурации
 	IntrinsicSearchHexes map[string]int `json:"intrinsic_search_hexes,omitempty"`
+
+	// Погодные условия и видимость
+	VisibilityLevel int  `json:"visibility_level"` // 1-10, где 10 = X = максимальная видимость блокирует все действия
+	IsFog           bool `json:"is_fog"`           // Флаг тумана (weather_track 5-9). Блокирует поиск, преследование и бой в туманных гексах
+	WeatherTrack    int  `json:"weather_track"`    // Позиция на треке погоды (0-9). Значения 5-9 указывают на туман
 }
 
 // GameModelSnapshot представляет снимок состояния для истории (для Issue #41)
@@ -154,11 +159,11 @@ type EnemyContactModel struct {
 
 // SearchHexData представляет детальную информацию о факторах поиска для гекса
 type SearchHexData struct {
-	Factor     int `json:"factor"`      // ships*1 + patrol*3 + air_search*2 + intrinsic
-	Ships      int `json:"ships"`       // количество кораблей и ТФ
-	Patrol     int `json:"patrol"`      // количество маркеров патруля
-	AirSearch  int `json:"air_search"` // количество маркеров воздушного патруля
-	Intrinsic  int `json:"intrinsic"`   // собственные факторы поиска гекса
+	Factor    int `json:"factor"`     // ships*1 + patrol*3 + air_search*2 + intrinsic
+	Ships     int `json:"ships"`      // количество кораблей и ТФ
+	Patrol    int `json:"patrol"`     // количество маркеров патруля
+	AirSearch int `json:"air_search"` // количество маркеров воздушного патруля
+	Intrinsic int `json:"intrinsic"`  // собственные факторы поиска гекса
 }
 
 // SearchData представляет объединенные данные поиска
@@ -360,6 +365,34 @@ func ConvertUnitModelToNavalUnit(unitModel *UnitModel) (*NavalUnit, error) {
 	}
 
 	return navalUnit, nil
+}
+
+// ConvertUnitModelToAirUnit конвертирует UnitModel в AirUnit
+func ConvertUnitModelToAirUnit(unitModel *UnitModel) (*AirUnit, error) {
+	if unitModel.Category != UnitCategoryAir {
+		return nil, fmt.Errorf("unit is not an air unit")
+	}
+	if unitModel.AirData == nil {
+		return nil, fmt.Errorf("air data is missing")
+	}
+
+	airUnit := &AirUnit{
+		ID:                    unitModel.ID,
+		GameID:                unitModel.GameID,
+		Name:                  unitModel.Name,
+		Type:                  unitModel.Type,
+		Owner:                 unitModel.Owner,
+		Position:              unitModel.Position,
+		BasePosition:          unitModel.AirData.BasePosition,
+		MaxSpeed:              unitModel.AirData.MaxSpeed,
+		Endurance:             unitModel.AirData.Endurance,
+		Status:                AirUnitStatus(unitModel.Status),
+		FlightPathSearchHexes: unitModel.AirData.FlightPathSearchHexes,
+		CreatedAt:             unitModel.CreatedAt,
+		UpdatedAt:             unitModel.UpdatedAt,
+	}
+
+	return airUnit, nil
 }
 
 // ConvertGameEventToGameEventModel конвертирует GameEvent в GameEventModel
