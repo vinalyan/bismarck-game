@@ -541,6 +541,9 @@ func (s *GameStateService) loadFromRedis(gameID string) (*models.GameModel, erro
 		return nil, fmt.Errorf("failed to unmarshal GameModel: %w", err)
 	}
 
+	// Миграция: если есть старые поля, преобразуем их в новый формат
+	s.migrateOldSearchFields(&model)
+
 	return &model, nil
 }
 
@@ -678,8 +681,28 @@ func (s *GameStateService) LoadGameModelFromDatabase(gameID string) (*models.Gam
 		return nil, fmt.Errorf("failed to unmarshal GameModel: %w", err)
 	}
 
+	// Миграция: если есть старые поля, преобразуем их в новый формат
+	s.migrateOldSearchFields(&model)
+
 	s.logger.Info("GameModel loaded from database", "game_id", gameID, "version", version)
 	return &model, nil
+}
+
+// migrateOldSearchFields мигрирует старые поля search_factors и hex_markers в новый блок Search
+// Вызывается после десериализации, если Search == nil, инициализирует пустой блок
+func (s *GameStateService) migrateOldSearchFields(model *models.GameModel) {
+	// Если Search уже инициализирован, миграция не нужна
+	if model.Search != nil {
+		return
+	}
+
+	// Инициализируем Search как пустой блок
+	// Старые поля search_factors и hex_markers уже потеряны при десериализации,
+	// так как их нет в структуре GameModel
+	model.Search = &models.SearchData{
+		Factors: make(map[string]models.SearchFactorsBySide),
+		Markers: make(map[string]models.HexMarkersModel),
+	}
 }
 
 // GetGameModelHistory загружает историю версий GameModel из БД
