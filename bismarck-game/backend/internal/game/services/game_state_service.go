@@ -736,6 +736,7 @@ func (s *GameStateService) collectRelevantHexes(model *models.GameModel) map[str
 }
 
 // recalculateSearchDataForAllRelevantHexes пересчитывает факторы поиска для всех релевантных гексов
+// Оптимизированная версия: загружает все данные один раз вместо повторных запросов для каждого гекса
 func (s *GameStateService) recalculateSearchDataForAllRelevantHexes(gameID string, relevantHexes map[string]bool) {
 	if s.searchService == nil {
 		s.logger.Warn("SearchService not available, skipping search data recalculation", "game_id", gameID)
@@ -744,15 +745,117 @@ func (s *GameStateService) recalculateSearchDataForAllRelevantHexes(gameID strin
 
 	s.logger.Info("Recalculating search data for all relevant hexes", "game_id", gameID, "hexes_count", len(relevantHexes))
 
+	// Загружаем GameModel один раз
+	model, err := s.LoadGameModel(gameID)
+	if err != nil {
+		s.logger.Error("Failed to load GameModel for search recalculation", "game_id", gameID, "error", err)
+		return
+	}
+
+	// Подготавливаем все данные для расчета один раз
+	calcData, err := s.searchService.prepareSearchCalculationData(gameID, model)
+	if err != nil {
+		s.logger.Error("Failed to prepare search calculation data", "game_id", gameID, "error", err)
+		// Fallback: используем старый метод для каждого гекса
+		for hexID := range relevantHexes {
+			if err := s.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+				s.logger.Warn("Failed to recalculate search data for hex", "game_id", gameID, "hex_id", hexID, "error", err)
+			}
+		}
+		return
+	}
+
+	// Рассчитываем для всех гексов используя предзагруженные данные
 	hexCount := 0
 	errorCount := 0
+	searchResults := make(map[string]map[string]*models.SearchHexData) // hexID -> side -> data
+
 	for hexID := range relevantHexes {
 		hexCount++
-		if err := s.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
-			errorCount++
-			s.logger.Warn("Failed to recalculate search data for hex", "game_id", gameID, "hex_id", hexID, "error", err)
-			// Продолжаем для остальных гексов
+
+		// Рассчитываем для немецкой стороны
+		germanData, err := s.searchService.CalculateSearchHexDataFromData(hexID, "german", calcData)
+		if err != nil {
+			s.logger.Warn("Failed to calculate search hex data for german side", "game_id", gameID, "hex_id", hexID, "error", err)
+			germanData = &models.SearchHexData{
+				Factor:    0,
+				Ships:     0,
+				Patrol:    0,
+				AirSearch: 0,
+				Intrinsic: 0,
+			}
 		}
+
+		// Рассчитываем для союзной стороны
+		alliedData, err := s.searchService.CalculateSearchHexDataFromData(hexID, "allied", calcData)
+		if err != nil {
+			s.logger.Warn("Failed to calculate search hex data for allied side", "game_id", gameID, "hex_id", hexID, "error", err)
+			alliedData = &models.SearchHexData{
+				Factor:    0,
+				Ships:     0,
+				Patrol:    0,
+				AirSearch: 0,
+				Intrinsic: 0,
+			}
+		}
+
+		if searchResults[hexID] == nil {
+			searchResults[hexID] = make(map[string]*models.SearchHexData)
+		}
+		searchResults[hexID]["german"] = germanData
+		searchResults[hexID]["allied"] = alliedData
+	}
+
+	// Сохраняем все результаты одним обновлением GameModel
+	if err := s.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		// Инициализируем Search если нужно
+		if model.Search == nil {
+			model.Search = &models.SearchData{
+				German: make(map[string]models.SearchHexData),
+				Allied: make(map[string]models.SearchHexData),
+			}
+		}
+		if model.Search.German == nil {
+			model.Search.German = make(map[string]models.SearchHexData)
+		}
+		if model.Search.Allied == nil {
+			model.Search.Allied = make(map[string]models.SearchHexData)
+		}
+
+		// Сохраняем результаты для всех гексов
+		for hexID, results := range searchResults {
+			germanData := results["german"]
+			alliedData := results["allied"]
+
+			// Проверяем, есть ли ненулевые значения для каждой стороны
+			germanHasData := germanData.Factor != 0 || germanData.Ships != 0 || germanData.Patrol != 0 || germanData.AirSearch != 0 || germanData.Intrinsic != 0
+			alliedHasData := alliedData.Factor != 0 || alliedData.Ships != 0 || alliedData.Patrol != 0 || alliedData.AirSearch != 0 || alliedData.Intrinsic != 0
+
+			// Сохраняем данные для немецкой стороны только если есть ненулевые значения
+			if germanHasData {
+				model.Search.German[hexID] = *germanData
+			} else {
+				delete(model.Search.German, hexID)
+			}
+
+			// Сохраняем данные для союзной стороны только если есть ненулевые значения
+			if alliedHasData {
+				model.Search.Allied[hexID] = *alliedData
+			} else {
+				delete(model.Search.Allied, hexID)
+			}
+		}
+
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to update GameModel with search data", "game_id", gameID, "error", err)
+		errorCount = hexCount
+	} else {
+		s.logger.Info("Successfully recalculated search data for all hexes", "game_id", gameID, "hexes_count", hexCount)
+	}
+
+	if errorCount > 0 {
+		s.logger.Warn("Some search data calculations failed", "game_id", gameID, "error_count", errorCount)
 	}
 }
 

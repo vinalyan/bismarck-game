@@ -19,6 +19,29 @@ type SearchService struct {
 	gameStateService *GameStateService // Опционально, для обновления GameModel
 }
 
+// SearchCalculationData содержит предзагруженные данные для расчета факторов поиска
+// Используется для оптимизации - загружаем все данные один раз вместо повторных запросов
+type SearchCalculationData struct {
+	// GameID для использования в проверках
+	GameID string
+	// Юниты, сгруппированные по гексам: hexID -> []*models.NavalUnit
+	UnitsByHex map[string][]*models.NavalUnit
+	// Task Forces, сгруппированные по гексам и национальности: hexID -> nationality -> []*models.TaskForceModel
+	TaskForcesByHex map[string]map[string][]*models.TaskForceModel
+	// Маркеры патруля (одиночные корабли), сгруппированные по гексам и стороне: hexID -> playerSide -> []string (unit IDs)
+	PatrolMarkersByHex map[string]map[string][]string
+	// Патрулирующие Task Forces, сгруппированные по гексам и стороне: hexID -> playerSide -> []string (TF IDs)
+	TaskForcePatrolMarkersByHex map[string]map[string][]string
+	// Маркеры пути полета поиска, сгруппированные по гексам и стороне: hexID -> playerSide -> count
+	FlightPathMarkersByHex map[string]map[string]int
+	// Player IDs для сторон: "german" -> player1ID, "allied" -> player2ID
+	PlayerIDsBySide map[string]string
+	// Текущий ход
+	CurrentTurn int
+	// Intrinsic search hexes: hexID -> value
+	IntrinsicSearchHexes map[string]int
+}
+
 // NewSearchService создает новый сервис поиска
 func NewSearchService(db *database.Database, logger *logger.Logger, unitService *UnitService, gameService *GameService) *SearchService {
 	return &SearchService{
@@ -412,6 +435,280 @@ func (s *SearchService) isRepairingAtSea(unit *models.NavalUnit) bool {
 	
 	// По умолчанию считаем, что ремонт в море
 	return true
+}
+
+// prepareSearchCalculationData загружает все данные для расчета факторов поиска один раз
+// Это оптимизация - вместо загрузки данных для каждого гекса отдельно, загружаем все сразу
+func (s *SearchService) prepareSearchCalculationData(gameID string, model *models.GameModel) (*SearchCalculationData, error) {
+	data := &SearchCalculationData{
+		GameID:                     gameID,
+		UnitsByHex:                 make(map[string][]*models.NavalUnit),
+		TaskForcesByHex:            make(map[string]map[string][]*models.TaskForceModel),
+		PatrolMarkersByHex:         make(map[string]map[string][]string),
+		TaskForcePatrolMarkersByHex: make(map[string]map[string][]string),
+		FlightPathMarkersByHex:     make(map[string]map[string]int),
+		PlayerIDsBySide:            make(map[string]string),
+		IntrinsicSearchHexes:       make(map[string]int),
+	}
+
+	// Получаем текущий ход
+	data.CurrentTurn = s.getCurrentTurn(gameID)
+
+	// Получаем Player IDs для сторон
+	var player1ID, player2ID string
+	playerQuery := `SELECT player1_id, player2_id FROM games WHERE id = $1`
+	err := s.db.GetConnection().QueryRow(playerQuery, gameID).Scan(&player1ID, &player2ID)
+	if err != nil {
+		s.logger.Warn("Failed to get player IDs", "game_id", gameID, "error", err)
+	} else {
+		data.PlayerIDsBySide["german"] = player1ID
+		data.PlayerIDsBySide["allied"] = player2ID
+	}
+
+	// Группируем юниты по гексам
+	for _, unitModel := range model.Units {
+		if unitModel.NavalData == nil {
+			continue
+		}
+		if unitModel.Position == "" {
+			continue
+		}
+		if unitModel.Status == string(models.UnitStatusSunk) {
+			continue
+		}
+
+		navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+		if err != nil {
+			s.logger.Warn("Failed to convert unit model to naval unit", "unit_id", unitModel.ID, "error", err)
+			continue
+		}
+
+		if data.UnitsByHex[unitModel.Position] == nil {
+			data.UnitsByHex[unitModel.Position] = []*models.NavalUnit{}
+		}
+		data.UnitsByHex[unitModel.Position] = append(data.UnitsByHex[unitModel.Position], navalUnit)
+	}
+
+	// Группируем Task Forces по гексам и национальности
+	for _, tfModel := range model.TaskForces {
+		if tfModel.Position == "" {
+			continue
+		}
+		if data.TaskForcesByHex[tfModel.Position] == nil {
+			data.TaskForcesByHex[tfModel.Position] = make(map[string][]*models.TaskForceModel)
+		}
+		nationality := tfModel.Nationality
+		if nationality == "" {
+			continue
+		}
+		data.TaskForcesByHex[tfModel.Position][nationality] = append(
+			data.TaskForcesByHex[tfModel.Position][nationality],
+			tfModel,
+		)
+	}
+
+	// Загружаем маркеры патруля (одиночные корабли) из БД для всех гексов сразу
+	patrolQuery := `
+		SELECT position, owner, id
+		FROM naval_units
+		WHERE game_id = $1 
+		AND is_patrolling = true
+		AND status != 'sunk'
+		AND position != ''
+	`
+	patrolRows, err := s.db.GetConnection().Query(patrolQuery, gameID)
+	if err == nil {
+		defer patrolRows.Close()
+		for patrolRows.Next() {
+			var position, owner, unitID string
+			if err := patrolRows.Scan(&position, &owner, &unitID); err == nil {
+				// Определяем сторону по owner
+				var side string
+				if owner == player1ID {
+					side = "german"
+				} else if owner == player2ID {
+					side = "allied"
+				} else {
+					continue
+				}
+
+				if data.PatrolMarkersByHex[position] == nil {
+					data.PatrolMarkersByHex[position] = make(map[string][]string)
+				}
+				data.PatrolMarkersByHex[position][side] = append(data.PatrolMarkersByHex[position][side], unitID)
+			}
+		}
+	}
+
+	// Загружаем патрулирующие Task Forces из БД для всех гексов сразу
+	tfPatrolQuery := `
+		SELECT position, owner, id
+		FROM task_forces
+		WHERE game_id = $1 
+		AND is_patrolling = true
+		AND position != ''
+	`
+	tfPatrolRows, err := s.db.GetConnection().Query(tfPatrolQuery, gameID)
+	if err == nil {
+		defer tfPatrolRows.Close()
+		for tfPatrolRows.Next() {
+			var position, owner, tfID string
+			if err := tfPatrolRows.Scan(&position, &owner, &tfID); err == nil {
+				// Определяем сторону по owner
+				var side string
+				if owner == player1ID {
+					side = "german"
+				} else if owner == player2ID {
+					side = "allied"
+				} else {
+					continue
+				}
+
+				if data.TaskForcePatrolMarkersByHex[position] == nil {
+					data.TaskForcePatrolMarkersByHex[position] = make(map[string][]string)
+				}
+				data.TaskForcePatrolMarkersByHex[position][side] = append(data.TaskForcePatrolMarkersByHex[position][side], tfID)
+			}
+		}
+	}
+
+	// Загружаем маркеры пути полета поиска из БД для всех гексов сразу
+	flightPathQuery := `
+		SELECT hex_id, player_id, COUNT(*) as count
+		FROM hex_markers
+		WHERE game_id = $1 AND marker_type = $2
+		GROUP BY hex_id, player_id
+	`
+	flightPathRows, err := s.db.GetConnection().Query(flightPathQuery, gameID, string(models.MarkerTypeFlightPathSearch))
+	if err == nil {
+		defer flightPathRows.Close()
+		for flightPathRows.Next() {
+			var hexID, markerPlayerID string
+			var count int
+			if err := flightPathRows.Scan(&hexID, &markerPlayerID, &count); err == nil {
+				// Определяем сторону по player_id
+				var side string
+				if markerPlayerID == player1ID {
+					side = "german"
+				} else if markerPlayerID == player2ID {
+					side = "allied"
+				} else {
+					continue
+				}
+
+				if data.FlightPathMarkersByHex[hexID] == nil {
+					data.FlightPathMarkersByHex[hexID] = make(map[string]int)
+				}
+				data.FlightPathMarkersByHex[hexID][side] = count
+			}
+		}
+	}
+
+	// Загружаем intrinsic search hexes
+	if s.gameStateService != nil && s.gameStateService.mapStructureService != nil {
+		intrinsicHexes := s.gameStateService.mapStructureService.GetIntrinsicSearchHexes()
+		data.IntrinsicSearchHexes = intrinsicHexes
+	}
+
+	return data, nil
+}
+
+// CalculateSearchHexDataFromData рассчитывает факторы поиска для гекса используя предзагруженные данные
+// Это оптимизированная версия, которая не делает повторных запросов к БД
+func (s *SearchService) CalculateSearchHexDataFromData(hexID string, searchingPlayerSide string, data *SearchCalculationData) (*models.SearchHexData, error) {
+	// Получаем юниты в гексе из предзагруженных данных
+	units := data.UnitsByHex[hexID]
+	if units == nil {
+		units = []*models.NavalUnit{}
+	}
+
+	// Получаем Task Forces в гексе из предзагруженных данных
+	taskForcesInHex := []*models.TaskForceModel{}
+	if tfByNationality, exists := data.TaskForcesByHex[hexID]; exists {
+		if tfs, exists := tfByNationality[searchingPlayerSide]; exists {
+			taskForcesInHex = tfs
+		}
+	}
+	tfCount := len(taskForcesInHex)
+
+	// Подсчитываем отдельные корабли (не в ТФ) и Task Forces
+	unitCount := 0
+	tfUnitsInHex := make(map[string]bool)
+	for _, tf := range taskForcesInHex {
+		// Получаем юниты из TF
+		if tf.Units != nil {
+			for _, unitID := range tf.Units {
+				tfUnitsInHex[unitID] = true
+			}
+		}
+	}
+
+	for _, unit := range units {
+		// Учитываем только юниты той стороны, которая ищет
+		if unit.Nationality != searchingPlayerSide {
+			continue
+		}
+
+		// Проверяем, может ли юнит давать факторы поиска
+		if !s.canUnitContributeSearchFactors(unit, data.GameID, data.CurrentTurn) {
+			continue
+		}
+
+		// Если юнит в ТФ - не считаем его отдельно (ТФ уже учтена выше)
+		// Если юнит не в ТФ - считаем его как отдельный корабль
+		if unit.TaskForceID == nil {
+			unitCount++
+		}
+	}
+
+	// Ships = количество одиночных кораблей + количество Task Forces
+	ships := unitCount + tfCount
+
+	// Получаем маркеры патруля из предзагруженных данных
+	patrolMarkers := []string{}
+	if patrolBySide, exists := data.PatrolMarkersByHex[hexID]; exists {
+		if markers, exists := patrolBySide[searchingPlayerSide]; exists {
+			patrolMarkers = markers
+		}
+	}
+
+	// Получаем патрулирующие Task Forces из предзагруженных данных
+	tfPatrolMarkers := []string{}
+	if tfPatrolBySide, exists := data.TaskForcePatrolMarkersByHex[hexID]; exists {
+		if markers, exists := tfPatrolBySide[searchingPlayerSide]; exists {
+			tfPatrolMarkers = markers
+		}
+	}
+
+	// Patrol = количество маркеров патруля (одиночные корабли + патрулирующие ТФ)
+	patrol := len(patrolMarkers) + len(tfPatrolMarkers)
+
+	// Получаем маркеры пути полета поиска из предзагруженных данных
+	airSearch := 0
+	if flightPathBySide, exists := data.FlightPathMarkersByHex[hexID]; exists {
+		if count, exists := flightPathBySide[searchingPlayerSide]; exists {
+			airSearch = count
+		}
+	}
+
+	// Получаем собственные факторы поиска гекса (intrinsic)
+	intrinsic := 0
+	if value, exists := data.IntrinsicSearchHexes[hexID]; exists {
+		intrinsic = value
+	}
+
+	// Factor = ships*1 + patrol*3 + air_search*2 + intrinsic
+	factor := ships*1 + patrol*3 + airSearch*2 + intrinsic
+
+	result := &models.SearchHexData{
+		Factor:    factor,
+		Ships:     ships,
+		Patrol:    patrol,
+		AirSearch: airSearch,
+		Intrinsic: intrinsic,
+	}
+
+	return result, nil
 }
 
 // RecalculateSearchDataForHex пересчитывает и сохраняет детализированные факторы поиска для гекса
