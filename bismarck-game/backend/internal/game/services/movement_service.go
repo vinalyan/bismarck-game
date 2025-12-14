@@ -628,6 +628,9 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 		return fmt.Errorf("task force cannot move - it is sighted")
 	}
 
+	// Сохраняем старую позицию ДО обновления
+	oldPosition := taskForce.Position
+
 	// Выполняем движение для каждого корабля в TF
 	for _, unitID := range taskForce.Units {
 		unit, err := s.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
@@ -636,8 +639,8 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 			continue
 		}
 
-		// Выполняем движение корабля из позиции TF в новую позицию
-		_, err = s.executeTaskForceUnitMovement(unit, taskForce.Position, toHex)
+		// Выполняем движение корабля из старой позиции TF в новую позицию
+		_, err = s.executeTaskForceUnitMovement(unit, oldPosition, toHex)
 		if err != nil {
 			return fmt.Errorf("failed to move unit %s in task force: %w", unitID, err)
 		}
@@ -651,7 +654,6 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 
 	// Пересчитываем факторы поиска для старого и нового гекса Task Force
 	if s.searchService != nil {
-		oldPosition := taskForce.Position
 		// Старый гекс
 		if oldPosition != "" {
 			if err := s.searchService.RecalculateSearchDataForHex(gameID, oldPosition); err != nil {
@@ -689,7 +691,7 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 			taskForce.GameID,
 			taskForceID,
 			taskForce.Name,
-			taskForce.Position,
+			oldPosition,
 			toHex,
 			currentTurn,
 			string(currentPhase),
@@ -703,7 +705,7 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 
 	s.logger.Info("Task Force movement executed",
 		"task_force_id", taskForceID,
-		"from", taskForce.Position,
+		"from", oldPosition,
 		"to", toHex,
 		"units_moved", len(taskForce.Units))
 
