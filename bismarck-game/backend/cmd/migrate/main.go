@@ -212,6 +212,10 @@ func getMigrations() []Migration {
 				DROP TABLE IF EXISTS user_achievements CASCADE;
 				DROP TABLE IF EXISTS phase_records CASCADE;
 				DROP TABLE IF EXISTS flight_path_search_markers CASCADE;
+				DROP TABLE IF EXISTS game_events CASCADE;
+				DROP TABLE IF EXISTS hex_markers CASCADE;
+				DROP TABLE IF EXISTS unit_visibility CASCADE;
+				DROP TABLE IF EXISTS game_turns CASCADE;
 
 				-- ============================================
 				-- ОСНОВНЫЕ ТАБЛИЦЫ
@@ -274,65 +278,6 @@ func getMigrations() []Migration {
 				);
 
 				-- ============================================
-				-- ВСПОМОГАТЕЛЬНЫЕ ТАБЛИЦЫ
-				-- ============================================
-
-				-- Game events table (для лога игры)
-				CREATE TABLE IF NOT EXISTS game_events (
-					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
-					turn INTEGER NOT NULL,
-					phase VARCHAR(20) NOT NULL,
-					event_type VARCHAR(50) NOT NULL,
-					actor_id VARCHAR(255),
-					actor_name VARCHAR(255),
-					target_id VARCHAR(255),
-					target_name VARCHAR(255),
-					description TEXT NOT NULL,
-					data JSONB,
-					visibility JSONB,
-					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-				);
-
-				-- Hex markers table (маркеры на гексах)
-				CREATE TABLE IF NOT EXISTS hex_markers (
-					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-					game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-					player_id UUID NOT NULL,
-					hex_id VARCHAR(10) NOT NULL,
-					marker_type VARCHAR(20) NOT NULL,
-					created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-					updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-				);
-
-				-- Unit visibility table (видимость юнитов)
-				CREATE TABLE IF NOT EXISTS unit_visibility (
-					id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-					game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
-					unit_id UUID NOT NULL,
-					player_id VARCHAR(50) NOT NULL,
-					visibility VARCHAR(20) NOT NULL,
-					last_known_hex VARCHAR(10),
-					last_seen_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-				);
-
-				-- Game turns table (управление ходами)
-				CREATE TABLE IF NOT EXISTS game_turns (
-					id VARCHAR(255) PRIMARY KEY,
-					game_id UUID REFERENCES games(id) ON DELETE CASCADE,
-					turn_number INTEGER NOT NULL,
-					current_phase VARCHAR(50) NOT NULL,
-					status VARCHAR(20) NOT NULL DEFAULT 'active',
-					start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-					end_time TIMESTAMP WITH TIME ZONE,
-					created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-					updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-					UNIQUE(game_id, turn_number)
-				);
-
-				-- ============================================
 				-- ИНДЕКСЫ
 				-- ============================================
 
@@ -357,27 +302,6 @@ func getMigrations() []Migration {
 				CREATE INDEX IF NOT EXISTS idx_game_models_game_id_version ON game_models(game_id, version DESC);
 				CREATE INDEX IF NOT EXISTS idx_game_models_game_id ON game_models(game_id);
 				CREATE INDEX IF NOT EXISTS idx_game_models_model_data_gin ON game_models USING GIN (model_data);
-				
-				-- Game events indexes
-				CREATE INDEX IF NOT EXISTS idx_game_events_game_id ON game_events(game_id);
-				CREATE INDEX IF NOT EXISTS idx_game_events_turn ON game_events(turn);
-				CREATE INDEX IF NOT EXISTS idx_game_events_created_at ON game_events(created_at);
-				CREATE INDEX IF NOT EXISTS idx_game_events_event_type ON game_events(event_type);
-				
-				-- Hex markers indexes
-				CREATE INDEX IF NOT EXISTS idx_hex_markers_game_hex_type ON hex_markers(game_id, hex_id, marker_type);
-				CREATE INDEX IF NOT EXISTS idx_hex_markers_game_player_type ON hex_markers(game_id, player_id, marker_type);
-				CREATE INDEX IF NOT EXISTS idx_hex_markers_game_type ON hex_markers(game_id, marker_type);
-				
-				-- Unit visibility indexes
-				CREATE INDEX IF NOT EXISTS idx_unit_visibility_game_id ON unit_visibility(game_id);
-				CREATE INDEX IF NOT EXISTS idx_unit_visibility_player_id ON unit_visibility(player_id);
-				CREATE UNIQUE INDEX IF NOT EXISTS idx_unit_visibility_game_unit_player ON unit_visibility(game_id, unit_id, player_id);
-				
-				-- Game turns indexes
-				CREATE INDEX IF NOT EXISTS idx_game_turns_game_id ON game_turns(game_id);
-				CREATE INDEX IF NOT EXISTS idx_game_turns_turn_number ON game_turns(turn_number);
-				CREATE INDEX IF NOT EXISTS idx_game_turns_status ON game_turns(status);
 			`,
 			RollbackSQL: `
 				-- Откат не поддерживается - это финальная схема
