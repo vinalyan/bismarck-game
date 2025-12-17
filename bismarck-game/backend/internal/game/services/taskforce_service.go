@@ -425,6 +425,13 @@ func (s *TaskForceService) AddUnitToTaskForce(taskForceID string, unitID string)
 		return fmt.Errorf("failed to update task force in GameModel: %w", err)
 	}
 
+	// Пересчитываем факторы поиска для гекса Task Force
+	if s.searchService != nil && taskForce.Position != "" {
+		if err := s.searchService.RecalculateSearchDataForHex(taskForce.GameID, taskForce.Position); err != nil {
+			s.logger.Warn("Failed to recalculate search data after adding unit to task force", "hex_id", taskForce.Position, "error", err)
+		}
+	}
+
 	s.logger.Info("Added unit to task force", "task_force_id", taskForceID, "unit_id", unitID)
 	return nil
 }
@@ -499,6 +506,7 @@ func (s *TaskForceService) RemoveUnitFromTaskForce(taskForceID string, unitID st
 		}
 
 		// Пересчитываем факторы поиска для гекса Task Force
+		// (юнит получил позицию TF, так что пересчет для unit.Position не нужен - это тот же гекс)
 		if s.searchService != nil && taskForce.Position != "" {
 			if err := s.searchService.RecalculateSearchDataForHex(taskForce.GameID, taskForce.Position); err != nil {
 				s.logger.Warn("Failed to recalculate search data after removing unit from task force", "hex_id", taskForce.Position, "error", err)

@@ -507,69 +507,75 @@ func (s *SearchService) prepareSearchCalculationData(gameID string, model *model
 		)
 	}
 
-	// Загружаем маркеры патруля (одиночные корабли) из БД для всех гексов сразу
-	patrolQuery := `
-		SELECT position, owner, id
-		FROM naval_units
-		WHERE game_id = $1 
-		AND is_patrolling = true
-		AND status != 'sunk'
-		AND position != ''
-	`
-	patrolRows, err := s.db.GetConnection().Query(patrolQuery, gameID)
-	if err == nil {
-		defer patrolRows.Close()
-		for patrolRows.Next() {
-			var position, owner, unitID string
-			if err := patrolRows.Scan(&position, &owner, &unitID); err == nil {
-				// Определяем сторону по owner
-				var side string
-				if owner == player1ID {
-					side = "german"
-				} else if owner == player2ID {
-					side = "allied"
-				} else {
-					continue
-				}
-
-				if data.PatrolMarkersByHex[position] == nil {
-					data.PatrolMarkersByHex[position] = make(map[string][]string)
-				}
-				data.PatrolMarkersByHex[position][side] = append(data.PatrolMarkersByHex[position][side], unitID)
-			}
+	// Загружаем маркеры патруля (одиночные корабли) из GameModel для всех гексов сразу
+	for _, unitModel := range model.Units {
+		// Пропускаем, если это не морской юнит
+		if unitModel.NavalData == nil {
+			continue
 		}
+
+		// Пропускаем, если позиция пустая
+		if unitModel.Position == "" {
+			continue
+		}
+
+		// Пропускаем потопленные юниты
+		if unitModel.Status == string(models.UnitStatusSunk) {
+			continue
+		}
+
+		// Пропускаем юниты в TF (они не дают патруль как одиночные корабли)
+		if unitModel.NavalData.TaskForceID != nil {
+			continue
+		}
+
+		// Проверяем патруль
+		if !unitModel.NavalData.IsPatrolling {
+			continue
+		}
+
+		// Определяем сторону по owner
+		var side string
+		if unitModel.Owner == player1ID {
+			side = "german"
+		} else if unitModel.Owner == player2ID {
+			side = "allied"
+		} else {
+			continue
+		}
+
+		if data.PatrolMarkersByHex[unitModel.Position] == nil {
+			data.PatrolMarkersByHex[unitModel.Position] = make(map[string][]string)
+		}
+		data.PatrolMarkersByHex[unitModel.Position][side] = append(data.PatrolMarkersByHex[unitModel.Position][side], unitModel.ID)
 	}
 
-	// Загружаем патрулирующие Task Forces из БД для всех гексов сразу
-	tfPatrolQuery := `
-		SELECT position, owner, id
-		FROM task_forces
-		WHERE game_id = $1 
-		AND is_patrolling = true
-		AND position != ''
-	`
-	tfPatrolRows, err := s.db.GetConnection().Query(tfPatrolQuery, gameID)
-	if err == nil {
-		defer tfPatrolRows.Close()
-		for tfPatrolRows.Next() {
-			var position, owner, tfID string
-			if err := tfPatrolRows.Scan(&position, &owner, &tfID); err == nil {
-				// Определяем сторону по owner
-				var side string
-				if owner == player1ID {
-					side = "german"
-				} else if owner == player2ID {
-					side = "allied"
-				} else {
-					continue
-				}
-
-				if data.TaskForcePatrolMarkersByHex[position] == nil {
-					data.TaskForcePatrolMarkersByHex[position] = make(map[string][]string)
-				}
-				data.TaskForcePatrolMarkersByHex[position][side] = append(data.TaskForcePatrolMarkersByHex[position][side], tfID)
-			}
+	// Загружаем патрулирующие Task Forces из GameModel для всех гексов сразу
+	for _, tfModel := range model.TaskForces {
+		// Пропускаем, если позиция пустая
+		if tfModel.Position == "" {
+			continue
 		}
+
+		// Проверяем патруль
+		if !tfModel.IsPatrolling {
+			continue
+		}
+
+		// Определяем сторону по owner
+		var side string
+		if tfModel.Owner == player1ID {
+			side = "german"
+		} else if tfModel.Owner == player2ID {
+			side = "allied"
+		} else {
+			continue
+		}
+
+		if data.TaskForcePatrolMarkersByHex[tfModel.Position] == nil {
+			data.TaskForcePatrolMarkersByHex[tfModel.Position] = make(map[string][]string)
+		}
+		data.TaskForcePatrolMarkersByHex[tfModel.Position][side] = append(data.TaskForcePatrolMarkersByHex[tfModel.Position][side], tfModel.ID)
 	}
 
 	// Загружаем маркеры пути полета поиска из БД для всех гексов сразу
@@ -832,6 +838,10 @@ func (s *SearchService) RecalculateSearchDataForHex(gameID, hexID string) error 
 // Патрулирующие корабли дают +3 фактора поиска в своем гексе
 // playerSide может быть "german" или "allied" - нужно конвертировать в UUID пользователя
 func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide string) ([]string, error) {
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for getPatrolMarkersInHex")
+	}
+
 	// Сначала определяем UUID пользователя для указанной стороны
 	var playerID string
 	var playerIDQuery string
@@ -855,35 +865,44 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 		return []string{}, nil
 	}
 
-	query := `
-		SELECT id
-		FROM naval_units
-		WHERE game_id = $1 
-		AND position = $2 
-		AND owner = $3
-		AND is_patrolling = true
-		AND status != 'sunk'
-	`
-
-	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
 	if err != nil {
-		// Если таблица не существует, возвращаем пустой результат вместо ошибки
-		if strings.Contains(err.Error(), "does not exist") {
-			s.logger.Debug("Naval units table does not exist, returning empty result", "game_id", gameID, "hex_id", hexID)
-			return []string{}, nil
-		}
-		return nil, fmt.Errorf("failed to get patrol markers: %w", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
 	}
-	defer rows.Close()
 
 	var markerIDs []string
-	for rows.Next() {
-		var unitID string
-		if err := rows.Scan(&unitID); err != nil {
-			s.logger.Warn("Failed to scan patrol marker", "error", err)
+
+	// Проходим по всем юнитам в GameModel
+	for _, unitModel := range model.Units {
+		// Пропускаем, если это не морской юнит
+		if unitModel.NavalData == nil {
 			continue
 		}
-		markerIDs = append(markerIDs, unitID)
+
+		// Проверяем позицию
+		if unitModel.Position != hexID {
+			continue
+		}
+
+		// Проверяем владельца
+		if unitModel.Owner != playerID {
+			continue
+		}
+
+		// Проверяем статус
+		if unitModel.Status == string(models.UnitStatusSunk) {
+			continue
+		}
+
+		// Проверяем патруль (только для одиночных кораблей, не в TF)
+		if unitModel.NavalData.TaskForceID != nil {
+			continue // Юниты в TF не дают патруль как одиночные корабли
+		}
+
+		if unitModel.NavalData.IsPatrolling {
+			markerIDs = append(markerIDs, unitModel.ID)
+		}
 	}
 
 	// Логируем для отладки патрулей
@@ -891,7 +910,7 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 		s.logger.Info("🎯 Found patrol markers in hex", "hex_id", hexID, "player_side", playerSide, "player_id", playerID, "count", len(markerIDs), "unit_ids", markerIDs)
 	}
 
-	return markerIDs, rows.Err()
+	return markerIDs, nil
 }
 
 // getTaskForcesInHex возвращает все Task Forces в указанном гексе для указанной стороны
@@ -902,68 +921,46 @@ func (s *SearchService) getTaskForcesInHex(gameID, hexID string, playerSide stri
 		return []string{}, nil
 	}
 
-	query := `
-		SELECT id
-		FROM task_forces
-		WHERE game_id = $1 
-		AND position = $2 
-		AND nationality = $3
-		-- TF дает фактор поиска независимо от is_activated (всегда учитываем TF)
-	`
-
-	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerSide)
-	if err != nil {
-		// Если таблица не существует, возвращаем пустой результат вместо ошибки
-		if strings.Contains(err.Error(), "does not exist") {
-			s.logger.Debug("Task forces table does not exist, returning empty result", "game_id", gameID, "hex_id", hexID)
-			return []string{}, nil
-		}
-		return nil, fmt.Errorf("failed to get task forces in hex: %w", err)
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for getTaskForcesInHex")
 	}
-	defer rows.Close()
+
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
 
 	var tfIDs []string
-	for rows.Next() {
-		var tfID string
-		if err := rows.Scan(&tfID); err != nil {
-			s.logger.Warn("Failed to scan task force", "error", err)
+
+	// Проходим по всем Task Forces в GameModel
+	for _, tfModel := range model.TaskForces {
+		// Проверяем позицию
+		if tfModel.Position != hexID {
 			continue
 		}
-		tfIDs = append(tfIDs, tfID)
-	}
 
-	// Детальное логирование для отладки E21
-	if hexID == "E21" {
-		// Проверяем, есть ли TF в этом гексе вообще (без фильтра по owner и is_activated)
-		debugQuery := `
-			SELECT id, owner, is_activated, position
-			FROM task_forces
-			WHERE game_id = $1 AND position = $2
-		`
-		debugRows, _ := s.db.GetConnection().Query(debugQuery, gameID, hexID)
-		if debugRows != nil {
-			defer debugRows.Close()
-			var allTFs []map[string]interface{}
-			for debugRows.Next() {
-				var tfID, owner, position string
-				var isActivated bool
-				if err := debugRows.Scan(&tfID, &owner, &isActivated, &position); err == nil {
-					allTFs = append(allTFs, map[string]interface{}{
-						"id": tfID, "owner": owner, "is_activated": isActivated, "position": position,
-					})
-				}
-			}
-			s.logger.Info("🔍 DEBUG E21 - All TFs in hex", "all_task_forces", allTFs, "searching_player_side", playerSide)
+		// Проверяем национальность (сторону)
+		if tfModel.Nationality != playerSide {
+			continue
 		}
+
+		// TF дает фактор поиска независимо от is_activated (всегда учитываем TF)
+		tfIDs = append(tfIDs, tfModel.ID)
 	}
 
-	return tfIDs, rows.Err()
+	s.logger.Debug("Found task forces in hex", "game_id", gameID, "hex_id", hexID, "player_side", playerSide, "count", len(tfIDs))
+	return tfIDs, nil
 }
 
 // getTaskForcePatrolMarkersInHex возвращает патрулирующие Task Forces в гексе (только для указанной стороны)
 // Патрулирующий Task Force дает +3 фактора поиска в своем гексе
 // playerSide может быть "german" или "allied" - нужно конвертировать в UUID пользователя
 func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, playerSide string) ([]string, error) {
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for getTaskForcePatrolMarkersInHex")
+	}
+
 	// Сначала определяем UUID пользователя для указанной стороны
 	var playerID string
 	var playerIDQuery string
@@ -987,42 +984,38 @@ func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, pla
 		return []string{}, nil
 	}
 
-	query := `
-		SELECT id
-		FROM task_forces
-		WHERE game_id = $1 
-		AND position = $2 
-		AND owner = $3
-		AND is_patrolling = true
-	`
-
-	rows, err := s.db.GetConnection().Query(query, gameID, hexID, playerID)
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
 	if err != nil {
-		// Если таблица не существует, возвращаем пустой результат вместо ошибки
-		if strings.Contains(err.Error(), "does not exist") {
-			s.logger.Debug("Task forces table does not exist, returning empty result", "game_id", gameID, "hex_id", hexID)
-			return []string{}, nil
-		}
-		return nil, fmt.Errorf("failed to get task force patrol markers: %w", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
 	}
-	defer rows.Close()
 
-	var markerIDs []string
-	for rows.Next() {
-		var tfID string
-		if err := rows.Scan(&tfID); err != nil {
-			s.logger.Warn("Failed to scan task force patrol marker", "error", err)
+	var tfIDs []string
+
+	// Проходим по всем Task Forces в GameModel
+	for _, tfModel := range model.TaskForces {
+		// Проверяем позицию
+		if tfModel.Position != hexID {
 			continue
 		}
-		markerIDs = append(markerIDs, tfID)
+
+		// Проверяем владельца
+		if tfModel.Owner != playerID {
+			continue
+		}
+
+		// Проверяем патруль
+		if tfModel.IsPatrolling {
+			tfIDs = append(tfIDs, tfModel.ID)
+		}
 	}
 
 	// Логируем для отладки патрулей ТФ
-	if len(markerIDs) > 0 {
-		s.logger.Info("🎯 Found task force patrol markers in hex", "hex_id", hexID, "player_side", playerSide, "player_id", playerID, "count", len(markerIDs), "tf_ids", markerIDs)
+	if len(tfIDs) > 0 {
+		s.logger.Info("🎯 Found task force patrol markers in hex", "hex_id", hexID, "player_side", playerSide, "player_id", playerID, "count", len(tfIDs), "tf_ids", tfIDs)
 	}
 
-	return markerIDs, rows.Err()
+	return tfIDs, nil
 }
 
 // getFlightPathMarkersInHex возвращает маркеры Пути полета Поиска в гексе (только для указанной стороны)
