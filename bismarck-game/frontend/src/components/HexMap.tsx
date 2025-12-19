@@ -888,7 +888,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, effectiveHexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect]);
+  }, [hexes, effectiveHexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, isPatrolMode, handleHexClickInFlightPathSearchMode, handleHexClickInPatrolMode, handleHexClickInTFMode]);
 
   return (
     <div className="hex-map-container">
