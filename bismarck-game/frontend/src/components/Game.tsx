@@ -211,6 +211,19 @@ const Game: React.FC = () => {
             setEnemyContacts([]);
           }
           
+          // Извлекаем данные поиска из GameModel
+          if (response.data.search) {
+            const playerSide = getPlayerSideString();
+            if (playerSide === 'german' || playerSide === 'allied') {
+              const searchData = response.data.search[playerSide] || {};
+              const factorsMap = new Map<string, number>();
+              Object.keys(searchData).forEach(hexId => {
+                factorsMap.set(hexId, searchData[hexId].factor);
+              });
+              setSearchFactorHexes(factorsMap);
+            }
+          }
+          
           // Обновляем информацию о текущей фазе из GameModel
           // Если turn === 0, значит игра еще не начата, устанавливаем currentTurn в null
           if (response.data.current_turn) {
@@ -1870,6 +1883,19 @@ const Game: React.FC = () => {
                     }
                     setEnemyContacts(response.data.enemy_contacts || []);
                     
+                    // Извлекаем данные поиска из GameModel
+                    if (response.data.search) {
+                      const playerSide = getPlayerSideString();
+                      if (playerSide === 'german' || playerSide === 'allied') {
+                        const searchData = response.data.search[playerSide] || {};
+                        const factorsMap = new Map<string, number>();
+                        Object.keys(searchData).forEach(hexId => {
+                          factorsMap.set(hexId, searchData[hexId].factor);
+                        });
+                        setSearchFactorHexes(factorsMap);
+                      }
+                    }
+                    
                     // Обновляем информацию о текущей фазе из GameModel
                     // Если turn === 0, значит игра еще не начата, устанавливаем currentTurn в null
                     if (response.data.current_turn) {
@@ -1925,6 +1951,8 @@ const Game: React.FC = () => {
             onStackedUnitSelect={handleStackedUnitSelect}
             currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
             hexMarkers={hexMarkers}
+            searchFactorHexes={searchFactorHexes}
+            visibilityLevel={currentGame?.visibility_level || 1}
           />
         </div>
       </div>

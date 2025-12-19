@@ -95,6 +95,10 @@ export interface UnitsResponse {
       phase: string;
     };
     events?: any[]; // События из GameModel
+    search?: {
+      german?: { [hexId: string]: SearchHexData };
+      allied?: { [hexId: string]: SearchHexData };
+    };
   };
   error?: string;
 }
@@ -389,6 +393,8 @@ function convertGameModelToUnitsResponse(gameModel: GameModel): UnitsResponse {
       current_turn: gameModel.current_turn,
       // Добавляем события из GameModel
       events: gameModel.events || [],
+      // Добавляем данные поиска из GameModel
+      search: gameModel.search,
     },
   };
 }

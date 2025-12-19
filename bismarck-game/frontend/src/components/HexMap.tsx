@@ -740,11 +740,34 @@ const HexMap: React.FC<HexMapProps> = ({
   };
 
   // Обработчик для кнопки "показать фактор поиска"
-  // Удален вызов searchAPI.getSearchFactors - факторы поиска теперь приходят через GameModel
+  // Использует данные из GameModel, переданные через пропсы searchFactorHexes
   const handleShowSearchFactors = async () => {
-    // Факторы поиска теперь загружаются через GameModel и должны быть переданы как пропсы
-    // или извлечены из данных игры
-    console.warn('handleShowSearchFactors: факторы поиска должны приходить через GameModel');
+    if (!gameId || !authToken || !playerSide) {
+      return;
+    }
+
+    setIsLoadingSearchFactors(true);
+    
+    try {
+      // Загружаем GameModel через unitsAPI (уже импортирован)
+      const response = await unitsAPI.getGameUnits(gameId, authToken);
+      
+      if (response.success && response.data?.search) {
+        const searchData = response.data.search[playerSide] || {};
+        const factorsMap = new Map<string, number>();
+        
+        // Извлекаем факторы поиска для всех гексов
+        Object.keys(searchData).forEach(hexId => {
+          factorsMap.set(hexId, searchData[hexId].factor);
+        });
+        
+        setDisplaySearchFactors(factorsMap);
+      }
+    } catch (error) {
+      console.error('Error loading search factors:', error);
+    } finally {
+      setIsLoadingSearchFactors(false);
+    }
   };
 
   // Обработчики для подсказки гекса

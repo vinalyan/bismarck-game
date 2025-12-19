@@ -72,15 +72,21 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 	visibilityLevel := 3
 	isFog := true
 
-	// Обновляем видимость в БД
-	query := `
-		UPDATE games 
-		SET visibility_level = $1, is_fog = $2, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3
-	`
-	_, err := pm.db.Exec(query, visibilityLevel, isFog, gameID)
+	// Обновляем видимость в GameModel
+	if pm.gameStateService == nil {
+		log.Printf("Warning: gameStateService is nil, skipping visibility update")
+		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
+	}
+
+	err := pm.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		model.VisibilityLevel = visibilityLevel
+		model.IsFog = isFog
+		// WeatherTrack можно оставить как есть или обновить по необходимости
+		return nil
+	}, 3)
+
 	if err != nil {
-		log.Printf("Failed to update visibility: %v", err)
+		log.Printf("Failed to update visibility in GameModel: %v", err)
 		return fmt.Errorf("failed to update visibility: %w", err)
 	}
 

@@ -360,33 +360,33 @@ type GameVisibility struct {
 	WeatherTrack    int
 }
 
-// GetGameVisibility возвращает информацию о видимости игры
+// GetGameVisibility возвращает информацию о видимости игры из GameModel
 func (pm *PhaseManager) GetGameVisibility(gameID string) (*GameVisibility, error) {
-	query := `
-		SELECT visibility_level, is_fog, weather_track
-		FROM games
-		WHERE id = $1
-	`
-
-	var visibility GameVisibility
-	err := pm.db.QueryRow(query, gameID).Scan(
-		&visibility.VisibilityLevel,
-		&visibility.IsFog,
-		&visibility.WeatherTrack,
-	)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			// Возвращаем значения по умолчанию, если игра не найдена
-			return &GameVisibility{
-				VisibilityLevel: 1,
-				IsFog:           false,
-				WeatherTrack:    0,
-			}, nil
-		}
-		return nil, fmt.Errorf("failed to get game visibility: %v", err)
+	if pm.gameStateService == nil {
+		// Возвращаем значения по умолчанию, если gameStateService недоступен
+		return &GameVisibility{
+			VisibilityLevel: 1,
+			IsFog:           false,
+			WeatherTrack:    0,
+		}, nil
 	}
 
-	return &visibility, nil
+	// Загружаем GameModel
+	model, err := pm.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		// Возвращаем значения по умолчанию при ошибке загрузки
+		return &GameVisibility{
+			VisibilityLevel: 1,
+			IsFog:           false,
+			WeatherTrack:    0,
+		}, nil
+	}
+
+	return &GameVisibility{
+		VisibilityLevel: model.VisibilityLevel,
+		IsFog:           model.IsFog,
+		WeatherTrack:    model.WeatherTrack,
+	}, nil
 }
 
 // GetPhaseRecords возвращает записи о фазах для хода

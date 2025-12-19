@@ -251,6 +251,9 @@ func (s *Server) setupRoutes() {
 	// Устанавливаем GameStateService в GameHandler для инициализации GameModel при создании игры
 	gameHandler.SetGameStateService(gameStateService)
 
+	// Устанавливаем GameStateService в PhaseManager для обновления видимости и других данных в GameModel
+	phaseManager.SetGameStateService(gameStateService)
+
 	// Устанавливаем GameStateService в UnitService и TaskForceService для обновления GameModel
 	unitService.SetGameStateService(gameStateService)
 	taskForceService.SetGameStateService(gameStateService)
