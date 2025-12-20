@@ -679,37 +679,35 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 
 // GetEnemyContacts возвращает сводную информацию об обнаруженных силах противника
 func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyContact, error) {
-	const gameQuery = `
-		SELECT player1_id, player2_id, current_turn, current_phase
-		FROM games
-		WHERE id = $1
-	`
-
-	var (
-		player1ID, player2ID sql.NullString
-		turnNumber           sql.NullInt64
-		currentPhase         sql.NullString
-	)
-
-	if err := s.db.QueryRow(gameQuery, gameID).Scan(&player1ID, &player2ID, &turnNumber, &currentPhase); err != nil {
-		return nil, fmt.Errorf("failed to get game info: %w", err)
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetEnemyContacts")
 	}
 
-	if !player1ID.Valid || !player2ID.Valid {
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game players: %w", err)
+	}
+
+	turnNumber, currentPhase, err := s.gameStateService.GetCurrentTurnOnly(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current turn: %w", err)
+	}
+
+	if player1ID == "" || player2ID == "" {
 		return []models.EnemyContact{}, nil
 	}
 
 	var playerSide, opponentSide, opponentID string
 
 	switch playerID {
-	case player1ID.String:
+	case player1ID:
 		playerSide = "german"
 		opponentSide = "allied"
-		opponentID = player2ID.String
-	case player2ID.String:
+		opponentID = player2ID
+	case player2ID:
 		playerSide = "allied"
 		opponentSide = "german"
-		opponentID = player1ID.String
+		opponentID = player1ID
 	default:
 		return nil, fmt.Errorf("player %s is not part of game %s", playerID, gameID)
 	}
@@ -942,8 +940,8 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 			TaskForceList:    taskForceNames,
 			EnemyNationality: acc.nationality,
 			SearchingSide:    playerSide,
-			Turn:             int(turnNumber.Int64),
-			Phase:            currentPhase.String,
+			Turn:             turnNumber,
+			Phase:            string(currentPhase),
 			LastSeenAt:       acc.lastSeenAt,
 		}
 
@@ -992,9 +990,12 @@ func (s *UnitService) GetUnitsWithExpiredEmergencyFuel(gameID string, currentTur
 
 // getCurrentTurn получает текущий ход игры
 func (s *UnitService) getCurrentTurn(gameID string) int {
-	query := `SELECT current_turn FROM games WHERE id = $1`
-	var turn int
-	err := s.db.QueryRow(query, gameID).Scan(&turn)
+	if s.gameStateService == nil {
+		s.logger.Warn("gameStateService is nil, using default turn", "game_id", gameID)
+		return 1
+	}
+
+	turn, _, err := s.gameStateService.GetCurrentTurnOnly(gameID)
 	if err != nil {
 		s.logger.Error("Failed to get current turn", "game_id", gameID, "error", err)
 		return 1 // Возвращаем 1 по умолчанию
@@ -1191,8 +1192,11 @@ func (s *UnitService) ConvertShadowedToSighted(gameID string) error {
 // ResetDetectionForUnitsInFog сбрасывает обнаружение у shadowed юнитов в туманных гексах
 func (s *UnitService) ResetDetectionForUnitsInFog(gameID string, fogHexes []string) error {
 	// Получаем информацию об игре, чтобы проверить туман
-	var isFog bool
-	err := s.db.QueryRow("SELECT is_fog FROM games WHERE id = $1", gameID).Scan(&isFog)
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for ResetDetectionForUnitsInFog")
+	}
+
+	_, isFog, _, err := s.gameStateService.GetGameVisibilityOnly(gameID)
 	if err != nil {
 		s.logger.Error("Failed to get fog status", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to get fog status: %w", err)
@@ -1224,9 +1228,12 @@ func (s *UnitService) ResetDetectionForUnitsInFog(gameID string, fogHexes []stri
 
 // GetShadowedUnits возвращает все преследуемые юниты противника для игрока
 func (s *UnitService) GetShadowedUnits(gameID, playerID string) ([]*models.NavalUnit, error) {
-	// Определяем сторону игрока через таблицу games
-	var player1ID, player2ID string
-	err := s.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	// Определяем сторону игрока через GameStateService
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetShadowedUnits")
+	}
+
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get game players: %w", err)
 	}
@@ -1322,10 +1329,12 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 			return fmt.Errorf("cannot set patrol on sunk unit")
 		}
 
-		// Проверка видимости и тумана через таблицу games
-		var visibilityLevel int
-		var isFog bool
-		err := s.db.QueryRow("SELECT visibility_level, is_fog FROM games WHERE id = $1", unit.GameID).Scan(&visibilityLevel, &isFog)
+		// Проверка видимости и тумана через GameStateService
+		if s.gameStateService == nil {
+			return fmt.Errorf("gameStateService is required for SetPatrol")
+		}
+
+		visibilityLevel, isFog, _, err := s.gameStateService.GetGameVisibilityOnly(unit.GameID)
 		if err != nil {
 			s.logger.Warn("Failed to get game visibility, continuing anyway", "game_id", unit.GameID, "error", err)
 		} else {
@@ -1456,9 +1465,12 @@ func (s *UnitService) RemoveAllPatrolMarkers(gameID string) error {
 // DetectUnitsInHex обнаруживает юниты противника в указанном гексе и обновляет их DetectionLevel
 // hasFlightPath указывает, есть ли в гексе маркеры Пути полета Поиска
 func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlightPath bool) error {
-	// Определяем сторону игрока через таблицу games
-	var player1ID, player2ID string
-	err := s.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	// Определяем сторону игрока через GameStateService
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for DetectUnitsInHex")
+	}
+
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
 	if err != nil {
 		return fmt.Errorf("failed to get game players: %w", err)
 	}

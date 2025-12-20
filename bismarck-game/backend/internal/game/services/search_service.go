@@ -453,15 +453,17 @@ func (s *SearchService) prepareSearchCalculationData(gameID string, model *model
 	// Получаем текущий ход
 	data.CurrentTurn = s.getCurrentTurn(gameID)
 
-	// Получаем Player IDs для сторон
+	// Получаем Player IDs для сторон через GameStateService
 	var player1ID, player2ID string
-	playerQuery := `SELECT player1_id, player2_id FROM games WHERE id = $1`
-	err := s.db.GetConnection().QueryRow(playerQuery, gameID).Scan(&player1ID, &player2ID)
-	if err != nil {
-		s.logger.Warn("Failed to get player IDs", "game_id", gameID, "error", err)
-	} else {
-		data.PlayerIDsBySide["german"] = player1ID
-		data.PlayerIDsBySide["allied"] = player2ID
+	if s.gameStateService != nil {
+		var err error
+		player1ID, player2ID, err = s.gameStateService.GetGamePlayers(gameID)
+		if err != nil {
+			s.logger.Warn("Failed to get player IDs", "game_id", gameID, "error", err)
+		} else {
+			data.PlayerIDsBySide["german"] = player1ID
+			data.PlayerIDsBySide["allied"] = player2ID
+		}
 	}
 
 	// Группируем юниты по гексам
@@ -841,22 +843,20 @@ func (s *SearchService) getPatrolMarkersInHex(gameID, hexID string, playerSide s
 		return nil, fmt.Errorf("gameStateService is required for getPatrolMarkersInHex")
 	}
 
-	// Сначала определяем UUID пользователя для указанной стороны
-	var playerID string
-	var playerIDQuery string
-
-	if playerSide == "german" {
-		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
-	} else if playerSide == "allied" {
-		playerIDQuery = "SELECT player2_id FROM games WHERE id = $1"
-	} else {
-		return nil, fmt.Errorf("invalid player side: %s", playerSide)
+	// Сначала определяем UUID пользователя для указанной стороны через GameStateService
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
+	if err != nil {
+		s.logger.Warn("Failed to get player IDs", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to get player IDs: %w", err)
 	}
 
-	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
-	if err != nil {
-		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
-		return nil, fmt.Errorf("failed to get player ID: %w", err)
+	var playerID string
+	if playerSide == "german" {
+		playerID = player1ID
+	} else if playerSide == "allied" {
+		playerID = player2ID
+	} else {
+		return nil, fmt.Errorf("invalid player side: %s", playerSide)
 	}
 
 	if playerID == "" {
@@ -960,22 +960,20 @@ func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, pla
 		return nil, fmt.Errorf("gameStateService is required for getTaskForcePatrolMarkersInHex")
 	}
 
-	// Сначала определяем UUID пользователя для указанной стороны
-	var playerID string
-	var playerIDQuery string
-
-	if playerSide == "german" {
-		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
-	} else if playerSide == "allied" {
-		playerIDQuery = "SELECT player2_id FROM games WHERE id = $1"
-	} else {
-		return nil, fmt.Errorf("invalid player side: %s", playerSide)
+	// Сначала определяем UUID пользователя для указанной стороны через GameStateService
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
+	if err != nil {
+		s.logger.Warn("Failed to get player IDs", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to get player IDs: %w", err)
 	}
 
-	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
-	if err != nil {
-		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
-		return nil, fmt.Errorf("failed to get player ID: %w", err)
+	var playerID string
+	if playerSide == "german" {
+		playerID = player1ID
+	} else if playerSide == "allied" {
+		playerID = player2ID
+	} else {
+		return nil, fmt.Errorf("invalid player side: %s", playerSide)
 	}
 
 	if playerID == "" {
@@ -1023,22 +1021,24 @@ func (s *SearchService) getTaskForcePatrolMarkersInHex(gameID, hexID string, pla
 // ВНИМАНИЕ: Этот метод используется только для обратной совместимости.
 // Для расчета факторов поиска используется getHexMarkersInHex, который уже использует новую таблицу.
 func (s *SearchService) getFlightPathMarkersInHex(gameID, hexID string, playerSide string) ([]string, error) {
-	// Сначала определяем UUID пользователя для указанной стороны
-	var playerID string
-	var playerIDQuery string
-
-	if playerSide == "german" {
-		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
-	} else if playerSide == "allied" {
-		playerIDQuery = "SELECT player2_id FROM games WHERE id = $1"
-	} else {
-		return nil, fmt.Errorf("invalid player side: %s", playerSide)
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for getFlightPathMarkersInHex")
 	}
 
-	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
+	// Сначала определяем UUID пользователя для указанной стороны через GameStateService
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
 	if err != nil {
-		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
-		return nil, fmt.Errorf("failed to get player ID: %w", err)
+		s.logger.Warn("Failed to get player IDs", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to get player IDs: %w", err)
+	}
+
+	var playerID string
+	if playerSide == "german" {
+		playerID = player1ID
+	} else if playerSide == "allied" {
+		playerID = player2ID
+	} else {
+		return nil, fmt.Errorf("invalid player side: %s", playerSide)
 	}
 
 	if playerID == "" {
@@ -1108,24 +1108,23 @@ func (s *SearchService) RemoveAllFlightPathSearchMarkers(gameID string) error {
 
 // getPlayerIDFromSide возвращает UUID игрока для указанной стороны
 func (s *SearchService) getPlayerIDFromSide(gameID, playerSide string) (string, error) {
-	var playerIDQuery string
+	if s.gameStateService == nil {
+		return "", fmt.Errorf("gameStateService is required for getPlayerIDFromSide")
+	}
+
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
+	if err != nil {
+		s.logger.Warn("Failed to get player IDs", "game_id", gameID, "error", err)
+		return "", fmt.Errorf("failed to get player IDs: %w", err)
+	}
 
 	if playerSide == "german" {
-		playerIDQuery = "SELECT player1_id FROM games WHERE id = $1"
+		return player1ID, nil
 	} else if playerSide == "allied" {
-		playerIDQuery = "SELECT player2_id FROM games WHERE id = $1"
-	} else {
-		return "", fmt.Errorf("invalid player side: %s", playerSide)
+		return player2ID, nil
 	}
 
-	var playerID string
-	err := s.db.GetConnection().QueryRow(playerIDQuery, gameID).Scan(&playerID)
-	if err != nil {
-		s.logger.Warn("Failed to get player ID for side", "game_id", gameID, "player_side", playerSide, "error", err)
-		return "", fmt.Errorf("failed to get player ID: %w", err)
-	}
-
-	return playerID, nil
+	return "", fmt.Errorf("invalid player side: %s", playerSide)
 }
 
 // GetHexMarkers возвращает все маркеры указанного типа для игрока в игре из GameModel.Search

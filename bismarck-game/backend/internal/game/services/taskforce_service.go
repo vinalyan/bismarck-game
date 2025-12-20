@@ -984,8 +984,11 @@ func (s *TaskForceService) ConvertShadowedToSighted(gameID string) error {
 // ResetDetectionForUnitsInFog сбрасывает обнаружение у shadowed Task Forces в туманных гексах
 func (s *TaskForceService) ResetDetectionForUnitsInFog(gameID string, fogHexes []string) error {
 	// Получаем информацию об игре, чтобы проверить туман
-	var isFog bool
-	err := s.db.QueryRow("SELECT is_fog FROM games WHERE id = $1", gameID).Scan(&isFog)
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for ResetDetectionForUnitsInFog")
+	}
+
+	_, isFog, _, err := s.gameStateService.GetGameVisibilityOnly(gameID)
 	if err != nil {
 		s.logger.Error("Failed to get fog status", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to get fog status: %w", err)

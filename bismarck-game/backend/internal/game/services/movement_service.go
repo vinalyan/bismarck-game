@@ -1,7 +1,6 @@
 package services
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -764,15 +763,12 @@ func (s *MovementService) executeTaskForceUnitMovement(unit *models.NavalUnit, f
 		if err := s.emergencyFuelService.ActivateIfNeeded(unit.GameID, unit.ID, unit.Fuel); err != nil {
 			s.logger.Warn("Failed to activate emergency fuel", "error", err, "unit_id", unit.ID)
 		}
-		// Обновляем статус аварийного топлива в объекте unit
-		query := `SELECT is_emergency_fuel, emergency_turn FROM naval_units WHERE id = $1 AND game_id = $2`
-		var isEmergencyFuel bool
-		var emergencyTurn sql.NullInt64
-		err := s.db.QueryRow(query, unit.ID, unit.GameID).Scan(&isEmergencyFuel, &emergencyTurn)
-		if err == nil {
-			unit.IsEmergencyFuel = isEmergencyFuel
-			if emergencyTurn.Valid {
-				unit.EmergencyTurn = int(emergencyTurn.Int64)
+		// Обновляем статус аварийного топлива в объекте unit из GameModel
+		if s.unitService != nil {
+			navalUnit, err := s.unitService.GetNavalUnitByIDFromGameModel(unit.GameID, unit.ID)
+			if err == nil && navalUnit != nil {
+				unit.IsEmergencyFuel = navalUnit.IsEmergencyFuel
+				unit.EmergencyTurn = navalUnit.EmergencyTurn
 			}
 		}
 	}

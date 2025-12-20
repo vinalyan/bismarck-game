@@ -665,11 +665,10 @@ func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameMode
 	}
 
 	// Загружаем контакты противника
-	// Получаем player1_id и player2_id из игры
+	// Получаем player1_id и player2_id через GetGamePlayers
 	var player1ID, player2ID string
-	playerQuery := `SELECT player1_id, player2_id FROM games WHERE id = $1`
 	var enemyContacts []*models.EnemyContactModel
-	err = s.db.GetConnection().QueryRow(playerQuery, gameID).Scan(&player1ID, &player2ID)
+	player1ID, player2ID, err = s.GetGamePlayers(gameID)
 	if err == nil {
 		// Получаем контакты для обеих сторон
 		germanContacts, err1 := s.unitService.GetEnemyContacts(gameID, player1ID)
@@ -1036,21 +1035,14 @@ func (s *GameStateService) sendWebSocketUpdate(gameID string, model *models.Game
 // Фильтрация по видимости будет реализована в рамках следующей задачи
 func (s *GameStateService) GetGameModelForPlayer(gameID string, playerID string) (*models.GameModel, error) {
 	// Проверяем, что игра существует и пользователь является участником
-	query := `SELECT player1_id, player2_id FROM games WHERE id = $1`
-	var player1ID, player2ID sql.NullString
-
-	err := s.db.GetConnection().QueryRow(query, gameID).Scan(&player1ID, &player2ID)
+	player1ID, player2ID, err := s.GetGamePlayers(gameID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			s.logger.Warn("Game not found", "game_id", gameID, "player_id", playerID)
-			return nil, fmt.Errorf("game not found: %s", gameID)
-		}
-		s.logger.Error("Failed to check game access", "game_id", gameID, "player_id", playerID, "error", err)
-		return nil, fmt.Errorf("failed to check game access: %w", err)
+		s.logger.Warn("Game not found or failed to get players", "game_id", gameID, "player_id", playerID, "error", err)
+		return nil, fmt.Errorf("game not found or failed to get players: %w", err)
 	}
 
 	// Проверяем, что пользователь является участником игры
-	if (!player1ID.Valid || player1ID.String != playerID) && (!player2ID.Valid || player2ID.String != playerID) {
+	if player1ID != playerID && player2ID != playerID {
 		s.logger.Warn("Player is not part of game", "game_id", gameID, "player_id", playerID)
 		return nil, fmt.Errorf("player %s is not part of game %s", playerID, gameID)
 	}
@@ -1290,4 +1282,141 @@ func (s *GameStateService) UpdateGameModelWithRetry(
 	}
 
 	return fmt.Errorf("failed to update model after %d retries (concurrent modifications)", maxRetries)
+}
+
+// GetGamePlayers возвращает ID игроков игры
+// Получает player1_id и player2_id из таблицы games
+// TODO: В будущем можно добавить Player1ID и Player2ID в GameModel для полной централизации
+func (s *GameStateService) GetGamePlayers(gameID string) (player1ID, player2ID string, err error) {
+	// TODO: В будущем можно добавить Player1ID и Player2ID в GameModel
+	// Пока что получаем из БД
+	query := `SELECT player1_id, player2_id FROM games WHERE id = $1`
+	var p1ID, p2ID sql.NullString
+
+	err = s.db.GetConnection().QueryRow(query, gameID).Scan(&p1ID, &p2ID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", fmt.Errorf("game not found: %w", err)
+		}
+		return "", "", fmt.Errorf("failed to get game players: %w", err)
+	}
+
+	if p1ID.Valid {
+		player1ID = p1ID.String
+	}
+	if p2ID.Valid {
+		player2ID = p2ID.String
+	}
+
+	return player1ID, player2ID, nil
+}
+
+// GetGameVisibility возвращает настройки видимости из GameModel
+func (s *GameStateService) GetGameVisibility(gameID string) (visibilityLevel int, isFog bool, weatherTrack int, err error) {
+	model, err := s.LoadGameModel(gameID)
+	if err != nil {
+		return 0, false, 0, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	return model.VisibilityLevel, model.IsFog, model.WeatherTrack, nil
+}
+
+// GetCurrentTurn возвращает текущий ход и фазу из GameModel
+func (s *GameStateService) GetCurrentTurn(gameID string) (turn int, phase models.GamePhase, err error) {
+	model, err := s.LoadGameModel(gameID)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	if model.CurrentTurn == nil {
+		return 0, "", fmt.Errorf("current turn is nil in GameModel")
+	}
+
+	return model.CurrentTurn.Turn, model.CurrentTurn.Phase, nil
+}
+
+// GetGameVisibilityOnly возвращает настройки видимости без загрузки полного GameModel
+// Использует прямой запрос к БД или кэш в памяти для оптимизации производительности
+// Рекомендуется использовать для списков игр (лобби), где не нужны полные данные GameModel
+func (s *GameStateService) GetGameVisibilityOnly(gameID string) (visibilityLevel int, isFog bool, weatherTrack int, err error) {
+	// Сначала проверяем кэш в памяти (если GameModel уже загружен)
+	s.memoryCacheMutex.RLock()
+	if model, exists := s.memoryCache[gameID]; exists {
+		s.memoryCacheMutex.RUnlock()
+		return model.VisibilityLevel, model.IsFog, model.WeatherTrack, nil
+	}
+	s.memoryCacheMutex.RUnlock()
+
+	// Если нет в кэше, делаем прямой запрос к БД
+	// Проверяем, есть ли эти поля в таблице games
+	query := `SELECT visibility_level, is_fog, weather_track FROM games WHERE id = $1`
+	var visLevel sql.NullInt32
+	var fog sql.NullBool
+	var weather sql.NullInt32
+
+	err = s.db.GetConnection().QueryRow(query, gameID).Scan(&visLevel, &fog, &weather)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, false, 0, fmt.Errorf("game not found: %w", err)
+		}
+		// Если поля не существуют в таблице, возвращаем значения по умолчанию
+		// Это может произойти, если таблица games еще не имеет этих полей
+		s.logger.Warn("Failed to get visibility from games table, using defaults", "game_id", gameID, "error", err)
+		return 1, false, 0, nil
+	}
+
+	visibilityLevel = 1 // значение по умолчанию
+	if visLevel.Valid {
+		visibilityLevel = int(visLevel.Int32)
+	}
+
+	isFog = false
+	if fog.Valid {
+		isFog = fog.Bool
+	}
+
+	weatherTrack = 0
+	if weather.Valid {
+		weatherTrack = int(weather.Int32)
+	}
+
+	return visibilityLevel, isFog, weatherTrack, nil
+}
+
+// GetCurrentTurnOnly возвращает текущий ход и фазу без загрузки полного GameModel
+// Использует прямой запрос к БД или кэш в памяти для оптимизации производительности
+// Рекомендуется использовать для списков игр (лобби), где не нужны полные данные GameModel
+func (s *GameStateService) GetCurrentTurnOnly(gameID string) (turn int, phase models.GamePhase, err error) {
+	// Сначала проверяем кэш в памяти (если GameModel уже загружен)
+	s.memoryCacheMutex.RLock()
+	if model, exists := s.memoryCache[gameID]; exists && model.CurrentTurn != nil {
+		s.memoryCacheMutex.RUnlock()
+		return model.CurrentTurn.Turn, model.CurrentTurn.Phase, nil
+	}
+	s.memoryCacheMutex.RUnlock()
+
+	// Если нет в кэше, делаем прямой запрос к БД
+	query := `SELECT current_turn, current_phase FROM games WHERE id = $1`
+	var turnNum sql.NullInt32
+	var phaseStr sql.NullString
+
+	err = s.db.GetConnection().QueryRow(query, gameID).Scan(&turnNum, &phaseStr)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, "", fmt.Errorf("game not found: %w", err)
+		}
+		return 0, "", fmt.Errorf("failed to get current turn: %w", err)
+	}
+
+	if !turnNum.Valid {
+		return 0, "", fmt.Errorf("current_turn is null")
+	}
+	turn = int(turnNum.Int32)
+
+	if !phaseStr.Valid {
+		return turn, "", fmt.Errorf("current_phase is null")
+	}
+	phase = models.GamePhase(phaseStr.String)
+
+	return turn, phase, nil
 }

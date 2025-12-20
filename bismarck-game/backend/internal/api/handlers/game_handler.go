@@ -26,6 +26,7 @@ type GameHandler struct {
 	phaseManager      *services.PhaseManager
 	taskForceService  *services.TaskForceService
 	gameStateService  *services.GameStateService
+	gameService       *services.GameService
 }
 
 // NewGameHandler создает новый обработчик игр
@@ -42,6 +43,11 @@ func NewGameHandler(db *database.Database, unitService *services.UnitService, sh
 // SetGameStateService устанавливает GameStateService
 func (h *GameHandler) SetGameStateService(gameStateService *services.GameStateService) {
 	h.gameStateService = gameStateService
+}
+
+// SetGameService устанавливает GameService
+func (h *GameHandler) SetGameService(gameService *services.GameService) {
+	h.gameService = gameService
 }
 
 // getUserIDFromRequest безопасно извлекает user_id из контекста запроса
@@ -372,6 +378,9 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 	query := `
 		SELECT g.id, g.name, g.player1_id, g.player2_id, g.current_turn, g.current_phase, g.status, 
 		       g.settings, g.created_at, g.updated_at, g.completed_at,
+		       COALESCE(g.visibility_level, 1) as visibility_level,
+		       COALESCE(g.is_fog, false) as is_fog,
+		       COALESCE(g.weather_track, 0) as weather_track,
 		       p1.username as player1_username, p2.username as player2_username
 		FROM games g
 		LEFT JOIN users p1 ON g.player1_id = p1.id
@@ -396,11 +405,15 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 		var player1ID, player2ID sql.NullString
 		var completedAt sql.NullTime
 		var player1Username, player2Username sql.NullString
+		var visibilityLevel sql.NullInt32
+		var isFog sql.NullBool
+		var weatherTrack sql.NullInt32
 		err := rows.Scan(
 			&game.ID, &game.Name, &player1ID, &player2ID,
 			&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 			&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-			&completedAt, &player1Username, &player2Username,
+			&completedAt, &visibilityLevel, &isFog, &weatherTrack,
+			&player1Username, &player2Username,
 		)
 		if err != nil {
 			log.Printf("Failed to scan game: %v", err)
@@ -426,17 +439,22 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Загружаем visibility_level, is_fog, weather_track из GameModel
-		game.VisibilityLevel = 1 // дефолтное значение
-		game.IsFog = false
-		game.WeatherTrack = 0
-		if h.gameStateService != nil {
-			gameModel, err := h.gameStateService.LoadGameModel(game.ID)
-			if err == nil && gameModel != nil {
-				game.VisibilityLevel = gameModel.VisibilityLevel
-				game.IsFog = gameModel.IsFog
-				game.WeatherTrack = gameModel.WeatherTrack
-			}
+		// Загружаем visibility_level, is_fog, weather_track из SELECT запроса
+		// Если поля не заполнены в БД, используем значения по умолчанию
+		if visibilityLevel.Valid {
+			game.VisibilityLevel = int(visibilityLevel.Int32)
+		} else {
+			game.VisibilityLevel = 1 // дефолтное значение
+		}
+		if isFog.Valid {
+			game.IsFog = isFog.Bool
+		} else {
+			game.IsFog = false
+		}
+		if weatherTrack.Valid {
+			game.WeatherTrack = int(weatherTrack.Int32)
+		} else {
+			game.WeatherTrack = 0
 		}
 
 		// Получаем username
@@ -526,16 +544,16 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Загружаем visibility_level, is_fog, weather_track из GameModel
+	// Загружаем visibility_level, is_fog, weather_track через легковесный метод
 	game.VisibilityLevel = 1 // дефолтное значение
 	game.IsFog = false
 	game.WeatherTrack = 0
 	if h.gameStateService != nil {
-		gameModel, err := h.gameStateService.LoadGameModel(game.ID)
-		if err == nil && gameModel != nil {
-			game.VisibilityLevel = gameModel.VisibilityLevel
-			game.IsFog = gameModel.IsFog
-			game.WeatherTrack = gameModel.WeatherTrack
+		visLevel, isFog, weatherTrack, err := h.gameStateService.GetGameVisibilityOnly(game.ID)
+		if err == nil {
+			game.VisibilityLevel = visLevel
+			game.IsFog = isFog
+			game.WeatherTrack = weatherTrack
 		}
 	}
 
@@ -1100,9 +1118,12 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 func (h *GameHandler) GetVictoryPoints(w http.ResponseWriter, r *http.Request) {
 	gameID := mux.Vars(r)["id"]
 
-	var vp map[string]int
-	query := `SELECT COALESCE(victory_points, '{}'::jsonb) FROM games WHERE id = $1`
-	err := h.db.QueryRow(query, gameID).Scan(&vp)
+	if h.gameService == nil {
+		pkgutils.WriteInternalError(w, "GameService not initialized")
+		return
+	}
+
+	vp, err := h.gameService.GetVictoryPoints(gameID)
 	if err != nil {
 		log.Printf("Error getting victory points: %v", err)
 		pkgutils.WriteInternalError(w, "Failed to get victory points")

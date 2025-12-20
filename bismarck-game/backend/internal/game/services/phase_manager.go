@@ -48,20 +48,23 @@ func (pm *PhaseManager) SetGameStateService(gameStateService *GameStateService) 
 }
 
 func (pm *PhaseManager) getPlayerIDForSide(gameID string, side string) (string, error) {
-	var player1ID, player2ID sql.NullString
-	err := pm.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	if pm.gameStateService == nil {
+		return "", fmt.Errorf("gameStateService is required for getPlayerIDForSide")
+	}
+
+	player1ID, player2ID, err := pm.gameStateService.GetGamePlayers(gameID)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch players for game %s: %w", gameID, err)
 	}
 
 	switch strings.ToLower(side) {
 	case "german":
-		if player1ID.Valid {
-			return player1ID.String, nil
+		if player1ID != "" {
+			return player1ID, nil
 		}
 	case "allied":
-		if player2ID.Valid {
-			return player2ID.String, nil
+		if player2ID != "" {
+			return player2ID, nil
 		}
 	}
 
@@ -217,13 +220,14 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 		hasPrevPhase   bool
 	)
 	if pm.eventService != nil {
-		var prevPhase sql.NullString
-		errPrev := pm.db.QueryRow("SELECT current_phase FROM games WHERE id = $1", gameID).Scan(&prevPhase)
-		if errPrev == nil && prevPhase.Valid {
-			prevPhaseValue = prevPhase.String
-			hasPrevPhase = true
-		} else if errPrev != nil && errPrev != sql.ErrNoRows {
-			log.Printf("Warning: failed to get previous phase for logging: %v", errPrev)
+		if pm.gameStateService != nil {
+			_, phase, errPrev := pm.gameStateService.GetCurrentTurnOnly(gameID)
+			if errPrev == nil {
+				prevPhaseValue = string(phase)
+				hasPrevPhase = true
+			} else if errPrev != sql.ErrNoRows {
+				log.Printf("Warning: failed to get previous phase for logging: %v", errPrev)
+			}
 		}
 	}
 
