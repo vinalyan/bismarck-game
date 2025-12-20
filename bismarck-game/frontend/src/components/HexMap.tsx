@@ -99,7 +99,6 @@ const HexMap: React.FC<HexMapProps> = ({
   const [showPatrolDialog, setShowPatrolDialog] = useState(false);
   const [selectedPatrolHex, setSelectedPatrolHex] = useState<string | null>(null);
   const [isFlightPathSearchMode, setIsFlightPathSearchMode] = useState(false);
-  const [showSearchFactors, setShowSearchFactors] = useState<boolean>(false);
   
   const [tooltip, setTooltip] = useState<{
     show: boolean;
@@ -653,12 +652,6 @@ const HexMap: React.FC<HexMapProps> = ({
     setTooltip(null);
   };
 
-  // Обработчик для кнопки "показать фактор поиска"
-  // Переключает видимость факторов поиска (данные уже приходят через пропсы searchFactorHexes)
-  const handleShowSearchFactors = () => {
-    setShowSearchFactors(prev => !prev);
-  };
-
   // Обработчики для подсказки гекса
   const handleHexTooltipShow = (x: number, y: number, content: { hexId: string; hexType: string; features: string[] }) => {
     setHexTooltip({
@@ -731,7 +724,7 @@ const HexMap: React.FC<HexMapProps> = ({
       // Проверяем, достаточны ли факторы поиска для обнаружения в этом гексе
       // Используем данные из пропсов searchFactorHexes
       const hexSearchFactors = searchFactorHexes.get(hexId) || 0;
-      const isSearchAvailable = showSearchFactors && hexSearchFactors > 0 && hexSearchFactors >= visibilityLevel;
+      const isSearchAvailable = hexSearchFactors > 0 && hexSearchFactors >= visibilityLevel;
       
       // Проверяем, является ли этот гекс активным
       const activeHex = activeHexes.find(
@@ -792,7 +785,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, showSearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, isPatrolMode, handleHexClickInFlightPathSearchMode, handleHexClickInPatrolMode, handleHexClickInTFMode]);
+  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, isPatrolMode, handleHexClickInFlightPathSearchMode, handleHexClickInPatrolMode, handleHexClickInTFMode]);
 
   return (
     <div className="hex-map-container">
@@ -813,12 +806,6 @@ const HexMap: React.FC<HexMapProps> = ({
         </button>
         <button onClick={() => setMapOffset({ x: mapOffset.x, y: mapOffset.y + 50 })}>
           ↓
-        </button>
-        <button 
-          onClick={handleShowSearchFactors}
-          title={showSearchFactors ? "Скрыть фактор поиска" : "Показать гексы, где будет проводиться поиск (фактор поиска >= видимость)"}
-        >
-          🔍 {showSearchFactors ? 'Скрыть' : 'Показать'} фактор поиска
         </button>
         
         {/* Кнопки Task Force, Патруль и Воздушная разведка */}
