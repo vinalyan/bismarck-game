@@ -26,14 +26,14 @@ func TestNewUnitService(t *testing.T) {
 }
 
 func TestCreateNavalUnit(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
 	gameID := "550e8400-e29b-41d4-a716-446655440001"
 	
 	// Create test game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
 	service := testServices.UnitService
@@ -90,14 +90,14 @@ func TestCreateNavalUnit(t *testing.T) {
 }
 
 func TestCreateAirUnit(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
 	gameID := "550e8400-e29b-41d4-a716-446655440001"
 	
 	// Create test game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
 	service := testServices.UnitService
@@ -133,14 +133,14 @@ func TestCreateAirUnit(t *testing.T) {
 }
 
 func TestGetNavalUnitsByGameID(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
 	gameID := "550e8400-e29b-41d4-a716-446655440001"
 	
 	// Create test game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
 	service := testServices.UnitService
@@ -211,14 +211,14 @@ func TestGetNavalUnitsByGameID(t *testing.T) {
 }
 
 func TestGetNavalUnitByID(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
 	gameID := "550e8400-e29b-41d4-a716-446655440001"
 	
 	// Create test game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
 	service := testServices.UnitService

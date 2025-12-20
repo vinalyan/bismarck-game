@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupEmergencyFuelServiceTest(t *testing.T) (*testutil.TestServices, func()) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+func setupEmergencyFuelServiceTest(t *testing.T) (*TestServices, func()) {
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	return testServices, cleanup
 }

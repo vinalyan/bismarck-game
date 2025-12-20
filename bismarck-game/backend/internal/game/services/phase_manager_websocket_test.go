@@ -13,7 +13,7 @@ import (
 // TestPhaseManager_StartPhase_SendsWebSocketNotification проверяет отправку WebSocket уведомления при начале фазы
 func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 	// Настройка тестовых сервисов
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	if err != nil {
 		t.Fatalf("Failed to setup test services: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 // TestPhaseManager_NextPhase_SendsWebSocketNotification проверяет отправку WebSocket уведомления при переходе к следующей фазе
 func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 	// Настройка тестовых сервисов
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	if err != nil {
 		t.Fatalf("Failed to setup test services: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 // TestPhaseManager_StartPhase_CallsCurrentPhaseAPI проверяет вызов API при начале фазы
 func TestPhaseManager_StartPhase_CallsCurrentPhaseAPI(t *testing.T) {
 	// Настройка тестовых сервисов
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	if err != nil {
 		t.Fatalf("Failed to setup test services: %v", err)
 	}

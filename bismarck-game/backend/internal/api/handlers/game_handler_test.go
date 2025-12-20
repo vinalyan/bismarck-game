@@ -21,8 +21,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupGameHandler(t *testing.T) (*GameHandler, *testutil.TestServices, func()) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+func setupGameHandler(t *testing.T) (*GameHandler, *services.TestServices, func()) {
+	testServices, cleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
 
 	cfg := &config.Config{

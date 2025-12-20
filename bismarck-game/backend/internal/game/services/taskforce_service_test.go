@@ -33,7 +33,7 @@ func TestNewTaskForceService(t *testing.T) {
 }
 
 func TestCreateTaskForce(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
@@ -81,29 +81,18 @@ func TestCreateTaskForce(t *testing.T) {
 }
 
 func TestGetTaskForcesByGameID(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
 	testGameID := uuid.New().String()
 	
 	// Create test game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
 	unitService := testServices.UnitService
 	service := testServices.TaskForceService
-	mapStructService := NewMapStructureService()
-	gameService := NewGameService(db, logger)
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
-	service := NewTaskForceService(db, logger, unitService, movementService)
-
-	// Generate test game ID
-	testGameID := uuid.New().String()
-
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
-	require.NoError(t, err)
 
 	// Create base units for TF1 and TF2
 	mkUnit := func(name, pos string) *models.NavalUnit {

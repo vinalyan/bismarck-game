@@ -27,7 +27,7 @@ func TestNewGameEventService(t *testing.T) {
 }
 
 func TestLogMovementEvent(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
@@ -52,7 +52,7 @@ func TestLogMovementEvent(t *testing.T) {
 }
 
 func TestLogPhaseChangeEvent(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
@@ -76,28 +76,16 @@ func TestLogPhaseChangeEvent(t *testing.T) {
 }
 
 func TestLogTurnChangeEvent(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
 	testGameID := "550e8400-e29b-41d4-a716-446655440001"
 	
 	// Create test game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM game_events WHERE game_id = $1", testGameID)
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", testGameID)
-	require.NoError(t, err)
-
-	// Create test game to satisfy foreign key constraint
-	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
 	service := testServices.EventService
 
 	t.Run("successful turn change event log", func(t *testing.T) {
@@ -112,7 +100,7 @@ func TestLogTurnChangeEvent(t *testing.T) {
 }
 
 func TestGetGameEvents(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 

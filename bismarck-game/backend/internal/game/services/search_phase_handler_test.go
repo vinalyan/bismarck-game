@@ -1,7 +1,6 @@
 package services
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -10,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"bismarck-game/backend/internal/game/models"
-	"bismarck-game/backend/pkg/database"
-	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/testutil"
 )
 
@@ -21,7 +18,7 @@ type loggedEvent struct {
 	Visibility  map[string]interface{}
 }
 
-func mustCreateNavalUnit(t *testing.T, testServices *testutil.TestServices, gameID, name, unitType, class, owner, nationality, position string) string {
+func mustCreateNavalUnit(t *testing.T, testServices *TestServices, gameID, name, unitType, class, owner, nationality, position string) string {
 	t.Helper()
 
 	unit := &models.NavalUnit{
@@ -45,7 +42,7 @@ func mustCreateNavalUnit(t *testing.T, testServices *testutil.TestServices, game
 }
 
 func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
@@ -107,7 +104,7 @@ func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
 }
 
 func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
@@ -160,7 +157,7 @@ func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
 }
 
 func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
@@ -218,7 +215,7 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 }
 
 func TestSearchPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
-	testServices, cleanup, err := testutil.SetupTestServices()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
@@ -285,7 +282,7 @@ func TestSearchPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 	assert.True(t, containsSubstring(descriptions, fmt.Sprintf("Detection warning «hex %s: наш unit %s перешёл в статус sighted", hexID, unit.Name)))
 }
 
-func fetchSearchEvents(t *testing.T, testServices *testutil.TestServices, gameID string) []loggedEvent {
+func fetchSearchEvents(t *testing.T, testServices *TestServices, gameID string) []loggedEvent {
 	t.Helper()
 
 	// Load events from GameModel

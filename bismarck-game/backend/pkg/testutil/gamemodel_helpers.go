@@ -2,7 +2,6 @@ package testutil
 
 import (
 	"bismarck-game/backend/internal/game/models"
-	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/database"
 	"time"
 
@@ -10,7 +9,8 @@ import (
 )
 
 // CreateTestGameModel создает минимальный валидный GameModel для тестов
-func CreateTestGameModel(db *database.Database, gameStateService *services.GameStateService, gameID string, turn int, phase models.GamePhase) (*models.GameModel, error) {
+// gameStateService должен реализовывать GameStateServiceInterface
+func CreateTestGameModel(db *database.Database, gameStateService GameStateServiceInterface, gameID string, turn int, phase models.GamePhase) (*models.GameModel, error) {
 	// Создаем запись в таблице games (если не существует)
 	_, err := db.GetConnection().Exec(`
 		INSERT INTO games (id, name, status, current_turn, current_phase, created_at, updated_at)
@@ -58,7 +58,7 @@ func CreateTestGameModel(db *database.Database, gameStateService *services.GameS
 }
 
 // AddTestUnitToGameModel добавляет юнит в GameModel через gameStateService
-func AddTestUnitToGameModel(gameStateService *services.GameStateService, gameID string, unit *models.UnitModel) error {
+func AddTestUnitToGameModel(gameStateService GameStateServiceInterface, gameID string, unit *models.UnitModel) error {
 	// Загружаем текущий GameModel
 	gameModel, err := gameStateService.LoadGameModel(gameID)
 	if err != nil {
@@ -76,7 +76,7 @@ func AddTestUnitToGameModel(gameStateService *services.GameStateService, gameID 
 }
 
 // AddTestTaskForceToGameModel добавляет Task Force в GameModel
-func AddTestTaskForceToGameModel(gameStateService *services.GameStateService, gameID string, taskForce *models.TaskForceModel) error {
+func AddTestTaskForceToGameModel(gameStateService GameStateServiceInterface, gameID string, taskForce *models.TaskForceModel) error {
 	// Загружаем текущий GameModel
 	gameModel, err := gameStateService.LoadGameModel(gameID)
 	if err != nil {
@@ -94,10 +94,11 @@ func AddTestTaskForceToGameModel(gameStateService *services.GameStateService, ga
 }
 
 // CreateTestUserAndGame создает тестового пользователя и игру с GameModel
-func CreateTestUserAndGame(testServices *TestServices, username, email string) (string, string, error) {
+// Принимает GameStateServiceInterface для избежания циклических зависимостей
+func CreateTestUserAndGame(db *database.Database, gameStateService GameStateServiceInterface, username, email string) (string, string, error) {
 	// Создаем тестового пользователя
 	userID := uuid.New().String()
-	_, err := testServices.DB.GetConnection().Exec(`
+	_, err := db.GetConnection().Exec(`
 		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (username) DO NOTHING
@@ -108,13 +109,13 @@ func CreateTestUserAndGame(testServices *TestServices, username, email string) (
 
 	// Создаем игру
 	gameID := uuid.New().String()
-	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(db, gameStateService, gameID, 1, models.PhaseMovement)
 	if err != nil {
 		return "", "", err
 	}
 
 	// Обновляем player1_id в таблице games
-	_, err = testServices.DB.GetConnection().Exec(`
+	_, err = db.GetConnection().Exec(`
 		UPDATE games SET player1_id = $1 WHERE id = $2
 	`, userID, gameID)
 	if err != nil {

@@ -3,6 +3,7 @@ package handlers
 import (
 	"bismarck-game/backend/internal/auth"
 	"bismarck-game/backend/internal/game/models"
+	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/testutil"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 )
 
 // createTestUserAndGame создает тестового пользователя и игру с GameModel
-func createTestUserAndGame(t *testing.T, testServices *testutil.TestServices, authService *auth.AuthService) (string, string) {
+func createTestUserAndGame(t *testing.T, testServices *services.TestServices, authService *auth.AuthService) (string, string) {
 	user, err := authService.Register(&models.CreateUserRequest{
 		Username: "testuser1",
 		Email:    "testuser1@example.com",
@@ -19,7 +20,7 @@ func createTestUserAndGame(t *testing.T, testServices *testutil.TestServices, au
 	require.NoError(t, err)
 
 	// Create game with GameModel using testutil helper
-	userID, gameID, err := testutil.CreateTestUserAndGame(testServices, "testuser1", "testuser1@example.com")
+	userID, gameID, err := testutil.CreateTestUserAndGame(testServices.DB, testServices.GameStateService, "testuser1", "testuser1@example.com")
 	require.NoError(t, err)
 	
 	// Update player1_id if needed
@@ -34,7 +35,7 @@ func createTestUserAndGame(t *testing.T, testServices *testutil.TestServices, au
 }
 
 // createTestUnit создает тестовый юнит через UnitService (работает с GameModel)
-func createTestUnit(t *testing.T, testServices *testutil.TestServices, gameID string, ownerID string) string {
+func createTestUnit(t *testing.T, testServices *services.TestServices, gameID string, ownerID string) string {
 	unit := &models.NavalUnit{
 		GameID:         gameID,
 		Name:           "Test Ship",
