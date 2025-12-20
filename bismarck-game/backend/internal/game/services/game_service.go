@@ -86,9 +86,9 @@ func (s *GameService) GetGamePlayers(gameID string) (player1ID, player2ID string
 // Используется для получения метаданных игры (не входит в GameModel)
 func (s *GameService) GetVictoryPoints(gameID string) (map[string]int, error) {
 	query := `SELECT COALESCE(victory_points, '{}'::jsonb) FROM games WHERE id = $1`
-	var vp map[string]int
+	var vpJSON []byte
 
-	err := s.db.GetConnection().QueryRow(query, gameID).Scan(&vp)
+	err := s.db.GetConnection().QueryRow(query, gameID).Scan(&vpJSON)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("game not found: %w", err)
@@ -96,8 +96,12 @@ func (s *GameService) GetVictoryPoints(gameID string) (map[string]int, error) {
 		return nil, fmt.Errorf("failed to get victory points: %w", err)
 	}
 
-	if vp == nil {
-		vp = make(map[string]int)
+	vp := make(map[string]int)
+	if len(vpJSON) > 0 {
+		if err := json.Unmarshal(vpJSON, &vp); err != nil {
+			s.logger.Warn("Failed to unmarshal victory points", "game_id", gameID, "error", err)
+			return make(map[string]int), nil
+		}
 	}
 
 	return vp, nil
@@ -116,7 +120,7 @@ func (s *GameService) GetGameBasicInfo(gameID string) (*models.GameBasicInfo, er
 
 	var info models.GameBasicInfo
 	var settingsJSON []byte
-	var vp map[string]int
+	var vpJSON []byte
 
 	err := s.db.GetConnection().QueryRow(query, gameID).Scan(
 		&info.Name,
@@ -124,7 +128,7 @@ func (s *GameService) GetGameBasicInfo(gameID string) (*models.GameBasicInfo, er
 		&settingsJSON,
 		&info.CreatedAt,
 		&info.UpdatedAt,
-		&vp,
+		&vpJSON,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -139,8 +143,13 @@ func (s *GameService) GetGameBasicInfo(gameID string) (*models.GameBasicInfo, er
 		info.Settings = models.GetDefaultGameSettings()
 	}
 
-	if vp == nil {
-		vp = make(map[string]int)
+	// Десериализуем victory points
+	vp := make(map[string]int)
+	if len(vpJSON) > 0 {
+		if err := json.Unmarshal(vpJSON, &vp); err != nil {
+			s.logger.Warn("Failed to unmarshal victory points", "game_id", gameID, "error", err)
+			vp = make(map[string]int)
+		}
 	}
 	info.VictoryPoints = vp
 

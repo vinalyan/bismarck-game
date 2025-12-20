@@ -943,6 +943,9 @@ func (s *GameStateService) InitializeSearchFactorsForGame(gameID string) error {
 
 // loadFromRedisWithoutRecalculation загружает GameModel из Redis без пересчета
 func (s *GameStateService) loadFromRedisWithoutRecalculation(gameID string) (*models.GameModel, error) {
+	if s.redis == nil {
+		return nil, fmt.Errorf("Redis client is not available")
+	}
 	key := fmt.Sprintf("game_model:%s", gameID)
 	data, err := s.redis.GetCache(key)
 	if err != nil {
@@ -996,6 +999,9 @@ func (s *GameStateService) saveToRedis(gameID string, model *models.GameModel) e
 	}
 
 	// Используем SetCache через прямой доступ к Redis клиенту
+	if s.redis == nil {
+		return fmt.Errorf("Redis client is not available")
+	}
 	return s.redis.SetCache(key, string(data), s.redisTTL)
 }
 
