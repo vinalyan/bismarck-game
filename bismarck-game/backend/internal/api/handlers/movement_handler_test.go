@@ -92,23 +92,20 @@ func TestMoveUnit(t *testing.T) {
 	handler, cleanup := setupMovementHandler(t)
 	defer cleanup()
 
-	// Setup test data
-	db, err := testutil.SetupTestDatabase()
+	// Setup test services
+	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer testCleanup()
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
 			Secret: "test-secret-key-for-testing-only",
 		},
 	}
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	_ = services.NewUnitService(db, logger)
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
-	userID, gameID := createTestUserAndGame(t, db, authService)
-	unitID := createTestUnit(t, db, gameID, userID)
+	userID, gameID := createTestUserAndGame(t, testServices, authService)
+	unitID := createTestUnit(t, testServices, gameID, userID)
 
 	t.Run("successful move", func(t *testing.T) {
 		reqBody := map[string]interface{}{
@@ -185,8 +182,7 @@ func TestMoveUnit(t *testing.T) {
 			Status:      "active",
 			Damage:      []models.Damage{},
 		}
-		unitService := services.NewUnitService(db, logger)
-		err := unitService.CreateNavalUnit(unit)
+		err := testServices.UnitService.CreateNavalUnit(unit)
 		require.NoError(t, err)
 
 		reqBody := map[string]interface{}{
@@ -217,7 +213,7 @@ func TestMoveUnit(t *testing.T) {
 
 	t.Run("invalid move - not owner", func(t *testing.T) {
 		// Create another user
-		authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
+		authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 		otherUser, err := authService.Register(&models.CreateUserRequest{
 			Username: "testuser2",
 			Email:    "testuser2@example.com",
@@ -276,23 +272,20 @@ func TestGetAvailableMoves(t *testing.T) {
 	handler, cleanup := setupMovementHandler(t)
 	defer cleanup()
 
-	// Setup test data
-	db, err := testutil.SetupTestDatabase()
+	// Setup test services
+	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer testCleanup()
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
 			Secret: "test-secret-key-for-testing-only",
 		},
 	}
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	_ = services.NewUnitService(db, logger)
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
-	userID, gameID := createTestUserAndGame(t, db, authService)
-	unitID := createTestUnit(t, db, gameID, userID)
+	userID, gameID := createTestUserAndGame(t, testServices, authService)
+	unitID := createTestUnit(t, testServices, gameID, userID)
 
 	t.Run("successful get available moves", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units/"+unitID+"/available-moves", nil)
@@ -329,7 +322,7 @@ func TestGetAvailableMoves(t *testing.T) {
 
 	t.Run("not owner", func(t *testing.T) {
 		// Create another user
-		authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
+		authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 		otherUser, err := authService.Register(&models.CreateUserRequest{
 			Username: "testuser3",
 			Email:    "testuser3@example.com",
@@ -357,23 +350,20 @@ func TestMoveUnitWithValidation(t *testing.T) {
 	handler, cleanup := setupMovementHandler(t)
 	defer cleanup()
 
-	// Setup test data
-	db, err := testutil.SetupTestDatabase()
+	// Setup test services
+	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer testCleanup()
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
 			Secret: "test-secret-key-for-testing-only",
 		},
 	}
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	_ = services.NewUnitService(db, logger)
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
-	userID, gameID := createTestUserAndGame(t, db, authService)
-	unitID := createTestUnit(t, db, gameID, userID)
+	userID, gameID := createTestUserAndGame(t, testServices, authService)
+	unitID := createTestUnit(t, testServices, gameID, userID)
 
 	t.Run("missing unit_id", func(t *testing.T) {
 		reqBody := map[string]interface{}{

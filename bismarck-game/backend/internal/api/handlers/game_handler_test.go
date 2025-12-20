@@ -13,7 +13,6 @@ import (
 	"bismarck-game/backend/internal/config"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
-	"bismarck-game/backend/internal/websocket"
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/testutil"
 
@@ -174,7 +173,7 @@ func TestCreateGame(t *testing.T) {
 }
 
 func TestGetGames(t *testing.T) {
-	handler, cleanup := setupGameHandler(t)
+	handler, _, cleanup := setupGameHandler(t)
 	defer cleanup()
 
 	// Create test users and games
@@ -255,7 +254,7 @@ func TestGetGames(t *testing.T) {
 }
 
 func TestGetGame(t *testing.T) {
-	handler, cleanup := setupGameHandler(t)
+	handler, _, cleanup := setupGameHandler(t)
 	defer cleanup()
 
 	// Create test user and game
@@ -327,7 +326,7 @@ func TestGetGame(t *testing.T) {
 }
 
 func TestJoinGame(t *testing.T) {
-	handler, cleanup := setupGameHandler(t)
+	handler, _, cleanup := setupGameHandler(t)
 	defer cleanup()
 
 	// Create test users and game
@@ -400,7 +399,7 @@ func TestJoinGame(t *testing.T) {
 }
 
 func TestSurrenderGame(t *testing.T) {
-	handler, cleanup := setupGameHandler(t)
+	handler, _, cleanup := setupGameHandler(t)
 	defer cleanup()
 
 	// Create test users and game
@@ -479,7 +478,7 @@ func TestSurrenderGame(t *testing.T) {
 }
 
 func TestDeleteGame(t *testing.T) {
-	handler, cleanup := setupGameHandler(t)
+	handler, _, cleanup := setupGameHandler(t)
 	defer cleanup()
 
 	// Create test users and game
@@ -555,7 +554,7 @@ func TestDeleteGame(t *testing.T) {
 }
 
 func TestGetGameUnits(t *testing.T) {
-	handler, cleanup := setupGameHandler(t)
+	handler, _, cleanup := setupGameHandler(t)
 	defer cleanup()
 
 	// Create test user and game

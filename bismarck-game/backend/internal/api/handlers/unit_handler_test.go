@@ -72,23 +72,20 @@ func TestGetUnit(t *testing.T) {
 	handler, cleanup := setupUnitHandler(t)
 	defer cleanup()
 
-	// Setup test data
-	db, err := testutil.SetupTestDatabase()
+	// Setup test services
+	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer testCleanup()
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
 			Secret: "test-secret-key-for-testing-only",
 		},
 	}
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	_ = services.NewUnitService(db, logger)
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
-	userID, gameID := createTestUserAndGame(t, db, authService)
-	unitID := createTestUnit(t, db, gameID, userID)
+	userID, gameID := createTestUserAndGame(t, testServices, authService)
+	unitID := createTestUnit(t, testServices, gameID, userID)
 
 	t.Run("successful get unit", func(t *testing.T) {
 		// Create a mux router to handle the request properly
@@ -157,30 +154,27 @@ func TestGetUnits(t *testing.T) {
 	handler, cleanup := setupUnitHandler(t)
 	defer cleanup()
 
-	// Setup test data
-	db, err := testutil.SetupTestDatabase()
+	// Setup test services
+	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer testCleanup()
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
 			Secret: "test-secret-key-for-testing-only",
 		},
 	}
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	_ = services.NewUnitService(db, logger)
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
-	userID, gameID := createTestUserAndGame(t, db, authService)
+	userID, gameID := createTestUserAndGame(t, testServices, authService)
 
 	// Create multiple units
-	createTestUnit(t, db, gameID, userID)
+	createTestUnit(t, testServices, gameID, userID)
 
 	unit2 := &models.NavalUnit{
 		GameID:      gameID,
 		Name:        "Test Ship 2",
-		Type:        "cruiser",
+		Type:        models.UnitTypeHeavyCruiser,
 		Class:       "Prinz Eugen",
 		Owner:       userID,
 		Nationality: "german",
@@ -196,8 +190,7 @@ func TestGetUnits(t *testing.T) {
 		Status:      "active",
 		Damage:      []models.Damage{},
 	}
-	unitService := services.NewUnitService(db, logger)
-	err = unitService.CreateNavalUnit(unit2)
+	err = testServices.UnitService.CreateNavalUnit(unit2)
 	require.NoError(t, err)
 
 	t.Run("successful get units", func(t *testing.T) {
@@ -299,23 +292,20 @@ func TestUnitMoveUnit(t *testing.T) {
 	handler, cleanup := setupUnitHandler(t)
 	defer cleanup()
 
-	// Setup test data
-	db, err := testutil.SetupTestDatabase()
+	// Setup test services
+	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer testCleanup()
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
 			Secret: "test-secret-key-for-testing-only",
 		},
 	}
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	_ = services.NewUnitService(db, logger)
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
-	userID, gameID := createTestUserAndGame(t, db, authService)
-	unitID := createTestUnit(t, db, gameID, userID)
+	userID, gameID := createTestUserAndGame(t, testServices, authService)
+	unitID := createTestUnit(t, testServices, gameID, userID)
 
 	t.Run("successful move", func(t *testing.T) {
 		reqBody := map[string]interface{}{
@@ -345,8 +335,7 @@ func TestUnitMoveUnit(t *testing.T) {
 		assert.Equal(t, "Unit moved successfully", response["data"].(map[string]interface{})["message"])
 
 		// Verify unit was moved
-		unitService := services.NewUnitService(db, logger)
-		updatedUnit, err := unitService.GetNavalUnitByID(unitID)
+		updatedUnit, err := testServices.UnitService.GetNavalUnitByID(unitID)
 		assert.NoError(t, err)
 		assert.Equal(t, "B1", updatedUnit.Position)
 	})
@@ -381,7 +370,7 @@ func TestUnitMoveUnit(t *testing.T) {
 
 	t.Run("not owner", func(t *testing.T) {
 		// Create another user
-		authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
+		authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 		otherUser, err := authService.Register(&models.CreateUserRequest{
 			Username: "testuser2",
 			Email:    "testuser2@example.com",
@@ -496,22 +485,19 @@ func TestGetUnitsWithFilters(t *testing.T) {
 	handler, cleanup := setupUnitHandler(t)
 	defer cleanup()
 
-	// Setup test data
-	db, err := testutil.SetupTestDatabase()
+	// Setup test services
+	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer testCleanup()
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
 			Secret: "test-secret-key-for-testing-only",
 		},
 	}
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	_ = services.NewUnitService(db, logger)
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
-	userID1, gameID1 := createTestUserAndGame(t, db, authService)
+	userID1, gameID1 := createTestUserAndGame(t, testServices, authService)
 
 	// Create second user and game
 	user2, err := authService.Register(&models.CreateUserRequest{
@@ -521,19 +507,17 @@ func TestGetUnitsWithFilters(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Create game directly in database
-	query := `
-		INSERT INTO games (name, player1_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id
-	`
-	var game2 string
-	err = db.GetConnection().QueryRow(query, "Test Game 2", user2.ID, 0, "setup", "waiting", time.Now(), time.Now()).Scan(&game2)
+	// Create game with GameModel
+	game2, err := services.CreateTestGameModel(testServices.DB, testServices.GameStateService, "", 1, models.PhaseSetup)
+	require.NoError(t, err)
+	_, err = testServices.DB.GetConnection().Exec(`
+		UPDATE games SET player1_id = $1, name = $2, status = $3 WHERE id = $4
+	`, user2.ID, "Test Game 2", "waiting", game2.GameID)
 	require.NoError(t, err)
 
 	// Create units in different games
-	createTestUnit(t, db, gameID1, userID1)
-	createTestUnit(t, db, game2, user2.ID)
+	createTestUnit(t, testServices, gameID1, userID1)
+	createTestUnit(t, testServices, game2.GameID, user2.ID)
 
 	t.Run("get units with multiple filters", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/games/"+gameID1+"/units?owner="+userID1+"&type=battleship", nil)
