@@ -314,21 +314,17 @@ func (h *SearchHandler) AddHexMarker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Обновляем GameModel после добавления маркера
+	// TODO: Пересчет SearchHexData для этого гекса будет реализован отдельно
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-			// Обновляем маркеры в модели напрямую
-			// Получаем текущие маркеры для этого гекса
-			if model.HexMarkers == nil {
-				model.HexMarkers = make(map[string]models.HexMarkersModel)
+			// Инициализируем Search если нужно
+			if model.Search == nil {
+				model.Search = &models.SearchData{
+					German: make(map[string]models.SearchHexData),
+					Allied: make(map[string]models.SearchHexData),
+				}
 			}
-			hexMarkers := model.HexMarkers[req.HexID]
-			if hexMarkers.Markers == nil {
-				hexMarkers.Markers = make(map[string]int)
-			}
-			hexMarkers.HexID = req.HexID
-			hexMarkers.Markers[req.MarkerType]++
-			model.HexMarkers[req.HexID] = hexMarkers
-			// TODO: Пересчитать SearchFactors для этого гекса
+			// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
 			return nil
 		}, 3); err != nil {
 			h.logger.Warn("Failed to update GameModel after adding hex marker", "error", err)
@@ -375,19 +371,17 @@ func (h *SearchHandler) RemoveHexMarker(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Обновляем GameModel после удаления маркера
+	// TODO: Пересчет SearchHexData для этого гекса будет реализован отдельно
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-			// Обновляем маркеры в модели напрямую
-			if hexMarkers, exists := model.HexMarkers[hexID]; exists {
-				if hexMarkers.Markers[markerType] > 0 {
-					hexMarkers.Markers[markerType]--
-					if hexMarkers.Markers[markerType] == 0 {
-						delete(hexMarkers.Markers, markerType)
-					}
-					model.HexMarkers[hexID] = hexMarkers
+			// Инициализируем Search если нужно
+			if model.Search == nil {
+				model.Search = &models.SearchData{
+					German: make(map[string]models.SearchHexData),
+					Allied: make(map[string]models.SearchHexData),
 				}
 			}
-			// TODO: Пересчитать SearchFactors для этого гекса
+			// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
 			return nil
 		}, 3); err != nil {
 			h.logger.Warn("Failed to update GameModel after removing hex marker", "error", err)

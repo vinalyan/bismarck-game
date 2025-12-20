@@ -95,6 +95,10 @@ export interface UnitsResponse {
       phase: string;
     };
     events?: any[]; // События из GameModel
+    search?: {
+      german?: { [hexId: string]: SearchHexData };
+      allied?: { [hexId: string]: SearchHexData };
+    };
   };
   error?: string;
 }
@@ -117,6 +121,15 @@ export interface UpdatePositionResponse {
   error?: string;
 }
 
+// Интерфейс для данных поиска гекса
+interface SearchHexData {
+  factor: number;
+  ships: number;
+  patrol: number;
+  air_search: number;
+  intrinsic: number;
+}
+
 // Интерфейс для GameModel (из бэкенда)
 interface GameModel {
   game_id: string;
@@ -129,8 +142,10 @@ interface GameModel {
   units: { [key: string]: UnitModel };
   task_forces: { [key: string]: TaskForceModel };
   enemy_contacts: EnemyContactModel[];
-  search_factors: { [key: string]: { german: number; allied: number } };
-  hex_markers: { [key: string]: { hex_id: string; markers: { [key: string]: number } } };
+  search?: {
+    german?: { [hexId: string]: SearchHexData };
+    allied?: { [hexId: string]: SearchHexData };
+  };
   events: any[];
   intrinsic_search_hexes?: { [key: string]: number };
 }
@@ -378,6 +393,8 @@ function convertGameModelToUnitsResponse(gameModel: GameModel): UnitsResponse {
       current_turn: gameModel.current_turn,
       // Добавляем события из GameModel
       events: gameModel.events || [],
+      // Добавляем данные поиска из GameModel
+      search: gameModel.search,
     },
   };
 }

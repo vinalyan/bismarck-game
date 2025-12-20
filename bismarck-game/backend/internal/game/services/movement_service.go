@@ -1,7 +1,6 @@
 package services
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -30,6 +29,7 @@ type MovementService struct {
 	gameService          *GameService
 	gameStateService     *GameStateService // Для работы с GameModel
 	taskForceService     *TaskForceService // Для работы с Task Forces
+	searchService        *SearchService    // Для пересчета факторов поиска
 }
 
 // NewMovementService создает новый сервис движения
@@ -62,6 +62,11 @@ func (s *MovementService) SetTaskForceService(taskForceService *TaskForceService
 	s.taskForceService = taskForceService
 }
 
+// SetSearchService устанавливает SearchService для пересчета факторов поиска
+func (s *MovementService) SetSearchService(searchService *SearchService) {
+	s.searchService = searchService
+}
+
 // ValidateMovementWithOwner проверяет возможность движения юнита с проверкой владельца
 func (s *MovementService) ValidateMovementWithOwner(unit *models.NavalUnit, fromHex, toHex string, userID string) error {
 	// Проверяем владельца юнита
@@ -74,8 +79,8 @@ func (s *MovementService) ValidateMovementWithOwner(unit *models.NavalUnit, from
 
 // ValidateMovement проверяет возможность движения юнита
 func (s *MovementService) ValidateMovement(unit *models.NavalUnit, fromHex, toHex string) error {
-	// Получаем информацию о топливе
-	fuelTracking, err := s.getFuelTracking(unit.GameID, unit.ID)
+	// Получаем информацию о топливе (используем уже загруженный юнит)
+	fuelTracking, err := s.getFuelTrackingFromUnit(unit)
 	if err != nil {
 		return fmt.Errorf("failed to get fuel tracking: %w", err)
 	}
@@ -94,8 +99,8 @@ func (s *MovementService) ValidateMovement(unit *models.NavalUnit, fromHex, toHe
 
 // CalculateFuelCost рассчитывает стоимость топлива для движения
 func (s *MovementService) CalculateFuelCost(unit *models.NavalUnit, fromHex, toHex string) (int, error) {
-	// Получаем информацию о топливе
-	fuelTracking, err := s.getFuelTracking(unit.GameID, unit.ID)
+	// Получаем информацию о топливе (используем уже загруженный юнит)
+	fuelTracking, err := s.getFuelTrackingFromUnit(unit)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get fuel tracking: %w", err)
 	}
@@ -112,8 +117,8 @@ func (s *MovementService) GetAvailableMoves(unit *models.NavalUnit) ([]string, e
 	speedType := unit.SpeedRating
 	maxDistance := speedType.GetMaxMovementDistance()
 
-	// Получаем информацию о топливе
-	fuelTracking, err := s.getFuelTracking(unit.GameID, unit.ID)
+	// Получаем информацию о топливе (используем уже загруженный юнит)
+	fuelTracking, err := s.getFuelTrackingFromUnit(unit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get fuel tracking: %w", err)
 	}
@@ -187,9 +192,9 @@ func (s *MovementService) ExecuteMovement(unit *models.NavalUnit, toHex string) 
 
 // executeMovementInternal выполняет внутреннюю логику движения
 func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex string) (*models.Movement, error) {
-	// Получаем информацию о топливе ПЕРЕД расчетом стоимости
+	// Получаем информацию о топливе ПЕРЕД расчетом стоимости (используем уже загруженный юнит)
 	// Это важно, так как getFuelTracking использует PreviousTurnMovedHexes для расчета
-	fuelTracking, err := s.getFuelTracking(unit.GameID, unit.ID)
+	fuelTracking, err := s.getFuelTrackingFromUnit(unit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get fuel tracking: %w", err)
 	}
@@ -323,6 +328,22 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 		return nil, fmt.Errorf("failed to update unit position: %w", err)
 	}
 
+	// Пересчитываем факторы поиска для старого и нового гекса
+	if s.searchService != nil {
+		// Старый гекс
+		if oldPosition != "" {
+			if err := s.searchService.RecalculateSearchDataForHex(unit.GameID, oldPosition); err != nil {
+				s.logger.Warn("Failed to recalculate search data for old hex", "hex_id", oldPosition, "error", err)
+			}
+		}
+		// Новый гекс
+		if toHex != "" {
+			if err := s.searchService.RecalculateSearchDataForHex(unit.GameID, toHex); err != nil {
+				s.logger.Warn("Failed to recalculate search data for new hex", "hex_id", toHex, "error", err)
+			}
+		}
+	}
+
 	// updateFuelTracking больше не нужен, так как топливо уже обновлено через UpdateNavalUnit
 	// Но оставляем для совместимости (он просто получает юнит и обновляет его снова)
 	s.logger.Info("Fuel updated in GameModel",
@@ -375,6 +396,29 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 
 // Вспомогательные методы
 
+// getFuelTrackingFromUnit создает FuelTracking из уже загруженного юнита
+// Используется для оптимизации - избегает повторной загрузки GameModel
+func (s *MovementService) getFuelTrackingFromUnit(unit *models.NavalUnit) (*models.FuelTracking, error) {
+	if unit == nil {
+		return nil, errors.New("unit is nil")
+	}
+
+	return &models.FuelTracking{
+		ID:                fmt.Sprintf("fuel_%s_%s", unit.GameID, unit.ID),
+		GameID:            unit.GameID,
+		UnitID:            unit.ID,
+		CurrentFuel:       unit.Fuel,
+		MaxFuel:           unit.MaxFuel,
+		PreviousTurnMoved: unit.PreviousTurnMovedHexes,
+		IsEmergencyFuel:   unit.IsEmergencyFuel,
+		EmergencyTurn:     unit.EmergencyTurn,
+		CreatedAt:         unit.CreatedAt,
+		UpdatedAt:         unit.UpdatedAt,
+	}, nil
+}
+
+// getFuelTracking загружает юнит и создает FuelTracking
+// Используется только когда юнит еще не загружен (например, в RefuelUnit)
 func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTracking, error) {
 	// Получаем данные о топливе из базы данных
 	// Получаем юнит из GameModel через UnitService
@@ -385,18 +429,7 @@ func (s *MovementService) getFuelTracking(gameID, unitID string) (*models.FuelTr
 		return nil, fmt.Errorf("failed to get unit from GameModel: %w", err)
 	}
 
-	return &models.FuelTracking{
-		ID:                fmt.Sprintf("fuel_%s_%s", gameID, unitID),
-		GameID:            gameID,
-		UnitID:            unitID,
-		CurrentFuel:       unit.Fuel,
-		MaxFuel:           unit.MaxFuel,
-		PreviousTurnMoved: unit.PreviousTurnMovedHexes,
-		IsEmergencyFuel:   unit.IsEmergencyFuel,
-		EmergencyTurn:     unit.EmergencyTurn,
-		CreatedAt:         unit.CreatedAt,
-		UpdatedAt:         unit.UpdatedAt,
-	}, nil
+	return s.getFuelTrackingFromUnit(unit)
 }
 
 // updateFuelTracking обновляет информацию о топливе
@@ -594,6 +627,9 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 		return fmt.Errorf("task force cannot move - it is sighted")
 	}
 
+	// Сохраняем старую позицию ДО обновления
+	oldPosition := taskForce.Position
+
 	// Выполняем движение для каждого корабля в TF
 	for _, unitID := range taskForce.Units {
 		unit, err := s.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
@@ -602,8 +638,8 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 			continue
 		}
 
-		// Выполняем движение корабля из позиции TF в новую позицию
-		_, err = s.executeTaskForceUnitMovement(unit, taskForce.Position, toHex)
+		// Выполняем движение корабля из старой позиции TF в новую позицию
+		_, err = s.executeTaskForceUnitMovement(unit, oldPosition, toHex)
 		if err != nil {
 			return fmt.Errorf("failed to move unit %s in task force: %w", unitID, err)
 		}
@@ -613,6 +649,22 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 	err = s.updateTaskForcePosition(gameID, taskForceID, toHex)
 	if err != nil {
 		return fmt.Errorf("failed to update task force position: %w", err)
+	}
+
+	// Пересчитываем факторы поиска для старого и нового гекса Task Force
+	if s.searchService != nil {
+		// Старый гекс
+		if oldPosition != "" {
+			if err := s.searchService.RecalculateSearchDataForHex(gameID, oldPosition); err != nil {
+				s.logger.Warn("Failed to recalculate search data for old TF hex", "hex_id", oldPosition, "error", err)
+			}
+		}
+		// Новый гекс
+		if toHex != "" {
+			if err := s.searchService.RecalculateSearchDataForHex(gameID, toHex); err != nil {
+				s.logger.Warn("Failed to recalculate search data for new TF hex", "hex_id", toHex, "error", err)
+			}
+		}
 	}
 
 	// Логируем событие движения Task Force в игровой лог
@@ -638,7 +690,7 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 			taskForce.GameID,
 			taskForceID,
 			taskForce.Name,
-			taskForce.Position,
+			oldPosition,
 			toHex,
 			currentTurn,
 			string(currentPhase),
@@ -652,7 +704,7 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 
 	s.logger.Info("Task Force movement executed",
 		"task_force_id", taskForceID,
-		"from", taskForce.Position,
+		"from", oldPosition,
 		"to", toHex,
 		"units_moved", len(taskForce.Units))
 
@@ -711,15 +763,12 @@ func (s *MovementService) executeTaskForceUnitMovement(unit *models.NavalUnit, f
 		if err := s.emergencyFuelService.ActivateIfNeeded(unit.GameID, unit.ID, unit.Fuel); err != nil {
 			s.logger.Warn("Failed to activate emergency fuel", "error", err, "unit_id", unit.ID)
 		}
-		// Обновляем статус аварийного топлива в объекте unit
-		query := `SELECT is_emergency_fuel, emergency_turn FROM naval_units WHERE id = $1 AND game_id = $2`
-		var isEmergencyFuel bool
-		var emergencyTurn sql.NullInt64
-		err := s.db.QueryRow(query, unit.ID, unit.GameID).Scan(&isEmergencyFuel, &emergencyTurn)
-		if err == nil {
-			unit.IsEmergencyFuel = isEmergencyFuel
-			if emergencyTurn.Valid {
-				unit.EmergencyTurn = int(emergencyTurn.Int64)
+		// Обновляем статус аварийного топлива в объекте unit из GameModel
+		if s.unitService != nil {
+			navalUnit, err := s.unitService.GetNavalUnitByIDFromGameModel(unit.GameID, unit.ID)
+			if err == nil && navalUnit != nil {
+				unit.IsEmergencyFuel = navalUnit.IsEmergencyFuel
+				unit.EmergencyTurn = navalUnit.EmergencyTurn
 			}
 		}
 	}

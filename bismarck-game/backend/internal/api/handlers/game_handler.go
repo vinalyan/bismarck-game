@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"bismarck-game/backend/internal/api/middleware"
@@ -26,6 +27,7 @@ type GameHandler struct {
 	phaseManager      *services.PhaseManager
 	taskForceService  *services.TaskForceService
 	gameStateService  *services.GameStateService
+	gameService       *services.GameService
 }
 
 // NewGameHandler создает новый обработчик игр
@@ -42,6 +44,11 @@ func NewGameHandler(db *database.Database, unitService *services.UnitService, sh
 // SetGameStateService устанавливает GameStateService
 func (h *GameHandler) SetGameStateService(gameStateService *services.GameStateService) {
 	h.gameStateService = gameStateService
+}
+
+// SetGameService устанавливает GameService
+func (h *GameHandler) SetGameService(gameService *services.GameService) {
+	h.gameService = gameService
 }
 
 // getUserIDFromRequest безопасно извлекает user_id из контекста запроса
@@ -69,17 +76,32 @@ func (h *GameHandler) createStartingTaskForces(gameID string) error {
 		return nil
 	}
 
-	// Получаем все юниты игры для поиска соответствующих кораблей
-	allUnits, err := h.unitService.GetNavalUnitsByGameID(gameID)
+	// Получаем GameModel для доступа к юнитам
+	if h.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for createStartingTaskForces")
+	}
+
+	model, err := h.gameStateService.LoadGameModel(gameID)
 	if err != nil {
-		log.Printf("Error getting game units: %v", err)
-		return fmt.Errorf("failed to get game units: %w", err)
+		log.Printf("Error loading GameModel: %v", err)
+		return fmt.Errorf("failed to load GameModel: %w", err)
 	}
 
 	// Создаем карту юнитов по именам для быстрого поиска
 	unitsByName := make(map[string]*models.NavalUnit)
-	for i := range allUnits {
-		unitsByName[allUnits[i].Name] = &allUnits[i]
+	for _, unitModel := range model.Units {
+		// Пропускаем не морские юниты
+		if unitModel.Category != models.UnitCategoryNaval {
+			continue
+		}
+
+		navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+		if err != nil {
+			log.Printf("Error converting unit: %v", err)
+			continue
+		}
+
+		unitsByName[unitModel.Name] = navalUnit
 	}
 
 	// Создаем Task Force для каждой группы
@@ -274,6 +296,8 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Создаем начальный GameModel для новой игры
+			// CreateInitialGameModel автоматически загрузит данные из БД, если они есть,
+			// и пересчитает факторы поиска через loadFromLegacyTables
 			if h.gameStateService != nil {
 				initialModel, err := h.gameStateService.CreateInitialGameModel(game.ID)
 				if err != nil {
@@ -284,7 +308,9 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 						log.Printf("Error saving initial GameModel to database: %v", err)
 						// Не прерываем создание игры, но логируем ошибку
 					} else {
-						log.Printf("Initial GameModel created and saved successfully for game %s (version %d)", game.ID, initialModel.Version)
+						log.Printf("Initial GameModel created and saved successfully for game %s (version %d, units: %d, task_forces: %d)",
+							game.ID, initialModel.Version, len(initialModel.Units), len(initialModel.TaskForces))
+						// Факторы поиска уже пересчитаны в loadFromLegacyTables (если данные были загружены)
 					}
 				}
 			}
@@ -350,10 +376,14 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 
 	// Получаем игры с пагинацией
 	offset := (page - 1) * perPage
+	// Пытаемся использовать поля visibility_level, is_fog, weather_track
+	// Если они отсутствуют в таблице, используем значения по умолчанию в коде
 	query := `
 		SELECT g.id, g.name, g.player1_id, g.player2_id, g.current_turn, g.current_phase, g.status, 
 		       g.settings, g.created_at, g.updated_at, g.completed_at,
-		       g.visibility_level, g.is_fog, g.weather_track,
+		       COALESCE(g.visibility_level, 1) as visibility_level,
+		       COALESCE(g.is_fog, false) as is_fog,
+		       COALESCE(g.weather_track, 0) as weather_track,
 		       p1.username as player1_username, p2.username as player2_username
 		FROM games g
 		LEFT JOIN users p1 ON g.player1_id = p1.id
@@ -364,10 +394,41 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 
 	args = append(args, perPage, offset)
 
+	// Флаг для отслеживания, используется ли запрос с полями visibility
+	hasVisibilityFields := true
 	rows, err := h.db.GetConnection().QueryContext(r.Context(), query, args...)
 	if err != nil {
-		pkgutils.WriteInternalError(w, "Failed to get games")
-		return
+		// Если ошибка связана с отсутствующими колонками visibility_level, is_fog, weather_track,
+		// используем альтернативный запрос без этих полей
+		if strings.Contains(err.Error(), "visibility_level") ||
+			strings.Contains(err.Error(), "is_fog") ||
+			strings.Contains(err.Error(), "weather_track") ||
+			strings.Contains(err.Error(), "column") {
+			log.Printf("Visibility columns not found, using default values. Error: %v", err)
+			// Используем запрос без полей visibility
+			query = `
+				SELECT g.id, g.name, g.player1_id, g.player2_id, g.current_turn, g.current_phase, g.status, 
+				       g.settings, g.created_at, g.updated_at, g.completed_at,
+				       p1.username as player1_username, p2.username as player2_username
+				FROM games g
+				LEFT JOIN users p1 ON g.player1_id = p1.id
+				LEFT JOIN users p2 ON g.player2_id = p2.id
+				` + whereClause + `
+				ORDER BY g.created_at DESC
+				LIMIT $` + strconv.Itoa(argIndex) + ` OFFSET $` + strconv.Itoa(argIndex+1)
+
+			hasVisibilityFields = false
+			rows, err = h.db.GetConnection().QueryContext(r.Context(), query, args...)
+			if err != nil {
+				log.Printf("Failed to get games (fallback query): %v", err)
+				pkgutils.WriteInternalError(w, "Failed to get games")
+				return
+			}
+		} else {
+			log.Printf("Failed to get games: %v", err)
+			pkgutils.WriteInternalError(w, "Failed to get games")
+			return
+		}
 	}
 	defer rows.Close()
 
@@ -378,13 +439,34 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 		var player1ID, player2ID sql.NullString
 		var completedAt sql.NullTime
 		var player1Username, player2Username sql.NullString
-		err := rows.Scan(
-			&game.ID, &game.Name, &player1ID, &player2ID,
-			&game.CurrentTurn, &game.CurrentPhase, &game.Status,
-			&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-			&completedAt, &game.VisibilityLevel, &game.IsFog, &game.WeatherTrack,
-			&player1Username, &player2Username,
-		)
+		var visibilityLevel sql.NullInt32
+		var isFog sql.NullBool
+		var weatherTrack sql.NullInt32
+
+		var err error
+		if hasVisibilityFields {
+			// Сканируем с полями visibility
+			err = rows.Scan(
+				&game.ID, &game.Name, &player1ID, &player2ID,
+				&game.CurrentTurn, &game.CurrentPhase, &game.Status,
+				&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
+				&completedAt, &visibilityLevel, &isFog, &weatherTrack,
+				&player1Username, &player2Username,
+			)
+		} else {
+			// Сканируем без полей visibility (используем значения по умолчанию)
+			err = rows.Scan(
+				&game.ID, &game.Name, &player1ID, &player2ID,
+				&game.CurrentTurn, &game.CurrentPhase, &game.Status,
+				&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
+				&completedAt,
+				&player1Username, &player2Username,
+			)
+			// Устанавливаем значения по умолчанию для полей visibility
+			visibilityLevel = sql.NullInt32{Valid: false}
+			isFog = sql.NullBool{Valid: false}
+			weatherTrack = sql.NullInt32{Valid: false}
+		}
 		if err != nil {
 			log.Printf("Failed to scan game: %v", err)
 			log.Printf("Game ID: %s, Name: %s", game.ID, game.Name)
@@ -404,9 +486,33 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Десериализуем настройки игры
-		if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
-			pkgutils.WriteInternalError(w, "Failed to parse game settings")
-			return
+		if len(settingsJSON) > 0 {
+			if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
+				log.Printf("Failed to parse game settings for game %s: %v", game.ID, err)
+				// Используем настройки по умолчанию, если не удалось распарсить
+				game.Settings = models.GetDefaultGameSettings()
+			}
+		} else {
+			// Если settings пустые или NULL, используем настройки по умолчанию
+			game.Settings = models.GetDefaultGameSettings()
+		}
+
+		// Загружаем visibility_level, is_fog, weather_track из SELECT запроса
+		// Если поля не заполнены в БД, используем значения по умолчанию
+		if visibilityLevel.Valid {
+			game.VisibilityLevel = int(visibilityLevel.Int32)
+		} else {
+			game.VisibilityLevel = 1 // дефолтное значение
+		}
+		if isFog.Valid {
+			game.IsFog = isFog.Bool
+		} else {
+			game.IsFog = false
+		}
+		if weatherTrack.Valid {
+			game.WeatherTrack = int(weatherTrack.Int32)
+		} else {
+			game.WeatherTrack = 0
 		}
 
 		// Получаем username
@@ -461,8 +567,7 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 	var completedAt sql.NullTime
 	query := `
 		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
-		       settings, created_at, updated_at, completed_at,
-		       visibility_level, is_fog, weather_track
+		       settings, created_at, updated_at, completed_at
 		FROM games 
 		WHERE id = $1
 	`
@@ -471,7 +576,7 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 		&game.ID, &game.Name, &game.Player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-		&completedAt, &game.VisibilityLevel, &game.IsFog, &game.WeatherTrack,
+		&completedAt,
 	)
 
 	if err != nil {
@@ -495,6 +600,19 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
 		pkgutils.WriteInternalError(w, "Failed to parse game settings")
 		return
+	}
+
+	// Загружаем visibility_level, is_fog, weather_track через легковесный метод
+	game.VisibilityLevel = 1 // дефолтное значение
+	game.IsFog = false
+	game.WeatherTrack = 0
+	if h.gameStateService != nil {
+		visLevel, isFog, weatherTrack, err := h.gameStateService.GetGameVisibilityOnly(game.ID)
+		if err == nil {
+			game.VisibilityLevel = visLevel
+			game.IsFog = isFog
+			game.WeatherTrack = weatherTrack
+		}
 	}
 
 	pkgutils.WriteSuccess(w, game.ToResponse())
@@ -1058,9 +1176,12 @@ func (h *GameHandler) GetGameUnits(w http.ResponseWriter, r *http.Request) {
 func (h *GameHandler) GetVictoryPoints(w http.ResponseWriter, r *http.Request) {
 	gameID := mux.Vars(r)["id"]
 
-	var vp map[string]int
-	query := `SELECT COALESCE(victory_points, '{}'::jsonb) FROM games WHERE id = $1`
-	err := h.db.QueryRow(query, gameID).Scan(&vp)
+	if h.gameService == nil {
+		pkgutils.WriteInternalError(w, "GameService not initialized")
+		return
+	}
+
+	vp, err := h.gameService.GetVictoryPoints(gameID)
 	if err != nil {
 		log.Printf("Error getting victory points: %v", err)
 		pkgutils.WriteInternalError(w, "Failed to get victory points")

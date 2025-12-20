@@ -1,7 +1,6 @@
 package services
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"sort"
@@ -72,15 +71,21 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 	visibilityLevel := 3
 	isFog := true
 
-	// Обновляем видимость в БД
-	query := `
-		UPDATE games 
-		SET visibility_level = $1, is_fog = $2, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3
-	`
-	_, err := pm.db.Exec(query, visibilityLevel, isFog, gameID)
+	// Обновляем видимость в GameModel
+	if pm.gameStateService == nil {
+		log.Printf("Warning: gameStateService is nil, skipping visibility update")
+		return nil // Не возвращаем ошибку, чтобы не блокировать переход между фазами
+	}
+
+	err := pm.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		model.VisibilityLevel = visibilityLevel
+		model.IsFog = isFog
+		// WeatherTrack можно оставить как есть или обновить по необходимости
+		return nil
+	}, 3)
+
 	if err != nil {
-		log.Printf("Failed to update visibility: %v", err)
+		log.Printf("Failed to update visibility in GameModel: %v", err)
 		return fmt.Errorf("failed to update visibility: %w", err)
 	}
 
@@ -302,11 +307,16 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 		return nil
 	}
 
-	// Получаем информацию об игре для определения игроков
-	var player1ID, player2ID string
-	err := pm.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	// Получаем информацию об игре для определения игроков через PhaseManager
+	player1ID, err := pm.getPlayerIDForSide(gameID, "german")
 	if err != nil {
-		log.Printf("Failed to get game players: %v", err)
+		log.Printf("Failed to get german player: %v", err)
+		// Не критично, продолжаем
+		return nil
+	}
+	player2ID, err := pm.getPlayerIDForSide(gameID, "allied")
+	if err != nil {
+		log.Printf("Failed to get allied player: %v", err)
 		// Не критично, продолжаем
 		return nil
 	}
@@ -337,6 +347,12 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 	if len(shadowedUnits2) > 0 {
 		log.Printf("Allied player has %d shadowed units that must move first", len(shadowedUnits2))
 	}
+
+	// Пересчет факторов поиска при старте фазы движения не нужен:
+	// - Пересчет уже происходит при загрузке GameModel (если данные пустые)
+	// - Пересчет происходит после движения юнитов
+	// - Пересчет происходит после добавления маркеров
+	// Массовый пересчет здесь избыточен и замедляет запрос
 
 	// Примечание: Реальное движение преследуемых обрабатывается через movement API
 	// API должен проверять DetectionLevel и требовать объявления местоположения противнику
@@ -546,27 +562,26 @@ type gameSearchContext struct {
 }
 
 func (h *SearchPhaseHandler) getGameSearchContext(pm *PhaseManager, gameID string) (*gameSearchContext, error) {
-	var (
-		visibility sql.NullInt32
-		fog        sql.NullBool
-		player1ID  sql.NullString
-		player2ID  sql.NullString
-	)
+	// Получаем данные через gameStateService через PhaseManager
+	if pm.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for getGameSearchContext")
+	}
 
-	query := `SELECT visibility_level, is_fog, player1_id, player2_id FROM games WHERE id = $1`
-	if err := pm.db.QueryRow(query, gameID).Scan(&visibility, &fog, &player1ID, &player2ID); err != nil {
-		return nil, fmt.Errorf("failed to fetch game info: %w", err)
+	visibilityLevel, isFog, _, err := pm.gameStateService.GetGameVisibilityOnly(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game visibility: %w", err)
+	}
+
+	player1ID, player2ID, err := pm.gameStateService.GetGamePlayers(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game players: %w", err)
 	}
 
 	ctx := &gameSearchContext{
-		visibilityLevel: int(visibility.Int32),
-		isFog:           fog.Valid && fog.Bool,
-	}
-	if player1ID.Valid {
-		ctx.germanPlayerID = player1ID.String
-	}
-	if player2ID.Valid {
-		ctx.alliedPlayerID = player2ID.String
+		visibilityLevel: visibilityLevel,
+		isFog:           isFog,
+		germanPlayerID:  player1ID,
+		alliedPlayerID:  player2ID,
 	}
 	return ctx, nil
 }

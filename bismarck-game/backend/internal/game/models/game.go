@@ -324,3 +324,14 @@ func GetDefaultGameSettings() GameSettings {
 		Difficulty:       "standard",
 	}
 }
+
+// GameBasicInfo представляет базовую информацию об игре из таблицы games
+// Используется для метаданных, которые не входят в GameModel
+type GameBasicInfo struct {
+	Name         string                 `json:"name"`
+	Status       GameStatus             `json:"status"`
+	Settings     GameSettings           `json:"settings"`
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
+	VictoryPoints map[string]int         `json:"victory_points"`
+}

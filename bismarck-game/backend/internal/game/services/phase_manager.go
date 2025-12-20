@@ -48,20 +48,23 @@ func (pm *PhaseManager) SetGameStateService(gameStateService *GameStateService) 
 }
 
 func (pm *PhaseManager) getPlayerIDForSide(gameID string, side string) (string, error) {
-	var player1ID, player2ID sql.NullString
-	err := pm.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	if pm.gameStateService == nil {
+		return "", fmt.Errorf("gameStateService is required for getPlayerIDForSide")
+	}
+
+	player1ID, player2ID, err := pm.gameStateService.GetGamePlayers(gameID)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch players for game %s: %w", gameID, err)
 	}
 
 	switch strings.ToLower(side) {
 	case "german":
-		if player1ID.Valid {
-			return player1ID.String, nil
+		if player1ID != "" {
+			return player1ID, nil
 		}
 	case "allied":
-		if player2ID.Valid {
-			return player2ID.String, nil
+		if player2ID != "" {
+			return player2ID, nil
 		}
 	}
 
@@ -217,13 +220,14 @@ func (pm *PhaseManager) StartPhase(gameID string, turnNumber int, phase models.G
 		hasPrevPhase   bool
 	)
 	if pm.eventService != nil {
-		var prevPhase sql.NullString
-		errPrev := pm.db.QueryRow("SELECT current_phase FROM games WHERE id = $1", gameID).Scan(&prevPhase)
-		if errPrev == nil && prevPhase.Valid {
-			prevPhaseValue = prevPhase.String
-			hasPrevPhase = true
-		} else if errPrev != nil && errPrev != sql.ErrNoRows {
-			log.Printf("Warning: failed to get previous phase for logging: %v", errPrev)
+		if pm.gameStateService != nil {
+			_, phase, errPrev := pm.gameStateService.GetCurrentTurnOnly(gameID)
+			if errPrev == nil {
+				prevPhaseValue = string(phase)
+				hasPrevPhase = true
+			} else if errPrev != sql.ErrNoRows {
+				log.Printf("Warning: failed to get previous phase for logging: %v", errPrev)
+			}
 		}
 	}
 
@@ -360,33 +364,33 @@ type GameVisibility struct {
 	WeatherTrack    int
 }
 
-// GetGameVisibility возвращает информацию о видимости игры
+// GetGameVisibility возвращает информацию о видимости игры из GameModel
 func (pm *PhaseManager) GetGameVisibility(gameID string) (*GameVisibility, error) {
-	query := `
-		SELECT visibility_level, is_fog, weather_track
-		FROM games
-		WHERE id = $1
-	`
-
-	var visibility GameVisibility
-	err := pm.db.QueryRow(query, gameID).Scan(
-		&visibility.VisibilityLevel,
-		&visibility.IsFog,
-		&visibility.WeatherTrack,
-	)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			// Возвращаем значения по умолчанию, если игра не найдена
-			return &GameVisibility{
-				VisibilityLevel: 1,
-				IsFog:           false,
-				WeatherTrack:    0,
-			}, nil
-		}
-		return nil, fmt.Errorf("failed to get game visibility: %v", err)
+	if pm.gameStateService == nil {
+		// Возвращаем значения по умолчанию, если gameStateService недоступен
+		return &GameVisibility{
+			VisibilityLevel: 1,
+			IsFog:           false,
+			WeatherTrack:    0,
+		}, nil
 	}
 
-	return &visibility, nil
+	// Загружаем GameModel
+	model, err := pm.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		// Возвращаем значения по умолчанию при ошибке загрузки
+		return &GameVisibility{
+			VisibilityLevel: 1,
+			IsFog:           false,
+			WeatherTrack:    0,
+		}, nil
+	}
+
+	return &GameVisibility{
+		VisibilityLevel: model.VisibilityLevel,
+		IsFog:           model.IsFog,
+		WeatherTrack:    model.WeatherTrack,
+	}, nil
 }
 
 // GetPhaseRecords возвращает записи о фазах для хода

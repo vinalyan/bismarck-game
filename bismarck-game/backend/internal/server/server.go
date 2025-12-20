@@ -172,6 +172,15 @@ func (s *Server) setupRoutes() {
 	// Настраиваем сервис аварийного топлива для UnitService
 	unitService.SetEmergencyFuelService(emergencyFuelService)
 
+	// Настраиваем SearchService для UnitService (для пересчета факторов поиска)
+	unitService.SetSearchService(searchService)
+
+	// Настраиваем SearchService для MovementService (для пересчета факторов поиска)
+	movementService.SetSearchService(searchService)
+
+	// Настраиваем SearchService для TaskForceService (для пересчета факторов поиска)
+	taskForceService.SetSearchService(searchService)
+
 	// Загружаем конфигурацию кораблей
 	if err := shipConfigService.LoadConfig("./config/ships.json"); err != nil {
 		logger.Error("Failed to load ship config", "error", err)
@@ -239,8 +248,14 @@ func (s *Server) setupRoutes() {
 	// Устанавливаем GameStateService в GameEventService для обновления GameModel при создании событий
 	eventService.SetGameStateService(gameStateService)
 
+	// Устанавливаем GameService в GameHandler
+	gameHandler.SetGameService(gameService)
+
 	// Устанавливаем GameStateService в GameHandler для инициализации GameModel при создании игры
 	gameHandler.SetGameStateService(gameStateService)
+
+	// Устанавливаем GameStateService в PhaseManager для обновления видимости и других данных в GameModel
+	phaseManager.SetGameStateService(gameStateService)
 
 	// Устанавливаем GameStateService в UnitService и TaskForceService для обновления GameModel
 	unitService.SetGameStateService(gameStateService)
@@ -248,9 +263,6 @@ func (s *Server) setupRoutes() {
 
 	// Устанавливаем GameStateService в SearchService для обновления GameModel при работе с маркерами
 	searchService.SetGameStateService(gameStateService)
-
-	// Устанавливаем GameStateService в PhaseManager для обновления GameModel при смене фаз
-	phaseManager.SetGameStateService(gameStateService)
 
 	// Устанавливаем GameStateService и TaskForceService в MovementService для работы с Task Forces
 	movementService.SetGameStateService(gameStateService)

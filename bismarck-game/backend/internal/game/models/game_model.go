@@ -28,12 +28,8 @@ type GameModel struct {
 	// Контакты противника
 	EnemyContacts []*EnemyContactModel `json:"enemy_contacts"`
 
-	// Факторы поиска (только для релевантных гексов)
-	// Хранит факторы для каждой стороны отдельно
-	SearchFactors map[string]SearchFactorsBySide `json:"search_factors"` // hex_id -> SearchFactorsBySide
-
-	// Маркеры гексов
-	HexMarkers map[string]HexMarkersModel `json:"hex_markers"` // hex_id -> markers
+	// Блок поиска (объединенный)
+	Search *SearchData `json:"search,omitempty"`
 
 	// События игры
 	Events []*GameEventModel `json:"events"`
@@ -41,6 +37,11 @@ type GameModel struct {
 	// Гексы с собственными факторами поиска (из конфигурации карты)
 	// ВАЖНО: Загружать из MapStructureService или конфигурации
 	IntrinsicSearchHexes map[string]int `json:"intrinsic_search_hexes,omitempty"`
+
+	// Погодные условия и видимость
+	VisibilityLevel int  `json:"visibility_level"` // 1-10, где 10 = X = максимальная видимость блокирует все действия
+	IsFog           bool `json:"is_fog"`           // Флаг тумана (weather_track 5-9). Блокирует поиск, преследование и бой в туманных гексах
+	WeatherTrack    int  `json:"weather_track"`    // Позиция на треке погоды (0-9). Значения 5-9 указывают на туман
 }
 
 // GameModelSnapshot представляет снимок состояния для истории (для Issue #41)
@@ -156,16 +157,22 @@ type EnemyContactModel struct {
 	LastSeenAt       time.Time      `json:"last_seen_at"`
 }
 
-// HexMarkersModel представляет маркеры гекса
-type HexMarkersModel struct {
-	HexID   string         `json:"hex_id"`
-	Markers map[string]int `json:"markers"` // marker_type -> count
+// SearchHexData представляет детальную информацию о факторах поиска для гекса
+type SearchHexData struct {
+	Factor    int `json:"factor"`     // ships*1 + patrol*3 + air_search*2 + intrinsic
+	Ships     int `json:"ships"`      // количество кораблей и ТФ
+	Patrol    int `json:"patrol"`     // количество маркеров патруля
+	AirSearch int `json:"air_search"` // количество маркеров воздушного патруля
+	Intrinsic int `json:"intrinsic"`  // собственные факторы поиска гекса
 }
 
-// SearchFactorsBySide представляет факторы поиска для каждой стороны
-type SearchFactorsBySide struct {
-	German int `json:"german"` // Факторы поиска для немецкой стороны
-	Allied int `json:"allied"` // Факторы поиска для союзной стороны
+// SearchData представляет объединенные данные поиска
+type SearchData struct {
+	// Данные поиска для немецкой стороны
+	German map[string]SearchHexData `json:"german"` // hex_id -> SearchHexData
+
+	// Данные поиска для союзной стороны
+	Allied map[string]SearchHexData `json:"allied"` // hex_id -> SearchHexData
 }
 
 // GameEventModel представляет событие игры
@@ -358,6 +365,34 @@ func ConvertUnitModelToNavalUnit(unitModel *UnitModel) (*NavalUnit, error) {
 	}
 
 	return navalUnit, nil
+}
+
+// ConvertUnitModelToAirUnit конвертирует UnitModel в AirUnit
+func ConvertUnitModelToAirUnit(unitModel *UnitModel) (*AirUnit, error) {
+	if unitModel.Category != UnitCategoryAir {
+		return nil, fmt.Errorf("unit is not an air unit")
+	}
+	if unitModel.AirData == nil {
+		return nil, fmt.Errorf("air data is missing")
+	}
+
+	airUnit := &AirUnit{
+		ID:                    unitModel.ID,
+		GameID:                unitModel.GameID,
+		Name:                  unitModel.Name,
+		Type:                  unitModel.Type,
+		Owner:                 unitModel.Owner,
+		Position:              unitModel.Position,
+		BasePosition:          unitModel.AirData.BasePosition,
+		MaxSpeed:              unitModel.AirData.MaxSpeed,
+		Endurance:             unitModel.AirData.Endurance,
+		Status:                AirUnitStatus(unitModel.Status),
+		FlightPathSearchHexes: unitModel.AirData.FlightPathSearchHexes,
+		CreatedAt:             unitModel.CreatedAt,
+		UpdatedAt:             unitModel.UpdatedAt,
+	}
+
+	return airUnit, nil
 }
 
 // ConvertGameEventToGameEventModel конвертирует GameEvent в GameEventModel

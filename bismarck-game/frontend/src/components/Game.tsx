@@ -211,6 +211,33 @@ const Game: React.FC = () => {
             setEnemyContacts([]);
           }
           
+          // Извлекаем данные поиска из GameModel
+          if (response.data.search) {
+            const playerSide = getPlayerSideString();
+            if (playerSide === 'german' || playerSide === 'allied') {
+              const searchData = response.data.search[playerSide] || {};
+              const factorsMap = new Map<string, number>();
+              const markersMap: Record<string, HexMarkers> = {};
+              
+              Object.keys(searchData).forEach(hexId => {
+                const hexSearchData = searchData[hexId];
+                // Извлекаем факторы поиска
+                factorsMap.set(hexId, hexSearchData.factor);
+                
+                // Извлекаем маркеры воздушной разведки
+                if (hexSearchData.air_search > 0) {
+                  markersMap[hexId] = {
+                    flight_path_search: hexSearchData.air_search
+                  };
+                }
+              });
+              
+              // Создаем новые объекты для правильного отслеживания изменений React
+              setSearchFactorHexes(new Map(factorsMap));
+              setHexMarkers({ ...markersMap });
+            }
+          }
+          
           // Обновляем информацию о текущей фазе из GameModel
           // Если turn === 0, значит игра еще не начата, устанавливаем currentTurn в null
           if (response.data.current_turn) {
@@ -1723,6 +1750,33 @@ const Game: React.FC = () => {
                     }
                     setEnemyContacts(unitsResponse.data.enemy_contacts || []);
                     
+                    // ВАЖНО: Обновляем данные поиска из GameModel
+                    if (unitsResponse.data.search) {
+                      const playerSideForSearch = getPlayerSideString();
+                      if (playerSideForSearch === 'german' || playerSideForSearch === 'allied') {
+                        const searchData = unitsResponse.data.search[playerSideForSearch] || {};
+                        const factorsMap = new Map<string, number>();
+                        const markersMap: Record<string, HexMarkers> = {};
+                        
+                        Object.keys(searchData).forEach(hexId => {
+                          const hexSearchData = searchData[hexId];
+                          // Извлекаем факторы поиска
+                          factorsMap.set(hexId, hexSearchData.factor);
+                          
+                          // Извлекаем маркеры воздушной разведки
+                          if (hexSearchData.air_search > 0) {
+                            markersMap[hexId] = {
+                              flight_path_search: hexSearchData.air_search
+                            };
+                          }
+                        });
+                        
+                        // Создаем новые объекты для правильного отслеживания изменений React
+                        setSearchFactorHexes(new Map(factorsMap));
+                        setHexMarkers({ ...markersMap });
+                      }
+                    }
+                    
                     // Обновляем информацию о текущей фазе из GameModel
                     if (unitsResponse.data.current_turn) {
                       if (unitsResponse.data.current_turn.turn > 0) {
@@ -1820,112 +1874,6 @@ const Game: React.FC = () => {
           {currentGame && (
             <GameLog gameId={currentGame.id} />
           )}
-        </div>
-
-        {/* Основная область карты */}
-        <div 
-          className="map-container"
-          onClick={(e) => {
-            // Снимаем выделение при клике на пустую область карты
-            if (e.target === e.currentTarget) {
-              if (selectedUnit) {
-                setSelectedUnit(null);
-                setSelectedUnitData(null);
-                setAvailableMovementHexes([]);
-                clearActiveHexes();
-              }
-              if (expandedStackHex) {
-                setExpandedStackHex(null);
-              }
-            }
-          }}
-        >
-          <HexMap
-            onHexClick={handleHexClick}
-            onUnitClick={handleUnitClick}
-            selectedHex={selectedHex}
-            playerSide={playerSide}
-            availableMovementHexes={availableMovementHexes}
-            activeHexes={[]}
-            gameUnits={gameUnits}
-            taskForces={taskForces}
-            enemyContacts={enemyContacts}
-            mapStructures={mapStructures}
-            selectedUnit={selectedUnit}
-            expandedStackHex={expandedStackHex}
-            currentTurn={getTurnData(currentTurn)?.turn_number}
-            gameId={currentGame?.id || undefined}
-            authToken={authToken}
-            onRefreshData={() => {
-              // Обновляем все данные игры
-              if (currentGame?.id && authToken) {
-                // Загружаем юниты (GameModel содержит информацию о текущей фазе)
-                unitsAPI.getGameUnits(currentGame.id, authToken).then(response => {
-                  if (response.success && response.data) {
-                    if (response.data.units) {
-                      setGameUnits(response.data.units);
-                    }
-                    if (response.data.task_forces) {
-                      setTaskForces(response.data.task_forces);
-                    }
-                    setEnemyContacts(response.data.enemy_contacts || []);
-                    
-                    // Обновляем информацию о текущей фазе из GameModel
-                    // Если turn === 0, значит игра еще не начата, устанавливаем currentTurn в null
-                    if (response.data.current_turn) {
-                      if (response.data.current_turn.turn > 0) {
-                        // Обновляем currentGame в store с актуальными данными
-                        if (currentGame?.id) {
-                          updateGame(currentGame.id, {
-                            current_turn: response.data.current_turn.turn,
-                            current_phase: response.data.current_turn.phase,
-                          });
-                        }
-                        
-                        // Создаем объект GameTurn с минимальными данными из GameModel
-                        const turnData: GameTurn = {
-                          id: `turn-${response.data.current_turn.turn}`,
-                          game_id: currentGame?.id || '',
-                          turn_number: response.data.current_turn.turn,
-                          current_phase: response.data.current_turn.phase as GamePhase,
-                          status: 'active',
-                          start_time: new Date().toISOString(),
-                          created_at: new Date().toISOString(),
-                          updated_at: new Date().toISOString(),
-                          visibility_level: currentGame?.visibility_level,
-                          is_fog: currentGame?.is_fog,
-                        };
-                        setCurrentTurn(turnData);
-                      } else {
-                        // Игра еще не начата - обновляем currentGame
-                        if (currentGame?.id) {
-                          updateGame(currentGame.id, {
-                            current_turn: 0,
-                            current_phase: 'setup',
-                          });
-                        }
-                        setCurrentTurn(null);
-                      }
-                    } else {
-                      // current_turn отсутствует - обновляем currentGame
-                      if (currentGame?.id) {
-                        updateGame(currentGame.id, {
-                          current_turn: 0,
-                          current_phase: 'setup',
-                        });
-                      }
-                      setCurrentTurn(null);
-                    }
-                  }
-                });
-                // Маркеры загружаются через GameModel
-              }
-            }}
-            onUnitStackClick={handleUnitStackClick}
-            onStackedUnitSelect={handleStackedUnitSelect}
-            currentPhase={getTurnData(currentTurn)?.current_phase || 'setup'}
-            hexMarkers={hexMarkers}
-          />
         </div>
       </div>
 

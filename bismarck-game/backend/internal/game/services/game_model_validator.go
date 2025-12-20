@@ -76,14 +76,22 @@ func (v *GameModelValidator) ValidateModel(model *models.GameModel) error {
 		}
 	}
 
-	// Валидация SearchFactors
-	if model.SearchFactors == nil {
-		model.SearchFactors = make(map[string]models.SearchFactorsBySide)
+	// Валидация Search блока
+	if model.Search == nil {
+		model.Search = &models.SearchData{
+			German: make(map[string]models.SearchHexData),
+			Allied: make(map[string]models.SearchHexData),
+		}
 	}
 
-	// Валидация HexMarkers
-	if model.HexMarkers == nil {
-		model.HexMarkers = make(map[string]models.HexMarkersModel)
+	// Валидация German
+	if model.Search.German == nil {
+		model.Search.German = make(map[string]models.SearchHexData)
+	}
+
+	// Валидация Allied
+	if model.Search.Allied == nil {
+		model.Search.Allied = make(map[string]models.SearchHexData)
 	}
 
 	// Валидация Events

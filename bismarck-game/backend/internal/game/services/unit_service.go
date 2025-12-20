@@ -26,6 +26,7 @@ type UnitService struct {
 	onUnitSunk           UnitSunkHandler
 	emergencyFuelService *EmergencyFuelService
 	gameStateService     *GameStateService // Опционально, для обновления GameModel
+	searchService        *SearchService     // Опционально, для пересчета факторов поиска
 }
 
 // NewUnitService создает новый сервис юнитов
@@ -44,6 +45,11 @@ func (s *UnitService) SetGameStateService(gameStateService *GameStateService) {
 // SetEmergencyFuelService устанавливает сервис аварийного топлива
 func (s *UnitService) SetEmergencyFuelService(service *EmergencyFuelService) {
 	s.emergencyFuelService = service
+}
+
+// SetSearchService устанавливает SearchService для пересчета факторов поиска
+func (s *UnitService) SetSearchService(service *SearchService) {
+	s.searchService = service
 }
 
 // SetUnitSunkHandler устанавливает обработчик для потопления корабля
@@ -112,37 +118,43 @@ func (s *UnitService) CreateAirUnit(unit *models.AirUnit) error {
 	return nil
 }
 
-// GetNavalUnitsByGameID возвращает все морские юниты игры
+// GetNavalUnitsByGameID возвращает все морские юниты игры из GameModel
 func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, error) {
 	// Валидируем UUID перед выполнением запроса
 	if _, err := uuid.Parse(gameID); err != nil {
-		// Для невалидного UUID возвращаем пустой список без ошибки
-		// Это соответствует ожиданиям теста и более корректному поведению
 		s.logger.Debug("Invalid game ID format, returning empty list", "game_id", gameID)
 		return []models.NavalUnit{}, nil
 	}
 
-	query := BuildNavalUnitSelectQuery(
-		[]string{}, // без дополнительных полей
-		"WHERE game_id = $1 AND status != 'sunk'\nORDER BY created_at",
-	)
-
-	rows, err := s.db.Query(query, gameID)
-	if err != nil {
-		s.logger.Error("Failed to get naval units", "game_id", gameID, "error", err)
-		return nil, fmt.Errorf("failed to get naval units: %w", err)
+	// Загружаем GameModel
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetNavalUnitsByGameID")
 	}
-	defer rows.Close()
 
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Конвертируем UnitModel в NavalUnit
 	var units []models.NavalUnit
-	for rows.Next() {
-		unit, err := ScanNavalUnitFromRow(rows, false, true, true) // includeCategory=false, useNullableDetectionLevel=true, useNullableEmergencyTurn=true
-		if err != nil {
-			s.logger.Error("Failed to scan naval unit", "error", err)
+	for _, unitModel := range model.Units {
+		// Пропускаем не морские юниты и потопленные
+		if unitModel.Category != models.UnitCategoryNaval {
+			continue
+		}
+		if unitModel.Status == string(models.UnitStatusSunk) {
 			continue
 		}
 
-		units = append(units, *unit)
+		navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+		if err != nil {
+			s.logger.Warn("Failed to convert UnitModel to NavalUnit", "unit_id", unitModel.ID, "error", err)
+			continue
+		}
+
+		units = append(units, *navalUnit)
 	}
 
 	// Автоматическая проверка и активация аварийного топлива для кораблей с 0 или отрицательным топливом
@@ -153,22 +165,12 @@ func (s *UnitService) GetNavalUnitsByGameID(gameID string) ([]models.NavalUnit, 
 				if err := s.emergencyFuelService.ActivateIfNeeded(units[i].GameID, units[i].ID, units[i].Fuel); err != nil {
 					s.logger.Warn("Failed to activate emergency fuel", "error", err, "unit_id", units[i].ID)
 				}
-				// Обновляем статус в объекте из БД
-				query := `SELECT is_emergency_fuel, emergency_turn FROM naval_units WHERE id = $1 AND game_id = $2`
-				var isEmergencyFuel bool
-				var emergencyTurn sql.NullInt64
-				err := s.db.QueryRow(query, units[i].ID, units[i].GameID).Scan(&isEmergencyFuel, &emergencyTurn)
-				if err == nil {
-					units[i].IsEmergencyFuel = isEmergencyFuel
-					if emergencyTurn.Valid {
-						units[i].EmergencyTurn = int(emergencyTurn.Int64)
-					}
-				}
+				// Данные уже обновлены в GameModel через EmergencyFuelService
 			}
 		}
 	}
 
-	return units, rows.Err()
+	return units, nil
 }
 
 // GetNavalUnitByID возвращает морской юнит по ID
@@ -245,7 +247,7 @@ func (s *UnitService) GetNavalUnitByIDFromGameModel(gameID, unitID string) (*mod
 	return navalUnit, nil
 }
 
-// GetAirUnitsByGameID возвращает все воздушные юниты игры
+// GetAirUnitsByGameID возвращает все воздушные юниты игры из GameModel
 func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, error) {
 	// Валидируем UUID перед выполнением запроса
 	if _, err := uuid.Parse(gameID); err != nil {
@@ -253,46 +255,35 @@ func (s *UnitService) GetAirUnitsByGameID(gameID string) ([]models.AirUnit, erro
 		return []models.AirUnit{}, nil
 	}
 
-	// В миграции таблица air_units создается БЕЗ колонки name
-	// Используем type и id для генерации имени
-	query := `
-		SELECT id, game_id, type || ' ' || SUBSTRING(id::text, 1, 8) as name,
-		       type, owner, position, base_position,
-		       max_speed, endurance, status, created_at, updated_at
-		FROM air_units
-		WHERE game_id = $1
-		ORDER BY created_at`
-
-	rows, err := s.db.Query(query, gameID)
-	if err != nil {
-		s.logger.Error("Failed to get air units", "game_id", gameID, "error", err)
-		return nil, fmt.Errorf("failed to get air units: %w", err)
+	// Загружаем GameModel
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetAirUnitsByGameID")
 	}
-	defer rows.Close()
 
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Конвертируем UnitModel в AirUnit
 	var units []models.AirUnit
-	for rows.Next() {
-		var unit models.AirUnit
-
-		err := rows.Scan(
-			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Owner, &unit.Position, &unit.BasePosition,
-			&unit.MaxSpeed, &unit.Endurance, &unit.Status,
-			&unit.CreatedAt, &unit.UpdatedAt,
-		)
-		if err != nil {
-			s.logger.Error("Failed to scan air unit", "error", err)
+	for _, unitModel := range model.Units {
+		// Пропускаем не воздушные юниты
+		if unitModel.Category != models.UnitCategoryAir {
 			continue
 		}
 
-		// Инициализируем FlightPathSearchHexes пустым массивом
-		if unit.FlightPathSearchHexes == nil {
-			unit.FlightPathSearchHexes = []string{}
+		airUnit, err := models.ConvertUnitModelToAirUnit(unitModel)
+		if err != nil {
+			s.logger.Warn("Failed to convert UnitModel to AirUnit", "unit_id", unitModel.ID, "error", err)
+			continue
 		}
 
-		units = append(units, unit)
+		units = append(units, *airUnit)
 	}
 
-	return units, rows.Err()
+	return units, nil
 }
 
 // UpdateNavalUnit обновляет морской юнит
@@ -688,37 +679,35 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 
 // GetEnemyContacts возвращает сводную информацию об обнаруженных силах противника
 func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyContact, error) {
-	const gameQuery = `
-		SELECT player1_id, player2_id, current_turn, current_phase
-		FROM games
-		WHERE id = $1
-	`
-
-	var (
-		player1ID, player2ID sql.NullString
-		turnNumber           sql.NullInt64
-		currentPhase         sql.NullString
-	)
-
-	if err := s.db.QueryRow(gameQuery, gameID).Scan(&player1ID, &player2ID, &turnNumber, &currentPhase); err != nil {
-		return nil, fmt.Errorf("failed to get game info: %w", err)
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetEnemyContacts")
 	}
 
-	if !player1ID.Valid || !player2ID.Valid {
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game players: %w", err)
+	}
+
+	turnNumber, currentPhase, err := s.gameStateService.GetCurrentTurnOnly(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current turn: %w", err)
+	}
+
+	if player1ID == "" || player2ID == "" {
 		return []models.EnemyContact{}, nil
 	}
 
 	var playerSide, opponentSide, opponentID string
 
 	switch playerID {
-	case player1ID.String:
+	case player1ID:
 		playerSide = "german"
 		opponentSide = "allied"
-		opponentID = player2ID.String
-	case player2ID.String:
+		opponentID = player2ID
+	case player2ID:
 		playerSide = "allied"
 		opponentSide = "german"
-		opponentID = player1ID.String
+		opponentID = player1ID
 	default:
 		return nil, fmt.Errorf("player %s is not part of game %s", playerID, gameID)
 	}
@@ -951,8 +940,8 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 			TaskForceList:    taskForceNames,
 			EnemyNationality: acc.nationality,
 			SearchingSide:    playerSide,
-			Turn:             int(turnNumber.Int64),
-			Phase:            currentPhase.String,
+			Turn:             turnNumber,
+			Phase:            string(currentPhase),
 			LastSeenAt:       acc.lastSeenAt,
 		}
 
@@ -1001,9 +990,12 @@ func (s *UnitService) GetUnitsWithExpiredEmergencyFuel(gameID string, currentTur
 
 // getCurrentTurn получает текущий ход игры
 func (s *UnitService) getCurrentTurn(gameID string) int {
-	query := `SELECT current_turn FROM games WHERE id = $1`
-	var turn int
-	err := s.db.QueryRow(query, gameID).Scan(&turn)
+	if s.gameStateService == nil {
+		s.logger.Warn("gameStateService is nil, using default turn", "game_id", gameID)
+		return 1
+	}
+
+	turn, _, err := s.gameStateService.GetCurrentTurnOnly(gameID)
 	if err != nil {
 		s.logger.Error("Failed to get current turn", "game_id", gameID, "error", err)
 		return 1 // Возвращаем 1 по умолчанию
@@ -1200,8 +1192,11 @@ func (s *UnitService) ConvertShadowedToSighted(gameID string) error {
 // ResetDetectionForUnitsInFog сбрасывает обнаружение у shadowed юнитов в туманных гексах
 func (s *UnitService) ResetDetectionForUnitsInFog(gameID string, fogHexes []string) error {
 	// Получаем информацию об игре, чтобы проверить туман
-	var isFog bool
-	err := s.db.QueryRow("SELECT is_fog FROM games WHERE id = $1", gameID).Scan(&isFog)
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for ResetDetectionForUnitsInFog")
+	}
+
+	_, isFog, _, err := s.gameStateService.GetGameVisibilityOnly(gameID)
 	if err != nil {
 		s.logger.Error("Failed to get fog status", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to get fog status: %w", err)
@@ -1233,9 +1228,12 @@ func (s *UnitService) ResetDetectionForUnitsInFog(gameID string, fogHexes []stri
 
 // GetShadowedUnits возвращает все преследуемые юниты противника для игрока
 func (s *UnitService) GetShadowedUnits(gameID, playerID string) ([]*models.NavalUnit, error) {
-	// Определяем сторону игрока через таблицу games
-	var player1ID, player2ID string
-	err := s.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	// Определяем сторону игрока через GameStateService
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetShadowedUnits")
+	}
+
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get game players: %w", err)
 	}
@@ -1331,10 +1329,12 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 			return fmt.Errorf("cannot set patrol on sunk unit")
 		}
 
-		// Проверка видимости и тумана через таблицу games
-		var visibilityLevel int
-		var isFog bool
-		err := s.db.QueryRow("SELECT visibility_level, is_fog FROM games WHERE id = $1", unit.GameID).Scan(&visibilityLevel, &isFog)
+		// Проверка видимости и тумана через GameStateService
+		if s.gameStateService == nil {
+			return fmt.Errorf("gameStateService is required for SetPatrol")
+		}
+
+		visibilityLevel, isFog, _, err := s.gameStateService.GetGameVisibilityOnly(unit.GameID)
 		if err != nil {
 			s.logger.Warn("Failed to get game visibility, continuing anyway", "game_id", unit.GameID, "error", err)
 		} else {
@@ -1351,7 +1351,8 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 	}
 
-	// Обновляем патруль в GameModel и добавляем/удаляем маркер патруля
+	// Получаем hexID перед обновлением GameModel
+	var hexID string
 	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
 		unitModel, exists := model.Units[unitID]
 		if !exists {
@@ -1361,13 +1362,16 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 			return fmt.Errorf("unit %s is not a naval unit", unitID)
 		}
 
-		// Инициализируем HexMarkers если нужно
-		if model.HexMarkers == nil {
-			model.HexMarkers = make(map[string]models.HexMarkersModel)
+		// Инициализируем Search если нужно
+		if model.Search == nil {
+			model.Search = &models.SearchData{
+				German: make(map[string]models.SearchHexData),
+				Allied: make(map[string]models.SearchHexData),
+			}
 		}
 
 		// Получаем позицию юнита для маркера патруля
-		hexID := unitModel.Position
+		hexID = unitModel.Position
 		if hexID == "" {
 			// Если юнит в таскфлите, используем позицию таскфлита
 			if unitModel.NavalData.TaskForceID != nil {
@@ -1378,24 +1382,11 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 
 		// Обновляем статус патруля
-		oldPatrolling := unitModel.NavalData.IsPatrolling
 		unitModel.NavalData.IsPatrolling = isPatrolling
 		unitModel.UpdatedAt = time.Now()
 
-		// Добавляем маркер патруля в гексе (только при установке патруля)
-		// При снятии патруля маркер не удаляется - удаление будет через отдельную функцию отмены
-		if hexID != "" && isPatrolling && !oldPatrolling {
-			hexMarkers := model.HexMarkers[hexID]
-			if hexMarkers.Markers == nil {
-				hexMarkers.Markers = make(map[string]int)
-			}
-			hexMarkers.HexID = hexID
-
-			patrolMarkerType := string(models.MarkerTypePatrol)
-			// Добавляем маркер патруля
-			hexMarkers.Markers[patrolMarkerType]++
-			model.HexMarkers[hexID] = hexMarkers
-		}
+		// TODO: Добавление/удаление маркера патруля в БД будет реализовано отдельно
+		// Маркеры теперь хранятся в БД (таблица hex_markers), а не в GameModel
 
 		return nil
 	}, 3)
@@ -1405,6 +1396,14 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		return fmt.Errorf("failed to set patrol: %w", err)
 	}
 
+	// Пересчитываем SearchHexData для гекса юнита/ТФ
+	if hexID != "" && s.searchService != nil {
+		if err := s.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+			s.logger.Warn("Failed to recalculate search hex data after setting patrol", "game_id", gameID, "hex_id", hexID, "error", err)
+			// Не возвращаем ошибку, так как патруль уже установлен
+		}
+	}
+
 	s.logger.Info("Set patrol", "unit_id", unitID, "is_patrolling", isPatrolling)
 	return nil
 }
@@ -1412,28 +1411,66 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 // RemoveAllPatrolMarkers удаляет все маркеры патруля для всех юнитов игры
 // Используется в фазе администрирования согласно правилам игры
 func (s *UnitService) RemoveAllPatrolMarkers(gameID string) error {
-	query := `
-		UPDATE naval_units 
-		SET is_patrolling = false, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $1 AND is_patrolling = true
-	`
-	result, err := s.db.Exec(query, gameID)
-	if err != nil {
-		s.logger.Error("Failed to remove patrol markers", "game_id", gameID, "error", err)
-		return fmt.Errorf("failed to remove patrol markers: %w", err)
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RemoveAllPatrolMarkers")
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	s.logger.Info("Removed all patrol markers", "game_id", gameID, "units_affected", rowsAffected)
+	// Получаем список гексов с патрулями ДО сброса из GameModel для пересчета поиска
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	hexesWithPatrols := make(map[string]bool)
+	for _, unit := range model.Units {
+		if unit.NavalData != nil && unit.NavalData.IsPatrolling && unit.Position != "" {
+			hexesWithPatrols[unit.Position] = true
+		}
+	}
+
+	// Преобразуем map в slice
+	hexesList := make([]string, 0, len(hexesWithPatrols))
+	for hexID := range hexesWithPatrols {
+		hexesList = append(hexesList, hexID)
+	}
+
+	// Обновляем GameModel: сбрасываем is_patrolling для всех юнитов
+	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for unitID, unit := range model.Units {
+			if unit.NavalData != nil {
+				unit.NavalData.IsPatrolling = false
+				model.Units[unitID] = unit // Сохраняем изменения обратно в map
+			}
+		}
+		return nil
+	}, 3)
+	if err != nil {
+		s.logger.Error("Failed to update GameModel when removing patrol markers", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to update GameModel: %w", err)
+	}
+
+	// Пересчитываем данные поиска для всех гексов, где были патрули
+	if s.searchService != nil {
+		for _, hexID := range hexesList {
+			if err := s.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+				s.logger.Warn("Failed to recalculate search data for hex after removing patrol", 
+					"game_id", gameID, "hex_id", hexID, "error", err)
+			}
+		}
+	}
+
 	return nil
 }
 
 // DetectUnitsInHex обнаруживает юниты противника в указанном гексе и обновляет их DetectionLevel
 // hasFlightPath указывает, есть ли в гексе маркеры Пути полета Поиска
 func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlightPath bool) error {
-	// Определяем сторону игрока через таблицу games
-	var player1ID, player2ID string
-	err := s.db.QueryRow("SELECT player1_id, player2_id FROM games WHERE id = $1", gameID).Scan(&player1ID, &player2ID)
+	// Определяем сторону игрока через GameStateService
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for DetectUnitsInHex")
+	}
+
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
 	if err != nil {
 		return fmt.Errorf("failed to get game players: %w", err)
 	}
