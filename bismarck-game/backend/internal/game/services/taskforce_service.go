@@ -1083,7 +1083,7 @@ func (s *TaskForceService) SetPatrol(taskForceID string, isPatrolling bool) erro
 	// Пересчитываем данные поиска для гекса, где находится Task Force
 	if s.searchService != nil && taskForce.Position != "" {
 		if err := s.searchService.RecalculateSearchDataForHex(taskForce.GameID, taskForce.Position); err != nil {
-			s.logger.Warn("Failed to recalculate search data for hex after setting patrol", 
+			s.logger.Warn("Failed to recalculate search data for hex after setting patrol",
 				"game_id", taskForce.GameID, "hex_id", taskForce.Position, "error", err)
 		}
 	}
@@ -1135,7 +1135,7 @@ func (s *TaskForceService) RemoveAllPatrolMarkers(gameID string) error {
 	if s.searchService != nil {
 		for _, hexID := range hexesList {
 			if err := s.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
-				s.logger.Warn("Failed to recalculate search data for hex after removing patrol", 
+				s.logger.Warn("Failed to recalculate search data for hex after removing patrol",
 					"game_id", gameID, "hex_id", hexID, "error", err)
 			}
 		}

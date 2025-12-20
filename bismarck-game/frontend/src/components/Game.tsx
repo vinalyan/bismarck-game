@@ -743,6 +743,35 @@ const Game: React.FC = () => {
               setTaskForces(updatedUnits.data.task_forces);
             }
             setEnemyContacts(updatedUnits.data.enemy_contacts || []);
+            
+            // ВАЖНО: Обновляем факторы поиска из GameModel после движения
+            // Это необходимо для перерисовки гексов с обновленными факторами поиска
+            if (updatedUnits.data.search) {
+              const playerSideForSearch = getPlayerSideString();
+              if (playerSideForSearch === 'german' || playerSideForSearch === 'allied') {
+                const searchData = updatedUnits.data.search[playerSideForSearch] || {};
+                const factorsMap = new Map<string, number>();
+                const markersMap: Record<string, HexMarkers> = {};
+                
+                Object.keys(searchData).forEach(hexId => {
+                  const hexSearchData = searchData[hexId];
+                  // Извлекаем факторы поиска
+                  factorsMap.set(hexId, hexSearchData.factor);
+                  
+                  // Извлекаем маркеры воздушной разведки
+                  if (hexSearchData.air_search > 0) {
+                    markersMap[hexId] = {
+                      flight_path_search: hexSearchData.air_search
+                    };
+                  }
+                });
+                
+                // Создаем новые объекты для правильного отслеживания изменений React
+                // Это заставит React перерисовать гексы с обновленными факторами поиска
+                setSearchFactorHexes(new Map(factorsMap));
+                setHexMarkers({ ...markersMap });
+              }
+            }
           }
         } catch (error) {
           console.error('Error updating units after movement:', error);

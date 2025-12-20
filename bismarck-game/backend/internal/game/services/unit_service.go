@@ -26,7 +26,7 @@ type UnitService struct {
 	onUnitSunk           UnitSunkHandler
 	emergencyFuelService *EmergencyFuelService
 	gameStateService     *GameStateService // Опционально, для обновления GameModel
-	searchService        *SearchService     // Опционально, для пересчета факторов поиска
+	searchService        *SearchService    // Опционально, для пересчета факторов поиска
 }
 
 // NewUnitService создает новый сервис юнитов
@@ -1453,7 +1453,7 @@ func (s *UnitService) RemoveAllPatrolMarkers(gameID string) error {
 	if s.searchService != nil {
 		for _, hexID := range hexesList {
 			if err := s.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
-				s.logger.Warn("Failed to recalculate search data for hex after removing patrol", 
+				s.logger.Warn("Failed to recalculate search data for hex after removing patrol",
 					"game_id", gameID, "hex_id", hexID, "error", err)
 			}
 		}

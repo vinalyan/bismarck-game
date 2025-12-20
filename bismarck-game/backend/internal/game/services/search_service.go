@@ -401,15 +401,15 @@ func (s *SearchService) canUnitContributeSearchFactors(unit *models.NavalUnit, g
 func (s *SearchService) hasAttemptedPursuitThisTurn(unitID, gameID string, currentTurn int) bool {
 	// TODO: Реализация
 	// Вариант 1: Проверка через события
-	// query := `SELECT COUNT(*) FROM game_events 
-	//            WHERE game_id = $1 AND actor_id = $2 AND turn = $3 
+	// query := `SELECT COUNT(*) FROM game_events
+	//            WHERE game_id = $1 AND actor_id = $2 AND turn = $3
 	//            AND (event_type = 'pursuit' OR (event_type = 'movement' AND data->>'pursuit_attempt' = 'true'))`
-	
+
 	// Вариант 2: Проверка через поле в NavalUnit
 	// if unit.AttemptedPursuitThisTurn && unit.LastPursuitTurn == currentTurn {
 	//     return true
 	// }
-	
+
 	return false
 }
 
@@ -426,12 +426,12 @@ func (s *SearchService) isRepairingAtSea(unit *models.NavalUnit) bool {
 	//     // Если гекс морской - ремонт в море
 	//     return true
 	// }
-	
+
 	// Вариант 2: Проверка через специальные гексы портов в конфигурации
 	// if s.isPortHex(unit.Position) {
 	//     return false
 	// }
-	
+
 	// По умолчанию считаем, что ремонт в море
 	return true
 }
@@ -440,14 +440,14 @@ func (s *SearchService) isRepairingAtSea(unit *models.NavalUnit) bool {
 // Это оптимизация - вместо загрузки данных для каждого гекса отдельно, загружаем все сразу
 func (s *SearchService) prepareSearchCalculationData(gameID string, model *models.GameModel) (*SearchCalculationData, error) {
 	data := &SearchCalculationData{
-		GameID:                     gameID,
-		UnitsByHex:                 make(map[string][]*models.NavalUnit),
-		TaskForcesByHex:            make(map[string]map[string][]*models.TaskForceModel),
-		PatrolMarkersByHex:         make(map[string]map[string][]string),
+		GameID:                      gameID,
+		UnitsByHex:                  make(map[string][]*models.NavalUnit),
+		TaskForcesByHex:             make(map[string]map[string][]*models.TaskForceModel),
+		PatrolMarkersByHex:          make(map[string]map[string][]string),
 		TaskForcePatrolMarkersByHex: make(map[string]map[string][]string),
-		FlightPathMarkersByHex:     make(map[string]map[string]int),
-		PlayerIDsBySide:            make(map[string]string),
-		IntrinsicSearchHexes:       make(map[string]int),
+		FlightPathMarkersByHex:      make(map[string]map[string]int),
+		PlayerIDsBySide:             make(map[string]string),
+		IntrinsicSearchHexes:        make(map[string]int),
 	}
 
 	// Получаем текущий ход
@@ -751,7 +751,6 @@ func (s *SearchService) RecalculateSearchDataForHex(gameID, hexID string) error 
 		}
 	}
 
-
 	// Проверяем, есть ли ненулевые значения для каждой стороны отдельно
 	germanHasData := germanData.Factor != 0 || germanData.Ships != 0 || germanData.Patrol != 0 || germanData.AirSearch != 0 || germanData.Intrinsic != 0
 	alliedHasData := alliedData.Factor != 0 || alliedData.Ships != 0 || alliedData.Patrol != 0 || alliedData.AirSearch != 0 || alliedData.Intrinsic != 0
@@ -816,7 +815,6 @@ func (s *SearchService) RecalculateSearchDataForHex(gameID, hexID string) error 
 		s.logger.Error("Failed to update GameModel with search hex data", "game_id", gameID, "hex_id", hexID, "error", err)
 		return fmt.Errorf("failed to update GameModel: %w", err)
 	}
-
 
 	s.logger.Info("Recalculated search hex data",
 		"game_id", gameID,
@@ -1247,12 +1245,12 @@ func (s *SearchService) AddHexMarker(gameID, playerID, hexID, markerType string)
 			// Сохраняем обратно
 			searchSide[hexID] = hexData
 
-		return nil
+			return nil
 		}, 3)
 
 		if err != nil {
 			s.logger.Error("Failed to add hex marker to GameModel", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "marker_type", markerType, "error", err)
-		return fmt.Errorf("failed to add hex marker: %w", err)
+			return fmt.Errorf("failed to add hex marker: %w", err)
 		}
 	}
 
@@ -1313,12 +1311,12 @@ func (s *SearchService) RemoveHexMarker(gameID, playerID, hexID, markerType stri
 				searchSide[hexID] = hexData
 			}
 
-		return nil
+			return nil
 		}, 3)
 
 		if err != nil {
 			s.logger.Error("Failed to remove hex marker from GameModel", "game_id", gameID, "player_id", playerID, "hex_id", hexID, "marker_type", markerType, "error", err)
-		return fmt.Errorf("failed to remove hex marker: %w", err)
+			return fmt.Errorf("failed to remove hex marker: %w", err)
 		}
 	}
 
@@ -1410,8 +1408,8 @@ func (s *SearchService) getHexMarkersInHex(gameID, hexID string, playerSide stri
 	}
 
 	if searchSide == nil {
-	return 0, nil
-}
+		return 0, nil
+	}
 
 	// Получаем данные для гекса
 	hexData, exists := searchSide[hexID]
@@ -1448,7 +1446,7 @@ func (s *SearchService) RemoveAllHexMarkersByType(gameID string, markerType stri
 					hexData.AirSearch = 0
 					// Пересчитываем factor
 					hexData.Factor = hexData.Ships*1 + hexData.Patrol*3 + hexData.AirSearch*2 + hexData.Intrinsic
-					
+
 					// Если все значения равны 0, удаляем запись
 					if hexData.Factor == 0 && hexData.Ships == 0 && hexData.Patrol == 0 && hexData.AirSearch == 0 && hexData.Intrinsic == 0 {
 						delete(model.Search.German, hexID)
@@ -1465,11 +1463,11 @@ func (s *SearchService) RemoveAllHexMarkersByType(gameID string, markerType stri
 					hexData.AirSearch = 0
 					// Пересчитываем factor
 					hexData.Factor = hexData.Ships*1 + hexData.Patrol*3 + hexData.AirSearch*2 + hexData.Intrinsic
-					
+
 					// Если все значения равны 0, удаляем запись
 					if hexData.Factor == 0 && hexData.Ships == 0 && hexData.Patrol == 0 && hexData.AirSearch == 0 && hexData.Intrinsic == 0 {
 						delete(model.Search.Allied, hexID)
-				} else {
+					} else {
 						model.Search.Allied[hexID] = hexData
 					}
 				}
