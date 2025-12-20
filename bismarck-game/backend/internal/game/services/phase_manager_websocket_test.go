@@ -6,33 +6,18 @@ import (
 	"testing"
 	"time"
 
-	"bismarck-game/backend/internal/websocket"
-	"bismarck-game/backend/pkg/database"
-	"bismarck-game/backend/pkg/logger"
+	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/testutil"
 )
 
-// Для тестов используем настоящий Hub, так как мокирование сложно из-за структуры Hub
-
-// Вспомогательная функция для создания тестового EventService
-// createTestUnitService уже определен в phase_integration_test_fixed.go
-func createTestEventService(db *database.Database) *GameEventService {
-	log, _ := logger.New(logger.INFO, "test-event-service", "stdout")
-	return NewGameEventService(db, log)
-}
-
 // TestPhaseManager_StartPhase_SendsWebSocketNotification проверяет отправку WebSocket уведомления при начале фазы
 func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
-	// Настройка тестовой базы данных
-	db, err := testutil.SetupTestDatabase()
+	// Настройка тестовых сервисов
+	testServices, cleanup, err := testutil.SetupTestServices()
 	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
+		t.Fatalf("Failed to setup test services: %v", err)
 	}
-	defer db.Close()
-
-	// Создаем настоящий WebSocket Hub для тестов
-	wsHub := websocket.NewHub()
-	go wsHub.Run()
+	defer cleanup()
 
 	// Создаем тестовый HTTP сервер для API вызовов
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -50,28 +35,26 @@ func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 	}))
 	defer testServer.Close()
 
-	// Создаем сервисы
-	unitService := createTestUnitService(db)
-	eventService := createTestEventService(db)
+	// Обновляем PhaseManager с правильным API URL
+	testServices.PhaseManager = NewPhaseManager(
+		testServices.DB.GetConnection(),
+		testServices.UnitService,
+		testServices.TaskForceService,
+		testServices.SearchService,
+		testServices.EventService,
+		testServices.WSHub,
+		testServer.URL,
+	)
 
-	// Создаем logger для taskForceService
-	log, _ := logger.New(logger.INFO, "test", "")
-	taskForceService := NewTaskForceService(db, log, unitService, nil)
-	gameService := NewGameService(db, log)
-	searchService := NewSearchService(db, log, unitService, gameService)
-
-	// Создаем PhaseManager с WebSocket Hub
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, testServer.URL)
-
-	// Создаем тестовую игру
+	// Создаем тестовую игру с GameModel
 	gameID := "550e8400-e29b-41d4-a716-446655440002"
-	err = testutil.CreateTestGame(db.GetConnection(), gameID)
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
 	}
 
 	// Начинаем ход
-	turn, err := phaseManager.StartTurn(gameID)
+	turn, err := testServices.PhaseManager.StartTurn(gameID)
 	if err != nil {
 		t.Fatalf("Failed to start turn: %v", err)
 	}
@@ -82,23 +65,19 @@ func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 	}
 
 	// Проверяем, что Hub работает (базовая проверка)
-	if wsHub.GetClientCount() < 0 {
+	if testServices.WSHub.GetClientCount() < 0 {
 		t.Error("Hub should be initialized")
 	}
 }
 
 // TestPhaseManager_NextPhase_SendsWebSocketNotification проверяет отправку WebSocket уведомления при переходе к следующей фазе
 func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
-	// Настройка тестовой базы данных
-	db, err := testutil.SetupTestDatabase()
+	// Настройка тестовых сервисов
+	testServices, cleanup, err := testutil.SetupTestServices()
 	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
+		t.Fatalf("Failed to setup test services: %v", err)
 	}
-	defer db.Close()
-
-	// Создаем настоящий WebSocket Hub для тестов
-	wsHub := websocket.NewHub()
-	go wsHub.Run()
+	defer cleanup()
 
 	// Создаем тестовый HTTP сервер для API вызовов
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -107,34 +86,32 @@ func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 	}))
 	defer testServer.Close()
 
-	// Создаем сервисы
-	unitService := createTestUnitService(db)
-	eventService := createTestEventService(db)
+	// Обновляем PhaseManager с правильным API URL
+	testServices.PhaseManager = NewPhaseManager(
+		testServices.DB.GetConnection(),
+		testServices.UnitService,
+		testServices.TaskForceService,
+		testServices.SearchService,
+		testServices.EventService,
+		testServices.WSHub,
+		testServer.URL,
+	)
 
-	// Создаем logger для taskForceService
-	log, _ := logger.New(logger.INFO, "test", "")
-	taskForceService := NewTaskForceService(db, log, unitService, nil)
-	gameService := NewGameService(db, log)
-	searchService := NewSearchService(db, log, unitService, gameService)
-
-	// Создаем PhaseManager с WebSocket Hub
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, testServer.URL)
-
-	// Создаем тестовую игру
+	// Создаем тестовую игру с GameModel
 	gameID := "550e8400-e29b-41d4-a716-446655440003"
-	err = testutil.CreateTestGame(db.GetConnection(), gameID)
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
 	}
 
 	// Начинаем ход (это запустит первую фазу)
-	_, err = phaseManager.StartTurn(gameID)
+	_, err = testServices.PhaseManager.StartTurn(gameID)
 	if err != nil {
 		t.Fatalf("Failed to start turn: %v", err)
 	}
 
 	// Переходим к следующей фазе
-	err = phaseManager.NextPhase(gameID)
+	err = testServices.PhaseManager.NextPhase(gameID)
 	if err != nil {
 		t.Fatalf("Failed to advance to next phase: %v", err)
 	}
@@ -145,16 +122,12 @@ func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 
 // TestPhaseManager_StartPhase_CallsCurrentPhaseAPI проверяет вызов API при начале фазы
 func TestPhaseManager_StartPhase_CallsCurrentPhaseAPI(t *testing.T) {
-	// Настройка тестовой базы данных
-	db, err := testutil.SetupTestDatabase()
+	// Настройка тестовых сервисов
+	testServices, cleanup, err := testutil.SetupTestServices()
 	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
+		t.Fatalf("Failed to setup test services: %v", err)
 	}
-	defer db.Close()
-
-	// Создаем настоящий WebSocket Hub для тестов
-	wsHub := websocket.NewHub()
-	go wsHub.Run()
+	defer cleanup()
 
 	// Счетчик вызовов API
 	apiCallCount := 0
@@ -179,28 +152,26 @@ func TestPhaseManager_StartPhase_CallsCurrentPhaseAPI(t *testing.T) {
 	}))
 	defer testServer.Close()
 
-	// Создаем сервисы
-	unitService := createTestUnitService(db)
-	eventService := createTestEventService(db)
+	// Обновляем PhaseManager с правильным API URL
+	testServices.PhaseManager = NewPhaseManager(
+		testServices.DB.GetConnection(),
+		testServices.UnitService,
+		testServices.TaskForceService,
+		testServices.SearchService,
+		testServices.EventService,
+		testServices.WSHub,
+		testServer.URL,
+	)
 
-	// Создаем logger для taskForceService
-	log, _ := logger.New(logger.INFO, "test", "")
-	taskForceService := NewTaskForceService(db, log, unitService, nil)
-	gameService := NewGameService(db, log)
-	searchService := NewSearchService(db, log, unitService, gameService)
-
-	// Создаем PhaseManager с WebSocket Hub
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, testServer.URL)
-
-	// Создаем тестовую игру
+	// Создаем тестовую игру с GameModel
 	gameID := "550e8400-e29b-41d4-a716-446655440004"
-	err = testutil.CreateTestGame(db.GetConnection(), gameID)
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
 	}
 
 	// Начинаем ход (это должно вызвать StartPhase для начальной фазы)
-	_, err = phaseManager.StartTurn(gameID)
+	_, err = testServices.PhaseManager.StartTurn(gameID)
 	if err != nil {
 		t.Fatalf("Failed to start turn: %v", err)
 	}
