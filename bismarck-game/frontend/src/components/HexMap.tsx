@@ -99,8 +99,7 @@ const HexMap: React.FC<HexMapProps> = ({
   const [showPatrolDialog, setShowPatrolDialog] = useState(false);
   const [selectedPatrolHex, setSelectedPatrolHex] = useState<string | null>(null);
   const [isFlightPathSearchMode, setIsFlightPathSearchMode] = useState(false);
-  const [displaySearchFactors, setDisplaySearchFactors] = useState<Map<string, number>>(new Map());
-  const [isLoadingSearchFactors, setIsLoadingSearchFactors] = useState(false);
+  const [showSearchFactors, setShowSearchFactors] = useState<boolean>(false);
   
   const [tooltip, setTooltip] = useState<{
     show: boolean;
@@ -655,34 +654,9 @@ const HexMap: React.FC<HexMapProps> = ({
   };
 
   // Обработчик для кнопки "показать фактор поиска"
-  // Использует данные из GameModel, переданные через пропсы searchFactorHexes
-  const handleShowSearchFactors = async () => {
-    if (!gameId || !authToken || !playerSide) {
-      return;
-    }
-
-    setIsLoadingSearchFactors(true);
-    
-    try {
-      // Загружаем GameModel через unitsAPI (уже импортирован)
-      const response = await unitsAPI.getGameUnits(gameId, authToken);
-      
-      if (response.success && response.data?.search) {
-        const searchData = response.data.search[playerSide] || {};
-        const factorsMap = new Map<string, number>();
-        
-        // Извлекаем факторы поиска для всех гексов
-        Object.keys(searchData).forEach(hexId => {
-          factorsMap.set(hexId, searchData[hexId].factor);
-        });
-        
-        setDisplaySearchFactors(factorsMap);
-      }
-    } catch (error) {
-      console.error('Error loading search factors:', error);
-    } finally {
-      setIsLoadingSearchFactors(false);
-    }
+  // Переключает видимость факторов поиска (данные уже приходят через пропсы searchFactorHexes)
+  const handleShowSearchFactors = () => {
+    setShowSearchFactors(prev => !prev);
   };
 
   // Обработчики для подсказки гекса
@@ -755,17 +729,9 @@ const HexMap: React.FC<HexMapProps> = ({
       );
       
       // Проверяем, достаточны ли факторы поиска для обнаружения в этом гексе
-      // Используем displaySearchFactors, если он установлен (когда нажата кнопка), иначе searchFactorHexes
-      let hexSearchFactors = 0;
-      if (displaySearchFactors.size > 0) {
-        // Если есть данные из кнопки, используем их
-        hexSearchFactors = displaySearchFactors.get(hexId) || 0;
-      } else {
-        // Иначе используем данные из пропсов
-        hexSearchFactors = searchFactorHexes.get(hexId) || 0;
-      }
-      
-      const isSearchAvailable = hexSearchFactors > 0 && hexSearchFactors >= visibilityLevel;
+      // Используем данные из пропсов searchFactorHexes
+      const hexSearchFactors = searchFactorHexes.get(hexId) || 0;
+      const isSearchAvailable = showSearchFactors && hexSearchFactors > 0 && hexSearchFactors >= visibilityLevel;
       
       // Проверяем, является ли этот гекс активным
       const activeHex = activeHexes.find(
@@ -826,7 +792,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, isPatrolMode, handleHexClickInFlightPathSearchMode, handleHexClickInPatrolMode, handleHexClickInTFMode]);
+  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, showSearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, isPatrolMode, handleHexClickInFlightPathSearchMode, handleHexClickInPatrolMode, handleHexClickInTFMode]);
 
   return (
     <div className="hex-map-container">
@@ -850,10 +816,9 @@ const HexMap: React.FC<HexMapProps> = ({
         </button>
         <button 
           onClick={handleShowSearchFactors}
-          disabled={isLoadingSearchFactors || !gameId || !authToken || !playerSide}
-          title="Показать гексы, где будет проводиться поиск (фактор поиска >= видимость)"
+          title={showSearchFactors ? "Скрыть фактор поиска" : "Показать гексы, где будет проводиться поиск (фактор поиска >= видимость)"}
         >
-          🔍 Показать фактор поиска
+          🔍 {showSearchFactors ? 'Скрыть' : 'Показать'} фактор поиска
         </button>
         
         {/* Кнопки Task Force, Патруль и Воздушная разведка */}
