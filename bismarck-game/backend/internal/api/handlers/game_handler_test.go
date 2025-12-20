@@ -21,18 +21,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupGameHandler(t *testing.T) (*GameHandler, func()) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
-
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM air_units")
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units")
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM games")
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM users")
+func setupGameHandler(t *testing.T) (*GameHandler, *testutil.TestServices, func()) {
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
 
 	cfg := &config.Config{
@@ -41,28 +31,11 @@ func setupGameHandler(t *testing.T) (*GameHandler, func()) {
 		},
 	}
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	_ = auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
-	unitService := services.NewUnitService(db, logger)
-	eventService := services.NewGameEventService(db, logger)
-
-	// Создаем WebSocket Hub для тестов
-	wsHub := websocket.NewHub()
-	go wsHub.Run()
-
+	_ = auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 	shipConfigService := services.NewShipConfigService()
-	taskForceService := services.NewTaskForceService(db, logger, unitService, nil)
-	gameService := services.NewGameService(db, logger)
-	searchService := services.NewSearchService(db, logger, unitService, gameService)
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
-	handler := NewGameHandler(db, unitService, shipConfigService, phaseManager, taskForceService)
+	handler := NewGameHandler(testServices.DB, testServices.UnitService, shipConfigService, testServices.PhaseManager, testServices.TaskForceService)
 
-	cleanup := func() {
-		db.Close()
-	}
-
-	return handler, cleanup
+	return handler, testServices, cleanup
 }
 
 func createTestUser(t *testing.T, authService *auth.AuthService, username, email, password string) string {
@@ -107,22 +80,15 @@ func joinGameViaHTTP(t *testing.T, handler *GameHandler, gameID, userID string) 
 }
 
 func TestCreateGame(t *testing.T) {
-	handler, cleanup := setupGameHandler(t)
+	handler, testServices, cleanup := setupGameHandler(t)
 	defer cleanup()
-
-	// Create test users
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
-	defer db.Close()
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
 			Secret: "test-secret-key-for-testing-only",
 		},
 	}
-	_, err = logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	authService := auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
 	userID := createTestUser(t, authService, "testuser1", "testuser1@example.com", "password123")
 

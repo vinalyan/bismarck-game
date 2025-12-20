@@ -3,15 +3,14 @@ package handlers
 import (
 	"bismarck-game/backend/internal/auth"
 	"bismarck-game/backend/internal/game/models"
-	"bismarck-game/backend/pkg/database"
+	"bismarck-game/backend/pkg/testutil"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-// createTestUserAndGame создает тестового пользователя и игру
-func createTestUserAndGame(t *testing.T, db *database.Database, authService *auth.AuthService) (string, string) {
+// createTestUserAndGame создает тестового пользователя и игру с GameModel
+func createTestUserAndGame(t *testing.T, testServices *testutil.TestServices, authService *auth.AuthService) (string, string) {
 	user, err := authService.Register(&models.CreateUserRequest{
 		Username: "testuser1",
 		Email:    "testuser1@example.com",
@@ -19,48 +18,46 @@ func createTestUserAndGame(t *testing.T, db *database.Database, authService *aut
 	})
 	require.NoError(t, err)
 
-	// Create game directly in database
-	query := `
-		INSERT INTO games (name, player1_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id
-	`
-
-	var gameID string
-	err = db.GetConnection().QueryRow(query, "Test Game", user.ID, 0, "setup", "waiting", time.Now(), time.Now()).Scan(&gameID)
+	// Create game with GameModel using testutil helper
+	userID, gameID, err := testutil.CreateTestUserAndGame(testServices, "testuser1", "testuser1@example.com")
 	require.NoError(t, err)
+	
+	// Update player1_id if needed
+	if userID != user.ID {
+		_, err = testServices.DB.GetConnection().Exec(`
+			UPDATE games SET player1_id = $1 WHERE id = $2
+		`, user.ID, gameID)
+		require.NoError(t, err)
+	}
 
 	return user.ID, gameID
 }
 
-// createTestUnit создает тестовый юнит
-func createTestUnit(t *testing.T, db *database.Database, gameID string, ownerID string) string {
-	query := `
-		INSERT INTO naval_units (game_id, name, type, class, owner, nationality, position, setup_hex, evasion, base_evasion, speed_rating, fuel, max_fuel, hull_boxes, current_hull, status, damage)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-		RETURNING id
-	`
-
-	var unitID string
-	err := db.GetConnection().QueryRow(query,
-		gameID,
-		"Test Ship",
-		"battleship",
-		"Bismarck",
-		ownerID,
-		"german",
-		"A1",
-		"A1",
-		3,
-		3,
-		"medium",
-		100,
-		100,
-		8,
-		8,
-		"active",
-		"[]").Scan(&unitID)
+// createTestUnit создает тестовый юнит через UnitService (работает с GameModel)
+func createTestUnit(t *testing.T, testServices *testutil.TestServices, gameID string, ownerID string) string {
+	unit := &models.NavalUnit{
+		GameID:         gameID,
+		Name:           "Test Ship",
+		Type:           models.UnitTypeBattleship,
+		Class:          "Bismarck",
+		Owner:          ownerID,
+		Nationality:    "german",
+		Position:       "A1",
+		SetupHex:       "A1",
+		Evasion:        3,
+		BaseEvasion:    3,
+		SpeedRating:    models.SpeedTypeMedium,
+		Fuel:           100,
+		MaxFuel:        100,
+		HullBoxes:      8,
+		CurrentHull:    8,
+		Status:         models.UnitStatusActive,
+		DetectionLevel: models.DetectionLevelNone,
+		Damage:         []models.Damage{},
+	}
+	
+	err := testServices.UnitService.CreateNavalUnit(unit)
 	require.NoError(t, err)
-
-	return unitID
+	
+	return unit.ID
 }
