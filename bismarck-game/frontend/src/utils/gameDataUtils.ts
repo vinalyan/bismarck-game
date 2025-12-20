@@ -16,8 +16,8 @@ export function extractSearchDataFromModel(
   const factorsMap = new Map<string, number>();
   const markersMap: Record<string, HexMarkers> = {};
 
-  if (response.data?.search?.[playerSide]) {
-    const searchData = response.data.search[playerSide];
+  const searchData = response.data?.search?.[playerSide];
+  if (searchData) {
     Object.keys(searchData).forEach(hexId => {
       const hexSearchData = searchData[hexId];
       if (hexSearchData) {
