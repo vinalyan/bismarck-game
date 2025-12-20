@@ -33,26 +33,20 @@ func TestNewTaskForceService(t *testing.T) {
 }
 
 func TestCreateTaskForce(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
-
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id::text LIKE 'test-game-%'")
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	mapStructService := NewMapStructureService()
-	gameService := NewGameService(db, logger)
-	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	defer cleanup()
 
 	testGameID := uuid.New().String()
+	
+	// Create test game with GameModel
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
+	require.NoError(t, err)
+
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	t.Run("successful creation", func(t *testing.T) {
-		require.NoError(t, testutil.CreateTestGame(db.GetConnection(), testGameID))
 		// Create two units to satisfy TF minimum size rule
 		u1 := &models.NavalUnit{GameID: testGameID, Name: "Ship 1", Type: models.UnitTypeHeavyCruiser, Class: "Prinz Eugen", Owner: "testuser1", Nationality: "german", Position: "A1", SetupHex: "A1", Evasion: 4, BaseEvasion: 4, SpeedRating: models.SpeedTypeFast, Fuel: 80, MaxFuel: 80, HullBoxes: 6, CurrentHull: 6, Status: models.UnitStatusActive}
 		u2 := &models.NavalUnit{GameID: testGameID, Name: "Ship 2", Type: models.UnitTypeBattleship, Class: "Bismarck", Owner: "testuser1", Nationality: "german", Position: "A1", SetupHex: "A1", Evasion: 3, BaseEvasion: 3, SpeedRating: models.SpeedTypeMedium, Fuel: 100, MaxFuel: 100, HullBoxes: 8, CurrentHull: 8, Status: models.UnitStatusActive}
@@ -87,17 +81,18 @@ func TestCreateTaskForce(t *testing.T) {
 }
 
 func TestGetTaskForcesByGameID(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id::text LIKE 'test-game-%'")
+	testGameID := uuid.New().String()
+	
+	// Create test game with GameModel
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 	mapStructService := NewMapStructureService()
 	gameService := NewGameService(db, logger)
 	movementService := NewMovementService(db, logger, nil, nil, unitService, mapStructService, nil, nil, gameService)

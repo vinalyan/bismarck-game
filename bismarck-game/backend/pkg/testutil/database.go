@@ -52,14 +52,16 @@ func SetupTestDatabase() (*database.Database, error) {
 }
 
 // CreateTestGame создает тестовую игру в базе данных
+// ВАЖНО: Эта функция создает только запись в таблице games.
+// Для создания GameModel используйте CreateTestGameModel из gamemodel_helpers.go
 func CreateTestGame(db *sql.DB, gameID string) error {
 	// Создаем тестовую игру
 	query := `
-		INSERT INTO games (id, name, status, current_phase, turn_number, created_at, updated_at)
+		INSERT INTO games (id, name, status, current_turn, current_phase, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (id) DO NOTHING
 	`
-	_, err := db.Exec(query, gameID, "Test Game", "active", "setup", 1,
+	_, err := db.Exec(query, gameID, "Test Game", "active", 1, "setup",
 		"2025-01-01T00:00:00Z", "2025-01-01T00:00:00Z")
 	return err
 }
@@ -148,15 +150,10 @@ func createTestSchema(db *sql.DB) error {
 	fmt.Printf("Using schema file: %s\n", schemaPath)
 
 	// Сначала удаляем все таблицы для чистого старта
+	// Удаляем только существующие таблицы (game_models, games, users, user_sessions)
 	dropQueries := []string{
-		"DROP TABLE IF EXISTS movements CASCADE",
-		"DROP TABLE IF EXISTS unit_searches CASCADE",
-		"DROP TABLE IF EXISTS game_events CASCADE",
-		"DROP TABLE IF EXISTS unit_visibility CASCADE",
-		"DROP TABLE IF EXISTS task_force_units CASCADE",
-		"DROP TABLE IF EXISTS task_forces CASCADE",
-		"DROP TABLE IF EXISTS air_units CASCADE",
-		"DROP TABLE IF EXISTS naval_units CASCADE",
+		"DROP TABLE IF EXISTS game_models CASCADE",
+		"DROP TABLE IF EXISTS user_sessions CASCADE",
 		"DROP TABLE IF EXISTS games CASCADE",
 		"DROP TABLE IF EXISTS users CASCADE",
 	}
@@ -177,14 +174,8 @@ func createTestSchema(db *sql.DB) error {
 func createBasicSchema(db *sql.DB) error {
 	// Сначала удаляем существующие таблицы
 	dropQueries := []string{
-		"DROP TABLE IF EXISTS movements",
-		"DROP TABLE IF EXISTS unit_searches",
-		"DROP TABLE IF EXISTS game_events",
-		"DROP TABLE IF EXISTS unit_visibility",
-		"DROP TABLE IF EXISTS task_force_units",
-		"DROP TABLE IF EXISTS task_forces",
-		"DROP TABLE IF EXISTS air_units",
-		"DROP TABLE IF EXISTS naval_units",
+		"DROP TABLE IF EXISTS game_models",
+		"DROP TABLE IF EXISTS user_sessions",
 		"DROP TABLE IF EXISTS games",
 		"DROP TABLE IF EXISTS users",
 	}
@@ -193,172 +184,62 @@ func createBasicSchema(db *sql.DB) error {
 		db.Exec(query) // Игнорируем ошибки при удалении
 	}
 
-	// Создаем только основные таблицы
+	// Создаем только основные таблицы (те, что используются в новой архитектуре)
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			username VARCHAR(50) UNIQUE NOT NULL,
 			email VARCHAR(100) UNIQUE NOT NULL,
 			password_hash VARCHAR(255) NOT NULL,
+			role VARCHAR(20) DEFAULT 'player',
+			stats JSONB DEFAULT '{}',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			last_login TIMESTAMP,
+			is_active BOOLEAN DEFAULT true
 		)`,
 		`CREATE TABLE IF NOT EXISTS games (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			name VARCHAR(100) NOT NULL,
 			player1_id UUID REFERENCES users(id),
 			player2_id UUID REFERENCES users(id),
-			current_turn INTEGER DEFAULT 0,
-			turn_number INTEGER DEFAULT 0,
-			current_phase VARCHAR(20) DEFAULT 'setup',
+			current_turn INTEGER DEFAULT 1,
+			current_phase VARCHAR(20) DEFAULT 'waiting',
 			status VARCHAR(20) DEFAULT 'waiting',
-			victory_points JSONB DEFAULT '{}',
+			settings JSONB DEFAULT '{}',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			completed_at TIMESTAMP,
+			winner UUID REFERENCES users(id),
+			victory_type VARCHAR(20),
+			started_at TIMESTAMP,
+			last_action_at TIMESTAMP,
+			visibility_level INTEGER DEFAULT 1,
+			is_fog BOOLEAN DEFAULT false,
+			weather_track INTEGER DEFAULT 0
 		)`,
-		`CREATE TABLE IF NOT EXISTS naval_units (
+		`CREATE TABLE IF NOT EXISTS user_sessions (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			game_id UUID NOT NULL REFERENCES games(id),
-			name VARCHAR(100) NOT NULL,
-			type VARCHAR(20) NOT NULL,
-			category VARCHAR(20) DEFAULT 'naval',
-			class VARCHAR(50),
-			owner VARCHAR(50) NOT NULL,
-			nationality VARCHAR(50),
-			position VARCHAR(10) NOT NULL,
-			setup_hex VARCHAR(10),
-			base_position VARCHAR(10),
-			evasion INTEGER DEFAULT 0,
-			base_evasion INTEGER DEFAULT 0,
-			max_speed INTEGER,
-			endurance INTEGER,
-			status VARCHAR(20) DEFAULT 'active',
-			fuel INTEGER DEFAULT 0,
-			max_fuel INTEGER DEFAULT 0,
-			hull_boxes INTEGER DEFAULT 0,
-			current_hull INTEGER DEFAULT 0,
-			primary_armament_bow INTEGER DEFAULT 0,
-			primary_armament_stern INTEGER DEFAULT 0,
-			secondary_armament INTEGER DEFAULT 0,
-			base_primary_armament_bow INTEGER DEFAULT 0,
-			base_primary_armament_stern INTEGER DEFAULT 0,
-			base_secondary_armament INTEGER DEFAULT 0,
-			torpedoes INTEGER DEFAULT 0,
-			max_torpedoes INTEGER DEFAULT 0,
-			radar_level INTEGER DEFAULT 0,
-			speed_rating VARCHAR(20),
-			detection_level VARCHAR(20),
-			last_known_pos VARCHAR(10),
-			task_force_id UUID,
-			damage JSONB DEFAULT '[]',
-			previous_turn_moved_hexes INTEGER DEFAULT 0,
-			last_move_turn INTEGER DEFAULT 0,
-			movement_used INTEGER DEFAULT 0,
-			no_movement_turns_left INTEGER DEFAULT 0,
-			is_activated BOOLEAN DEFAULT false,
-			is_emergency_fuel BOOLEAN DEFAULT false,
-			emergency_turn INTEGER DEFAULT 0,
-			emergency_removal_turn INTEGER,
+			user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+			token_hash VARCHAR(255) NOT NULL,
+			expires_at TIMESTAMP NOT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			ip_address INET,
+			user_agent TEXT,
+			is_active BOOLEAN DEFAULT true
 		)`,
-		`CREATE TABLE IF NOT EXISTS air_units (
+		`CREATE TABLE IF NOT EXISTS game_models (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			game_id UUID NOT NULL REFERENCES games(id),
-			name VARCHAR(100) NOT NULL,
-			type VARCHAR(20) NOT NULL,
-			owner VARCHAR(50) NOT NULL,
-			position VARCHAR(10) NOT NULL,
-			base_position VARCHAR(10),
-			max_speed INTEGER,
-			endurance INTEGER,
-			current_fuel INTEGER DEFAULT 0,
-			search_factors INTEGER DEFAULT 0,
-			detection_level VARCHAR(20),
-			is_visible BOOLEAN DEFAULT true,
-			last_known_pos VARCHAR(10),
-			markers JSONB DEFAULT '[]',
-			status VARCHAR(20) DEFAULT 'operational',
+			game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+			version INTEGER NOT NULL CHECK (version >= 1),
+			model_data JSONB NOT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(game_id, version)
 		)`,
-		`CREATE TABLE IF NOT EXISTS task_forces (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			game_id UUID NOT NULL REFERENCES games(id),
-			name VARCHAR(100) NOT NULL,
-			owner VARCHAR(50) NOT NULL,
-			nationality VARCHAR(20) NOT NULL DEFAULT 'german',
-			position VARCHAR(10) NOT NULL,
-			speed INTEGER DEFAULT 0,
-			units JSONB DEFAULT '[]',
-			is_visible BOOLEAN DEFAULT true,
-			detection_level VARCHAR(20) DEFAULT 'none',
-			last_move_turn INTEGER DEFAULT 0,
-			is_activated BOOLEAN DEFAULT false,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE IF NOT EXISTS task_force_units (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			task_force_id UUID NOT NULL REFERENCES task_forces(id),
-			unit_id UUID NOT NULL,
-			unit_type VARCHAR(20) NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE IF NOT EXISTS unit_visibility (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			game_id UUID NOT NULL REFERENCES games(id),
-			unit_id UUID NOT NULL,
-			player_id VARCHAR(50) NOT NULL,
-			visibility VARCHAR(20) NOT NULL,
-			last_known_hex VARCHAR(10),
-			last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE IF NOT EXISTS game_events (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			game_id UUID NOT NULL REFERENCES games(id),
-			turn INTEGER NOT NULL,
-			phase VARCHAR(20) NOT NULL,
-			event_type VARCHAR(50) NOT NULL,
-			actor_id VARCHAR(255),
-			actor_name VARCHAR(255),
-			target_id VARCHAR(255),
-			target_name VARCHAR(255),
-			description TEXT NOT NULL,
-			visibility JSONB,
-			data JSONB,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE IF NOT EXISTS unit_searches (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			game_id UUID NOT NULL REFERENCES games(id),
-			turn INTEGER NOT NULL,
-			phase VARCHAR(20) NOT NULL,
-			unit_id UUID NOT NULL,
-			target_hex VARCHAR(10) NOT NULL,
-			search_type VARCHAR(20) NOT NULL,
-			search_factors INTEGER DEFAULT 0,
-			units_found JSONB DEFAULT '[]',
-			result VARCHAR(20) NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)`,
-		`CREATE TABLE IF NOT EXISTS movements (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			game_id UUID NOT NULL REFERENCES games(id),
-			unit_id UUID NOT NULL,
-			from_hex VARCHAR(10) NOT NULL,
-			to_hex VARCHAR(10) NOT NULL,
-			path JSONB DEFAULT '[]',
-			fuel_cost INTEGER DEFAULT 0,
-			hexes_moved INTEGER NOT NULL,
-			movement_type VARCHAR(20) NOT NULL,
-			turn INTEGER DEFAULT 1,
-			phase VARCHAR(20) DEFAULT 'movement',
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)`,
+		`CREATE INDEX IF NOT EXISTS idx_game_models_game_id_version ON game_models(game_id, version DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_game_models_game_id ON game_models(game_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_game_models_model_data_gin ON game_models USING GIN (model_data)`,
 	}
 
 	for _, query := range queries {

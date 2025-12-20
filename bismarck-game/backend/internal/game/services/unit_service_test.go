@@ -26,25 +26,21 @@ func TestNewUnitService(t *testing.T) {
 }
 
 func TestCreateNavalUnit(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
-	require.NoError(t, err)
-
-	// Create test game first
-	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
+	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	
+	// Create test game with GameModel
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	service := NewUnitService(db, logger)
+	service := testServices.UnitService
 
 	t.Run("successful creation", func(t *testing.T) {
 		unit := &models.NavalUnit{
-			GameID:                   "550e8400-e29b-41d4-a716-446655440001",
+			GameID:                   gameID,
 			Name:                     "Test Ship",
 			Type:                     models.UnitTypeBattleship,
 			Class:                    "Bismarck",
@@ -94,21 +90,21 @@ func TestCreateNavalUnit(t *testing.T) {
 }
 
 func TestCreateAirUnit(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM air_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
+	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	
+	// Create test game with GameModel
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	service := NewUnitService(db, logger)
+	service := testServices.UnitService
 
 	t.Run("successful creation", func(t *testing.T) {
 		unit := &models.AirUnit{
-			GameID:       "550e8400-e29b-41d4-a716-446655440001",
+			GameID:       gameID,
 			Type:         models.UnitTypeCombatAircraft,
 			Owner:        "testuser1",
 			Position:     "A1",
@@ -137,25 +133,21 @@ func TestCreateAirUnit(t *testing.T) {
 }
 
 func TestGetNavalUnitsByGameID(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
-	require.NoError(t, err)
-
-	// Create test game first
-	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
+	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	
+	// Create test game with GameModel
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	service := NewUnitService(db, logger)
+	service := testServices.UnitService
 
 	// Create test units
 	unit1 := &models.NavalUnit{
-		GameID:      "550e8400-e29b-41d4-a716-446655440001",
+		GameID:      gameID,
 		Name:        "Ship 1",
 		Type:        models.UnitTypeBattleship,
 		Class:       "Bismarck",
@@ -177,7 +169,7 @@ func TestGetNavalUnitsByGameID(t *testing.T) {
 	require.NoError(t, err)
 
 	unit2 := &models.NavalUnit{
-		GameID:      "550e8400-e29b-41d4-a716-446655440001",
+		GameID:      gameID,
 		Name:        "Ship 2",
 		Type:        models.UnitTypeHeavyCruiser,
 		Class:       "Prinz Eugen",
@@ -199,7 +191,7 @@ func TestGetNavalUnitsByGameID(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("get units for existing game", func(t *testing.T) {
-		units, err := service.GetNavalUnitsByGameID("550e8400-e29b-41d4-a716-446655440001")
+		units, err := service.GetNavalUnitsByGameID(gameID)
 		assert.NoError(t, err)
 		assert.Len(t, units, 2)
 
@@ -219,25 +211,21 @@ func TestGetNavalUnitsByGameID(t *testing.T) {
 }
 
 func TestGetNavalUnitByID(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
-	require.NoError(t, err)
-
-	// Create test game first
-	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
+	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	
+	// Create test game with GameModel
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	service := NewUnitService(db, logger)
+	service := testServices.UnitService
 
 	// Create test unit
 	unit := &models.NavalUnit{
-		GameID:      "550e8400-e29b-41d4-a716-446655440001",
+		GameID:      gameID,
 		Name:        "Test Ship",
 		Type:        models.UnitTypeBattleship,
 		Class:       "Bismarck",

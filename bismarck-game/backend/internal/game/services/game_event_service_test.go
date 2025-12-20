@@ -27,26 +27,18 @@ func TestNewGameEventService(t *testing.T) {
 }
 
 func TestLogMovementEvent(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	testGameID := "550e8400-e29b-41d4-a716-446655440001"
 	testUnitID := "550e8400-e29b-41d4-a716-446655440002"
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM game_events WHERE game_id = $1", testGameID)
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", testGameID)
+	// Create test game with GameModel
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Create test game to satisfy foreign key constraint
-	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	service := NewGameEventService(db, logger)
+	service := testServices.EventService
 
 	t.Run("successful movement event log", func(t *testing.T) {
 		err := service.LogMovementEvent(testGameID, testUnitID, "Test Unit", "A1", "B1", 1, "movement", 5, 1, "german")
@@ -60,25 +52,17 @@ func TestLogMovementEvent(t *testing.T) {
 }
 
 func TestLogPhaseChangeEvent(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	testGameID := "550e8400-e29b-41d4-a716-446655440001"
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM game_events WHERE game_id = $1", testGameID)
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", testGameID)
+	// Create test game with GameModel
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Create test game to satisfy foreign key constraint
-	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	service := NewGameEventService(db, logger)
+	service := testServices.EventService
 
 	t.Run("successful phase change event log", func(t *testing.T) {
 		err := service.LogPhaseChangeEvent(testGameID, 1, "movement", "search")
@@ -92,11 +76,15 @@ func TestLogPhaseChangeEvent(t *testing.T) {
 }
 
 func TestLogTurnChangeEvent(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	testGameID := "550e8400-e29b-41d4-a716-446655440001"
+	
+	// Create test game with GameModel
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
+	require.NoError(t, err)
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM game_events WHERE game_id = $1", testGameID)
@@ -110,7 +98,7 @@ func TestLogTurnChangeEvent(t *testing.T) {
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)
-	service := NewGameEventService(db, logger)
+	service := testServices.EventService
 
 	t.Run("successful turn change event log", func(t *testing.T) {
 		err := service.LogTurnChangeEvent(testGameID, 2)
@@ -124,27 +112,19 @@ func TestLogTurnChangeEvent(t *testing.T) {
 }
 
 func TestGetGameEvents(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := testutil.SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	testGameID := "550e8400-e29b-41d4-a716-446655440001"
 	testUnitID1 := "550e8400-e29b-41d4-a716-446655440002"
 	testUnitID2 := "550e8400-e29b-41d4-a716-446655440003"
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM game_events WHERE game_id = $1", testGameID)
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", testGameID)
+	// Create test game with GameModel
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Create test game to satisfy foreign key constraint
-	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	service := NewGameEventService(db, logger)
+	service := testServices.EventService
 
 	// Create test events
 	err = service.LogMovementEvent(testGameID, testUnitID1, "Test Unit", "A1", "B1", 1, "movement", 5, 1, "german")
