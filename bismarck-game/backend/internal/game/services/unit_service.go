@@ -1402,19 +1402,54 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 // RemoveAllPatrolMarkers удаляет все маркеры патруля для всех юнитов игры
 // Используется в фазе администрирования согласно правилам игры
 func (s *UnitService) RemoveAllPatrolMarkers(gameID string) error {
-	query := `
-		UPDATE naval_units 
-		SET is_patrolling = false, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $1 AND is_patrolling = true
-	`
-	result, err := s.db.Exec(query, gameID)
-	if err != nil {
-		s.logger.Error("Failed to remove patrol markers", "game_id", gameID, "error", err)
-		return fmt.Errorf("failed to remove patrol markers: %w", err)
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RemoveAllPatrolMarkers")
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	s.logger.Info("Removed all patrol markers", "game_id", gameID, "units_affected", rowsAffected)
+	// Получаем список гексов с патрулями ДО сброса из GameModel для пересчета поиска
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	hexesWithPatrols := make(map[string]bool)
+	for _, unit := range model.Units {
+		if unit.NavalData != nil && unit.NavalData.IsPatrolling && unit.Position != "" {
+			hexesWithPatrols[unit.Position] = true
+		}
+	}
+
+	// Преобразуем map в slice
+	hexesList := make([]string, 0, len(hexesWithPatrols))
+	for hexID := range hexesWithPatrols {
+		hexesList = append(hexesList, hexID)
+	}
+
+	// Обновляем GameModel: сбрасываем is_patrolling для всех юнитов
+	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for unitID, unit := range model.Units {
+			if unit.NavalData != nil {
+				unit.NavalData.IsPatrolling = false
+				model.Units[unitID] = unit // Сохраняем изменения обратно в map
+			}
+		}
+		return nil
+	}, 3)
+	if err != nil {
+		s.logger.Error("Failed to update GameModel when removing patrol markers", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to update GameModel: %w", err)
+	}
+
+	// Пересчитываем данные поиска для всех гексов, где были патрули
+	if s.searchService != nil {
+		for _, hexID := range hexesList {
+			if err := s.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+				s.logger.Warn("Failed to recalculate search data for hex after removing patrol", 
+					"game_id", gameID, "hex_id", hexID, "error", err)
+			}
+		}
+	}
+
 	return nil
 }
 

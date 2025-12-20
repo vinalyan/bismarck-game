@@ -100,47 +100,7 @@ const HexMap: React.FC<HexMapProps> = ({
   const [selectedPatrolHex, setSelectedPatrolHex] = useState<string | null>(null);
   const [isFlightPathSearchMode, setIsFlightPathSearchMode] = useState(false);
   const [displaySearchFactors, setDisplaySearchFactors] = useState<Map<string, number>>(new Map());
-  // Локальное состояние для оптимистичного обновления маркеров
-  const [localHexMarkers, setLocalHexMarkers] = useState<Record<string, HexMarkers>>({});
   const [isLoadingSearchFactors, setIsLoadingSearchFactors] = useState(false);
-  
-  // Объединяем пропсы и локальное состояние для немедленного отображения
-  const effectiveHexMarkers = useMemo(() => {
-    const merged = { ...hexMarkers };
-    Object.keys(localHexMarkers).forEach(hexId => {
-      const local = localHexMarkers[hexId];
-      const existing = merged[hexId] || {};
-      merged[hexId] = {
-        ...existing,
-        ...local,
-        // Объединяем счетчики маркеров
-        flight_path_search: local.flight_path_search !== undefined 
-          ? local.flight_path_search 
-          : existing.flight_path_search,
-      };
-    });
-    return merged;
-  }, [hexMarkers, localHexMarkers]);
-  
-  // Очищаем локальное состояние при обновлении данных с сервера
-  // Очищаем только те маркеры, которые уже есть в серверных данных
-  useEffect(() => {
-    if (hexMarkers && Object.keys(hexMarkers).length > 0) {
-      setLocalHexMarkers(prev => {
-        const cleaned: Record<string, HexMarkers> = {};
-        // Оставляем только те локальные маркеры, которых еще нет на сервере
-        Object.keys(prev).forEach(hexId => {
-          const serverMarker = hexMarkers[hexId];
-          const localMarker = prev[hexId];
-          // Если на сервере нет маркера или количество меньше локального, оставляем локальное
-          if (!serverMarker || (localMarker.flight_path_search || 0) > (serverMarker.flight_path_search || 0)) {
-            cleaned[hexId] = localMarker;
-          }
-        });
-        return cleaned;
-      });
-    }
-  }, [hexMarkers]);
   
   const [tooltip, setTooltip] = useState<{
     show: boolean;
@@ -283,63 +243,18 @@ const HexMap: React.FC<HexMapProps> = ({
       return;
     }
 
-    // Оптимистичное обновление - сразу обновляем локальное состояние для мгновенного отображения
-    setLocalHexMarkers(prev => {
-      // Используем текущее значение из локального состояния или из пропсов
-      const localMarker = prev[hexId];
-      const propMarker = hexMarkers?.[hexId];
-      const current = localMarker || propMarker || {};
-      const currentCount = current.flight_path_search || 0;
-      return {
-        ...prev,
-        [hexId]: {
-          ...current,
-          flight_path_search: currentCount + 1
-        }
-      };
-    });
-
     try {
       const response = await searchAPI.addHexMarker(gameId, hexId, 'flight_path_search', authToken);
       if (response.success) {
-        // Синхронизируем с сервером в фоне (не блокируем UI)
+        // Обновляем данные с сервера - маркер уже добавлен в GameModel
         if (onRefreshData) {
-          // Вызываем асинхронно с небольшой задержкой, чтобы не блокировать UI
-          setTimeout(() => {
-            onRefreshData();
-          }, 100);
+          onRefreshData();
         }
       } else {
-        // Откатываем оптимистичное обновление при ошибке
-        setLocalHexMarkers(prev => {
-          const newState = { ...prev };
-          const current = newState[hexId];
-          if (current) {
-            const newCount = (current.flight_path_search || 0) - 1;
-            if (newCount <= 0) {
-              delete newState[hexId];
-            } else {
-              newState[hexId] = { ...current, flight_path_search: newCount };
-            }
-          }
-          return newState;
-        });
+        console.error('Failed to add hex marker:', response.error);
       }
     } catch (error: any) {
-      // Откатываем оптимистичное обновление при ошибке
-      setLocalHexMarkers(prev => {
-        const newState = { ...prev };
-        const current = newState[hexId];
-        if (current) {
-          const newCount = (current.flight_path_search || 0) - 1;
-          if (newCount <= 0) {
-            delete newState[hexId];
-          } else {
-            newState[hexId] = { ...current, flight_path_search: newCount };
-          }
-        }
-        return newState;
-      });
+      console.error('Error adding hex marker:', error);
     }
   };
 
@@ -859,8 +774,8 @@ const HexMap: React.FC<HexMapProps> = ({
           hex.coordinate.row === coordinate.row
       );
 
-      // Проверяем, есть ли маркер пути полета в этом гексе (используем effectiveHexMarkers для оптимистичного обновления)
-      const hexMarkerData = effectiveHexMarkers?.[hexId];
+      // Проверяем, есть ли маркер пути полета в этом гексе (используем данные из GameModel)
+      const hexMarkerData = hexMarkers?.[hexId];
       const flightPathSearchCount = hexMarkerData?.flight_path_search || 0;
       const hasFlightPathMarker = flightPathSearchCount > 0;
 
@@ -911,7 +826,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, effectiveHexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, isPatrolMode, handleHexClickInFlightPathSearchMode, handleHexClickInPatrolMode, handleHexClickInTFMode]);
+  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, displaySearchFactors, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, isPatrolMode, handleHexClickInFlightPathSearchMode, handleHexClickInPatrolMode, handleHexClickInTFMode]);
 
   return (
     <div className="hex-map-container">

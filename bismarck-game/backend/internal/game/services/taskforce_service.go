@@ -1016,6 +1016,10 @@ func (s *TaskForceService) ResetDetectionForUnitsInFog(gameID string, fogHexes [
 // SetPatrol устанавливает или снимает патруль с Task Force
 // Валидирует условия патруля согласно правилам игры
 func (s *TaskForceService) SetPatrol(taskForceID string, isPatrolling bool) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for SetPatrol")
+	}
+
 	// Получаем Task Force
 	taskForce, err := s.GetTaskForceByID(taskForceID)
 	if err != nil {
@@ -1029,28 +1033,26 @@ func (s *TaskForceService) SetPatrol(taskForceID string, isPatrolling bool) erro
 			return fmt.Errorf("cannot set patrol on sighted task force")
 		}
 
-		// Проверка видимости и тумана через таблицу games
-		var visibilityLevel int
-		var isFog bool
-		err := s.db.QueryRow("SELECT visibility_level, is_fog FROM games WHERE id = $1", taskForce.GameID).Scan(&visibilityLevel, &isFog)
+		// Проверка видимости и тумана из GameModel
+		model, err := s.gameStateService.LoadGameModel(taskForce.GameID)
 		if err != nil {
-			s.logger.Warn("Failed to get game visibility, continuing anyway", "game_id", taskForce.GameID, "error", err)
+			s.logger.Warn("Failed to get game visibility from GameModel, continuing anyway", "game_id", taskForce.GameID, "error", err)
 		} else {
 			// Проверка: видимость не должна быть X (>= 10)
-			if visibilityLevel >= 10 {
+			if model.VisibilityLevel >= 10 {
 				return fmt.Errorf("cannot set patrol when visibility level is X")
 			}
 
 			// Проверка: не должно быть тумана (туманные гексы нельзя патрулировать, но проверяем глобально)
-			if isFog {
+			if model.IsFog {
 				s.logger.Warn("Fog detected, patrol may not be allowed in fog hexes", "game_id", taskForce.GameID)
 			}
 		}
 
 		// Проверка: Task Force не может патрулировать, если хотя бы один корабль в нем на ремонте или заправке
-		// Получаем все корабли в Task Force
+		// Получаем все корабли в Task Force из GameModel
 		for _, unitID := range taskForce.Units {
-			unit, err := s.unitService.GetNavalUnitByID(unitID)
+			unit, err := s.unitService.GetNavalUnitByIDFromGameModel(taskForce.GameID, unitID)
 			if err != nil {
 				continue
 			}
@@ -1060,16 +1062,27 @@ func (s *TaskForceService) SetPatrol(taskForceID string, isPatrolling bool) erro
 		}
 	}
 
-	// Обновляем патруль
-	query := `
-		UPDATE task_forces 
-		SET is_patrolling = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $2
-	`
-	_, err = s.db.Exec(query, isPatrolling, taskForceID)
+	// Обновляем патруль в GameModel
+	err = s.gameStateService.UpdateGameModelWithRetry(taskForce.GameID, func(model *models.GameModel) error {
+		tf, exists := model.TaskForces[taskForceID]
+		if !exists {
+			return fmt.Errorf("task force %s not found in GameModel", taskForceID)
+		}
+		tf.IsPatrolling = isPatrolling
+		tf.UpdatedAt = time.Now()
+		return nil
+	}, 3)
 	if err != nil {
-		s.logger.Error("Failed to set patrol", "task_force_id", taskForceID, "is_patrolling", isPatrolling, "error", err)
+		s.logger.Error("Failed to set patrol in GameModel", "task_force_id", taskForceID, "is_patrolling", isPatrolling, "error", err)
 		return fmt.Errorf("failed to set patrol: %w", err)
+	}
+
+	// Пересчитываем данные поиска для гекса, где находится Task Force
+	if s.searchService != nil && taskForce.Position != "" {
+		if err := s.searchService.RecalculateSearchDataForHex(taskForce.GameID, taskForce.Position); err != nil {
+			s.logger.Warn("Failed to recalculate search data for hex after setting patrol", 
+				"game_id", taskForce.GameID, "hex_id", taskForce.Position, "error", err)
+		}
 	}
 
 	s.logger.Info("Set patrol", "task_force_id", taskForceID, "is_patrolling", isPatrolling)
@@ -1079,18 +1092,51 @@ func (s *TaskForceService) SetPatrol(taskForceID string, isPatrolling bool) erro
 // RemoveAllPatrolMarkers удаляет все маркеры патруля для всех Task Forces игры
 // Используется в фазе администрирования согласно правилам игры
 func (s *TaskForceService) RemoveAllPatrolMarkers(gameID string) error {
-	query := `
-		UPDATE task_forces 
-		SET is_patrolling = false, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $1 AND is_patrolling = true
-	`
-	result, err := s.db.Exec(query, gameID)
-	if err != nil {
-		s.logger.Error("Failed to remove patrol markers", "game_id", gameID, "error", err)
-		return fmt.Errorf("failed to remove patrol markers: %w", err)
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RemoveAllPatrolMarkers")
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	s.logger.Info("Removed all patrol markers from task forces", "game_id", gameID, "task_forces_affected", rowsAffected)
+	// Получаем список гексов с патрулями ДО сброса из GameModel для пересчета поиска
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	hexesWithPatrols := make(map[string]bool)
+	for _, tf := range model.TaskForces {
+		if tf.IsPatrolling && tf.Position != "" {
+			hexesWithPatrols[tf.Position] = true
+		}
+	}
+
+	// Преобразуем map в slice
+	hexesList := make([]string, 0, len(hexesWithPatrols))
+	for hexID := range hexesWithPatrols {
+		hexesList = append(hexesList, hexID)
+	}
+
+	// Обновляем GameModel: сбрасываем is_patrolling для всех Task Forces
+	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for tfID, tf := range model.TaskForces {
+			tf.IsPatrolling = false
+			model.TaskForces[tfID] = tf // Сохраняем изменения обратно в map
+		}
+		return nil
+	}, 3)
+	if err != nil {
+		s.logger.Error("Failed to update GameModel when removing patrol markers", "game_id", gameID, "error", err)
+		return fmt.Errorf("failed to update GameModel: %w", err)
+	}
+
+	// Пересчитываем данные поиска для всех гексов, где были патрули
+	if s.searchService != nil {
+		for _, hexID := range hexesList {
+			if err := s.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+				s.logger.Warn("Failed to recalculate search data for hex after removing patrol", 
+					"game_id", gameID, "hex_id", hexID, "error", err)
+			}
+		}
+	}
+
 	return nil
 }
