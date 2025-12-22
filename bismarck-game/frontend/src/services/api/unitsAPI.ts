@@ -96,8 +96,7 @@ export interface UnitsResponse {
     };
     events?: any[]; // События из GameModel
     search?: {
-      german?: { [hexId: string]: SearchHexData };
-      allied?: { [hexId: string]: SearchHexData };
+      search_hexes?: { [hexId: string]: SearchHexData };
     };
   };
   error?: string;
