@@ -346,6 +346,125 @@ func TestGetAvailableMoves(t *testing.T) {
 	})
 }
 
+// createTestTaskForce создает тестовый Task Force через TaskForceService
+func createTestTaskForce(t *testing.T, testServices *services.TestServices, gameID string, ownerID string) string {
+	// Create two units to satisfy TF minimum size rule
+	u1 := &models.NavalUnit{
+		GameID:      gameID,
+		Name:        "TF Ship 1",
+		Type:        models.UnitTypeHeavyCruiser,
+		Class:       "Prinz Eugen",
+		Owner:       ownerID,
+		Nationality: "german",
+		Position:    "A1",
+		SetupHex:    "A1",
+		Evasion:     4,
+		BaseEvasion: 4,
+		SpeedRating: models.SpeedTypeFast,
+		Fuel:        80,
+		MaxFuel:     80,
+		HullBoxes:   6,
+		CurrentHull: 6,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
+	}
+	u2 := &models.NavalUnit{
+		GameID:      gameID,
+		Name:        "TF Ship 2",
+		Type:        models.UnitTypeBattleship,
+		Class:       "Bismarck",
+		Owner:       ownerID,
+		Nationality: "german",
+		Position:    "A1",
+		SetupHex:    "A1",
+		Evasion:     3,
+		BaseEvasion: 3,
+		SpeedRating: models.SpeedTypeMedium,
+		Fuel:        100,
+		MaxFuel:     100,
+		HullBoxes:   8,
+		CurrentHull: 8,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
+	}
+	
+	err := testServices.UnitService.CreateNavalUnit(u1)
+	require.NoError(t, err)
+	err = testServices.UnitService.CreateNavalUnit(u2)
+	require.NoError(t, err)
+	
+	taskForce := &models.TaskForce{
+		GameID:    gameID,
+		Name:      "Test Task Force",
+		Owner:     ownerID,
+		Position:  "A1",
+		IsVisible: true,
+		Units:     []string{u1.ID, u2.ID},
+	}
+	
+	err = testServices.TaskForceService.CreateTaskForce(taskForce)
+	require.NoError(t, err)
+	
+	return taskForce.ID
+}
+
+func TestGetAvailableMoves_TaskForce(t *testing.T) {
+	handler, cleanup := setupMovementHandler(t)
+	defer cleanup()
+
+	// Setup test services
+	testServices, testCleanup, err := services.SetupTestServices()
+	require.NoError(t, err)
+	defer testCleanup()
+
+	cfg := &config.Config{
+		JWT: config.JWTConfig{
+			Secret: "test-secret-key-for-testing-only",
+		},
+	}
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
+
+	userID, gameID := createTestUserAndGame(t, testServices, authService)
+	taskForceID := createTestTaskForce(t, testServices, gameID, userID)
+
+	t.Run("successful get available moves for Task Force", func(t *testing.T) {
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}/available-moves", handler.GetAvailableMoves).Methods("GET")
+
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units/"+taskForceID+"/available-moves", nil)
+		ctx := context.WithValue(req.Context(), "user_id", userID)
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, response["available_hexes"])
+		assert.NotEmpty(t, response["fuel_costs"])
+		assert.Equal(t, taskForceID, response["unit_id"])
+		assert.Equal(t, "A1", response["current_hex"])
+	})
+
+	t.Run("Task Force not found", func(t *testing.T) {
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}/available-moves", handler.GetAvailableMoves).Methods("GET")
+
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units/non-existing-taskforce/available-moves", nil)
+		ctx := context.WithValue(req.Context(), "user_id", userID)
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+}
+
 func TestMoveUnitWithValidation(t *testing.T) {
 	handler, cleanup := setupMovementHandler(t)
 	defer cleanup()

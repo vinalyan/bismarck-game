@@ -139,10 +139,12 @@ func (s *AuthService) Login(req *models.LoginRequest) (*models.User, string, err
 		logger.Warn("Failed to update last login", "error", err)
 	}
 
-	// Сохраняем сессию в Redis
-	err = s.redis.SetSession(user.ID, token, s.jwtExpiry)
-	if err != nil {
-		logger.Warn("Failed to save session to Redis", "error", err)
+	// Сохраняем сессию в Redis (если Redis доступен)
+	if s.redis != nil {
+		err = s.redis.SetSession(user.ID, token, s.jwtExpiry)
+		if err != nil {
+			logger.Warn("Failed to save session to Redis", "error", err)
+		}
 	}
 
 	// Сохраняем сессию в базу данных
