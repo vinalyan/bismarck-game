@@ -232,7 +232,7 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 	}
 
 	// Инициализируем структуры search, если нужно
-	// Если search пустой, но есть юниты - это старая игра, нужно пересчитать
+	// Всегда пересчитываем факторы поиска при загрузке модели, если есть юниты
 	if s.searchService != nil {
 		if model.Search == nil {
 			model.Search = &models.SearchData{
@@ -247,12 +247,12 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 			model.Search.Allied = make(map[string]models.SearchHexData)
 		}
 		
-		// Проверяем: если search пустой, но есть юниты - это старая игра, нужен пересчет
+		// Всегда пересчитываем факторы поиска при загрузке модели, если есть юниты
+		// Это гарантирует, что все гексы с кораблями будут учтены, даже если они были добавлены после первоначального пересчета
 		hasUnits := len(model.Units) > 0 || len(model.TaskForces) > 0
-		searchIsEmpty := len(model.Search.German) == 0 && len(model.Search.Allied) == 0
 		
-		if hasUnits && searchIsEmpty {
-			// Это старая игра без пересчитанных факторов поиска - пересчитываем
+		if hasUnits {
+			// Пересчитываем факторы поиска для всех релевантных гексов
 			relevantHexes := s.collectRelevantHexes(model)
 			if len(relevantHexes) > 0 {
 				s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
@@ -487,12 +487,12 @@ func (s *GameStateService) CreateInitialGameModel(gameID string) (*models.GameMo
 			model.Search.Allied = make(map[string]models.SearchHexData)
 		}
 
-		// 2. Если модель содержит юниты/TF, пересчитываем факторы поиска
+		// 2. Если модель содержит юниты/TF, всегда пересчитываем факторы поиска
+		// Это гарантирует актуальность данных, даже если корабли были добавлены или перемещены
 		hasUnits := len(model.Units) > 0 || len(model.TaskForces) > 0
-		searchIsEmpty := len(model.Search.German) == 0 && len(model.Search.Allied) == 0
 
-		if hasUnits && searchIsEmpty {
-			s.logger.Info("GameModel found with units but empty search, recalculating search factors", 
+		if hasUnits {
+			s.logger.Info("GameModel found with units, recalculating search factors", 
 				"game_id", gameID, "units_count", len(model.Units), "task_forces_count", len(model.TaskForces))
 			
 			// Собираем релевантные гексы и пересчитываем факторы поиска
