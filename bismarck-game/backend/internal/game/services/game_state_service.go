@@ -27,6 +27,7 @@ type GameStateService struct {
 	mapStructureService *MapStructureService
 	wsHub               *websocket.Hub
 	gameService         *GameService
+	viewModelService    *ViewModelService
 
 	// Кэш в памяти
 	memoryCache      map[string]*models.GameModel
@@ -1038,8 +1039,13 @@ func (s *GameStateService) sendWebSocketUpdate(gameID string, model *models.Game
 }
 
 // GetGameModelForPlayer возвращает GameModel для указанного игрока
-// Фильтрация по видимости будет реализована в рамках следующей задачи
-func (s *GameStateService) GetGameModelForPlayer(gameID string, playerID string) (*models.GameModel, error) {
+// SetViewModelService устанавливает ViewModelService для фильтрации данных
+func (s *GameStateService) SetViewModelService(viewModelService *ViewModelService) {
+	s.viewModelService = viewModelService
+}
+
+// GetGameModelForPlayer возвращает ViewModel для конкретного игрока с фильтрацией по видимости
+func (s *GameStateService) GetGameModelForPlayer(gameID string, playerID string) (*models.ViewModel, error) {
 	// Проверяем, что игра существует и пользователь является участником
 	player1ID, player2ID, err := s.GetGamePlayers(gameID)
 	if err != nil {
@@ -1053,9 +1059,12 @@ func (s *GameStateService) GetGameModelForPlayer(gameID string, playerID string)
 		return nil, fmt.Errorf("player %s is not part of game %s", playerID, gameID)
 	}
 
-	// Загружаем полный GameModel без фильтрации
-	// Фильтрация по видимости будет добавлена позже
-	return s.LoadGameModel(gameID)
+	// Используем ViewModelService для построения ViewModel
+	if s.viewModelService == nil {
+		return nil, fmt.Errorf("viewModelService is not initialized")
+	}
+
+	return s.viewModelService.BuildViewModel(gameID, playerID)
 }
 
 // SaveGameModelToDatabase сохраняет новую версию GameModel в БД

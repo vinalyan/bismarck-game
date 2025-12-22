@@ -229,6 +229,18 @@ func (s *Server) setupRoutes() {
 		gameStateService.SetConfig(maxMemoryGames, redisTTL)
 	}
 
+	// Создаем ViewModelService
+	viewModelLogger, _ := logger.New(logger.INFO, "view-model-service", "stdout")
+	viewModelService := services.NewViewModelService(
+		gameStateService,
+		visibilityService,
+		gameService,
+		viewModelLogger,
+	)
+
+	// Устанавливаем ViewModelService в GameStateService
+	gameStateService.SetViewModelService(viewModelService)
+
 	// Устанавливаем gameStateService и unitService в emergencyFuelService
 	emergencyFuelService.SetGameStateService(gameStateService)
 	emergencyFuelService.SetUnitService(unitService)

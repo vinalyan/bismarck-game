@@ -57,8 +57,7 @@ func (h *GameStateHandler) GetGameModel(w http.ResponseWriter, r *http.Request) 
 	pkgutils.WriteSuccess(w, model)
 }
 
-// GetGameModelForPlayer возвращает GameModel для текущего игрока
-// Фильтрация по видимости будет реализована в рамках следующей задачи
+// GetGameModelForPlayer возвращает ViewModel для текущего игрока с фильтрацией по видимости
 // GET /api/games/{id}/model
 func (h *GameStateHandler) GetGameModelForPlayer(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -76,7 +75,7 @@ func (h *GameStateHandler) GetGameModelForPlayer(w http.ResponseWriter, r *http.
 		return
 	}
 
-	model, err := h.gameStateService.GetGameModelForPlayer(gameID, userID)
+	viewModel, err := h.gameStateService.GetGameModelForPlayer(gameID, userID)
 	if err != nil {
 		// Логируем ошибку для отладки
 		fmt.Printf("GetGameModelForPlayer error: gameID=%s, userID=%s, error=%v\n", gameID, userID, err)
@@ -91,5 +90,5 @@ func (h *GameStateHandler) GetGameModelForPlayer(w http.ResponseWriter, r *http.
 		return
 	}
 
-	pkgutils.WriteSuccess(w, model)
+	pkgutils.WriteSuccess(w, viewModel)
 }

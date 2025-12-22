@@ -80,6 +80,12 @@ func (s *VisibilityService) GetVisibleUnitsForPlayer(gameID, playerID string) ([
 	return visibleUnits, nil
 }
 
+// GetVisibilityStatesForPlayer возвращает все состояния видимости для игрока
+// Публичный метод для использования в ViewModelService
+func (s *VisibilityService) GetVisibilityStatesForPlayer(gameID, playerID string) ([]*models.UnitVisibilityState, error) {
+	return s.getVisibilityStatesForPlayer(gameID, playerID)
+}
+
 // GetLastKnownPositions возвращает последние известные позиции невидимых юнитов
 func (s *VisibilityService) GetLastKnownPositions(gameID, playerID string) ([]*models.LastKnownPosition, error) {
 	// Получаем состояния видимости для игрока
