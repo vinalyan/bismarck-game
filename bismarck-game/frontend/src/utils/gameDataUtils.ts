@@ -4,9 +4,10 @@ import { GameTurn } from '../types/phaseTypes';
 import { GameResponse } from '../types/gameTypes';
 
 /**
- * Извлекает данные поиска (факторы и маркеры) из GameModel
- * @param response - Ответ API с данными GameModel
- * @param playerSide - Сторона игрока ('german' или 'allied')
+ * Извлекает данные поиска (факторы и маркеры) из ViewModel
+ * ViewModel уже содержит отфильтрованные данные для стороны игрока в search.search_hexes
+ * @param response - Ответ API с данными ViewModel
+ * @param playerSide - Сторона игрока ('german' или 'allied') - используется только для проверки, данные уже отфильтрованы
  * @returns Объект с картами факторов поиска и маркеров
  */
 export function extractSearchDataFromModel(
@@ -16,10 +17,11 @@ export function extractSearchDataFromModel(
   const factorsMap = new Map<string, number>();
   const markersMap: Record<string, HexMarkers> = {};
 
-  const searchData = response.data?.search?.[playerSide];
-  if (searchData) {
-    Object.keys(searchData).forEach(hexId => {
-      const hexSearchData = searchData[hexId];
+  // ViewModel уже содержит отфильтрованные данные для стороны игрока в search.search_hexes
+  const searchHexes = response.data?.search?.search_hexes;
+  if (searchHexes) {
+    Object.keys(searchHexes).forEach(hexId => {
+      const hexSearchData = searchHexes[hexId];
       if (hexSearchData) {
         factorsMap.set(hexId, hexSearchData.factor || 0);
         if (hexSearchData.air_search > 0) {

@@ -143,8 +143,7 @@ interface GameModel {
   task_forces: { [key: string]: TaskForceModel };
   enemy_contacts: EnemyContactModel[];
   search?: {
-    german?: { [hexId: string]: SearchHexData };
-    allied?: { [hexId: string]: SearchHexData };
+    search_hexes?: { [hexId: string]: SearchHexData };
   };
   events: any[];
   intrinsic_search_hexes?: { [key: string]: number };
