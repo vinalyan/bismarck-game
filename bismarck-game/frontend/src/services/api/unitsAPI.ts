@@ -98,6 +98,7 @@ export interface UnitsResponse {
     search?: {
       search_hexes?: { [hexId: string]: SearchHexData };
     };
+    version?: number; // Версия модели для проверки изменений
   };
   error?: string;
 }
@@ -393,6 +394,8 @@ function convertGameModelToUnitsResponse(gameModel: GameModel): UnitsResponse {
       events: gameModel.events || [],
       // Добавляем данные поиска из GameModel
       search: gameModel.search,
+      // Добавляем версию модели для проверки изменений
+      version: gameModel.version,
     },
   };
 }

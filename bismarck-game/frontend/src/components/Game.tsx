@@ -1,6 +1,6 @@
 // Основной компонент игры "Погоня за Бисмарком"
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { ViewType, GamePhase, PlayerSide, NotificationType } from '../types/gameTypes';
 import { HexCoordinate } from '../types/mapTypes';
@@ -9,7 +9,6 @@ import { useActiveHexes } from '../utils/activeHexesUtils';
 import { MAP_CONSTANTS } from '../utils/hexUtils';
 import { unitsAPI, GameUnit, TaskForce, EnemyContact } from '../services/api/unitsAPI';
 import { movementAPI } from '../services/api/movementAPI';
-import { shipsAPI } from '../services/api/shipsAPI';
 import { phaseAPI, GameTurn } from '../services/api/phaseAPI';
 import { refuelAPI } from '../services/api/refuelAPI';
 import { mapService, MapStructure } from '../services/api/mapService';
@@ -29,8 +28,6 @@ const Game: React.FC = () => {
     logout,
     setCurrentView,
     addNotification,
-    setShipsConfig,
-    getShipsByType,
     updateGame,
   } = useGameStore();
 
@@ -63,7 +60,7 @@ const Game: React.FC = () => {
   };
 
   // Определяем сторону игрока для API вызовов (строка 1077 уже определяет playerSide)
-  const getPlayerSideString = (): string => {
+  const getPlayerSideString = useCallback((): string => {
     if (!currentGame || !user) return 'unknown';
     
     if (currentGame.player1_id === user.id) {
@@ -74,7 +71,7 @@ const Game: React.FC = () => {
     }
     
     return 'unknown';
-  };
+  }, [currentGame, user]);
 
   // Функция обновления данных игры из GameModel
   const handleGameModelUpdate = async () => {
@@ -166,6 +163,9 @@ const Game: React.FC = () => {
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [searchFactorHexes, setSearchFactorHexes] = useState<Map<string, number>>(new Map());
   const [hexMarkers, setHexMarkers] = useState<Record<string, HexMarkers>>({});
+  
+  // Ref для хранения последней версии модели (для предотвращения повторных запросов)
+  const lastModelVersionRef = useRef<number | null>(null);
 
   // Хук для управления активными гексами
   const {
@@ -201,24 +201,8 @@ const Game: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Загружаем только один раз при монтировании
 
-  // Загружаем данные кораблей и юнитов при монтировании компонента
+  // Загружаем данные юнитов при монтировании компонента
   useEffect(() => {
-    // Загружаем конфигурацию кораблей с бэкенда
-    const loadShipsConfig = async () => {
-        try {
-          const ships = await shipsAPI.getAllShips();
-          setShipsConfig(ships);
-        } catch (error) {
-          console.error('Error loading ships config:', error);
-          addNotification({
-            type: NotificationType.Error,
-            title: 'Ошибка загрузки конфигурации кораблей',
-            message: 'Не удалось загрузить конфигурацию кораблей с сервера',
-            read: false
-          });
-        }
-    };
-
     // Загружаем юниты игры из API
     const loadGameUnits = async () => {
       if (!currentGame?.id || !authToken) {
@@ -230,6 +214,11 @@ const Game: React.FC = () => {
         const response = await unitsAPI.getGameUnits(currentGame.id, authToken);
         
         if (response.success && response.data) {
+          // Обновляем версию модели при первоначальной загрузке
+          if (response.data.version !== undefined) {
+            lastModelVersionRef.current = response.data.version;
+          }
+          
           // Используем централизованную функцию обновления данных из GameModel
           const playerSide = getPlayerSideString();
           if (playerSide !== 'unknown') {
@@ -272,9 +261,8 @@ const Game: React.FC = () => {
       }
     };
 
-    loadShipsConfig();
     loadGameUnits();
-  }, [currentGame?.id, authToken, addNotification, setShipsConfig]);
+  }, [currentGame?.id, authToken]);
 
   // Автоматическое обновление юнитов каждые 5 секунд
   useEffect(() => {
@@ -430,6 +418,20 @@ const Game: React.FC = () => {
 
   // Обработчик WebSocket событий смены фаз
   useEffect(() => {
+    // Функция определения стороны игрока (перемещена внутрь useEffect для стабильности)
+    const getPlayerSideString = (): string => {
+      if (!currentGame || !user) return 'unknown';
+      
+      if (currentGame.player1_id === user.id) {
+        return 'german'; // Player1 всегда немцы
+      }
+      if (currentGame.player2_id === user.id) {
+        return 'allied'; // Player2 всегда союзники
+      }
+      
+      return 'unknown';
+    };
+
     const handleGameEventReceived = async (event: CustomEvent) => {
       const eventData = event.detail;
       
@@ -455,8 +457,22 @@ const Game: React.FC = () => {
             // Информация о текущей фазе, событиях и факторах поиска теперь приходит через GameModel
             const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
             
-            // Используем централизованную функцию обновления данных из GameModel
+            // Проверяем версию модели для предотвращения повторных обновлений
             if (unitsResponse.success && unitsResponse.data) {
+              const modelVersion = unitsResponse.data.version;
+              
+              // Если версия не изменилась, пропускаем обновление
+              if (modelVersion !== undefined && modelVersion === lastModelVersionRef.current) {
+                console.log('Model version unchanged, skipping update');
+                return;
+              }
+              
+              // Обновляем версию модели
+              if (modelVersion !== undefined) {
+                lastModelVersionRef.current = modelVersion;
+              }
+              
+              // Используем централизованную функцию обновления данных из GameModel
               const updatedData = updateGameDataFromModel(
                 unitsResponse,
                 currentGame,
@@ -504,11 +520,22 @@ const Game: React.FC = () => {
             // Информация о текущей фазе, факторах поиска и событиях теперь приходит через GameModel
             const unitsResponse = await unitsAPI.getGameUnits(currentGame.id, authToken);
             
-            // Информация о текущей фазе теперь приходит через GameModel в unitsAPI.getGameUnits
-            // Маркеры также приходят через GameModel
-            
-            // Используем централизованную функцию обновления данных из GameModel
+            // Проверяем версию модели для предотвращения повторных обновлений
             if (unitsResponse.success && unitsResponse.data) {
+              const modelVersion = unitsResponse.data.version;
+              
+              // Если версия не изменилась, пропускаем обновление
+              if (modelVersion !== undefined && modelVersion === lastModelVersionRef.current) {
+                console.log('Model version unchanged, skipping update');
+                return;
+              }
+              
+              // Обновляем версию модели
+              if (modelVersion !== undefined) {
+                lastModelVersionRef.current = modelVersion;
+              }
+              
+              // Используем централизованную функцию обновления данных из GameModel
               const updatedData = updateGameDataFromModel(
                 unitsResponse,
                 currentGame,
@@ -565,7 +592,7 @@ const Game: React.FC = () => {
     return () => {
       window.removeEventListener('gameEventReceived', handleGameEventReceived as unknown as EventListener);
     };
-  }, [currentGame?.id, user?.id, addNotification, getPlayerSideString]);
+  }, [currentGame?.id, user?.id]);
 
   // Обработчик обновления игры
   useEffect(() => {
@@ -918,65 +945,70 @@ const Game: React.FC = () => {
       gameUnit = gameUnits.find(u => u.id === unit.id);
     }
     
-    // Получаем конфигурацию корабля
-    const shipsByType = getShipsByType(gameUnit?.type || unit.type);
-    const shipConfig = shipsByType.length > 0 ? shipsByType[0] : null;
+    // Проверяем, является ли это Task Force
+    const isTaskForce = unit.isTaskForce === true || (unit.name && (!unit.type || unit.type === 'taskforce'));
+    
+    // Обновляем данные юнита (используем данные из API, конфигурация кораблей не нужна)
+    const updatedUnitData = {
+      ...unit,
+      ...gameUnit, // Добавляем данные из API (если есть)
+      position: currentPosition, // Используем актуальную позицию
+      maxFuel: isTaskForce ? 100 : (gameUnit?.max_fuel || unit.maxFuel || 100), // Для Task Force заглушка, иначе из API или unitData
+      currentFuel: isTaskForce ? 85 : (gameUnit?.fuel || unit.fuel || 0) // Для Task Force заглушка, иначе из API или unitData
+    };
+    setSelectedUnitData(updatedUnitData);
 
-    if (shipConfig) {
-      const updatedUnitData = {
-        ...unit,
-        ...gameUnit, // Добавляем данные из API
-        position: currentPosition,
-        shipConfig: shipConfig,
-        maxFuel: shipConfig.maxFuel,
-        currentFuel: gameUnit?.fuel || unit.fuel || Math.floor(shipConfig.maxFuel * 0.85)
-      };
-      setSelectedUnitData(updatedUnitData);
-
-      // Получаем доступные гексы для движения с сервера
-      if (currentPosition && currentGame?.id && authToken) {
-        try {
-          const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unit.id, authToken);
-          
-          if (availableMovesResponse && availableMovesResponse.available_hexes) {
-            // Преобразуем ответ сервера в формат MovementHex[]
-            const availableHexes: MovementHex[] = availableMovesResponse.available_hexes.map(hex => {
-              // Парсим строку гекса (например, "K15") в HexCoordinate
-              const match = hex.match(/^([A-Z]+)(\d+)$/);
-              if (!match) {
-                console.error('Invalid hex format:', hex);
-                return null;
-              }
-              
-              const letter = match[1];
-              const number = parseInt(match[2]);
-              
-              // Преобразуем в координаты сетки
-              const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
-              const col = number - 1;
-              
-              return {
-                coordinate: {
-                  letter,
-                  number,
-                  col,
-                  row
-                },
-                distance: 1, // Временное значение
-                fuelCost: 1, // Временное значение
-                isReachable: true // Временное значение
-              };
-            }).filter(hex => hex !== null) as MovementHex[];
+    // Получаем доступные гексы для движения с сервера
+    if (currentPosition && currentGame?.id && authToken) {
+      try {
+        const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unit.id, authToken);
+        
+        if (availableMovesResponse && availableMovesResponse.available_hexes) {
+          // Преобразуем ответ сервера в формат MovementHex[]
+          const availableHexes: MovementHex[] = availableMovesResponse.available_hexes.map(hex => {
+            // Парсим строку гекса (например, "K15") в HexCoordinate
+            const match = hex.match(/^([A-Z]+)(\d+)$/);
+            if (!match) {
+              console.error('Invalid hex format:', hex);
+              return null;
+            }
             
-            setAvailableMovementHexes(availableHexes);
-          } else {
-            setAvailableMovementHexes([]);
-          }
-        } catch (error) {
-          console.error('Error fetching available moves:', error);
+            const letter = match[1];
+            const number = parseInt(match[2]);
+            
+            // Преобразуем в координаты сетки
+            const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
+            const col = number - 1;
+            
+            return {
+              coordinate: {
+                letter,
+                number,
+                col,
+                row
+              },
+              fuelCost: availableMovesResponse.fuel_costs?.[hex] || 0,
+              distance: 1, // Будет рассчитано позже
+              isReachable: true
+            };
+          }).filter(hex => hex !== null) as MovementHex[];
+          
+          setAvailableMovementHexes(availableHexes);
+        } else {
           setAvailableMovementHexes([]);
         }
+      } catch (error) {
+        console.error('Error fetching available moves:', error);
+        addNotification({
+          type: NotificationType.Error,
+          title: 'Ошибка получения доступных ходов',
+          message: 'Не удалось получить доступные ходы с сервера',
+          read: false
+        });
+        setAvailableMovementHexes([]);
       }
+    } else {
+      setAvailableMovementHexes([]);
     }
   };
 
@@ -1041,76 +1073,71 @@ const Game: React.FC = () => {
     
     // isTaskForce уже определена в начале функции
     
-    // Получаем конфигурацию корабля из store по типу (для Task Force пропускаем)
-    const shipsByType = isTaskForce ? [] : getShipsByType(gameUnit?.type || unitData.type);
-    const shipConfig = shipsByType.length > 0 ? shipsByType[0] : null;
-
-    // Обновляем данные юнита с информацией о корабле
-    if (shipConfig || isTaskForce) {
-      const updatedUnitData = {
-        ...unitData,
-        ...gameUnit, // Добавляем данные из API
-        position: currentPosition, // Используем актуальную позицию
-        shipConfig: shipConfig,
-        maxFuel: isTaskForce ? 100 : (shipConfig?.maxFuel || 100), // Заглушка для Task Force
-        currentFuel: isTaskForce ? 85 : (gameUnit?.fuel || unitData.fuel || Math.floor((shipConfig?.maxFuel || 100) * 0.85)) // Заглушка для Task Force
-      };
-      setSelectedUnitData(updatedUnitData);
-
+    // Обновляем данные юнита (используем данные из API, конфигурация кораблей не нужна)
+    // Обновляем данные всегда, если есть gameUnit или это Task Force, или есть unitData
+    const updatedUnitData = {
+      ...unitData,
+      ...gameUnit, // Добавляем данные из API (если есть)
+      position: currentPosition, // Используем актуальную позицию
+      maxFuel: isTaskForce ? 100 : (gameUnit?.max_fuel || unitData.maxFuel || 100), // Для Task Force заглушка, иначе из API или unitData
+      currentFuel: isTaskForce ? 85 : (gameUnit?.fuel || unitData.fuel || 0) // Для Task Force заглушка, иначе из API или unitData
+    };
+    setSelectedUnitData(updatedUnitData);
+    
+    // Получаем доступные ходы для всех юнитов (включая Task Force)
+    if (currentPosition && currentGame?.id && authToken) {
       // Получаем доступные гексы для движения с сервера
-      if (currentPosition && currentGame?.id && authToken) {
-        try {
-          const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unitId, authToken);
-          // console.log('🎯 Server response - available_hexes:', availableMovesResponse.available_hexes);
-          // console.log('🎯 Server response - max_distance:', availableMovesResponse.max_distance);
-          
-          if (availableMovesResponse && availableMovesResponse.available_hexes) {
-            // Преобразуем ответ сервера в формат MovementHex[]
-            const availableHexes: MovementHex[] = availableMovesResponse.available_hexes.map(hex => {
-              // Парсим строку гекса (например, "K15") в HexCoordinate
-              const match = hex.match(/^([A-Z]+)(\d+)$/);
-              if (!match) {
-                console.error('Invalid hex format:', hex);
-                return null;
-              }
-              
-              const letter = match[1];
-              const number = parseInt(match[2]);
-              
-              // Преобразуем в координаты сетки
-              const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
-              const col = number - 1;
-              
-              return {
-                coordinate: {
-                  letter,
-                  number,
-                  col,
-                  row
-                },
-                fuelCost: availableMovesResponse.fuel_costs?.[hex] || 0,
-                distance: 1, // Будет рассчитано позже
-                isReachable: true
-              };
-            }).filter(hex => hex !== null) as MovementHex[];
+      try {
+        const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unitId, authToken);
+        // console.log('🎯 Server response - available_hexes:', availableMovesResponse.available_hexes);
+        // console.log('🎯 Server response - max_distance:', availableMovesResponse.max_distance);
+        
+        if (availableMovesResponse && availableMovesResponse.available_hexes) {
+          // Преобразуем ответ сервера в формат MovementHex[]
+          const availableHexes: MovementHex[] = availableMovesResponse.available_hexes.map(hex => {
+            // Парсим строку гекса (например, "K15") в HexCoordinate
+            const match = hex.match(/^([A-Z]+)(\d+)$/);
+            if (!match) {
+              console.error('Invalid hex format:', hex);
+              return null;
+            }
             
-            // console.log('✅ Found', availableHexes.length, 'available moves');
-            // console.log('🎯 Available hexes:', availableHexes.map(h => `${h.coordinate.letter}${h.coordinate.number}`));
-            setAvailableMovementHexes(availableHexes);
-          } else {
-            // console.log('❌ No available moves from server');
-            setAvailableMovementHexes([]);
-          }
-        } catch (error) {
-          console.error('Error fetching available moves from server:', error);
-          addNotification({
-            type: NotificationType.Error,
-            title: 'Ошибка получения доступных ходов',
-            message: 'Не удалось получить доступные ходы с сервера',
-            read: false
-          });
+            const letter = match[1];
+            const number = parseInt(match[2]);
+            
+            // Преобразуем в координаты сетки
+            const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
+            const col = number - 1;
+            
+            return {
+              coordinate: {
+                letter,
+                number,
+                col,
+                row
+              },
+              fuelCost: availableMovesResponse.fuel_costs?.[hex] || 0,
+              distance: 1, // Будет рассчитано позже
+              isReachable: true
+            };
+          }).filter(hex => hex !== null) as MovementHex[];
+          
+          // console.log('✅ Found', availableHexes.length, 'available moves');
+          // console.log('🎯 Available hexes:', availableHexes.map(h => `${h.coordinate.letter}${h.coordinate.number}`));
+          setAvailableMovementHexes(availableHexes);
+        } else {
+          // console.log('❌ No available moves from server');
           setAvailableMovementHexes([]);
         }
+      } catch (error) {
+        console.error('Error fetching available moves from server:', error);
+        addNotification({
+          type: NotificationType.Error,
+          title: 'Ошибка получения доступных ходов',
+          message: 'Не удалось получить доступные ходы с сервера',
+          read: false
+        });
+        setAvailableMovementHexes([]);
       }
     } else {
       setAvailableMovementHexes([]);

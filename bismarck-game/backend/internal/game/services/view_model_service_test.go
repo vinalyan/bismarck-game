@@ -66,7 +66,7 @@ func setupViewModelService(t *testing.T) (*ViewModelService, *GameStateService, 
 }
 
 func TestViewModelService_FilterOwnUnits(t *testing.T) {
-	viewModelService, gameStateService, _, gameService, cleanup := setupViewModelService(t)
+	viewModelService, gameStateService, _, _, cleanup := setupViewModelService(t)
 	defer cleanup()
 
 	gameID := uuid.New().String()
@@ -141,7 +141,7 @@ func TestViewModelService_FilterOwnUnits(t *testing.T) {
 }
 
 func TestViewModelService_FilterEnemyUnitsSighted(t *testing.T) {
-	viewModelService, gameStateService, visibilityService, gameService, cleanup := setupViewModelService(t)
+	viewModelService, gameStateService, visibilityService, _, cleanup := setupViewModelService(t)
 	defer cleanup()
 
 	gameID := uuid.New().String()

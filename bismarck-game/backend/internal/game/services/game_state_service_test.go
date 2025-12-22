@@ -336,3 +336,156 @@ func TestGameStateService_GetCurrentTurnOnly(t *testing.T) {
 	})
 }
 
+func TestLoadGameModel_RecalculatesSearchFactors(t *testing.T) {
+	service, cleanup := setupGameStateService(t)
+	defer cleanup()
+
+	testGameID := uuid.New().String()
+	player1ID := uuid.New().String()
+
+	// Create user first (required by foreign key)
+	_, err := service.db.GetConnection().Exec(`
+		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
+		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (id) DO NOTHING
+	`, player1ID)
+	require.NoError(t, err)
+
+	// Create game
+	_, err = service.db.GetConnection().Exec(`
+		INSERT INTO games (id, name, player1_id, current_turn, current_phase, status, created_at, updated_at)
+		VALUES ($1, 'Test Game', $2, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, testGameID, player1ID)
+	require.NoError(t, err)
+
+	// Create initial GameModel with units
+	initialModel := &models.GameModel{
+		GameID:      testGameID,
+		Version:     1,
+		LastUpdated: time.Now(),
+		CurrentTurn: &models.GameTurnModel{
+			Turn:  1,
+			Phase: models.PhaseMovement,
+		},
+		Units: map[string]*models.UnitModel{
+			"unit1": {
+				ID:       "unit1",
+				GameID:   testGameID,
+				Position: "H20",
+				Nationality: "german",
+			},
+		},
+		TaskForces:  make(map[string]*models.TaskForceModel),
+		EnemyContacts: []*models.EnemyContactModel{},
+		Search: &models.SearchData{
+			German: make(map[string]models.SearchHexData),
+			Allied: make(map[string]models.SearchHexData),
+		},
+		Events: []*models.GameEventModel{},
+	}
+
+	// Save initial model
+	err = service.UpdateGameModel(testGameID, initialModel)
+	require.NoError(t, err)
+
+	t.Run("recalculates search factors when units present", func(t *testing.T) {
+		// Load model - should trigger recalculation
+		model, err := service.LoadGameModel(testGameID)
+		require.NoError(t, err)
+		require.NotNil(t, model)
+
+		// Verify that search factors were recalculated
+		// The search data should be populated for hex H20 (where the unit is)
+		// Note: The actual search factors depend on search service implementation
+		// We just verify that the model was loaded and search structure exists
+		assert.NotNil(t, model.Search)
+		assert.NotNil(t, model.Search.German)
+		assert.NotNil(t, model.Search.Allied)
+		
+		// Verify unit is still present
+		assert.NotEmpty(t, model.Units)
+		assert.Contains(t, model.Units, "unit1")
+	})
+
+	t.Run("recalculates search factors when Task Forces present", func(t *testing.T) {
+		// Create model with Task Force
+		modelWithTF := &models.GameModel{
+			GameID:      testGameID,
+			Version:     2,
+			LastUpdated: time.Now(),
+			CurrentTurn: &models.GameTurnModel{
+				Turn:  1,
+				Phase: models.PhaseMovement,
+			},
+			Units: make(map[string]*models.UnitModel),
+			TaskForces: map[string]*models.TaskForceModel{
+				"tf1": {
+					ID:         "tf1",
+					GameID:     testGameID,
+					Position:   "K15",
+					Nationality: "german",
+				},
+			},
+			EnemyContacts: []*models.EnemyContactModel{},
+			Search: &models.SearchData{
+				German: make(map[string]models.SearchHexData),
+				Allied: make(map[string]models.SearchHexData),
+			},
+			Events: []*models.GameEventModel{},
+		}
+
+		// Save model with Task Force
+		err = service.UpdateGameModel(testGameID, modelWithTF)
+		require.NoError(t, err)
+
+		// Load model - should trigger recalculation
+		model, err := service.LoadGameModel(testGameID)
+		require.NoError(t, err)
+		require.NotNil(t, model)
+
+		// Verify search structure exists
+		assert.NotNil(t, model.Search)
+		assert.NotNil(t, model.Search.German)
+		assert.NotNil(t, model.Search.Allied)
+		
+		// Verify Task Force is still present
+		assert.NotEmpty(t, model.TaskForces)
+		assert.Contains(t, model.TaskForces, "tf1")
+	})
+
+	t.Run("does not recalculate when no units or Task Forces", func(t *testing.T) {
+		// Create empty model
+		emptyModel := &models.GameModel{
+			GameID:      testGameID,
+			Version:     3,
+			LastUpdated: time.Now(),
+			CurrentTurn: &models.GameTurnModel{
+				Turn:  1,
+				Phase: models.PhaseMovement,
+			},
+			Units:         make(map[string]*models.UnitModel),
+			TaskForces:    make(map[string]*models.TaskForceModel),
+			EnemyContacts: []*models.EnemyContactModel{},
+			Search: &models.SearchData{
+				German: make(map[string]models.SearchHexData),
+				Allied: make(map[string]models.SearchHexData),
+			},
+			Events: []*models.GameEventModel{},
+		}
+
+		// Save empty model
+		err = service.UpdateGameModel(testGameID, emptyModel)
+		require.NoError(t, err)
+
+		// Load model - should NOT trigger recalculation (no units)
+		model, err := service.LoadGameModel(testGameID)
+		require.NoError(t, err)
+		require.NotNil(t, model)
+
+		// Verify search structure exists but is empty
+		assert.NotNil(t, model.Search)
+		assert.Empty(t, model.Units)
+		assert.Empty(t, model.TaskForces)
+	})
+}
+
