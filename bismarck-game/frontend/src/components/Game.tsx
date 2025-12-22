@@ -945,65 +945,70 @@ const Game: React.FC = () => {
       gameUnit = gameUnits.find(u => u.id === unit.id);
     }
     
-    // Получаем конфигурацию корабля
-    const shipsByType = getShipsByType(gameUnit?.type || unit.type);
-    const shipConfig = shipsByType.length > 0 ? shipsByType[0] : null;
+    // Проверяем, является ли это Task Force
+    const isTaskForce = unit.isTaskForce === true || (unit.name && (!unit.type || unit.type === 'taskforce'));
+    
+    // Обновляем данные юнита (используем данные из API, конфигурация кораблей не нужна)
+    const updatedUnitData = {
+      ...unit,
+      ...gameUnit, // Добавляем данные из API (если есть)
+      position: currentPosition, // Используем актуальную позицию
+      maxFuel: isTaskForce ? 100 : (gameUnit?.max_fuel || unit.maxFuel || 100), // Для Task Force заглушка, иначе из API или unitData
+      currentFuel: isTaskForce ? 85 : (gameUnit?.fuel || unit.fuel || 0) // Для Task Force заглушка, иначе из API или unitData
+    };
+    setSelectedUnitData(updatedUnitData);
 
-    if (shipConfig) {
-      const updatedUnitData = {
-        ...unit,
-        ...gameUnit, // Добавляем данные из API
-        position: currentPosition,
-        shipConfig: shipConfig,
-        maxFuel: shipConfig.maxFuel,
-        currentFuel: gameUnit?.fuel || unit.fuel || Math.floor(shipConfig.maxFuel * 0.85)
-      };
-      setSelectedUnitData(updatedUnitData);
-
-      // Получаем доступные гексы для движения с сервера
-      if (currentPosition && currentGame?.id && authToken) {
-        try {
-          const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unit.id, authToken);
-          
-          if (availableMovesResponse && availableMovesResponse.available_hexes) {
-            // Преобразуем ответ сервера в формат MovementHex[]
-            const availableHexes: MovementHex[] = availableMovesResponse.available_hexes.map(hex => {
-              // Парсим строку гекса (например, "K15") в HexCoordinate
-              const match = hex.match(/^([A-Z]+)(\d+)$/);
-              if (!match) {
-                console.error('Invalid hex format:', hex);
-                return null;
-              }
-              
-              const letter = match[1];
-              const number = parseInt(match[2]);
-              
-              // Преобразуем в координаты сетки
-              const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
-              const col = number - 1;
-              
-              return {
-                coordinate: {
-                  letter,
-                  number,
-                  col,
-                  row
-                },
-                distance: 1, // Временное значение
-                fuelCost: 1, // Временное значение
-                isReachable: true // Временное значение
-              };
-            }).filter(hex => hex !== null) as MovementHex[];
+    // Получаем доступные гексы для движения с сервера
+    if (currentPosition && currentGame?.id && authToken) {
+      try {
+        const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unit.id, authToken);
+        
+        if (availableMovesResponse && availableMovesResponse.available_hexes) {
+          // Преобразуем ответ сервера в формат MovementHex[]
+          const availableHexes: MovementHex[] = availableMovesResponse.available_hexes.map(hex => {
+            // Парсим строку гекса (например, "K15") в HexCoordinate
+            const match = hex.match(/^([A-Z]+)(\d+)$/);
+            if (!match) {
+              console.error('Invalid hex format:', hex);
+              return null;
+            }
             
-            setAvailableMovementHexes(availableHexes);
-          } else {
-            setAvailableMovementHexes([]);
-          }
-        } catch (error) {
-          console.error('Error fetching available moves:', error);
+            const letter = match[1];
+            const number = parseInt(match[2]);
+            
+            // Преобразуем в координаты сетки
+            const row = letter.length === 1 ? letter.charCodeAt(0) - 65 : (letter.charCodeAt(0) - 65) * 26 + (letter.charCodeAt(1) - 65);
+            const col = number - 1;
+            
+            return {
+              coordinate: {
+                letter,
+                number,
+                col,
+                row
+              },
+              fuelCost: availableMovesResponse.fuel_costs?.[hex] || 0,
+              distance: 1, // Будет рассчитано позже
+              isReachable: true
+            };
+          }).filter(hex => hex !== null) as MovementHex[];
+          
+          setAvailableMovementHexes(availableHexes);
+        } else {
           setAvailableMovementHexes([]);
         }
+      } catch (error) {
+        console.error('Error fetching available moves:', error);
+        addNotification({
+          type: NotificationType.Error,
+          title: 'Ошибка получения доступных ходов',
+          message: 'Не удалось получить доступные ходы с сервера',
+          read: false
+        });
+        setAvailableMovementHexes([]);
       }
+    } else {
+      setAvailableMovementHexes([]);
     }
   };
 
@@ -1079,8 +1084,8 @@ const Game: React.FC = () => {
     };
     setSelectedUnitData(updatedUnitData);
     
-    // Получаем доступные ходы только для не-Task Force юнитов
-    if (!isTaskForce && currentPosition && currentGame?.id && authToken) {
+    // Получаем доступные ходы для всех юнитов (включая Task Force)
+    if (currentPosition && currentGame?.id && authToken) {
       // Получаем доступные гексы для движения с сервера
       try {
         const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unitId, authToken);
