@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"time"
 
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/logger"
@@ -44,17 +45,8 @@ func (s *ViewModelService) BuildViewModel(gameID, playerID string) (*models.View
 		return nil, fmt.Errorf("failed to get player side: %w", err)
 	}
 
-	// 3. Получить все состояния видимости для игрока
-	visibilityStates, err := s.visibilityService.GetVisibilityStatesForPlayer(gameID, playerID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get visibility states: %w", err)
-	}
-
-	// 4. Создать карту видимости (unitID -> UnitVisibilityState)
-	visibilityMap := make(map[string]*models.UnitVisibilityState)
-	for _, state := range visibilityStates {
-		visibilityMap[state.UnitID] = state
-	}
+	// 3. Построить карту видимости из DetectionLevel в GameModel
+	visibilityMap := s.buildVisibilityMapFromGameModel(gameModel, playerSide)
 
 	// 5. Фильтровать Units
 	units := s.filterUnits(gameModel.Units, visibilityMap, playerSide)
@@ -73,19 +65,19 @@ func (s *ViewModelService) BuildViewModel(gameID, playerID string) (*models.View
 
 	// 10. Создать ViewModel
 	viewModel := &models.ViewModel{
-		GameID:             gameModel.GameID,
-		Version:            gameModel.Version,
-		LastUpdated:        gameModel.LastUpdated,
-		CurrentTurn:        gameModel.CurrentTurn,
-		Units:              units,
-		TaskForces:         taskForces,
-		EnemyContacts:      enemyContacts,
-		Search:             search,
-		Events:             events,
+		GameID:               gameModel.GameID,
+		Version:              gameModel.Version,
+		LastUpdated:          gameModel.LastUpdated,
+		CurrentTurn:          gameModel.CurrentTurn,
+		Units:                units,
+		TaskForces:           taskForces,
+		EnemyContacts:        enemyContacts,
+		Search:               search,
+		Events:               events,
 		IntrinsicSearchHexes: gameModel.IntrinsicSearchHexes,
-		VisibilityLevel:    gameModel.VisibilityLevel,
-		IsFog:              gameModel.IsFog,
-		WeatherTrack:       gameModel.WeatherTrack,
+		VisibilityLevel:      gameModel.VisibilityLevel,
+		IsFog:                gameModel.IsFog,
+		WeatherTrack:         gameModel.WeatherTrack,
 	}
 
 	return viewModel, nil
@@ -100,8 +92,8 @@ func (s *ViewModelService) filterUnits(
 	result := make(map[string]*models.UnitViewModel)
 
 	for unitID, unit := range units {
-		// Определяем, является ли юнит своим
-		isOwn := models.IsOwnUnit(unit.Owner, playerSide)
+		// Определяем, является ли юнит своим (сравниваем Nationality со стороной игрока)
+		isOwn := unit.Nationality == playerSide
 
 		// Получаем состояние видимости (если нет записи, считаем unknown)
 		visibilityState, exists := visibilityMap[unitID]
@@ -193,6 +185,70 @@ func (s *ViewModelService) filterUnits(
 	return result
 }
 
+// buildVisibilityMapFromGameModel строит карту видимости из DetectionLevel в GameModel
+// Для вражеских юнитов проверяет DetectionLevel и создает UnitVisibilityState
+func (s *ViewModelService) buildVisibilityMapFromGameModel(
+	gameModel *models.GameModel,
+	playerSide string,
+) map[string]*models.UnitVisibilityState {
+	visibilityMap := make(map[string]*models.UnitVisibilityState)
+
+	for unitID, unit := range gameModel.Units {
+		// Пропускаем свои юниты - они всегда видимы (сравниваем Nationality со стороной игрока)
+		if unit.Nationality == playerSide {
+			continue
+		}
+
+		// Проверяем DetectionLevel только для морских юнитов
+		if unit.Category != models.UnitCategoryNaval || unit.NavalData == nil {
+			continue
+		}
+
+		detectionLevel := unit.NavalData.DetectionLevel
+
+		// Создаем UnitVisibilityState только для обнаруженных юнитов
+		var visibility models.UnitVisibility
+		switch detectionLevel {
+		case models.DetectionLevelSighted:
+			visibility = models.VisibilitySighted
+		case models.DetectionLevelShadowed:
+			visibility = models.VisibilityShadowed
+		default:
+			// Для none и lost - не создаем запись (будет VisibilityUnknown по умолчанию)
+			// Но если есть LastKnownPos, создаем запись с VisibilityUnknown
+			if unit.NavalData.LastKnownPos != nil && *unit.NavalData.LastKnownPos != "" {
+				visibility = models.VisibilityUnknown
+			} else {
+				continue
+			}
+		}
+
+		// Создаем UnitVisibilityState
+		state := &models.UnitVisibilityState{
+			UnitID:       unitID,
+			GameID:       gameModel.GameID,
+			PlayerID:     "", // Не используется в этом контексте
+			Visibility:   visibility,
+			LastKnownHex: "",
+			LastSeenAt:   time.Now(),
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
+
+		// Используем LastKnownPos из NavalData, если есть
+		if unit.NavalData.LastKnownPos != nil && *unit.NavalData.LastKnownPos != "" {
+			state.LastKnownHex = *unit.NavalData.LastKnownPos
+		} else if visibility == models.VisibilitySighted {
+			// Для sighted используем текущую позицию как LastKnownHex
+			state.LastKnownHex = unit.Position
+		}
+
+		visibilityMap[unitID] = state
+	}
+
+	return visibilityMap
+}
+
 // filterTaskForces фильтрует TaskForces по видимости
 func (s *ViewModelService) filterTaskForces(
 	taskForces map[string]*models.TaskForceModel,
@@ -202,8 +258,8 @@ func (s *ViewModelService) filterTaskForces(
 	result := make(map[string]*models.TaskForceViewModel)
 
 	for tfID, tf := range taskForces {
-		// Определяем, является ли TaskForce своим
-		isOwn := models.IsOwnUnit(tf.Owner, playerSide)
+		// Определяем, является ли TaskForce своим (сравниваем Nationality со стороной игрока)
+		isOwn := tf.Nationality == playerSide
 
 		// Для TaskForces видимость определяется по видимости юнитов внутри
 		// Если хотя бы один юнит видим, TaskForce видим
@@ -293,9 +349,9 @@ func (s *ViewModelService) filterTaskForces(
 					ID:           tf.ID,
 					Owner:        tf.Owner,
 					Nationality:  tf.Nationality,
-					Visibility:    models.VisibilityUnknown,
-					IsVisible:     false,
-					LastKnownPos:  lastKnownPos,
+					Visibility:   models.VisibilityUnknown,
+					IsVisible:    false,
+					LastKnownPos: lastKnownPos,
 					// Units, Position и другие поля - не видны
 				}
 			}
@@ -370,4 +426,3 @@ func (s *ViewModelService) filterEnemyContacts(contacts []*models.EnemyContactMo
 
 	return result
 }
-
