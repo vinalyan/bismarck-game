@@ -395,6 +395,27 @@ func ConvertUnitModelToAirUnit(unitModel *UnitModel) (*AirUnit, error) {
 	return airUnit, nil
 }
 
+// ConvertTaskForceModelToTaskForce конвертирует TaskForceModel в TaskForce
+func ConvertTaskForceModelToTaskForce(tfModel *TaskForceModel) *TaskForce {
+	return &TaskForce{
+		ID:             tfModel.ID,
+		GameID:         tfModel.GameID,
+		Name:           tfModel.Name,
+		Owner:          tfModel.Owner,
+		Nationality:    tfModel.Nationality,
+		Position:       tfModel.Position,
+		Speed:          tfModel.Speed,
+		Units:          tfModel.Units,
+		IsVisible:      tfModel.IsVisible,
+		DetectionLevel: tfModel.DetectionLevel,
+		LastMoveTurn:   tfModel.LastMoveTurn,
+		IsActivated:    tfModel.IsActivated,
+		IsPatrolling:   tfModel.IsPatrolling,
+		CreatedAt:      tfModel.CreatedAt,
+		UpdatedAt:      tfModel.UpdatedAt,
+	}
+}
+
 // ConvertGameEventToGameEventModel конвертирует GameEvent в GameEventModel
 func ConvertGameEventToGameEventModel(event *GameEvent) *GameEventModel {
 	return &GameEventModel{
