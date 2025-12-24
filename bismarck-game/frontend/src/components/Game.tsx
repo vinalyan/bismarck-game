@@ -1364,12 +1364,13 @@ const Game: React.FC = () => {
                     const taskForceLabel = contact.task_force && contact.task_force !== 'нет'
                       ? contact.task_force
                       : 'нет';
+                    const contactVisibility = (contact.visibility || '').toLowerCase();
                     return (
-                      <div key={`${contact.hex_id}-${contact.detection_level}-${contact.last_seen_at}`} className="contact-item">
+                      <div key={`${contact.hex_id}-${contactVisibility}-${contact.last_seen_at}`} className="contact-item">
                         <div className="contact-header">
                           <span className="contact-hex">Hex {contact.hex_id}</span>
-                          <span className={`detection-tag ${contact.detection_level}`}>
-                            {contact.detection_level === 'shadowed' ? '🔴 Преследуется' : '🟠 Обнаружен'}
+                          <span className={`detection-tag ${contactVisibility}`}>
+                            {contactVisibility === 'shadowed' ? '🔴 Преследуется' : '🟠 Обнаружен'}
                           </span>
                         </div>
                         <div className="contact-body">

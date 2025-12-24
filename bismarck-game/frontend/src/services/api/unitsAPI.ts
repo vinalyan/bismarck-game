@@ -72,7 +72,7 @@ export interface TaskForce {
 // Интерфейс для ответа API
 export interface EnemyContact {
   hex_id: string;
-  detection_level: 'sighted' | 'shadowed';
+  visibility: 'unknown' | 'sighted' | 'shadowed';
   ship_count: number;
   class_summary: string;
   task_force: string;
@@ -220,7 +220,7 @@ interface TaskForceModel {
 
 interface EnemyContactModel {
   hex_id: string;
-  detection_level: 'sighted' | 'shadowed';
+  visibility: 'unknown' | 'sighted' | 'shadowed';
   ship_count: number;
   class_summary: string;
   task_force: string;

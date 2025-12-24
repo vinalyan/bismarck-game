@@ -187,11 +187,11 @@ const Hex: React.FC<HexProps> = ({
       return 'emergency-fuel';
     }
 
-    const detectionLevel = typeof unit.detection_level === 'string' ? unit.detection_level.toLowerCase() : '';
-    if (detectionLevel === 'shadowed') {
+    const visibility = typeof unit.visibility === 'string' ? unit.visibility.toLowerCase() : '';
+    if (visibility === 'shadowed') {
       return 'shadowed';
     }
-    if (detectionLevel === 'sighted') {
+    if (visibility === 'sighted') {
       return 'sighted';
     }
     
@@ -225,10 +225,10 @@ const Hex: React.FC<HexProps> = ({
       return 'emergency-fuel';
     }
 
-    if (units.some(unit => (unit.detection_level || '').toLowerCase() === 'shadowed')) {
+    if (units.some(unit => (unit.visibility || '').toLowerCase() === 'shadowed')) {
       return 'shadowed';
     }
-    if (units.some(unit => (unit.detection_level || '').toLowerCase() === 'sighted')) {
+    if (units.some(unit => (unit.visibility || '').toLowerCase() === 'sighted')) {
       return 'sighted';
     }
     
@@ -252,11 +252,11 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
     return 'selected';
   }
 
-  const detectionLevel = typeof taskForce.detection_level === 'string' ? taskForce.detection_level.toLowerCase() : '';
-  if (detectionLevel === 'shadowed') {
+  const visibility = typeof taskForce.visibility === 'string' ? taskForce.visibility.toLowerCase() : '';
+  if (visibility === 'shadowed') {
     return 'shadowed';
   }
-  if (detectionLevel === 'sighted') {
+  if (visibility === 'sighted') {
     return 'sighted';
   }
   
@@ -459,23 +459,26 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
       if (!best) {
         return current;
       }
-      if (best.detection_level === 'shadowed') {
+      const bestVisibility = (best.visibility || '').toLowerCase();
+      const currentVisibility = (current.visibility || '').toLowerCase();
+      if (bestVisibility === 'shadowed') {
         return best;
       }
-      return current.detection_level === 'shadowed' ? current : best;
+      return currentVisibility === 'shadowed' ? current : best;
     }, contacts[0]);
-    const iconName = contact.detection_level === 'shadowed' ? 'shadowed' : 'Sighted';
+    const contactVisibility = (contact.visibility || '').toLowerCase();
+    const iconName = contactVisibility === 'shadowed' ? 'shadowed' : 'Sighted';
     const nationality = contact.enemy_nationality === 'german' ? 'german' : 'allied';
     const iconPath = `/assets/units/${nationality}/naval/${iconName}.svg`;
 
     const classSummary = contact.class_summary ? ` (${contact.class_summary})` : '';
     const taskForceInfo = contact.task_force && contact.task_force !== 'нет' ? `. Task force: ${contact.task_force}` : '. Task force: нет';
-    const detectionLabel = contact.detection_level.toUpperCase();
+    const detectionLabel = contactVisibility.toUpperCase();
     const tooltip = `Search «hex ${contact.hex_id}: обнаружено ${contact.ship_count} корабль(ей)${classSummary}${taskForceInfo}. Detection=${detectionLabel}»`;
 
     const baseProps = {
       id: `enemy-contact-${contact.hex_id}`,
-      detection_level: contact.detection_level,
+      visibility: contactVisibility,
       nationality: contact.enemy_nationality === 'german' ? 'german' : 'allied',
       iconPath,
       isEnemyContact: true,
@@ -489,7 +492,7 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
       };
 
       return (
-        <g className={`enemy-contact ${contact.detection_level}`}>
+        <g className={`enemy-contact ${contactVisibility}`}>
           <title>{tooltip}</title>
           {renderTaskForce(fakeTaskForce)}
         </g>
@@ -506,7 +509,7 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
     };
 
     return (
-      <g className={`enemy-contact ${contact.detection_level}`}>
+      <g className={`enemy-contact ${contactVisibility}`}>
         <title>{tooltip}</title>
         {renderSingleUnit(fakeUnit)}
       </g>
