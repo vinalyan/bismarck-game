@@ -85,9 +85,8 @@ func (scs *ShipConfigService) CreateNavalUnitFromConfig(shipID, gameID, owner st
 		SecondaryArmament:        shipConfig.BaseSecondaryArmament,
 		MaxTorpedoes:             shipConfig.MaxTorpedos,
 		Torpedoes:                shipConfig.MaxTorpedos,
-		Status:                   models.UnitStatusActive,
-		DetectionLevel:           models.DetectionLevelNone,
-		CreatedAt:                time.Now(),
+		Status:    models.UnitStatusActive,
+		CreatedAt: time.Now(),
 		UpdatedAt:                time.Now(),
 	}
 

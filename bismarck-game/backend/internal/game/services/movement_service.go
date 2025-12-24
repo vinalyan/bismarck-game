@@ -623,7 +623,7 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 	gameID := taskForce.GameID
 
 	// Проверяем, что Task Force может двигаться
-	if taskForce.DetectionLevel == "sighted" {
+		if taskForce.Visibility == models.VisibilitySighted {
 		return fmt.Errorf("task force cannot move - it is sighted")
 	}
 

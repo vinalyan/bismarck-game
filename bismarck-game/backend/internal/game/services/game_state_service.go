@@ -1350,9 +1350,9 @@ func (s *GameStateService) GetCurrentTurn(gameID string) (turn int, phase models
 	return model.CurrentTurn.Turn, model.CurrentTurn.Phase, nil
 }
 
-// GetGameVisibilityOnly возвращает настройки видимости без загрузки полного GameModel
-// Использует прямой запрос к БД или кэш в памяти для оптимизации производительности
-// Рекомендуется использовать для списков игр (лобби), где не нужны полные данные GameModel
+// GetGameVisibilityOnly возвращает настройки видимости из GameModel
+// Всегда использует GameModel как единственный источник истины
+// LoadGameModel использует кэш (память → Redis → БД) для оптимизации производительности
 func (s *GameStateService) GetGameVisibilityOnly(gameID string) (visibilityLevel int, isFog bool, weatherTrack int, err error) {
 	// Сначала проверяем кэш в памяти (если GameModel уже загружен)
 	s.memoryCacheMutex.RLock()
@@ -1362,40 +1362,17 @@ func (s *GameStateService) GetGameVisibilityOnly(gameID string) (visibilityLevel
 	}
 	s.memoryCacheMutex.RUnlock()
 
-	// Если нет в кэше, делаем прямой запрос к БД
-	// Проверяем, есть ли эти поля в таблице games
-	query := `SELECT visibility_level, is_fog, weather_track FROM games WHERE id = $1`
-	var visLevel sql.NullInt32
-	var fog sql.NullBool
-	var weather sql.NullInt32
-
-	err = s.db.GetConnection().QueryRow(query, gameID).Scan(&visLevel, &fog, &weather)
+	// Если нет в кэше, загружаем GameModel из БД
+	// LoadGameModel использует кэширование (память → Redis → БД), поэтому это эффективно
+	model, err := s.LoadGameModel(gameID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return 0, false, 0, fmt.Errorf("game not found: %w", err)
-		}
-		// Если поля не существуют в таблице, возвращаем значения по умолчанию
-		// Это может произойти, если таблица games еще не имеет этих полей
-		s.logger.Warn("Failed to get visibility from games table, using defaults", "game_id", gameID, "error", err)
+		s.logger.Warn("Failed to load GameModel for visibility, using defaults",
+			"game_id", gameID, "error", err)
+		// Возвращаем значения по умолчанию для новой игры
 		return 1, false, 0, nil
 	}
 
-	visibilityLevel = 1 // значение по умолчанию
-	if visLevel.Valid {
-		visibilityLevel = int(visLevel.Int32)
-	}
-
-	isFog = false
-	if fog.Valid {
-		isFog = fog.Bool
-	}
-
-	weatherTrack = 0
-	if weather.Valid {
-		weatherTrack = int(weather.Int32)
-	}
-
-	return visibilityLevel, isFog, weatherTrack, nil
+	return model.VisibilityLevel, model.IsFog, model.WeatherTrack, nil
 }
 
 // GetCurrentTurnOnly возвращает текущий ход и фазу без загрузки полного GameModel

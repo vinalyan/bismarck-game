@@ -87,7 +87,7 @@ func (s *GameEventService) LogTaskForceMovementEvent(gameID, taskForceID, taskFo
 }
 
 // LogSearchResultEvent фиксирует итог поиска для обеих сторон
-func (s *GameEventService) LogSearchResultEvent(gameID string, turn int, phase, hexID, searchingSide, description string, detectionLevel models.DetectionLevel, shipCount int, classSummary string, taskForceNames []string, hasContact bool, status string) error {
+func (s *GameEventService) LogSearchResultEvent(gameID string, turn int, phase, hexID, searchingSide, description string, visibility models.UnitVisibility, shipCount int, classSummary string, taskForceNames []string, hasContact bool, status string) error {
 	event := &models.GameEvent{
 		ID:          uuid.New().String(),
 		GameID:      gameID,
@@ -102,7 +102,7 @@ func (s *GameEventService) LogSearchResultEvent(gameID string, turn int, phase, 
 			"ship_count":      shipCount,
 			"class_summary":   classSummary,
 			"task_force_list": taskForceNames,
-			"detection_level": string(detectionLevel),
+			"visibility":      string(visibility),
 			"status":          status,
 		},
 		Visibility: map[string]interface{}{
@@ -116,7 +116,7 @@ func (s *GameEventService) LogSearchResultEvent(gameID string, turn int, phase, 
 }
 
 // LogSearchWarningEvent уведомляет владельца обнаруженных кораблей
-func (s *GameEventService) LogSearchWarningEvent(gameID string, turn int, phase, hexID, ownerSide, description string, detectionLevel models.DetectionLevel, shipNames []string, taskForceDetails []string) error {
+func (s *GameEventService) LogSearchWarningEvent(gameID string, turn int, phase, hexID, ownerSide, description string, visibility models.UnitVisibility, shipNames []string, taskForceDetails []string) error {
 	event := &models.GameEvent{
 		ID:          uuid.New().String(),
 		GameID:      gameID,
@@ -125,11 +125,11 @@ func (s *GameEventService) LogSearchWarningEvent(gameID string, turn int, phase,
 		EventType:   models.EventTypeDetection,
 		Description: description,
 		Data: map[string]interface{}{
-			"hex_id":          hexID,
-			"owner_side":      ownerSide,
-			"detection_level": string(detectionLevel),
-			"ship_names":      shipNames,
-			"task_forces":     taskForceDetails,
+			"hex_id":      hexID,
+			"owner_side":  ownerSide,
+			"visibility":  string(visibility),
+			"ship_names":  shipNames,
+			"task_forces": taskForceDetails,
 		},
 		Visibility: map[string]interface{}{
 			"is_public":   false,
@@ -142,7 +142,7 @@ func (s *GameEventService) LogSearchWarningEvent(gameID string, turn int, phase,
 }
 
 // LogDetectionTransitionEvent фиксирует автоматическую смену статуса обнаружения (публично)
-func (s *GameEventService) LogDetectionTransitionEvent(gameID string, turn int, phase, objectType, objectID, objectName string, fromLevel, toLevel models.DetectionLevel, hexID, reason, viewerSide string) error {
+func (s *GameEventService) LogDetectionTransitionEvent(gameID string, turn int, phase, objectType, objectID, objectName string, fromLevel, toLevel models.UnitVisibility, hexID, reason, viewerSide string) error {
 	label := objectType
 	if label == "" {
 		label = "unit"
@@ -199,7 +199,7 @@ func (s *GameEventService) LogDetectionTransitionEvent(gameID string, turn int, 
 }
 
 // LogDetectionWarningEvent уведомляет владельца об изменении статуса обнаружения его сил
-func (s *GameEventService) LogDetectionWarningEvent(gameID string, turn int, phase, ownerSide, objectType, objectID, objectName string, fromLevel, toLevel models.DetectionLevel, hexID, reason string, shipNames []string) error {
+func (s *GameEventService) LogDetectionWarningEvent(gameID string, turn int, phase, ownerSide, objectType, objectID, objectName string, fromLevel, toLevel models.UnitVisibility, hexID, reason string, shipNames []string) error {
 	label := objectType
 	if label == "" {
 		label = "unit"

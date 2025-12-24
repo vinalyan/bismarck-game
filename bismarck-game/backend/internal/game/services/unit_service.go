@@ -16,6 +16,34 @@ import (
 	"github.com/lib/pq"
 )
 
+// convertVisibilityToDetectionLevelString конвертирует UnitVisibility в строку для обратной совместимости с NavalUnit
+func convertVisibilityToDetectionLevelString(visibility models.UnitVisibility) string {
+	switch visibility {
+	case models.VisibilitySighted:
+		return "sighted"
+	case models.VisibilityShadowed:
+		return "shadowed"
+	case models.VisibilityUnknown:
+		return "none"
+	default:
+		return "none"
+	}
+}
+
+// convertVisibilityToDetectionLevelStringReverse конвертирует строку (DetectionLevel) в UnitVisibility
+func convertVisibilityToDetectionLevelStringReverse(dl string) models.UnitVisibility {
+	switch dl {
+	case "sighted":
+		return models.VisibilitySighted
+	case "shadowed":
+		return models.VisibilityShadowed
+	case "none", "lost":
+		return models.VisibilityUnknown
+	default:
+		return models.VisibilityUnknown
+	}
+}
+
 // UnitSunkHandler это функция для обработки потопления корабля
 type UnitSunkHandler func(unitID string) error
 
@@ -311,12 +339,13 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 		// Обновляем все поля юнита
 		unitModel.Position = unit.Position
 		unitModel.Status = string(unit.Status)
+		// ВНИМАНИЕ: Видимость НЕ обновляется из NavalUnit, так как она должна храниться только в GameModel
+		// unitModel.Visibility остается без изменений
 		if unitModel.NavalData != nil {
 			unitModel.NavalData.Evasion = unit.Evasion
 			unitModel.NavalData.Fuel = unit.Fuel
 			unitModel.NavalData.CurrentHull = unit.CurrentHull
 			unitModel.NavalData.Torpedoes = unit.Torpedoes
-			unitModel.NavalData.DetectionLevel = unit.DetectionLevel
 			unitModel.NavalData.LastKnownPos = unit.LastKnownPos
 			unitModel.NavalData.TaskForceID = unit.TaskForceID
 			unitModel.NavalData.Damage = unit.Damage
@@ -460,7 +489,7 @@ func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]mode
 
 	var navalUnits []models.NavalUnit
 	for navalRows.Next() {
-		unit, err := ScanNavalUnitFromRow(navalRows, false, false, false) // includeCategory=false, useNullableDetectionLevel=false, useNullableEmergencyTurn=false
+		unit, err := ScanNavalUnitFromRow(navalRows, false, false) // includeCategory=false, useNullableEmergencyTurn=false
 		if err != nil {
 			continue
 		}
@@ -553,9 +582,8 @@ func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, playe
 			Torpedoes:                shipConfig.MaxTorpedos,
 			MaxTorpedoes:             shipConfig.MaxTorpedos,
 			RadarLevel:               shipConfig.RadarLevel,
-			Status:                   models.UnitStatusActive,
-			DetectionLevel:           models.DetectionLevelNone,
-			Damage:                   []models.Damage{},
+			Status: models.UnitStatusActive,
+			Damage: []models.Damage{},
 			CreatedAt:                time.Now(),
 			UpdatedAt:                time.Now(),
 		}
@@ -631,13 +659,13 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 		rankShadowed rank = 2
 	)
 
-	detectionRanks := map[models.DetectionLevel]rank{
-		models.DetectionLevelNone:     rankNone,
-		models.DetectionLevelSighted:  rankSighted,
-		models.DetectionLevelShadowed: rankShadowed,
+	visibilityRanks := map[models.UnitVisibility]rank{
+		models.VisibilityUnknown:  rankNone,
+		models.VisibilitySighted:  rankSighted,
+		models.VisibilityShadowed: rankShadowed,
 	}
 
-	visibilityMap := make(map[string]models.DetectionLevel)
+	visibilityMap := make(map[string]models.UnitVisibility)
 
 	for rows.Next() {
 		var (
@@ -649,18 +677,18 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 			continue
 		}
 
-		var level models.DetectionLevel
+		var vis models.UnitVisibility
 		switch models.UnitVisibility(visibility) {
 		case models.VisibilityShadowed:
-			level = models.DetectionLevelShadowed
+			vis = models.VisibilityShadowed
 		case models.VisibilitySighted:
-			level = models.DetectionLevelSighted
+			vis = models.VisibilitySighted
 		default:
-			level = models.DetectionLevelNone
+			vis = models.VisibilityUnknown
 		}
 
-		if current, exists := visibilityMap[unitID]; !exists || detectionRanks[level] > detectionRanks[current] {
-			visibilityMap[unitID] = level
+		if current, exists := visibilityMap[unitID]; !exists || visibilityRanks[vis] > visibilityRanks[current] {
+			visibilityMap[unitID] = vis
 		}
 	}
 
@@ -668,11 +696,8 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 		s.logger.Warn("GetVisibleUnits: iteration error while reading visibility rows", "error", err)
 	}
 
-	for idx := range visibleUnits {
-		if level, exists := visibilityMap[visibleUnits[idx].ID]; exists {
-			visibleUnits[idx].DetectionLevel = level
-		}
-	}
+	// ВНИМАНИЕ: Видимость не устанавливается в NavalUnit, так как она должна храниться только в GameModel
+	// Метод GetVisibleUnits возвращает NavalUnit, но видимость должна проверяться через GameModel или VisibilityService
 
 	return visibleUnits, nil
 }
@@ -716,7 +741,7 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 		Name           string
 		Units          []string
 		Position       string
-		DetectionLevel models.DetectionLevel
+		DetectionLevel string
 	}
 
 	tfMap := make(map[string]tfInfo)
@@ -755,9 +780,9 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 			}
 		}
 
-		level := models.DetectionLevelNone
+		level := "none"
 		if detection.Valid {
-			level = models.DetectionLevel(detection.String)
+			level = detection.String
 		}
 
 		tfMap[id] = tfInfo{
@@ -795,8 +820,8 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 		visibilityQuery,
 		gameID,
 		playerID,
-		string(models.DetectionLevelSighted),
-		string(models.DetectionLevelShadowed),
+		"sighted",
+		"shadowed",
 		opponentID,
 	)
 	if err != nil {
@@ -808,7 +833,7 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 		shipTypes      map[string]int
 		shipCount      int
 		taskForceIDs   map[string]struct{}
-		detectionLevel models.DetectionLevel
+		detectionLevel string // Используем строку для обратной совместимости
 		lastSeenAt     time.Time
 		nationality    string
 	}
@@ -860,7 +885,7 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 			acc = &accumulator{
 				shipTypes:      make(map[string]int),
 				taskForceIDs:   make(map[string]struct{}),
-				detectionLevel: models.DetectionLevelSighted,
+				detectionLevel: "sighted",
 			}
 			contactsMap[hexID] = acc
 		}
@@ -893,8 +918,8 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 			}
 		}
 
-		if visibility.Valid && models.DetectionLevel(visibility.String) == models.DetectionLevelShadowed {
-			acc.detectionLevel = models.DetectionLevelShadowed
+		if visibility.Valid && visibility.String == "shadowed" {
+			acc.detectionLevel = "shadowed"
 		}
 	}
 
@@ -919,8 +944,8 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 		for tfID := range acc.taskForceIDs {
 			if tf, ok := tfMap[tfID]; ok {
 				taskForceNames = append(taskForceNames, tf.Name)
-				if tf.DetectionLevel == models.DetectionLevelShadowed {
-					acc.detectionLevel = models.DetectionLevelShadowed
+				if tf.DetectionLevel == "shadowed" {
+					acc.detectionLevel = "shadowed"
 				}
 			}
 		}
@@ -931,9 +956,20 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 			taskForceSummary = strings.Join(taskForceNames, ", ")
 		}
 
+		// Конвертируем строку detectionLevel в UnitVisibility
+		var visibility models.UnitVisibility
+		switch acc.detectionLevel {
+		case "shadowed":
+			visibility = models.VisibilityShadowed
+		case "sighted":
+			visibility = models.VisibilitySighted
+		default:
+			visibility = models.VisibilityUnknown
+		}
+
 		contact := models.EnemyContact{
 			HexID:            hexID,
-			DetectionLevel:   acc.detectionLevel,
+			Visibility:       visibility,
 			ShipCount:        acc.shipCount,
 			ClassSummary:     strings.Join(classPairs, ", "),
 			TaskForce:        taskForceSummary,
@@ -971,7 +1007,7 @@ func (s *UnitService) GetUnitsWithExpiredEmergencyFuel(gameID string, currentTur
 
 	var units []*models.NavalUnit
 	for rows.Next() {
-		unit, err := ScanNavalUnitFromRow(rows, false, false, false) // includeCategory=false, useNullableDetectionLevel=false, useNullableEmergencyTurn=false
+		unit, err := ScanNavalUnitFromRow(rows, false, false) // includeCategory=false, useNullableEmergencyTurn=false
 		if err != nil {
 			s.logger.Error("Failed to scan unit with expired emergency fuel", "error", err)
 			continue
@@ -1081,7 +1117,7 @@ func (s *UnitService) ResetDetectionInFog(gameID string, fogHexes []string) erro
 		return nil
 	}
 
-	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted), string(models.DetectionLevelShadowed), pq.Array(fogHexes))
+	_, err := s.db.Exec(query, "none", gameID, "sighted", "shadowed", pq.Array(fogHexes))
 	if err != nil {
 		s.logger.Error("Failed to reset detection in fog", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset detection in fog: %w", err)
@@ -1091,8 +1127,9 @@ func (s *UnitService) ResetDetectionInFog(gameID string, fogHexes []string) erro
 	return nil
 }
 
-// ListUnitsByDetectionLevel возвращает юниты с указанным уровнем обнаружения (опционально по гексам)
-func (s *UnitService) ListUnitsByDetectionLevel(gameID string, level models.DetectionLevel, hexes []string) ([]DetectionTarget, error) {
+// ListUnitsByVisibility возвращает юниты с указанным уровнем видимости (опционально по гексам)
+// ВНИМАНИЕ: Этот метод работает напрямую с БД. Если все работает через GameModel, используйте GameModel напрямую.
+func (s *UnitService) ListUnitsByVisibility(gameID string, visibility models.UnitVisibility, hexes []string) ([]DetectionTarget, error) {
 	query := `
 		SELECT nu.id,
 		       nu.name,
@@ -1108,7 +1145,7 @@ func (s *UnitService) ListUnitsByDetectionLevel(gameID string, level models.Dete
 		AND nu.detection_level = $2
 	`
 
-	args := []interface{}{gameID, string(level)}
+	args := []interface{}{gameID, convertVisibilityToDetectionLevelString(visibility)}
 	if len(hexes) > 0 {
 		query += " AND nu.position = ANY($3)"
 		args = append(args, pq.Array(hexes))
@@ -1141,7 +1178,7 @@ func (s *UnitService) ResetAllDetection(gameID string) error {
 		WHERE game_id = $2 
 		AND detection_level IN ($3, $4)
 	`
-	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted), string(models.DetectionLevelShadowed))
+	_, err := s.db.Exec(query, "none", gameID, "sighted", "shadowed")
 	if err != nil {
 		s.logger.Error("Failed to reset all detection", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset all detection: %w", err)
@@ -1161,7 +1198,7 @@ func (s *UnitService) RemoveRemainingSighted(gameID string) error {
 		WHERE game_id = $2 
 		AND detection_level = $3
 	`
-	_, err := s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelSighted))
+	_, err := s.db.Exec(query, "none", gameID, "sighted")
 	if err != nil {
 		s.logger.Error("Failed to remove remaining sighted", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to remove remaining sighted: %w", err)
@@ -1179,7 +1216,7 @@ func (s *UnitService) ConvertShadowedToSighted(gameID string) error {
 		WHERE game_id = $2 
 		AND detection_level = $3
 	`
-	_, err := s.db.Exec(query, string(models.DetectionLevelSighted), gameID, string(models.DetectionLevelShadowed))
+	_, err := s.db.Exec(query, "sighted", gameID, "shadowed")
 	if err != nil {
 		s.logger.Error("Failed to convert shadowed to sighted", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to convert shadowed to sighted: %w", err)
@@ -1216,7 +1253,7 @@ func (s *UnitService) ResetDetectionForUnitsInFog(gameID string, fogHexes []stri
 		AND detection_level = $3
 		AND position = ANY($4)
 	`
-	_, err = s.db.Exec(query, string(models.DetectionLevelNone), gameID, string(models.DetectionLevelShadowed), pq.Array(fogHexes))
+	_, err = s.db.Exec(query, "none", gameID, "shadowed", pq.Array(fogHexes))
 	if err != nil {
 		s.logger.Error("Failed to reset detection for units in fog", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset detection for units in fog: %w", err)
@@ -1261,7 +1298,7 @@ func (s *UnitService) GetShadowedUnits(gameID, playerID string) ([]*models.Naval
 		"WHERE game_id = $1 AND owner = $2 AND detection_level = $3 AND status != 'sunk'\nORDER BY position",
 	)
 
-	rows, err := s.db.Query(query, gameID, opponentSide, string(models.DetectionLevelShadowed))
+	rows, err := s.db.Query(query, gameID, opponentSide, "shadowed")
 	if err != nil {
 		s.logger.Error("Failed to get shadowed units", "game_id", gameID, "player_id", playerID, "error", err)
 		return nil, fmt.Errorf("failed to get shadowed units: %w", err)
@@ -1270,7 +1307,7 @@ func (s *UnitService) GetShadowedUnits(gameID, playerID string) ([]*models.Naval
 
 	var units []*models.NavalUnit
 	for rows.Next() {
-		unit, err := ScanNavalUnitFromRow(rows, true, false, false) // includeCategory=true, useNullableDetectionLevel=false, useNullableEmergencyTurn=false
+		unit, err := ScanNavalUnitFromRow(rows, true, false) // includeCategory=true, useNullableDetectionLevel=false, useNullableEmergencyTurn=false
 		if err != nil {
 			s.logger.Error("Failed to scan shadowed unit", "error", err)
 			continue
@@ -1282,20 +1319,21 @@ func (s *UnitService) GetShadowedUnits(gameID, playerID string) ([]*models.Naval
 	return units, nil
 }
 
-// UpdateUnitDetectionLevel обновляет уровень обнаружения юнита
-func (s *UnitService) UpdateUnitDetectionLevel(unitID string, level models.DetectionLevel) error {
+// UpdateUnitVisibility обновляет видимость юнита
+// ВНИМАНИЕ: Этот метод работает напрямую с БД. Если все работает через GameModel, используйте GameModel напрямую.
+func (s *UnitService) UpdateUnitVisibility(unitID string, visibility models.UnitVisibility) error {
 	query := `
 		UPDATE naval_units 
 		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $2
 	`
-	_, err := s.db.Exec(query, string(level), unitID)
+	_, err := s.db.Exec(query, convertVisibilityToDetectionLevelString(visibility), unitID)
 	if err != nil {
-		s.logger.Error("Failed to update unit detection level", "unit_id", unitID, "level", level, "error", err)
-		return fmt.Errorf("failed to update unit detection level: %w", err)
+		s.logger.Error("Failed to update unit visibility", "unit_id", unitID, "visibility", visibility, "error", err)
+		return fmt.Errorf("failed to update unit visibility: %w", err)
 	}
 
-	s.logger.Info("Updated unit detection level", "unit_id", unitID, "level", level)
+	s.logger.Info("Updated unit visibility", "unit_id", unitID, "visibility", visibility)
 	return nil
 }
 
@@ -1511,13 +1549,13 @@ func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlight
 	defer rows.Close()
 
 	var detectedUnits []string
-	var newDetectionLevel models.DetectionLevel
+	var newVisibility models.UnitVisibility
 
 	// Определяем тип обнаружения
 	if hasFlightPath {
-		newDetectionLevel = models.DetectionLevelShadowed
+		newVisibility = models.VisibilityShadowed
 	} else {
-		newDetectionLevel = models.DetectionLevelSighted
+		newVisibility = models.VisibilitySighted
 	}
 
 	for rows.Next() {
@@ -1530,10 +1568,10 @@ func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlight
 			continue
 		}
 
-		// Обновляем DetectionLevel юнита
-		err = s.UpdateUnitDetectionLevel(unitID, newDetectionLevel)
+		// Обновляем Visibility юнита
+		err = s.UpdateUnitVisibility(unitID, newVisibility)
 		if err != nil {
-			s.logger.Error("Failed to update unit detection level", "unit_id", unitID, "error", err)
+			s.logger.Error("Failed to update unit visibility", "unit_id", unitID, "error", err)
 			continue
 		}
 
@@ -1544,7 +1582,7 @@ func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlight
 		"game_id", gameID,
 		"hex_id", hexID,
 		"player_id", playerID,
-		"detection_level", newDetectionLevel,
+		"visibility", newVisibility,
 		"units_count", len(detectedUnits))
 
 	return nil
@@ -1562,13 +1600,14 @@ func BuildNavalUnitSelectQuery(additionalFields []string, whereClause string) st
 	fields := append(baseFields, additionalFields...)
 
 	// Добавляем остальные базовые поля
+	// ВНИМАНИЕ: detection_level удален, так как видимость должна храниться только в GameModel
 	fields = append(fields, []string{
 		"class", "owner", "nationality", "position", "setup_hex",
 		"evasion", "base_evasion", "speed_rating", "fuel", "max_fuel",
 		"hull_boxes", "current_hull", "primary_armament_bow", "primary_armament_stern",
 		"secondary_armament", "base_primary_armament_bow", "base_primary_armament_stern",
 		"base_secondary_armament", "torpedoes", "max_torpedoes", "radar_level",
-		"status", "detection_level", "last_known_pos", "task_force_id", "damage",
+		"status", "last_known_pos", "task_force_id", "damage",
 		"previous_turn_moved_hexes", "last_move_turn", "movement_used", "no_movement_turns_left",
 		"is_emergency_fuel", "emergency_turn", "is_patrolling", "created_at", "updated_at",
 	}...)
@@ -1579,14 +1618,13 @@ func BuildNavalUnitSelectQuery(additionalFields []string, whereClause string) st
 
 // ScanNavalUnitFromRow сканирует NavalUnit из sql.Rows
 // includeCategory - нужно ли сканировать поле category (должно быть в SELECT запросе)
-// useNullableDetectionLevel - использовать sql.NullString для detection_level (true) или прямое сканирование (false)
 // useNullableEmergencyTurn - использовать sql.NullInt32 для emergency_turn (true) или прямое сканирование (false)
+// ВНИМАНИЕ: detection_level больше не сканируется, так как видимость должна храниться только в GameModel
 // Возвращает ошибку или заполненный NavalUnit
-func ScanNavalUnitFromRow(rows *sql.Rows, includeCategory bool, useNullableDetectionLevel bool, useNullableEmergencyTurn bool) (*models.NavalUnit, error) {
+func ScanNavalUnitFromRow(rows *sql.Rows, includeCategory bool, useNullableEmergencyTurn bool) (*models.NavalUnit, error) {
 	var unit models.NavalUnit
 	var damageJSON []byte
 	var lastKnownPos, taskForceID sql.NullString
-	var detectionLevel sql.NullString
 	var emergencyRemovalTurn sql.NullInt32
 
 	// Строим список аргументов для Scan в зависимости от параметров
@@ -1609,13 +1647,7 @@ func ScanNavalUnitFromRow(rows *sql.Rows, includeCategory bool, useNullableDetec
 		&unit.Status, // status поле
 	}...)
 
-	// Добавляем detection_level
-	if useNullableDetectionLevel {
-		scanArgs = append(scanArgs, &detectionLevel)
-	} else {
-		scanArgs = append(scanArgs, &unit.DetectionLevel)
-	}
-
+	// ВНИМАНИЕ: detection_level больше не сканируется, так как видимость должна храниться только в GameModel
 	// Добавляем остальные nullable поля
 	scanArgs = append(scanArgs, &lastKnownPos, &taskForceID, &damageJSON)
 	scanArgs = append(scanArgs, []interface{}{
@@ -1646,10 +1678,7 @@ func ScanNavalUnitFromRow(rows *sql.Rows, includeCategory bool, useNullableDetec
 	}
 
 	// Обрабатываем nullable поля
-	if useNullableDetectionLevel && detectionLevel.Valid {
-		unit.DetectionLevel = models.DetectionLevel(detectionLevel.String)
-	}
-
+	// ВНИМАНИЕ: detection_level больше не обрабатывается, так как видимость должна храниться только в GameModel
 	if lastKnownPos.Valid {
 		unit.LastKnownPos = &lastKnownPos.String
 	}

@@ -395,7 +395,7 @@ export interface NavalUnit {
   maxTorpedoes: number;
   radarLevel: number; // 0, 1, 2 (RADAR I, RADAR II, RADAR II*)
   status: UnitStatus;
-  detectionLevel: DetectionLevel;
+  visibility: 'unknown' | 'sighted' | 'shadowed';
   lastKnownPos?: string;
   taskForceId?: string;
   damage: Damage[];
@@ -446,7 +446,7 @@ export interface TaskForce {
   speed: number;
   units: string[]; // IDs юнитов
   isVisible: boolean;
-  detectionLevel: string; // 'none', 'sighted', 'shadowed', 'lost'
+  visibility: 'unknown' | 'sighted' | 'shadowed';
   lastMoveTurn: number;
   isActivated: boolean;
   createdAt: string;

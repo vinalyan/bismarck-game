@@ -185,8 +185,8 @@ func (s *ViewModelService) filterUnits(
 	return result
 }
 
-// buildVisibilityMapFromGameModel строит карту видимости из DetectionLevel в GameModel
-// Для вражеских юнитов проверяет DetectionLevel и создает UnitVisibilityState
+// buildVisibilityMapFromGameModel строит карту видимости из Visibility в GameModel
+// Для вражеских юнитов использует Visibility напрямую
 func (s *ViewModelService) buildVisibilityMapFromGameModel(
 	gameModel *models.GameModel,
 	playerSide string,
@@ -199,26 +199,17 @@ func (s *ViewModelService) buildVisibilityMapFromGameModel(
 			continue
 		}
 
-		// Проверяем DetectionLevel только для морских юнитов
+		// Проверяем Visibility только для морских юнитов
 		if unit.Category != models.UnitCategoryNaval || unit.NavalData == nil {
 			continue
 		}
 
-		detectionLevel := unit.NavalData.DetectionLevel
+		visibility := unit.Visibility
 
 		// Создаем UnitVisibilityState только для обнаруженных юнитов
-		var visibility models.UnitVisibility
-		switch detectionLevel {
-		case models.DetectionLevelSighted:
-			visibility = models.VisibilitySighted
-		case models.DetectionLevelShadowed:
-			visibility = models.VisibilityShadowed
-		default:
-			// Для none и lost - не создаем запись (будет VisibilityUnknown по умолчанию)
-			// Но если есть LastKnownPos, создаем запись с VisibilityUnknown
-			if unit.NavalData.LastKnownPos != nil && *unit.NavalData.LastKnownPos != "" {
-				visibility = models.VisibilityUnknown
-			} else {
+		if visibility == models.VisibilityUnknown {
+			// Для unknown - не создаем запись, если нет LastKnownPos
+			if unit.NavalData.LastKnownPos == nil || *unit.NavalData.LastKnownPos == "" {
 				continue
 			}
 		}
@@ -304,21 +295,20 @@ func (s *ViewModelService) filterTaskForces(
 		// Свои TaskForces - все данные доступны
 		if isOwn {
 			result[tfID] = &models.TaskForceViewModel{
-				ID:             tf.ID,
-				Owner:          tf.Owner,
-				Nationality:    tf.Nationality,
-				Visibility:     models.VisibilitySighted,
-				IsVisible:      true,
-				Position:       tf.Position,
-				Units:          tf.Units,
-				Name:           tf.Name,
-				Speed:          tf.Speed,
-				DetectionLevel: tf.DetectionLevel,
-				LastMoveTurn:   tf.LastMoveTurn,
-				IsActivated:    tf.IsActivated,
-				IsPatrolling:   tf.IsPatrolling,
-				CreatedAt:      tf.CreatedAt,
-				UpdatedAt:      tf.UpdatedAt,
+				ID:          tf.ID,
+				Owner:       tf.Owner,
+				Nationality: tf.Nationality,
+				Visibility:  models.VisibilitySighted,
+				IsVisible:   true,
+				Position:    tf.Position,
+				Units:       tf.Units,
+				Name:        tf.Name,
+				Speed:       tf.Speed,
+				LastMoveTurn: tf.LastMoveTurn,
+				IsActivated: tf.IsActivated,
+				IsPatrolling: tf.IsPatrolling,
+				CreatedAt:   tf.CreatedAt,
+				UpdatedAt:   tf.UpdatedAt,
 			}
 			continue
 		}

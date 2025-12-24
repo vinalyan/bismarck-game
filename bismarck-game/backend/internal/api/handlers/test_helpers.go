@@ -52,9 +52,8 @@ func createTestUnit(t *testing.T, testServices *services.TestServices, gameID st
 		MaxFuel:        100,
 		HullBoxes:      8,
 		CurrentHull:    8,
-		Status:         models.UnitStatusActive,
-		DetectionLevel: models.DetectionLevelNone,
-		Damage:         []models.Damage{},
+		Status: models.UnitStatusActive,
+		Damage: []models.Damage{},
 	}
 	
 	err := testServices.UnitService.CreateNavalUnit(unit)

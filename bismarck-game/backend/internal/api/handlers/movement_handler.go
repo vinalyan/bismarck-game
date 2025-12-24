@@ -645,7 +645,7 @@ func (h *MovementHandler) getTaskForceAvailableMoves(taskForceID, gameID string)
 		"name", taskForce.Name,
 		"position", taskForce.Position,
 		"units_count", len(taskForce.Units),
-		"detection_level", taskForce.DetectionLevel)
+		"visibility", taskForce.Visibility)
 
 	// Проверяем, может ли Task Force двигаться
 	canMove, reason := h.taskForceService.CanTaskForceMove(taskForceID)

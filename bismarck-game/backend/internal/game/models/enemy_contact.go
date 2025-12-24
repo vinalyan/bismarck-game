@@ -5,7 +5,7 @@ import "time"
 // EnemyContact описывает обнаруженные силы противника для отображения игроку
 type EnemyContact struct {
 	HexID            string         `json:"hex_id"`
-	DetectionLevel   DetectionLevel `json:"detection_level"`
+	Visibility       UnitVisibility `json:"visibility"`
 	ShipCount        int            `json:"ship_count"`
 	ClassSummary     string         `json:"class_summary"`
 	TaskForce        string         `json:"task_force"`

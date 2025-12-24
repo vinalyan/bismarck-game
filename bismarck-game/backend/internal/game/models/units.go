@@ -147,16 +147,6 @@ const (
 	AirUnitStatusOnRaid      AirUnitStatus = "on_raid"     // На рейде
 )
 
-// DetectionLevel представляет уровень обнаружения
-type DetectionLevel string
-
-const (
-	DetectionLevelNone     DetectionLevel = "none"
-	DetectionLevelSighted  DetectionLevel = "sighted"
-	DetectionLevelShadowed DetectionLevel = "shadowed"
-	DetectionLevelLost     DetectionLevel = "lost"
-)
-
 // NavalUnit представляет морской юнит
 type NavalUnit struct {
 	ID          string       `json:"id" db:"id"`
@@ -187,14 +177,13 @@ type NavalUnit struct {
 	BasePrimaryArmamentStern int `json:"base_primary_armament_stern" db:"base_primary_armament_stern"` // Базовое основное вооружение (корма)
 	BaseSecondaryArmament    int `json:"base_secondary_armament" db:"base_secondary_armament"`         // Базовое вспомогательное вооружение
 
-	Torpedoes      int            `json:"torpedoes" db:"torpedoes"`
-	MaxTorpedoes   int            `json:"max_torpedoes" db:"max_torpedoes"`
-	RadarLevel     int            `json:"radar_level" db:"radar_level"` // 0, 1, 2 (RADAR I, RADAR II, RADAR II*)
-	Status         UnitStatus     `json:"status" db:"status"`
-	DetectionLevel DetectionLevel `json:"detection_level" db:"detection_level"`
-	LastKnownPos   *string        `json:"last_known_pos" db:"last_known_pos"`
-	TaskForceID    *string        `json:"task_force_id" db:"task_force_id"`
-	Damage         []Damage       `json:"damage" db:"damage"`
+	Torpedoes    int        `json:"torpedoes" db:"torpedoes"`
+	MaxTorpedoes int        `json:"max_torpedoes" db:"max_torpedoes"`
+	RadarLevel   int        `json:"radar_level" db:"radar_level"` // 0, 1, 2 (RADAR I, RADAR II, RADAR II*)
+	Status       UnitStatus `json:"status" db:"status"`
+	LastKnownPos *string    `json:"last_known_pos" db:"last_known_pos"`
+	TaskForceID  *string    `json:"task_force_id" db:"task_force_id"`
+	Damage       []Damage   `json:"damage" db:"damage"`
 
 	// Поля для тактического боя (используются только во время боя)
 	TacticalPosition    *string  `json:"tactical_position" db:"tactical_position"` // Movement Zone ID
@@ -253,21 +242,21 @@ type Damage struct {
 
 // TaskForce представляет оперативное соединение
 type TaskForce struct {
-	ID             string    `json:"id" db:"id"`
-	GameID         string    `json:"game_id" db:"game_id"`
-	Name           string    `json:"name" db:"name"`
-	Owner          string    `json:"owner" db:"owner"`
-	Nationality    string    `json:"nationality" db:"nationality"` // 'german' or 'allied'
-	Position       string    `json:"position" db:"position"`       // Hex coordinate
-	Speed          int       `json:"speed" db:"speed"`
-	Units          []string  `json:"units" db:"units"` // IDs юнитов
-	IsVisible      bool      `json:"is_visible" db:"is_visible"`
-	DetectionLevel string    `json:"detection_level" db:"detection_level"` // 'none', 'sighted', 'shadowed', 'lost'
-	LastMoveTurn   int       `json:"last_move_turn" db:"last_move_turn"`
-	IsActivated    bool      `json:"is_activated" db:"is_activated"`
-	IsPatrolling   bool      `json:"is_patrolling" db:"is_patrolling"` // Флаг патрулирования (+3 фактора поиска)
-	CreatedAt      time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
+	ID           string         `json:"id" db:"id"`
+	GameID       string         `json:"game_id" db:"game_id"`
+	Name         string         `json:"name" db:"name"`
+	Owner        string         `json:"owner" db:"owner"`
+	Nationality  string         `json:"nationality" db:"nationality"` // 'german' or 'allied'
+	Position     string         `json:"position" db:"position"`       // Hex coordinate
+	Speed        int            `json:"speed" db:"speed"`
+	Units        []string       `json:"units" db:"units"` // IDs юнитов
+	IsVisible    bool           `json:"is_visible" db:"is_visible"`
+	Visibility   UnitVisibility `json:"visibility" db:"visibility"` // Единое поле видимости
+	LastMoveTurn int            `json:"last_move_turn" db:"last_move_turn"`
+	IsActivated  bool           `json:"is_activated" db:"is_activated"`
+	IsPatrolling bool           `json:"is_patrolling" db:"is_patrolling"` // Флаг патрулирования (+3 фактора поиска)
+	CreatedAt    time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at" db:"updated_at"`
 }
 
 // UnitSearch представляет поиск юнита
@@ -433,17 +422,17 @@ func (tf *TaskForce) IsEmpty() bool {
 
 // CanMoveThisTurn проверяет, может ли Task Force двигаться в этом ходу
 func (tf *TaskForce) CanMoveThisTurn(currentTurn int) bool {
-	return tf.LastMoveTurn < currentTurn && tf.DetectionLevel != "sighted"
+	return tf.LastMoveTurn < currentTurn && tf.Visibility != VisibilitySighted
 }
 
 // CanAddUnit проверяет, можно ли добавить юнит в Task Force
 func (tf *TaskForce) CanAddUnit() bool {
-	return tf.DetectionLevel != "sighted"
+	return tf.Visibility != VisibilitySighted
 }
 
 // CanRemoveUnit проверяет, можно ли удалить юнит из Task Force
 func (tf *TaskForce) CanRemoveUnit() bool {
-	return tf.DetectionLevel != "sighted"
+	return tf.Visibility != VisibilitySighted
 }
 
 // GetNextAvailableName генерирует следующее доступное имя для Task Force
