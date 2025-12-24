@@ -142,10 +142,6 @@ func (s *Server) setupRoutes() {
 
 	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, taskForceService, searchService, eventService, s.wsHub, apiBaseURL)
 
-	// Создаем сервисы для движения
-	visibilityLogger, _ := logger.New(logger.INFO, "visibility-service", "stdout")
-	visibilityService := services.NewVisibilityService(s.db, visibilityLogger)
-
 	// Создаем сервис структур карты
 	mapStructureService := services.NewMapStructureService()
 	if err := mapStructureService.LoadConfig("./config/map-structures.json"); err != nil {
@@ -153,7 +149,6 @@ func (s *Server) setupRoutes() {
 	}
 
 	// Инъекция вспомогательных сервисов в PhaseManager
-	phaseManager.SetVisibilityService(visibilityService)
 	phaseManager.SetMapStructureService(mapStructureService)
 
 	// Создаем сервис аварийного топлива
@@ -161,7 +156,7 @@ func (s *Server) setupRoutes() {
 	emergencyFuelService := services.NewEmergencyFuelService(s.db, emergencyFuelLogger, phaseManager)
 
 	movementLogger, _ := logger.New(logger.INFO, "movement-service", "stdout")
-	movementService := services.NewMovementService(s.db, movementLogger, visibilityService, phaseManager, unitService, mapStructureService, eventService, emergencyFuelService, gameService)
+	movementService := services.NewMovementService(s.db, movementLogger, phaseManager, unitService, mapStructureService, eventService, emergencyFuelService, gameService)
 
 	// Обновляем TaskForceService с MovementService
 	taskForceService = services.NewTaskForceService(s.db, taskForceLogger, unitService, movementService)
@@ -191,7 +186,7 @@ func (s *Server) setupRoutes() {
 	gameHandler := handlers.NewGameHandler(s.db, unitService, shipConfigService, phaseManager, taskForceService)
 	shipConfigLogger, _ := logger.New(logger.INFO, "ship-config-service", "stdout")
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService, unitService, shipConfigLogger)
-	movementHandler := handlers.NewMovementHandler(movementService, visibilityService, unitService, taskForceService, movementLogger)
+	movementHandler := handlers.NewMovementHandler(movementService, unitService, taskForceService, movementLogger)
 	emergencyFuelHandler := handlers.NewEmergencyFuelHandler(s.db, movementLogger, movementService, unitService)
 	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService)
 	mapHandler := handlers.NewMapHandler(mapStructureService)
@@ -233,7 +228,6 @@ func (s *Server) setupRoutes() {
 	viewModelLogger, _ := logger.New(logger.INFO, "view-model-service", "stdout")
 	viewModelService := services.NewViewModelService(
 		gameStateService,
-		visibilityService,
 		gameService,
 		viewModelLogger,
 	)

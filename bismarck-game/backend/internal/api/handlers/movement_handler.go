@@ -17,7 +17,6 @@ import (
 // MovementHandler обрабатывает HTTP запросы для движения юнитов
 type MovementHandler struct {
 	movementService   *services.MovementService
-	visibilityService *services.VisibilityService
 	unitService       *services.UnitService
 	taskForceService  *services.TaskForceService
 	gameStateService  *services.GameStateService
@@ -25,13 +24,12 @@ type MovementHandler struct {
 }
 
 // NewMovementHandler создает новый обработчик движения
-func NewMovementHandler(movementService *services.MovementService, visibilityService *services.VisibilityService, unitService *services.UnitService, taskForceService *services.TaskForceService, logger *logger.Logger) *MovementHandler {
+func NewMovementHandler(movementService *services.MovementService, unitService *services.UnitService, taskForceService *services.TaskForceService, logger *logger.Logger) *MovementHandler {
 	return &MovementHandler{
-		movementService:   movementService,
-		visibilityService: visibilityService,
-		unitService:       unitService,
-		taskForceService:  taskForceService,
-		logger:            logger,
+		movementService:  movementService,
+		unitService:      unitService,
+		taskForceService: taskForceService,
+		logger:           logger,
 	}
 }
 
@@ -453,134 +451,6 @@ func (h *MovementHandler) GetMovementHistory(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(history)
 }
 
-// GetVisibleUnits возвращает видимые юниты для игрока
-// @Summary Получение видимых юнитов для игрока
-// @Tags Visibility
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param gameId path string true "ID игры"
-// @Param player_id query string true "ID игрока"
-// @Success 200 {object} models.VisibilityResponse
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Router /games/{gameId}/visibility/units [get]
-func (h *MovementHandler) GetVisibleUnits(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	gameID := vars["gameId"]
-
-	if gameID == "" {
-		http.Error(w, "Game ID is required", http.StatusBadRequest)
-		return
-	}
-
-	// Получаем ID игрока из заголовков или параметров
-	playerID := r.Header.Get("X-Player-ID")
-	if playerID == "" {
-		playerID = r.URL.Query().Get("player_id")
-	}
-
-	if playerID == "" {
-		http.Error(w, "Player ID is required", http.StatusBadRequest)
-		return
-	}
-
-	// Получаем видимые юниты
-	visibleUnits, err := h.visibilityService.GetVisibleUnitsForPlayer(gameID, playerID)
-	if err != nil {
-		h.logger.Error("Failed to get visible units", "error", err, "game_id", gameID, "player_id", playerID)
-		http.Error(w, "Failed to get visible units", http.StatusInternalServerError)
-		return
-	}
-
-	// Получаем последние известные позиции
-	lastKnownPositions, err := h.visibilityService.GetLastKnownPositions(gameID, playerID)
-	if err != nil {
-		h.logger.Error("Failed to get last known positions", "error", err, "game_id", gameID, "player_id", playerID)
-		http.Error(w, "Failed to get last known positions", http.StatusInternalServerError)
-		return
-	}
-
-	// Преобразуем указатели в значения
-	visibleUnitsValues := make([]models.VisibleUnit, len(visibleUnits))
-	for i, vu := range visibleUnits {
-		visibleUnitsValues[i] = *vu
-	}
-
-	lastKnownPositionsValues := make([]models.LastKnownPosition, len(lastKnownPositions))
-	for i, lkp := range lastKnownPositions {
-		lastKnownPositionsValues[i] = *lkp
-	}
-
-	response := models.VisibilityResponse{
-		VisibleUnits:       visibleUnitsValues,
-		LastKnownPositions: lastKnownPositionsValues,
-		Turn:               1,          // Упрощенная реализация
-		Phase:              "movement", // Упрощенная реализация
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-// UpdateVisibility обновляет видимость юнита
-// @Summary Обновление видимости юнита
-// @Tags Visibility
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param gameId path string true "ID игры"
-// @Param body body models.VisibilityUpdate true "Данные для обновления видимости"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Failure 401 {object} map[string]interface{}
-// @Router /games/{gameId}/visibility/update [post]
-func (h *MovementHandler) UpdateVisibility(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	gameID := vars["gameId"]
-
-	if gameID == "" {
-		http.Error(w, "Game ID is required", http.StatusBadRequest)
-		return
-	}
-
-	// Получаем ID игрока
-	playerID := r.Header.Get("X-Player-ID")
-	if playerID == "" {
-		playerID = r.URL.Query().Get("player_id")
-	}
-
-	if playerID == "" {
-		http.Error(w, "Player ID is required", http.StatusBadRequest)
-		return
-	}
-
-	// Парсим запрос
-	var visibilityUpdate models.VisibilityUpdate
-	if err := json.NewDecoder(r.Body).Decode(&visibilityUpdate); err != nil {
-		h.logger.Error("Failed to decode visibility update", "error", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Обновляем видимость
-	err := h.visibilityService.UpdateUnitVisibility(gameID, visibilityUpdate.UnitID, playerID, visibilityUpdate.Visibility)
-	if err != nil {
-		h.logger.Error("Failed to update visibility", "error", err, "unit_id", visibilityUpdate.UnitID)
-		http.Error(w, "Failed to update visibility", http.StatusInternalServerError)
-		return
-	}
-
-	// Успешный ответ
-	response := map[string]interface{}{
-		"success": true,
-		"message": "Visibility updated successfully",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
 // Вспомогательные методы
 
 func (h *MovementHandler) getUnit(gameID, unitID string) (*models.NavalUnit, error) {
@@ -773,8 +643,4 @@ func (h *MovementHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	movementRouter.HandleFunc("/{gameId}/units/{unitId}/movement-cost", h.GetMovementCost).Methods("GET")
 	movementRouter.HandleFunc("/{gameId}/units/{unitId}/move", h.MoveUnit).Methods("POST")
 	movementRouter.HandleFunc("/{gameId}/units/{unitId}/movement-history", h.GetMovementHistory).Methods("GET")
-
-	// Маршруты для видимости
-	movementRouter.HandleFunc("/{gameId}/visibility/units", h.GetVisibleUnits).Methods("GET")
-	movementRouter.HandleFunc("/{gameId}/visibility/update", h.UpdateVisibility).Methods("POST")
 }

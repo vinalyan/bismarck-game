@@ -964,15 +964,6 @@ func logDetectionTransitions(pm *PhaseManager, gameID string, turn int, phaseNam
 			continue
 		}
 
-		var viewerID string
-		if pm.visibilityService != nil {
-			if id, err := pm.getPlayerIDForSide(gameID, viewerSide); err == nil {
-				viewerID = id
-			} else {
-				log.Printf("Detection logging - failed to resolve viewer id for side %s: %v", viewerSide, err)
-			}
-		}
-
 		if err := pm.eventService.LogDetectionTransitionEvent(gameID, turn, phaseName, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason, viewerSide); err != nil {
 			log.Printf("Detection logging - failed to log transition for %s %s: %v", target.Type, target.ID, err)
 		}
@@ -997,25 +988,6 @@ func logDetectionTransitions(pm *PhaseManager, gameID string, turn int, phaseNam
 
 		if err := pm.eventService.LogDetectionWarningEvent(gameID, turn, phaseName, target.Owner, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason, shipNames); err != nil {
 			log.Printf("Detection logging - failed to log warning for %s %s: %v", target.Type, target.ID, err)
-		}
-
-		if pm.visibilityService == nil || viewerID == "" {
-			continue
-		}
-
-		switch toLevel {
-		case models.VisibilityShadowed:
-			if err := pm.visibilityService.SetUnitShadowed(gameID, target.ID, viewerID, target.Position); err != nil {
-				log.Printf("Detection logging - failed to set shadowed visibility for unit %s: %v", target.ID, err)
-			}
-		case models.VisibilitySighted:
-			if err := pm.visibilityService.SetUnitSighted(gameID, target.ID, viewerID, target.Position); err != nil {
-				log.Printf("Detection logging - failed to set sighted visibility for unit %s: %v", target.ID, err)
-			}
-		default:
-			if err := pm.visibilityService.UpdateUnitVisibility(gameID, target.ID, viewerID, toLevel); err != nil {
-				log.Printf("Detection logging - failed to update visibility for unit %s: %v", target.ID, err)
-			}
 		}
 	}
 }
@@ -1299,15 +1271,6 @@ func (h *SearchPhaseHandler) applyVisibilityToUnitsInModel(
 		return fmt.Errorf("failed to update units visibility: %w", err)
 	}
 
-	// Синхронизируем видимость через VisibilityService
-	if pm.visibilityService != nil {
-		for _, unitID := range unitIDs {
-			if err := pm.visibilityService.UpdateUnitVisibility(gameID, unitID, playerID, visibility); err != nil {
-				log.Printf("Search phase - failed to sync visibility for unit %s: %v", unitID, err)
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -1373,29 +1336,6 @@ func (h *SearchPhaseHandler) applyVisibilityToTaskForcesInModel(
 		return fmt.Errorf("failed to update task forces visibility: %w", err)
 	}
 
-	// Синхронизируем видимость через VisibilityService
-	// Загружаем обновленную модель для получения списка юнитов в ТФ
-	updatedModel, err := pm.gameStateService.LoadGameModel(gameID)
-	if err != nil {
-		log.Printf("Search phase - failed to load updated model for visibility sync: %v", err)
-	} else {
-		for _, tfID := range tfIDs {
-			tf, exists := updatedModel.TaskForces[tfID]
-			if !exists {
-				continue
-			}
-
-			// Обновляем видимость для всех кораблей в ТФ
-			if pm.visibilityService != nil {
-				for _, unitID := range tf.Units {
-					if err := pm.visibilityService.UpdateUnitVisibility(gameID, unitID, playerID, visibility); err != nil {
-						log.Printf("Search phase - failed to sync visibility for unit %s in TF %s: %v", unitID, tfID, err)
-					}
-				}
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -1406,7 +1346,6 @@ func (h *SearchPhaseHandler) applyDetectionToUnits(pm *PhaseManager, gameID, hex
 			continue
 		}
 		log.Printf("Search phase - %s side detected unit %s at %s as %s", sideLabel, unit.ID, hexID, visibility)
-		h.updateUnitVisibility(pm, gameID, playerID, unit.ID, hexID, visibility)
 	}
 }
 
@@ -1441,31 +1380,10 @@ func (h *SearchPhaseHandler) applyDetectionToTaskForces(pm *PhaseManager, gameID
 			if err := pm.unitService.UpdateUnitVisibility(unit.ID, visibility); err != nil {
 				log.Printf("Search phase - failed to update visibility for unit %s in task force %s: %v", unit.ID, tf.ID, err)
 			}
-			h.updateUnitVisibility(pm, gameID, playerID, unit.ID, hexID, visibility)
 		}
 	}
 }
 
-func (h *SearchPhaseHandler) updateUnitVisibility(pm *PhaseManager, gameID, playerID, unitID, hexID string, visibility models.UnitVisibility) {
-	if pm.visibilityService == nil || playerID == "" {
-		return
-	}
-
-	var err error
-	if visibility == models.VisibilityShadowed {
-		err = pm.visibilityService.SetUnitShadowed(gameID, unitID, playerID, hexID)
-	} else if visibility == models.VisibilitySighted {
-		err = pm.visibilityService.SetUnitSighted(gameID, unitID, playerID, hexID)
-	} else {
-		// Для unknown не нужно обновлять visibility
-		return
-	}
-	if err != nil {
-		log.Printf("Search phase - failed to update visibility for unit %s: %v", unitID, err)
-	} else {
-		log.Printf("Search phase - recorded visibility %s for unit %s towards player %s", visibility, unitID, playerID)
-	}
-}
 
 func (h *SearchPhaseHandler) isHexFogged(pm *PhaseManager, hexID string) bool {
 	if pm.mapStructureService == nil {

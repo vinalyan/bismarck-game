@@ -10,24 +10,21 @@ import (
 
 // ViewModelService предоставляет методы для построения ViewModel из GameModel
 type ViewModelService struct {
-	gameStateService  *GameStateService
-	visibilityService *VisibilityService
-	gameService       *GameService
-	logger            *logger.Logger
+	gameStateService *GameStateService
+	gameService      *GameService
+	logger           *logger.Logger
 }
 
 // NewViewModelService создает новый сервис ViewModel
 func NewViewModelService(
 	gameStateService *GameStateService,
-	visibilityService *VisibilityService,
 	gameService *GameService,
 	logger *logger.Logger,
 ) *ViewModelService {
 	return &ViewModelService{
-		gameStateService:  gameStateService,
-		visibilityService: visibilityService,
-		gameService:       gameService,
-		logger:            logger,
+		gameStateService: gameStateService,
+		gameService:      gameService,
+		logger:           logger,
 	}
 }
 

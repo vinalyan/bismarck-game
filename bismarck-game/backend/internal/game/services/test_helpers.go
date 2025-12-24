@@ -21,11 +21,10 @@ type TestServices struct {
 	GameService         *GameService
 	EventService        *GameEventService
 	SearchService       *SearchService
-	PhaseManager        *PhaseManager
-	MovementService     *MovementService
+	PhaseManager         *PhaseManager
+	MovementService      *MovementService
 	EmergencyFuelService *EmergencyFuelService
 	MapStructureService  *MapStructureService
-	VisibilityService    *VisibilityService
 	WSHub                *websocket.Hub
 }
 
@@ -54,7 +53,6 @@ func SetupTestServices() (*TestServices, func(), error) {
 	eventService := NewGameEventService(db, testLogger)
 	gameService := NewGameService(db, testLogger)
 	mapStructureService := NewMapStructureService()
-	visibilityService := NewVisibilityService(db, testLogger)
 
 	// Загружаем конфигурацию карты
 	if err := mapStructureService.LoadConfig("./config/map-structures.json"); err != nil {
@@ -69,14 +67,13 @@ func SetupTestServices() (*TestServices, func(), error) {
 	// Создаем PhaseManager
 	apiBaseURL := "http://localhost:8080"
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, apiBaseURL)
-	phaseManager.SetVisibilityService(visibilityService)
 	phaseManager.SetMapStructureService(mapStructureService)
 
 	// Создаем EmergencyFuelService
 	emergencyFuelService := NewEmergencyFuelService(db, testLogger, phaseManager)
 
 	// Создаем MovementService
-	movementService := NewMovementService(db, testLogger, visibilityService, phaseManager, unitService, mapStructureService, eventService, emergencyFuelService, gameService)
+	movementService := NewMovementService(db, testLogger, phaseManager, unitService, mapStructureService, eventService, emergencyFuelService, gameService)
 
 	// Обновляем TaskForceService с MovementService
 	taskForceService = NewTaskForceService(db, testLogger, unitService, movementService)
@@ -132,7 +129,6 @@ func SetupTestServices() (*TestServices, func(), error) {
 		MovementService:     movementService,
 		EmergencyFuelService: emergencyFuelService,
 		MapStructureService:  mapStructureService,
-		VisibilityService:    visibilityService,
 		WSHub:                wsHub,
 	}, cleanup, nil
 }

@@ -18,7 +18,6 @@ type PhaseManager struct {
 	unitService         *UnitService
 	taskForceService    *TaskForceService
 	searchService       *SearchService
-	visibilityService   *VisibilityService
 	mapStructureService *MapStructureService
 	phaseHandlers       map[models.GamePhase]models.PhaseHandler
 	eventService        *GameEventService
@@ -26,11 +25,6 @@ type PhaseManager struct {
 	httpClient          *http.Client
 	apiBaseURL          string
 	gameStateService    *GameStateService // Опционально, для обновления GameModel
-}
-
-// SetVisibilityService регистрирует сервис видимости
-func (pm *PhaseManager) SetVisibilityService(service *VisibilityService) {
-	pm.visibilityService = service
 }
 
 // SetMapStructureService регистрирует сервис структур карты
