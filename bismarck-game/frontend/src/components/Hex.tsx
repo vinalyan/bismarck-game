@@ -252,6 +252,7 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
     return 'selected';
   }
 
+  // Проверяем visibility в первую очередь (это важнее, чем движение)
   const visibility = typeof taskForce.visibility === 'string' ? taskForce.visibility.toLowerCase() : '';
   if (visibility === 'shadowed') {
     return 'shadowed';
@@ -260,7 +261,7 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
     return 'sighted';
   }
   
-  // Проверяем, может ли двигаться (если есть данные о последнем ходе)
+  // Проверяем, может ли двигаться (только если visibility не shadowed/sighted)
   if (taskForce.last_move_turn === currentTurn) {
     return 'cannot-move';
   }
@@ -419,15 +420,15 @@ const getTaskForceState = (taskForce: any): TaskForceVisualState => {
     }
 
     if (items.some(item => {
-      const level = (item.detection_level || '').toLowerCase();
-      return level === 'shadowed';
+      const visibility = (item.visibility || '').toLowerCase();
+      return visibility === 'shadowed';
     })) {
       return 'shadowed';
     }
 
     if (items.some(item => {
-      const level = (item.detection_level || '').toLowerCase();
-      return level === 'sighted';
+      const visibility = (item.visibility || '').toLowerCase();
+      return visibility === 'sighted';
     })) {
       return 'sighted';
     }
