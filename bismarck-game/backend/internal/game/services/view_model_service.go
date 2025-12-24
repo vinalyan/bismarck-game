@@ -250,43 +250,23 @@ func (s *ViewModelService) filterTaskForces(
 		// Определяем, является ли TaskForce своим (сравниваем Nationality со стороной игрока)
 		isOwn := tf.Nationality == playerSide
 
-		// Для TaskForces видимость определяется по видимости юнитов внутри
-		// Если хотя бы один юнит видим, TaskForce видим
-		// Для упрощения, проверяем видимость первого юнита или используем IsVisible
-		var visibility models.UnitVisibility = models.VisibilityUnknown
+		// Используем Visibility из GameModel напрямую (единственный источник истины)
+		visibility := tf.Visibility
 		var lastKnownPos *string
 
+		// Для чужих TaskForces ищем LastKnownPos из юнитов
 		if !isOwn {
-			// Проверяем видимость юнитов в TaskForce
-			hasVisibleUnit := false
+			// Ищем LastKnownPos из юнитов (для unknown visibility - обязательно, для sighted - позиция обнаружения)
 			for _, unitID := range tf.Units {
-				if state, exists := visibilityMap[unitID]; exists {
-					if state.IsVisible() {
-						hasVisibleUnit = true
-						visibility = state.Visibility
-						if state.LastKnownHex != "" {
-							lastKnownHex := state.LastKnownHex
-							lastKnownPos = &lastKnownHex
-						}
-						break
-					}
+				if state, exists := visibilityMap[unitID]; exists && state.LastKnownHex != "" {
+					lastKnownHex := state.LastKnownHex
+					lastKnownPos = &lastKnownHex
+					break
 				}
 			}
-
-			// Если нет видимых юнитов, но есть LastKnownPos, используем unknown
-			if !hasVisibleUnit {
-				// Ищем любой LastKnownPos из юнитов
-				for _, unitID := range tf.Units {
-					if state, exists := visibilityMap[unitID]; exists && state.LastKnownHex != "" {
-						lastKnownHex := state.LastKnownHex
-						lastKnownPos = &lastKnownHex
-						break
-					}
-				}
-				// Если нет LastKnownPos, TaskForce не включается в результат
-				if lastKnownPos == nil {
-					continue
-				}
+			// Для unknown visibility: если нет LastKnownPos, TaskForce не включается в результат
+			if visibility == models.VisibilityUnknown && lastKnownPos == nil {
+				continue
 			}
 		}
 
@@ -312,7 +292,7 @@ func (s *ViewModelService) filterTaskForces(
 			continue
 		}
 
-		// Чужие TaskForces - фильтруем по видимости
+		// Чужие TaskForces - фильтруем по видимости из GameModel
 		switch visibility {
 		case models.VisibilitySighted, models.VisibilityShadowed:
 			// Видны: Owner, Nationality, Position, Visibility, Units (только IDs)
@@ -324,7 +304,7 @@ func (s *ViewModelService) filterTaskForces(
 				ID:          tf.ID,
 				Owner:       tf.Owner,
 				Nationality: tf.Nationality,
-				Visibility:  visibility,
+				Visibility:  visibility, // Используем Visibility из GameModel
 				IsVisible:   true,
 				Position:    position,
 				Units:       tf.Units, // Только IDs, детали не видны
@@ -332,17 +312,15 @@ func (s *ViewModelService) filterTaskForces(
 			}
 
 		case models.VisibilityUnknown:
-			// Только LastKnownPos
-			if lastKnownPos != nil {
-				result[tfID] = &models.TaskForceViewModel{
-					ID:           tf.ID,
-					Owner:        tf.Owner,
-					Nationality:  tf.Nationality,
-					Visibility:   models.VisibilityUnknown,
-					IsVisible:    false,
-					LastKnownPos: lastKnownPos,
-					// Units, Position и другие поля - не видны
-				}
+			// Только LastKnownPos (уже проверено выше, что lastKnownPos != nil)
+			result[tfID] = &models.TaskForceViewModel{
+				ID:           tf.ID,
+				Owner:        tf.Owner,
+				Nationality:  tf.Nationality,
+				Visibility:   models.VisibilityUnknown,
+				IsVisible:    false,
+				LastKnownPos: lastKnownPos,
+				// Units, Position и другие поля - не видны
 			}
 		}
 	}
