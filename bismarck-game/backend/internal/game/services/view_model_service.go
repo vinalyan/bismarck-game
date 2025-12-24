@@ -99,7 +99,8 @@ func (s *ViewModelService) filterUnits(
 			visibility = visibilityState.Visibility
 		}
 
-		// Свои юниты всегда видимы
+		// Свои юниты всегда видимы и показываются полностью
+		// Используем Visibility из GameModel напрямую
 		if isOwn {
 			viewModel := &models.UnitViewModel{
 				ID:          unit.ID,
@@ -107,7 +108,7 @@ func (s *ViewModelService) filterUnits(
 				Category:    unit.Category,
 				Owner:       unit.Owner,
 				Nationality: unit.Nationality,
-				Visibility:  models.VisibilitySighted,
+				Visibility:  unit.Visibility, // Используем Visibility из GameModel напрямую
 				IsVisible:   true,
 				Position:    unit.Position,
 				Name:        unit.Name,
@@ -290,12 +291,13 @@ func (s *ViewModelService) filterTaskForces(
 		}
 
 		// Свои TaskForces - все данные доступны
+		// Используем Visibility из GameModel напрямую
 		if isOwn {
 			result[tfID] = &models.TaskForceViewModel{
 				ID:          tf.ID,
 				Owner:       tf.Owner,
 				Nationality: tf.Nationality,
-				Visibility:  models.VisibilitySighted,
+				Visibility:  tf.Visibility, // Используем Visibility из GameModel напрямую
 				IsVisible:   true,
 				Position:    tf.Position,
 				Units:       tf.Units,
