@@ -18,7 +18,6 @@ import (
 type MovementService struct {
 	db                   *database.Database
 	logger               *logger.Logger
-	visibilityService    *VisibilityService
 	phaseManager         *PhaseManager
 	unitService          *UnitService
 	hexCalculator        hexgrid.HexCalculator
@@ -33,14 +32,13 @@ type MovementService struct {
 }
 
 // NewMovementService создает новый сервис движения
-func NewMovementService(db *database.Database, logger *logger.Logger, visibilityService *VisibilityService, phaseManager *PhaseManager, unitService *UnitService, mapStructureService *MapStructureService, eventService *GameEventService, emergencyFuelService *EmergencyFuelService, gameService *GameService) *MovementService {
+func NewMovementService(db *database.Database, logger *logger.Logger, phaseManager *PhaseManager, unitService *UnitService, mapStructureService *MapStructureService, eventService *GameEventService, emergencyFuelService *EmergencyFuelService, gameService *GameService) *MovementService {
 	hexCalculator := hexgrid.NewStandardHexCalculator()
 	validatorFactory := validation.NewValidatorFactory(hexCalculator)
 
 	return &MovementService{
 		db:                   db,
 		logger:               logger,
-		visibilityService:    visibilityService,
 		phaseManager:         phaseManager,
 		unitService:          unitService,
 		hexCalculator:        hexCalculator,
@@ -352,11 +350,6 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 		"fuel_cost", fuelCost,
 		"previous_fuel", fuelTracking.CurrentFuel+fuelCost)
 
-	// Обновляем видимость для всех игроков
-	if err := s.visibilityService.ProcessMovementVisibility(unit.GameID, unit.ID, oldPosition, toHex); err != nil {
-		s.logger.Warn("Failed to update visibility after movement", "error", err)
-	}
-
 	// Уведомляем игроков о движении
 	s.notifyPlayersAboutMovement(unit, movement)
 
@@ -623,7 +616,7 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 	gameID := taskForce.GameID
 
 	// Проверяем, что Task Force может двигаться
-	if taskForce.DetectionLevel == "sighted" {
+		if taskForce.Visibility == models.VisibilitySighted {
 		return fmt.Errorf("task force cannot move - it is sighted")
 	}
 

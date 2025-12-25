@@ -4,23 +4,18 @@ import (
 	"testing"
 
 	"bismarck-game/backend/internal/game/models"
-	"bismarck-game/backend/pkg/logger"
-	"bismarck-game/backend/pkg/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSearchService_AddHexMarker(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	log, err := logger.New(logger.INFO, "test", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, log)
-	gameService := NewGameService(db, log)
-	searchService := NewSearchService(db, log, unitService, gameService)
+	db := testServices.DB
+	searchService := testServices.SearchService
 
 	// Create test game
 	gameID := "550e8400-e29b-41d4-a716-446655440010"
@@ -32,7 +27,7 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
-	
+
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
 	_, err = db.GetConnection().Exec(
@@ -40,7 +35,7 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
-	
+
 	_, err = db.GetConnection().Exec(
 		"INSERT INTO games (id, name, status, player1_id, player2_id) VALUES ($1, 'Test Game', 'active', $2, $3)",
 		gameID, playerID, player2ID,
@@ -62,7 +57,7 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 		).Scan(&count)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, count)
-		
+
 		// Verify via getHexMarkersInHex (playerID is player1_id, so "german")
 		count, err = searchService.getHexMarkersInHex(gameID, hexID, "german", string(models.MarkerTypeFlightPathSearch))
 		assert.NoError(t, err)
@@ -73,11 +68,11 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 		// Clean up markers for this specific test
 		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
 		require.NoError(t, err)
-		
+
 		// Add first marker
 		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		require.NoError(t, err)
-		
+
 		// Add second marker of same type
 		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		assert.NoError(t, err)
@@ -92,13 +87,13 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 		// Clean up markers for this specific test
 		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
 		require.NoError(t, err)
-		
+
 		// Add flight path markers first
 		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		require.NoError(t, err)
 		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		require.NoError(t, err)
-		
+
 		// Add air attack marker
 		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeAirAttack))
 		assert.NoError(t, err)
@@ -116,15 +111,12 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 }
 
 func TestSearchService_RemoveHexMarker(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	log, err := logger.New(logger.INFO, "test", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, log)
-	gameService := NewGameService(db, log)
-	searchService := NewSearchService(db, log, unitService, gameService)
+	db := testServices.DB
+	searchService := testServices.SearchService
 
 	gameID := "550e8400-e29b-41d4-a716-446655440011"
 	playerID := "550e8400-e29b-41d4-a716-446655440002"
@@ -135,7 +127,7 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
-	
+
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
 	_, err = db.GetConnection().Exec(
@@ -143,7 +135,7 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
-	
+
 	_, err = db.GetConnection().Exec(
 		"INSERT INTO games (id, name, status, player1_id, player2_id) VALUES ($1, 'Test Game', 'active', $2, $3)",
 		gameID, playerID, player2ID,
@@ -154,7 +146,7 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 		// Clean up markers for this specific test
 		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
 		require.NoError(t, err)
-		
+
 		// Add multiple markers
 		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		require.NoError(t, err)
@@ -172,15 +164,12 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 }
 
 func TestSearchService_GetHexMarkers(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	log, err := logger.New(logger.INFO, "test", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, log)
-	gameService := NewGameService(db, log)
-	searchService := NewSearchService(db, log, unitService, gameService)
+	db := testServices.DB
+	searchService := testServices.SearchService
 
 	gameID := "550e8400-e29b-41d4-a716-446655440012"
 	playerID := "550e8400-e29b-41d4-a716-446655440003"
@@ -190,7 +179,7 @@ func TestSearchService_GetHexMarkers(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
-	
+
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
 	_, err = db.GetConnection().Exec(
@@ -198,7 +187,7 @@ func TestSearchService_GetHexMarkers(t *testing.T) {
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
-	
+
 	_, err = db.GetConnection().Exec(
 		"INSERT INTO games (id, name, status, player1_id, player2_id) VALUES ($1, 'Test Game', 'active', $2, $3)",
 		gameID, playerID, player2ID,
@@ -209,7 +198,7 @@ func TestSearchService_GetHexMarkers(t *testing.T) {
 		// Clean up markers for this specific test
 		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1", gameID)
 		require.NoError(t, err)
-		
+
 		// Add markers to different hexes
 		err = searchService.AddHexMarker(gameID, playerID, "F26", string(models.MarkerTypeFlightPathSearch))
 		require.NoError(t, err)
@@ -228,15 +217,12 @@ func TestSearchService_GetHexMarkers(t *testing.T) {
 }
 
 func TestSearchService_GetHexMarkersCount(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	log, err := logger.New(logger.INFO, "test", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, log)
-	gameService := NewGameService(db, log)
-	searchService := NewSearchService(db, log, unitService, gameService)
+	db := testServices.DB
+	searchService := testServices.SearchService
 
 	gameID := "550e8400-e29b-41d4-a716-446655440013"
 	playerID := "550e8400-e29b-41d4-a716-446655440004"
@@ -247,7 +233,7 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
-	
+
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
 	_, err = db.GetConnection().Exec(
@@ -255,7 +241,7 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
-	
+
 	_, err = db.GetConnection().Exec(
 		"INSERT INTO games (id, name, status, player1_id, player2_id) VALUES ($1, 'Test Game', 'active', $2, $3)",
 		gameID, playerID, player2ID,
@@ -266,7 +252,7 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 		// Clean up markers for this specific test
 		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
 		require.NoError(t, err)
-		
+
 		// Add multiple markers of different types
 		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		require.NoError(t, err)
@@ -283,22 +269,19 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 }
 
 func TestSearchService_RemoveAllHexMarkersByType(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	log, err := logger.New(logger.INFO, "test", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, log)
-	gameService := NewGameService(db, log)
-	searchService := NewSearchService(db, log, unitService, gameService)
+	db := testServices.DB
+	searchService := testServices.SearchService
 
 	gameID := "550e8400-e29b-41d4-a716-446655440014"
 	playerID := "550e8400-e29b-41d4-a716-446655440005"
 
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
-	
+
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
 	_, err = db.GetConnection().Exec(
@@ -306,7 +289,7 @@ func TestSearchService_RemoveAllHexMarkersByType(t *testing.T) {
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
-	
+
 	_, err = db.GetConnection().Exec(
 		"INSERT INTO games (id, name, status, player1_id, player2_id) VALUES ($1, 'Test Game', 'active', $2, $3)",
 		gameID, playerID, player2ID,
@@ -338,15 +321,12 @@ func TestSearchService_RemoveAllHexMarkersByType(t *testing.T) {
 }
 
 func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
-	log, err := logger.New(logger.INFO, "test", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, log)
-	gameService := NewGameService(db, log)
-	searchService := NewSearchService(db, log, unitService, gameService)
+	db := testServices.DB
+	searchService := testServices.SearchService
 
 	gameID := "550e8400-e29b-41d4-a716-446655440015"
 	playerID := "550e8400-e29b-41d4-a716-446655440006"
@@ -357,7 +337,7 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
-	
+
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
 	_, err = db.GetConnection().Exec(
@@ -365,7 +345,7 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
-	
+
 	_, err = db.GetConnection().Exec(
 		"INSERT INTO games (id, name, status, player1_id, player2_id) VALUES ($1, 'Test Game', 'active', $2, $3)",
 		gameID, playerID, player2ID,
@@ -376,7 +356,7 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 		// Clean up markers for this test
 		_, err = db.GetConnection().Exec("DELETE FROM hex_markers WHERE game_id = $1 AND hex_id = $2", gameID, hexID)
 		require.NoError(t, err)
-		
+
 		// Add two flight path markers (each gives +2)
 		err = searchService.AddHexMarker(gameID, playerID, hexID, string(models.MarkerTypeFlightPathSearch))
 		require.NoError(t, err)
@@ -391,4 +371,3 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 		assert.Equal(t, 4, factors) // Should be exactly 4 if no units/patrols
 	})
 }
-

@@ -98,60 +98,145 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 
 	turnNumber, phaseLabel := getTurnAndPhase(pm, gameID, models.PhaseVisibility)
 
-	// Если туман - сбросить обнаружение в туманных гексах
-	if isFog {
-		var unitShadowedTransitions, unitSightedTransitions []DetectionTarget
-		if pm.unitService != nil && len(fogHexes) > 0 {
-			if targets, err := pm.unitService.ListUnitsByDetectionLevel(gameID, models.DetectionLevelShadowed, fogHexes); err != nil {
-				log.Printf("Visibility phase - failed to collect shadowed units in fog: %v", err)
-			} else {
-				unitShadowedTransitions = targets
-			}
-			if targets, err := pm.unitService.ListUnitsByDetectionLevel(gameID, models.DetectionLevelSighted, fogHexes); err != nil {
-				log.Printf("Visibility phase - failed to collect sighted units in fog: %v", err)
-			} else {
-				unitSightedTransitions = targets
-			}
-		}
-
-		var taskForceShadowedTransitions, taskForceSightedTransitions []DetectionTarget
-		if pm.taskForceService != nil && len(fogHexes) > 0 {
-			if targets, err := pm.taskForceService.ListTaskForcesByDetectionLevel(gameID, models.DetectionLevelShadowed, fogHexes); err != nil {
-				log.Printf("Visibility phase - failed to collect shadowed task forces in fog: %v", err)
-			} else {
-				taskForceShadowedTransitions = targets
-			}
-			if targets, err := pm.taskForceService.ListTaskForcesByDetectionLevel(gameID, models.DetectionLevelSighted, fogHexes); err != nil {
-				log.Printf("Visibility phase - failed to collect sighted task forces in fog: %v", err)
-			} else {
-				taskForceSightedTransitions = targets
-			}
-		}
-
-		err = pm.unitService.ResetDetectionInFog(gameID, fogHexes)
-		if err != nil {
-			log.Printf("Failed to reset detection in fog: %v", err)
-			// Не возвращаем ошибку, продолжаем выполнение
-		}
-
-		if pm.taskForceService != nil {
-			if err := pm.taskForceService.ResetDetectionInFog(gameID, fogHexes); err != nil {
-				log.Printf("Failed to reset task force detection in fog: %v", err)
-			}
-		}
-
-		logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitShadowedTransitions, models.DetectionLevelShadowed, models.DetectionLevelNone, "туман: фаза видимости")
-		logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitSightedTransitions, models.DetectionLevelSighted, models.DetectionLevelNone, "туман: фаза видимости")
-		logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, taskForceShadowedTransitions, models.DetectionLevelShadowed, models.DetectionLevelNone, "туман: фаза видимости")
-		logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, taskForceSightedTransitions, models.DetectionLevelSighted, models.DetectionLevelNone, "туман: фаза видимости")
+	// Загружаем GameModel для работы с видимостью
+	model, err := pm.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		log.Printf("Visibility phase - failed to load GameModel: %v", err)
+		return fmt.Errorf("failed to load GameModel: %w", err)
 	}
 
-	// Если видимость X (>= 10) - сбросить все обнаружения
-	if visibilityLevel >= 10 {
-		err = pm.unitService.ResetAllDetection(gameID)
+	// Создаем map для быстрой проверки туманных гексов
+	fogHexesMap := make(map[string]bool)
+	for _, hexID := range fogHexes {
+		fogHexesMap[hexID] = true
+	}
+
+	// Если туман - сбросить обнаружение в туманных гексах через GameModel
+	if isFog && len(fogHexes) > 0 {
+		// Сначала собираем информацию о переходах для логирования (до обновления)
+		unitShadowedTransitions := []DetectionTarget{}
+		unitSightedTransitions := []DetectionTarget{}
+		taskForceShadowedTransitions := []DetectionTarget{}
+		taskForceSightedTransitions := []DetectionTarget{}
+
+		// Собираем информацию о юнитах, которые будут обновлены
+		for _, unit := range model.Units {
+			// Проверяем только морские юниты
+			if unit.Category != models.UnitCategoryNaval || unit.NavalData == nil {
+				continue
+			}
+
+			// Проверяем, находится ли юнит в туманном гексе
+			if unit.Position == "" || !fogHexesMap[unit.Position] {
+				continue
+			}
+
+			// Сохраняем информацию для логирования
+			if unit.Visibility == models.VisibilityShadowed || unit.Visibility == models.VisibilitySighted {
+				target := DetectionTarget{
+					ID:       unit.ID,
+					Name:     unit.Name,
+					Owner:    unit.Nationality,
+					Position: unit.Position,
+					Type:     "unit",
+				}
+				if unit.Visibility == models.VisibilityShadowed {
+					unitShadowedTransitions = append(unitShadowedTransitions, target)
+				} else {
+					unitSightedTransitions = append(unitSightedTransitions, target)
+				}
+			}
+		}
+
+		// Собираем информацию о Task Forces, которые будут обновлены
+		for _, tf := range model.TaskForces {
+			// Проверяем, находится ли Task Force в туманном гексе
+			if tf.Position == "" || !fogHexesMap[tf.Position] {
+				continue
+			}
+
+			// Сохраняем информацию для логирования
+			if tf.Visibility == models.VisibilityShadowed || tf.Visibility == models.VisibilitySighted {
+				target := DetectionTarget{
+					ID:       tf.ID,
+					Name:     tf.Name,
+					Owner:    tf.Nationality,
+					Position: tf.Position,
+					Type:     "task_force",
+				}
+				if tf.Visibility == models.VisibilityShadowed {
+					taskForceShadowedTransitions = append(taskForceShadowedTransitions, target)
+				} else {
+					taskForceSightedTransitions = append(taskForceSightedTransitions, target)
+				}
+			}
+		}
+
+		// Теперь сбрасываем видимость через GameModel
+		err = pm.gameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
+			// Сбрасываем видимость для юнитов в туманных гексах
+			for _, unit := range m.Units {
+				if unit.Category != models.UnitCategoryNaval || unit.NavalData == nil {
+					continue
+				}
+				if unit.Position == "" || !fogHexesMap[unit.Position] {
+					continue
+				}
+				if unit.Visibility != models.VisibilityUnknown {
+					unit.Visibility = models.VisibilityUnknown
+				}
+			}
+
+			// Сбрасываем видимость для Task Forces в туманных гексах
+			for _, tf := range m.TaskForces {
+				if tf.Position == "" || !fogHexesMap[tf.Position] {
+					continue
+				}
+				if tf.Visibility != models.VisibilityUnknown {
+					tf.Visibility = models.VisibilityUnknown
+				}
+			}
+
+			return nil
+		}, 3)
+
 		if err != nil {
-			log.Printf("Failed to reset all detection: %v", err)
-			// Не возвращаем ошибку, продолжаем выполнение
+			log.Printf("Visibility phase - failed to reset detection in fog: %v", err)
+		} else {
+			// Логируем переходы видимости
+			h.logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitShadowedTransitions, models.VisibilityShadowed, models.VisibilityUnknown, "туман: фаза видимости")
+			h.logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitSightedTransitions, models.VisibilitySighted, models.VisibilityUnknown, "туман: фаза видимости")
+			h.logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, taskForceShadowedTransitions, models.VisibilityShadowed, models.VisibilityUnknown, "туман: фаза видимости")
+			h.logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, taskForceSightedTransitions, models.VisibilitySighted, models.VisibilityUnknown, "туман: фаза видимости")
+		}
+	}
+
+	// Если видимость X (>= 10) - сбросить все обнаружения через GameModel
+	if visibilityLevel >= 10 {
+		err = pm.gameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
+			// Сбрасываем видимость для всех юнитов
+			for _, unit := range m.Units {
+				if unit.Category == models.UnitCategoryNaval && unit.NavalData != nil {
+					if unit.Visibility != models.VisibilityUnknown {
+						unit.Visibility = models.VisibilityUnknown
+					}
+				}
+			}
+
+			// Сбрасываем видимость для всех Task Forces
+			for _, tf := range m.TaskForces {
+				if tf.Visibility != models.VisibilityUnknown {
+					tf.Visibility = models.VisibilityUnknown
+				}
+			}
+
+			return nil
+		}, 3)
+
+		if err != nil {
+			log.Printf("Visibility phase - failed to reset all detection: %v", err)
+		} else {
+			log.Printf("Visibility phase - reset all detection due to visibility level X")
 		}
 	}
 
@@ -193,6 +278,32 @@ func (h *VisibilityPhaseHandler) GetDescription() string {
 func (h *VisibilityPhaseHandler) SetPhaseManager(pm models.PhaseManagerInterface) {
 	h.phaseManager = pm
 	log.Printf("VisibilityPhaseHandler: phaseManager set (nil=%v)", pm == nil)
+}
+
+// logDetectionTransitions логирует переходы видимости для массива DetectionTarget
+func (h *VisibilityPhaseHandler) logDetectionTransitions(pm *PhaseManager, gameID string, turnNumber int, phaseLabel string, targets []DetectionTarget, fromLevel, toLevel models.UnitVisibility, reason string) {
+	if pm == nil || pm.eventService == nil {
+		return
+	}
+
+	for _, target := range targets {
+		err := pm.eventService.LogDetectionTransitionEvent(
+			gameID,
+			turnNumber,
+			phaseLabel,
+			target.Type,
+			target.ID,
+			target.Name,
+			fromLevel,
+			toLevel,
+			target.Position,
+			reason,
+			target.Owner,
+		)
+		if err != nil {
+			log.Printf("Visibility phase - failed to log detection transition for %s %s: %v", target.Type, target.ID, err)
+		}
+	}
 }
 
 // ShadowPhaseHandler обрабатывает фазу слежения
@@ -254,23 +365,79 @@ func (h *ShadowPhaseHandler) Complete(gameID string, turn int) error {
 
 	turnNumber, phaseLabel := getTurnAndPhase(pm, gameID, models.PhaseShadow)
 
-	var sightedTransitions []DetectionTarget
-	if pm.unitService != nil {
-		if targets, err := pm.unitService.ListUnitsByDetectionLevel(gameID, models.DetectionLevelSighted, nil); err != nil {
-			log.Printf("Shadow phase - failed to collect sighted units for reset: %v", err)
+	// После всех попыток преследования убираем оставшиеся Sighted
+	// Все операции выполняются только через GameModel, без работы с БД
+	var sightedUnitTransitions []DetectionTarget
+	var sightedTaskForceTransitions []DetectionTarget
+
+	if pm.gameStateService != nil {
+		// Сначала загружаем GameModel, чтобы собрать список sighted юнитов для логирования
+		model, err := pm.gameStateService.LoadGameModel(gameID)
+		if err != nil {
+			log.Printf("Shadow phase - failed to load GameModel for removing remaining sighted: %v", err)
 		} else {
-			sightedTransitions = targets
+			// Собираем sighted юниты и Task Forces для логирования (до обновления)
+			for unitID, unit := range model.Units {
+				if unit.Visibility == models.VisibilitySighted {
+					sightedUnitTransitions = append(sightedUnitTransitions, DetectionTarget{
+						ID:       unitID,
+						Name:     unit.Name,
+						Owner:    unit.Nationality, // Используем Nationality как owner_side
+						Position: unit.Position,
+						Type:     "unit",
+					})
+				}
+			}
+
+			for tfID, tf := range model.TaskForces {
+				if tf.Visibility == models.VisibilitySighted {
+					sightedTaskForceTransitions = append(sightedTaskForceTransitions, DetectionTarget{
+						ID:       tfID,
+						Name:     tf.Name,
+						Owner:    tf.Nationality, // Используем Nationality как owner_side
+						Position: tf.Position,
+						Type:     "task_force",
+					})
+				}
+			}
+
+			log.Printf("Shadow phase - found %d sighted units and %d sighted task forces to reset to unknown",
+				len(sightedUnitTransitions), len(sightedTaskForceTransitions))
+
+			// Теперь обновляем GameModel, изменяя видимость на unknown
+			err = pm.gameStateService.UpdateGameModelWithRetry(gameID, func(updateModel *models.GameModel) error {
+				// Обновляем юниты: sighted -> unknown
+				for _, target := range sightedUnitTransitions {
+					if unit, exists := updateModel.Units[target.ID]; exists && unit.Visibility == models.VisibilitySighted {
+						unit.Visibility = models.VisibilityUnknown
+						updateModel.Units[target.ID] = unit
+					}
+				}
+
+				// Обновляем Task Forces: sighted -> unknown
+				for _, target := range sightedTaskForceTransitions {
+					if tf, exists := updateModel.TaskForces[target.ID]; exists && tf.Visibility == models.VisibilitySighted {
+						tf.Visibility = models.VisibilityUnknown
+						updateModel.TaskForces[target.ID] = tf
+					}
+				}
+
+				return nil
+			}, 3)
+
+			if err != nil {
+				log.Printf("Shadow phase - failed to remove remaining sighted in GameModel: %v", err)
+				// Не возвращаем ошибку, продолжаем выполнение
+			} else {
+				log.Printf("Shadow phase - successfully reset %d units and %d task forces from sighted to unknown",
+					len(sightedUnitTransitions), len(sightedTaskForceTransitions))
+			}
 		}
 	}
 
-	// После всех попыток преследования убираем оставшиеся Sighted
-	err := pm.unitService.RemoveRemainingSighted(gameID)
-	if err != nil {
-		log.Printf("Failed to remove remaining sighted: %v", err)
-		// Не возвращаем ошибку, продолжаем выполнение
-	}
-
-	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedTransitions, models.DetectionLevelSighted, models.DetectionLevelNone, "фаза слежения: очистка обнаружения")
+	// Логируем переходы видимости
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedUnitTransitions, models.VisibilitySighted, models.VisibilityUnknown, "фаза слежения: очистка обнаружения")
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedTaskForceTransitions, models.VisibilitySighted, models.VisibilityUnknown, "фаза слежения: очистка обнаружения")
 
 	return nil
 }
@@ -388,7 +555,7 @@ func (h *MovementPhaseHandler) Complete(gameID string, turn int) error {
 
 	var unitFogTransitions []DetectionTarget
 	if pm.unitService != nil && len(fogHexes) > 0 {
-		if targets, err := pm.unitService.ListUnitsByDetectionLevel(gameID, models.DetectionLevelShadowed, fogHexes); err != nil {
+		if targets, err := pm.unitService.ListUnitsByVisibility(gameID, models.VisibilityShadowed, fogHexes); err != nil {
 			log.Printf("Movement phase - failed to collect shadowed units in fog: %v", err)
 		} else {
 			unitFogTransitions = targets
@@ -403,7 +570,7 @@ func (h *MovementPhaseHandler) Complete(gameID string, turn int) error {
 
 	var tfFogTransitions []DetectionTarget
 	if pm.taskForceService != nil && len(fogHexes) > 0 {
-		if targets, err := pm.taskForceService.ListTaskForcesByDetectionLevel(gameID, models.DetectionLevelShadowed, fogHexes); err != nil {
+		if targets, err := pm.taskForceService.ListTaskForcesByDetectionLevel(gameID, "shadowed", fogHexes); err != nil {
 			log.Printf("Movement phase - failed to collect shadowed task forces in fog: %v", err)
 		} else {
 			tfFogTransitions = targets
@@ -416,8 +583,86 @@ func (h *MovementPhaseHandler) Complete(gameID string, turn int) error {
 		}
 	}
 
-	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitFogTransitions, models.DetectionLevelShadowed, models.DetectionLevelNone, "туман: окончание фазы движения")
-	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, tfFogTransitions, models.DetectionLevelShadowed, models.DetectionLevelNone, "туман: окончание фазы движения")
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitFogTransitions, models.VisibilityShadowed, models.VisibilityUnknown, "туман: окончание фазы движения")
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, tfFogTransitions, models.VisibilityShadowed, models.VisibilityUnknown, "туман: окончание фазы движения")
+
+	// Правило 7.8: Перевернуть маркеры "Преследуется" на сторону "Обнаружено"
+	// Все операции выполняются только через GameModel, без работы с БД
+	var unitShadowedToSightedTransitions []DetectionTarget
+	var taskForceShadowedToSightedTransitions []DetectionTarget
+
+	if pm.gameStateService != nil {
+		// Сначала загружаем GameModel, чтобы собрать список юнитов для логирования
+		model, err := pm.gameStateService.LoadGameModel(gameID)
+		if err != nil {
+			log.Printf("Movement phase - failed to load GameModel for shadowed to sighted conversion: %v", err)
+		} else {
+			// Собираем shadowed юниты и Task Forces для логирования (до обновления)
+			for unitID, unit := range model.Units {
+				if unit.Visibility == models.VisibilityShadowed {
+					unitShadowedToSightedTransitions = append(unitShadowedToSightedTransitions, DetectionTarget{
+						ID:       unitID,
+						Name:     unit.Name,
+						Owner:    unit.Nationality, // Используем Nationality как owner_side для определения стороны
+						Position: unit.Position,
+						Type:     "unit",
+					})
+				}
+			}
+
+			for tfID, tf := range model.TaskForces {
+				if tf.Visibility == models.VisibilityShadowed {
+					taskForceShadowedToSightedTransitions = append(taskForceShadowedToSightedTransitions, DetectionTarget{
+						ID:       tfID,
+						Name:     tf.Name,
+						Owner:    tf.Nationality, // Используем Nationality как owner_side
+						Position: tf.Position,
+						Type:     "task_force",
+					})
+				}
+			}
+
+			log.Printf("Movement phase - found %d shadowed units and %d shadowed task forces to convert to sighted",
+				len(unitShadowedToSightedTransitions), len(taskForceShadowedToSightedTransitions))
+			for _, target := range unitShadowedToSightedTransitions {
+				log.Printf("Movement phase - will convert unit %s (%s) from shadowed to sighted", target.ID, target.Name)
+			}
+
+			// Теперь обновляем GameModel, изменяя видимость на sighted
+			err = pm.gameStateService.UpdateGameModelWithRetry(gameID, func(updateModel *models.GameModel) error {
+				// Обновляем юниты
+				for _, target := range unitShadowedToSightedTransitions {
+					if unit, exists := updateModel.Units[target.ID]; exists && unit.Visibility == models.VisibilityShadowed {
+						unit.Visibility = models.VisibilitySighted
+						updateModel.Units[target.ID] = unit
+					}
+				}
+
+				// Обновляем Task Forces
+				for _, target := range taskForceShadowedToSightedTransitions {
+					if tf, exists := updateModel.TaskForces[target.ID]; exists && tf.Visibility == models.VisibilityShadowed {
+						tf.Visibility = models.VisibilitySighted
+						updateModel.TaskForces[target.ID] = tf
+					}
+				}
+
+				return nil
+			}, 3)
+
+			if err != nil {
+				log.Printf("Movement phase - failed to convert shadowed to sighted in GameModel: %v", err)
+				// Не возвращаем ошибку, продолжаем выполнение
+			} else {
+				log.Printf("Movement phase - successfully converted %d units and %d task forces from shadowed to sighted",
+					len(unitShadowedToSightedTransitions), len(taskForceShadowedToSightedTransitions))
+			}
+		}
+	}
+
+	// Логируем переходы видимости
+	log.Printf("Movement phase - logging %d unit transitions and %d task force transitions", len(unitShadowedToSightedTransitions), len(taskForceShadowedToSightedTransitions))
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitShadowedToSightedTransitions, models.VisibilityShadowed, models.VisibilitySighted, "правило 7.8: окончание фазы движения")
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, taskForceShadowedToSightedTransitions, models.VisibilityShadowed, models.VisibilitySighted, "правило 7.8: окончание фазы движения")
 
 	return nil
 }
@@ -471,35 +716,28 @@ func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
 
 	log.Printf("✅ Search phase proceeding normally for game %s", gameID)
 
-	// В начале фазы поиска: Shadowed -> Sighted (очищаем результаты предыдущего поиска)
-	turnNumberForLogging, phaseLabel := getTurnAndPhase(pm, gameID, models.PhaseSearch)
-
-	var unitTransitions []DetectionTarget
-	if pm.unitService != nil {
-		if targets, err := pm.unitService.ListUnitsByDetectionLevel(gameID, models.DetectionLevelShadowed, nil); err != nil {
-			log.Printf("Search phase - failed to collect shadowed units before reset: %v", err)
-		} else {
-			unitTransitions = targets
-		}
-		if err := pm.unitService.ConvertShadowedToSighted(gameID); err != nil {
-			log.Printf("Search phase - failed to convert shadowed units to sighted: %v", err)
-		}
+	// Загружаем GameModel один раз в начале фазы
+	model, err := pm.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		log.Printf("❌ Search phase - failed to load GameModel: %v", err)
+		h.cleanupFlightPathMarkers(pm, gameID)
+		h.scheduleNextPhase(gameID)
+		return nil
 	}
 
-	var taskForceTransitions []DetectionTarget
-	if pm.taskForceService != nil {
-		if targets, err := pm.taskForceService.ListTaskForcesByDetectionLevel(gameID, models.DetectionLevelShadowed, nil); err != nil {
-			log.Printf("Search phase - failed to collect shadowed task forces before reset: %v", err)
-		} else {
-			taskForceTransitions = targets
-		}
-		if err := pm.taskForceService.ConvertShadowedToSighted(gameID); err != nil {
-			log.Printf("Search phase - failed to convert shadowed task forces to sighted: %v", err)
+	// Инициализируем GameModel.Search если нужно
+	if model.Search == nil {
+		model.Search = &models.SearchData{
+			German: make(map[string]models.SearchHexData),
+			Allied: make(map[string]models.SearchHexData),
 		}
 	}
-
-	logDetectionTransitions(pm, gameID, turnNumberForLogging, phaseLabel, unitTransitions, models.DetectionLevelShadowed, models.DetectionLevelSighted, "автосброс: начало фазы поиска")
-	logDetectionTransitions(pm, gameID, turnNumberForLogging, phaseLabel, taskForceTransitions, models.DetectionLevelShadowed, models.DetectionLevelSighted, "автосброс: начало фазы поиска")
+	if model.Search.German == nil {
+		model.Search.German = make(map[string]models.SearchHexData)
+	}
+	if model.Search.Allied == nil {
+		model.Search.Allied = make(map[string]models.SearchHexData)
+	}
 
 	sides := []searchSide{
 		{label: "allied", playerID: ctx.alliedPlayerID, opponentLabel: "german", opponentPlayerID: ctx.germanPlayerID},
@@ -507,7 +745,14 @@ func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
 	}
 
 	for _, side := range sides {
-		h.executeSearchForSide(pm, gameID, ctx.visibilityLevel, ctx.isFog, side)
+		// Перезагружаем модель перед каждым вызовом, чтобы получить актуальные данные
+		// (на случай, если предыдущий вызов обновил видимость)
+		currentModel, err := pm.gameStateService.LoadGameModel(gameID)
+		if err != nil {
+			log.Printf("Search phase - failed to reload GameModel for side %s: %v", side.label, err)
+			continue
+		}
+		h.executeSearchForSide(pm, gameID, currentModel, ctx.visibilityLevel, ctx.isFog, side)
 	}
 
 	log.Printf("🔍 About to call cleanupFlightPathMarkers in Start method")
@@ -586,7 +831,114 @@ func (h *SearchPhaseHandler) getGameSearchContext(pm *PhaseManager, gameID strin
 	return ctx, nil
 }
 
-func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID string, visibilityLevel int, isFog bool, side searchSide) {
+// findEnemyUnitsInHexFromModel ищет вражеские юниты в гексе из GameModel
+func (h *SearchPhaseHandler) findEnemyUnitsInHexFromModel(
+	model *models.GameModel,
+	hexID string,
+	opponentPlayerID string,
+	opponentSide string,
+) []*models.UnitModel {
+	var enemyUnits []*models.UnitModel
+
+	for _, unit := range model.Units {
+		// Проверка позиции
+		if unit.Position != hexID {
+			continue
+		}
+
+		// Проверка категории (только морские юниты)
+		if unit.Category != models.UnitCategoryNaval {
+			continue
+		}
+
+		// Проверка статуса
+		if unit.Status == "sunk" {
+			continue
+		}
+
+		// Проверка владельца/национальности
+		if !h.isEnemyUnit(unit, opponentPlayerID, opponentSide) {
+			continue
+		}
+
+		enemyUnits = append(enemyUnits, unit)
+	}
+
+	return enemyUnits
+}
+
+// findEnemyTaskForcesInHexFromModel ищет вражеские Task Forces в гексе из GameModel
+func (h *SearchPhaseHandler) findEnemyTaskForcesInHexFromModel(
+	model *models.GameModel,
+	hexID string,
+	opponentPlayerID string,
+	opponentSide string,
+) []*models.TaskForceModel {
+	var enemyTaskForces []*models.TaskForceModel
+
+	for _, tf := range model.TaskForces {
+		// Проверка позиции
+		if tf.Position != hexID {
+			continue
+		}
+
+		log.Printf("Search phase - checking TF %s in hex %s: Owner=%s, Nationality=%s, opponentPlayerID=%s, opponentSide=%s",
+			tf.ID, hexID, tf.Owner, tf.Nationality, opponentPlayerID, opponentSide)
+
+		// Проверка владельца/национальности
+		if !h.isEnemyTaskForce(tf, opponentPlayerID, opponentSide) {
+			log.Printf("Search phase - TF %s is not enemy (Owner match: %v, Nationality match: %v)",
+				tf.ID, opponentPlayerID != "" && tf.Owner == opponentPlayerID, opponentSide != "" && tf.Nationality == opponentSide)
+			continue
+		}
+
+		log.Printf("Search phase - TF %s (%s) found as enemy in hex %s", tf.ID, tf.Name, hexID)
+		enemyTaskForces = append(enemyTaskForces, tf)
+	}
+
+	log.Printf("Search phase - found %d enemy TaskForces in hex %s for opponent %s/%s", len(enemyTaskForces), hexID, opponentPlayerID, opponentSide)
+	return enemyTaskForces
+}
+
+// isEnemyUnit проверяет, является ли юнит вражеским
+func (h *SearchPhaseHandler) isEnemyUnit(
+	unit *models.UnitModel,
+	opponentPlayerID string,
+	opponentSide string,
+) bool {
+	// Проверка по PlayerID
+	if opponentPlayerID != "" && unit.Owner == opponentPlayerID {
+		return true
+	}
+
+	// Проверка по стороне (Nationality)
+	if opponentSide != "" && unit.Nationality == opponentSide {
+		return true
+	}
+
+	return false
+}
+
+// isEnemyTaskForce проверяет, является ли Task Force вражеской
+func (h *SearchPhaseHandler) isEnemyTaskForce(
+	tf *models.TaskForceModel,
+	opponentPlayerID string,
+	opponentSide string,
+) bool {
+	// Проверка по PlayerID (Owner)
+	if opponentPlayerID != "" && tf.Owner == opponentPlayerID {
+		return true
+	}
+
+	// Проверка по стороне (Nationality)
+	if opponentSide != "" && tf.Nationality == opponentSide {
+		return true
+	}
+
+	return false
+}
+
+func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID string, model *models.GameModel, visibilityLevel int, isFog bool, side searchSide) {
 	var turnNumber int
 	phaseName := string(models.PhaseSearch)
 	if pm.eventService != nil {
@@ -600,86 +952,124 @@ func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID strin
 		}
 	}
 
-	hexes := h.collectCandidateHexes(pm, gameID, side)
-	if len(hexes) == 0 {
-		log.Printf("Search phase - no candidate hexes for side %s in game %s", side.label, gameID)
-		return
+	// Получить раздел Search для стороны
+	var searchData map[string]models.SearchHexData
+	if side.label == "allied" {
+		if model.Search == nil || model.Search.Allied == nil {
+			log.Printf("Search phase - no Allied search data")
+			return
+		}
+		searchData = model.Search.Allied
+	} else {
+		if model.Search == nil || model.Search.German == nil {
+			log.Printf("Search phase - no German search data")
+			return
+		}
+		searchData = model.Search.German
 	}
 
-	for hex := range hexes {
-		if hex == "" {
-			continue
-		}
-		if isFog && h.isHexFogged(pm, hex) {
-			h.logSearchResult(pm, gameID, turnNumber, phaseName, hex, side.label, models.DetectionLevelNone, nil, nil, nil, false, "пропущен: туман")
-			log.Printf("Search phase - skipping hex %s for side %s due to fog", hex, side.label)
+	// Итерация по гексам из GameModel.Search
+	for hexID, searchHexData := range searchData {
+		if hexID == "" {
 			continue
 		}
 
-		factors, err := pm.searchService.CalculateSearchFactors(gameID, hex, side.label)
-		if err != nil {
-			log.Printf("Search phase - failed to calculate factors for hex %s side %s: %v", hex, side.label, err)
+		// Детальное логирование для J30
+		if hexID == "J30" {
+			log.Printf("Search phase - hex J30 for side %s: Factor=%d, visibilityLevel=%d, Ships=%d, Patrol=%d, AirSearch=%d, Intrinsic=%d",
+				side.label, searchHexData.Factor, visibilityLevel, searchHexData.Ships, searchHexData.Patrol, searchHexData.AirSearch, searchHexData.Intrinsic)
+		}
+
+		// Проверка Factor >= visibilityLevel
+		if searchHexData.Factor < visibilityLevel {
+			log.Printf("Search phase - skipping hex %s: insufficient factors (%d < %d)", hexID, searchHexData.Factor, visibilityLevel)
 			continue
 		}
 
-		if factors < visibilityLevel {
-			log.Printf("Search phase - skipping hex %s for side %s due to insufficient factors (%d < %d)", hex, side.label, factors, visibilityLevel)
+		// Проверка тумана
+		if isFog && h.isHexFogged(pm, hexID) {
+			h.logSearchResult(pm, gameID, turnNumber, phaseName, hexID, side.label, models.VisibilityUnknown, nil, nil, nil, false, "пропущен: туман")
+			log.Printf("Search phase - skipping hex %s for side %s due to fog", hexID, side.label)
 			continue
 		}
 
-		hasFlightMarker, err := h.hexHasFlightPathMarker(pm, gameID, hex, side.label)
-		if err != nil {
-			log.Printf("Search phase - failed to check flight markers in hex %s: %v", hex, err)
+		// Определение Visibility на основе SearchHexData.AirSearch
+		visibility := models.VisibilitySighted
+		if searchHexData.AirSearch > 0 {
+			visibility = models.VisibilityShadowed
 		}
 
-		detectionLevel := models.DetectionLevelSighted
-		if hasFlightMarker {
-			detectionLevel = models.DetectionLevelShadowed
-		}
-
-		enemyUnits, err := h.getEnemyUnitsInHex(pm, gameID, hex, side.opponentPlayerID, side.opponentLabel)
-		if err != nil {
-			log.Printf("Search phase - failed to query enemy units in hex %s: %v", hex, err)
-			continue
-		}
-
-		enemyTaskForces, err := h.getEnemyTaskForcesInHex(pm, gameID, hex, side.opponentPlayerID, side.opponentLabel)
-		if err != nil {
-			log.Printf("Search phase - failed to query enemy task forces in hex %s: %v", hex, err)
-			continue
-		}
+		// Поиск вражеских юнитов ИЗ GAMEMODEL
+		enemyUnits := h.findEnemyUnitsInHexFromModel(model, hexID, side.opponentPlayerID, side.opponentLabel)
+		enemyTaskForces := h.findEnemyTaskForcesInHexFromModel(model, hexID, side.opponentPlayerID, side.opponentLabel)
 
 		if len(enemyUnits) == 0 && len(enemyTaskForces) == 0 {
-			h.logSearchResult(pm, gameID, turnNumber, phaseName, hex, side.label, models.DetectionLevelNone, nil, nil, nil, false, "")
-			log.Printf("Search phase - factors met in hex %s for side %s but no enemy forces detected (possible trail)", hex, side.label)
+			h.logSearchResult(pm, gameID, turnNumber, phaseName, hexID, side.label, models.VisibilityUnknown, nil, nil, nil, false, "")
+			log.Printf("Search phase - factors met in hex %s for side %s but no enemy forces detected (possible trail)", hexID, side.label)
 			continue
 		}
 
+		// Подготовка данных для логирования
 		tfUnitsByID := make(map[string][]models.NavalUnit)
 		tfNameByID := make(map[string]string)
+		var enemyTaskForcesForLog []*models.TaskForce
 		for _, tf := range enemyTaskForces {
 			tfNameByID[tf.ID] = tf.Name
-			if pm.taskForceService != nil {
-				if units, err := pm.taskForceService.GetTaskForceUnits(tf.ID); err == nil {
-					tfUnitsByID[tf.ID] = units
-				} else {
-					log.Printf("Search phase - failed to preload task force units for %s: %v", tf.ID, err)
+			// Преобразуем TaskForceModel в TaskForce для логирования
+			taskForceForLog := models.ConvertTaskForceModelToTaskForce(tf)
+			enemyTaskForcesForLog = append(enemyTaskForcesForLog, taskForceForLog)
+
+			// Получаем юниты для логирования
+			if tf.Units != nil {
+				units := make([]models.NavalUnit, 0)
+				for _, unitID := range tf.Units {
+					if unit, exists := model.Units[unitID]; exists && unit.Category == models.UnitCategoryNaval {
+						// Преобразуем UnitModel в NavalUnit для логирования
+						navalUnit, err := models.ConvertUnitModelToNavalUnit(unit)
+						if err == nil {
+							units = append(units, *navalUnit)
+						}
+					}
 				}
+				tfUnitsByID[tf.ID] = units
 			}
 		}
 
-		h.logSearchResult(pm, gameID, turnNumber, phaseName, hex, side.label, detectionLevel, enemyUnits, tfUnitsByID, tfNameByID, true, "")
-
-		if side.opponentLabel != "" {
-			h.logSearchWarning(pm, gameID, turnNumber, phaseName, hex, side.opponentLabel, detectionLevel, enemyUnits, enemyTaskForces, tfUnitsByID)
+		// Преобразуем UnitModel в NavalUnit для логирования
+		enemyUnitsForLog := make([]*models.NavalUnit, 0, len(enemyUnits))
+		for _, unit := range enemyUnits {
+			navalUnit, err := models.ConvertUnitModelToNavalUnit(unit)
+			if err == nil {
+				enemyUnitsForLog = append(enemyUnitsForLog, navalUnit)
+			}
 		}
 
-		h.applyDetectionToUnits(pm, gameID, hex, side.playerID, side.label, detectionLevel, enemyUnits)
-		h.applyDetectionToTaskForces(pm, gameID, hex, side.playerID, side.label, detectionLevel, enemyTaskForces)
+		h.logSearchResult(pm, gameID, turnNumber, phaseName, hexID, side.label, visibility, enemyUnitsForLog, tfUnitsByID, tfNameByID, true, "")
+
+		if side.opponentLabel != "" {
+			h.logSearchWarning(pm, gameID, turnNumber, phaseName, hexID, side.opponentLabel, visibility, enemyUnitsForLog, enemyTaskForcesForLog, tfUnitsByID)
+		}
+
+		// Применить Visibility ЧЕРЕЗ GAMEMODEL
+		unitIDs := make([]string, 0, len(enemyUnits))
+		for _, unit := range enemyUnits {
+			unitIDs = append(unitIDs, unit.ID)
+		}
+		if err := h.applyVisibilityToUnitsInModel(pm, gameID, hexID, side.playerID, side.label, visibility, unitIDs); err != nil {
+			log.Printf("Search phase - failed to apply visibility to units in hex %s: %v", hexID, err)
+		}
+
+		tfIDs := make([]string, 0, len(enemyTaskForces))
+		for _, tf := range enemyTaskForces {
+			tfIDs = append(tfIDs, tf.ID)
+		}
+		if err := h.applyVisibilityToTaskForcesInModel(pm, gameID, hexID, side.playerID, side.label, visibility, tfIDs); err != nil {
+			log.Printf("Search phase - failed to apply visibility to task forces in hex %s: %v", hexID, err)
+		}
 	}
 }
 
-func (h *SearchPhaseHandler) logSearchResult(pm *PhaseManager, gameID string, turnNumber int, phaseName, hexID, searchingSide string, detectionLevel models.DetectionLevel, enemyUnits []*models.NavalUnit, tfUnits map[string][]models.NavalUnit, tfNameByID map[string]string, hasContact bool, status string) {
+func (h *SearchPhaseHandler) logSearchResult(pm *PhaseManager, gameID string, turnNumber int, phaseName, hexID, searchingSide string, visibility models.UnitVisibility, enemyUnits []*models.NavalUnit, tfUnits map[string][]models.NavalUnit, tfNameByID map[string]string, hasContact bool, status string) {
 	if pm == nil || pm.eventService == nil {
 		return
 	}
@@ -694,9 +1084,9 @@ func (h *SearchPhaseHandler) logSearchResult(pm *PhaseManager, gameID string, tu
 		shipCount = len(allUnits)
 		classSummary = classes
 		taskForceNames = tfNames
-		detectionText := string(detectionLevel)
+		detectionText := string(visibility)
 		if detectionText == "" {
-			detectionText = string(models.DetectionLevelSighted)
+			detectionText = string(models.VisibilitySighted)
 		}
 		description = fmt.Sprintf("Searсh «hex %s: обнаружено %d %s (%s). Task force: %s. Detection=%s».",
 			hexID,
@@ -710,12 +1100,12 @@ func (h *SearchPhaseHandler) logSearchResult(pm *PhaseManager, gameID string, tu
 		description = fmt.Sprintf("Searсh «hex %s: нет контакта (%s)»", hexID, status)
 	}
 
-	if err := pm.eventService.LogSearchResultEvent(gameID, turnNumber, phaseName, hexID, searchingSide, description, detectionLevel, shipCount, classSummary, taskForceNames, hasContact, status); err != nil {
+	if err := pm.eventService.LogSearchResultEvent(gameID, turnNumber, phaseName, hexID, searchingSide, description, visibility, shipCount, classSummary, taskForceNames, hasContact, status); err != nil {
 		log.Printf("Search phase - failed to log search result for hex %s: %v", hexID, err)
 	}
 }
 
-func (h *SearchPhaseHandler) logSearchWarning(pm *PhaseManager, gameID string, turnNumber int, phaseName, hexID, ownerSide string, detectionLevel models.DetectionLevel, enemyUnits []*models.NavalUnit, enemyTaskForces []*models.TaskForce, tfUnits map[string][]models.NavalUnit) {
+func (h *SearchPhaseHandler) logSearchWarning(pm *PhaseManager, gameID string, turnNumber int, phaseName, hexID, ownerSide string, visibility models.UnitVisibility, enemyUnits []*models.NavalUnit, enemyTaskForces []*models.TaskForce, tfUnits map[string][]models.NavalUnit) {
 	if pm == nil || pm.eventService == nil {
 		return
 	}
@@ -767,10 +1157,10 @@ func (h *SearchPhaseHandler) logSearchWarning(pm *PhaseManager, gameID string, t
 	description := fmt.Sprintf("Search warning «hex %s: противник обнаружил %s. Detection=%s».",
 		hexID,
 		strings.Join(bodyParts, "; "),
-		detectionLevel,
+		visibility,
 	)
 
-	if err := pm.eventService.LogSearchWarningEvent(gameID, turnNumber, phaseName, hexID, ownerSide, description, detectionLevel, shipNames, tfDescriptions); err != nil {
+	if err := pm.eventService.LogSearchWarningEvent(gameID, turnNumber, phaseName, hexID, ownerSide, description, visibility, shipNames, tfDescriptions); err != nil {
 		log.Printf("Search phase - failed to log search warning for hex %s: %v", hexID, err)
 	}
 }
@@ -798,35 +1188,15 @@ func getTurnAndPhase(pm *PhaseManager, gameID string, defaultPhase models.GamePh
 	return current.TurnNumber, phaseName
 }
 
-func logDetectionTransitions(pm *PhaseManager, gameID string, turn int, phaseName string, targets []DetectionTarget, fromLevel, toLevel models.DetectionLevel, reason string) {
+func logDetectionTransitions(pm *PhaseManager, gameID string, turn int, phaseName string, targets []DetectionTarget, fromLevel, toLevel models.UnitVisibility, reason string) {
 	if pm == nil || pm.eventService == nil || len(targets) == 0 {
 		return
-	}
-
-	levelToVisibility := func(level models.DetectionLevel) models.UnitVisibility {
-		switch level {
-		case models.DetectionLevelShadowed:
-			return models.VisibilityShadowed
-		case models.DetectionLevelSighted:
-			return models.VisibilitySighted
-		default:
-			return models.VisibilityUnknown
-		}
 	}
 
 	for _, target := range targets {
 		viewerSide := opponentSide(target.Owner)
 		if viewerSide == "" {
 			continue
-		}
-
-		var viewerID string
-		if pm.visibilityService != nil {
-			if id, err := pm.getPlayerIDForSide(gameID, viewerSide); err == nil {
-				viewerID = id
-			} else {
-				log.Printf("Detection logging - failed to resolve viewer id for side %s: %v", viewerSide, err)
-			}
 		}
 
 		if err := pm.eventService.LogDetectionTransitionEvent(gameID, turn, phaseName, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason, viewerSide); err != nil {
@@ -853,25 +1223,6 @@ func logDetectionTransitions(pm *PhaseManager, gameID string, turn int, phaseNam
 
 		if err := pm.eventService.LogDetectionWarningEvent(gameID, turn, phaseName, target.Owner, target.Type, target.ID, target.Name, fromLevel, toLevel, target.Position, reason, shipNames); err != nil {
 			log.Printf("Detection logging - failed to log warning for %s %s: %v", target.Type, target.ID, err)
-		}
-
-		if pm.visibilityService == nil || viewerID == "" {
-			continue
-		}
-
-		switch toLevel {
-		case models.DetectionLevelShadowed:
-			if err := pm.visibilityService.SetUnitShadowed(gameID, target.ID, viewerID, target.Position); err != nil {
-				log.Printf("Detection logging - failed to set shadowed visibility for unit %s: %v", target.ID, err)
-			}
-		case models.DetectionLevelSighted:
-			if err := pm.visibilityService.SetUnitSighted(gameID, target.ID, viewerID, target.Position); err != nil {
-				log.Printf("Detection logging - failed to set sighted visibility for unit %s: %v", target.ID, err)
-			}
-		default:
-			if err := pm.visibilityService.UpdateUnitVisibility(gameID, target.ID, viewerID, levelToVisibility(toLevel)); err != nil {
-				log.Printf("Detection logging - failed to update visibility for unit %s: %v", target.ID, err)
-			}
 		}
 	}
 }
@@ -1051,7 +1402,7 @@ func (h *SearchPhaseHandler) getEnemyUnitsInHex(pm *PhaseManager, gameID, hexID,
 
 	var units []*models.NavalUnit
 	for rows.Next() {
-		unit, err := ScanNavalUnitFromRow(rows, true, false, false)
+		unit, err := ScanNavalUnitFromRow(rows, true, false)
 		if err != nil {
 			log.Printf("Search phase - failed to scan naval unit in hex %s: %v", hexID, err)
 			continue
@@ -1108,24 +1459,169 @@ func (h *SearchPhaseHandler) ownerMatches(owner, opponentPlayerID, opponentSide 
 	return strings.EqualFold(owner, opponentSide)
 }
 
-func (h *SearchPhaseHandler) applyDetectionToUnits(pm *PhaseManager, gameID, hexID, playerID, sideLabel string, level models.DetectionLevel, units []*models.NavalUnit) {
+// applyVisibilityToUnitsInModel обновляет Visibility для юнитов через GameModel
+// ВАЖНО: Видимость должна быть единой для всех игроков, поэтому используем максимальное значение
+// Порядок приоритета: shadowed > sighted > unknown
+func (h *SearchPhaseHandler) applyVisibilityToUnitsInModel(
+	pm *PhaseManager,
+	gameID string,
+	hexID string,
+	playerID string,
+	sideLabel string,
+	newVisibility models.UnitVisibility,
+	unitIDs []string,
+) error {
+	if pm.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required")
+	}
+
+	// Обновляем через GameModel
+	err := pm.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		// Обновляем Visibility для каждого юнита
+		for _, unitID := range unitIDs {
+			unit, exists := model.Units[unitID]
+			if !exists {
+				log.Printf("Search phase - unit %s not found in GameModel", unitID)
+				continue
+			}
+
+			// Проверяем, что это морской юнит
+			if unit.Category != models.UnitCategoryNaval || unit.NavalData == nil {
+				continue
+			}
+
+			// Определяем максимальную видимость (shadowed > sighted > unknown)
+			oldVisibility := unit.Visibility
+			finalVisibility := h.maxVisibility(oldVisibility, newVisibility)
+			unit.Visibility = finalVisibility
+
+			// Логируем переход только если видимость изменилась
+			if oldVisibility != finalVisibility {
+				log.Printf("Detection «unit %s: status %s → %s (hex %s, side %s, proposed %s)»",
+					unit.Name, oldVisibility, finalVisibility, hexID, sideLabel, newVisibility)
+			}
+		}
+
+		return nil
+	}, 3)
+
+	if err != nil {
+		return fmt.Errorf("failed to update units visibility: %w", err)
+	}
+
+	return nil
+}
+
+// maxVisibility возвращает максимальную видимость из двух (shadowed > sighted > unknown)
+func (h *SearchPhaseHandler) maxVisibility(v1, v2 models.UnitVisibility) models.UnitVisibility {
+	// Приоритет: shadowed > sighted > unknown
+	if v1 == models.VisibilityShadowed || v2 == models.VisibilityShadowed {
+		return models.VisibilityShadowed
+	}
+	if v1 == models.VisibilitySighted || v2 == models.VisibilitySighted {
+		return models.VisibilitySighted
+	}
+	return models.VisibilityUnknown
+}
+
+// applyVisibilityToTaskForcesInModel обновляет Visibility для Task Forces через GameModel
+// ВАЖНО: Видимость должна быть единой для всех игроков, поэтому используем максимальное значение
+func (h *SearchPhaseHandler) applyVisibilityToTaskForcesInModel(
+	pm *PhaseManager,
+	gameID string,
+	hexID string,
+	playerID string,
+	sideLabel string,
+	newVisibility models.UnitVisibility,
+	tfIDs []string,
+) error {
+	if pm.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required")
+	}
+
+	// Обновляем через GameModel
+	err := pm.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		// Обновляем Visibility для каждой ТФ
+		for _, tfID := range tfIDs {
+			tf, exists := model.TaskForces[tfID]
+			if !exists {
+				log.Printf("Search phase - task force %s not found in GameModel", tfID)
+				continue
+			}
+
+			// Определяем максимальную видимость
+			oldVisibility := tf.Visibility
+			finalVisibility := h.maxVisibility(oldVisibility, newVisibility)
+			tf.Visibility = finalVisibility
+
+			// Логируем переход только если видимость изменилась
+			if oldVisibility != finalVisibility {
+				log.Printf("Detection «TF %s: status %s → %s (hex %s, side %s, proposed %s)»",
+					tf.Name, oldVisibility, finalVisibility, hexID, sideLabel, newVisibility)
+			}
+
+			// Обновляем Visibility для всех кораблей в ТФ (используем ту же максимальную видимость)
+			for _, unitID := range tf.Units {
+				unit, exists := model.Units[unitID]
+				if !exists {
+					continue
+				}
+
+				if unit.Category != models.UnitCategoryNaval || unit.NavalData == nil {
+					continue
+				}
+
+				oldUnitVisibility := unit.Visibility
+				unitFinalVisibility := h.maxVisibility(oldUnitVisibility, finalVisibility)
+				unit.Visibility = unitFinalVisibility
+
+				if oldUnitVisibility != unitFinalVisibility {
+					log.Printf("Detection «unit %s (in TF %s): status %s → %s (hex %s)»",
+						unit.Name, tf.Name, oldUnitVisibility, unitFinalVisibility, hexID)
+				}
+			}
+		}
+
+		return nil
+	}, 3)
+
+	if err != nil {
+		return fmt.Errorf("failed to update task forces visibility: %w", err)
+	}
+
+	return nil
+}
+
+func (h *SearchPhaseHandler) applyDetectionToUnits(pm *PhaseManager, gameID, hexID, playerID, sideLabel string, visibility models.UnitVisibility, units []*models.NavalUnit) {
 	for _, unit := range units {
-		if err := pm.unitService.UpdateUnitDetectionLevel(unit.ID, level); err != nil {
-			log.Printf("Search phase - failed to update detection for unit %s: %v", unit.ID, err)
+		if err := pm.unitService.UpdateUnitVisibility(unit.ID, visibility); err != nil {
+			log.Printf("Search phase - failed to update visibility for unit %s: %v", unit.ID, err)
 			continue
 		}
-		log.Printf("Search phase - %s side detected unit %s at %s as %s", sideLabel, unit.ID, hexID, level)
-		h.updateUnitVisibility(pm, gameID, playerID, unit.ID, hexID, level)
+		log.Printf("Search phase - %s side detected unit %s at %s as %s", sideLabel, unit.ID, hexID, visibility)
 	}
 }
 
-func (h *SearchPhaseHandler) applyDetectionToTaskForces(pm *PhaseManager, gameID, hexID, playerID, sideLabel string, level models.DetectionLevel, taskForces []*models.TaskForce) {
+func (h *SearchPhaseHandler) applyDetectionToTaskForces(pm *PhaseManager, gameID, hexID, playerID, sideLabel string, visibility models.UnitVisibility, taskForces []*models.TaskForce) {
+	// Конвертируем UnitVisibility в строку для обратной совместимости с TaskForceService
+	var detectionLevel string
+	switch visibility {
+	case models.VisibilitySighted:
+		detectionLevel = "sighted"
+	case models.VisibilityShadowed:
+		detectionLevel = "shadowed"
+	default:
+		detectionLevel = "none"
+	}
+
 	for _, tf := range taskForces {
-		if err := pm.taskForceService.UpdateTaskForceDetectionLevel(tf.ID, level); err != nil {
-			log.Printf("Search phase - failed to update detection for task force %s: %v", tf.ID, err)
+		// ВНИМАНИЕ: TaskForceService все еще использует старый метод с строкой
+		// TODO: Обновить TaskForceService для использования UnitVisibility
+		if err := pm.taskForceService.UpdateTaskForceDetectionLevel(tf.ID, detectionLevel); err != nil {
+			log.Printf("Search phase - failed to update visibility for task force %s: %v", tf.ID, err)
 			continue
 		}
-		log.Printf("Search phase - %s side detected task force %s at %s as %s", sideLabel, tf.ID, tf.Position, level)
+		log.Printf("Search phase - %s side detected task force %s at %s as %s", sideLabel, tf.ID, tf.Position, visibility)
 
 		units, err := pm.taskForceService.GetTaskForceUnits(tf.ID)
 		if err != nil {
@@ -1134,29 +1630,10 @@ func (h *SearchPhaseHandler) applyDetectionToTaskForces(pm *PhaseManager, gameID
 		}
 
 		for _, unit := range units {
-			if err := pm.unitService.UpdateUnitDetectionLevel(unit.ID, level); err != nil {
-				log.Printf("Search phase - failed to update detection for unit %s in task force %s: %v", unit.ID, tf.ID, err)
+			if err := pm.unitService.UpdateUnitVisibility(unit.ID, visibility); err != nil {
+				log.Printf("Search phase - failed to update visibility for unit %s in task force %s: %v", unit.ID, tf.ID, err)
 			}
-			h.updateUnitVisibility(pm, gameID, playerID, unit.ID, hexID, level)
 		}
-	}
-}
-
-func (h *SearchPhaseHandler) updateUnitVisibility(pm *PhaseManager, gameID, playerID, unitID, hexID string, level models.DetectionLevel) {
-	if pm.visibilityService == nil || playerID == "" {
-		return
-	}
-
-	var err error
-	if level == models.DetectionLevelShadowed {
-		err = pm.visibilityService.SetUnitShadowed(gameID, unitID, playerID, hexID)
-	} else {
-		err = pm.visibilityService.SetUnitSighted(gameID, unitID, playerID, hexID)
-	}
-	if err != nil {
-		log.Printf("Search phase - failed to update visibility for unit %s: %v", unitID, err)
-	} else {
-		log.Printf("Search phase - recorded visibility %s for unit %s towards player %s", level, unitID, playerID)
 	}
 }
 

@@ -70,6 +70,7 @@ type UnitModel struct {
 	Nationality string       `json:"nationality"`
 	Position    string       `json:"position"`
 	Status      string       `json:"status"` // UnitStatus для naval, AirUnitStatus для air
+	Visibility  UnitVisibility `json:"visibility"` // Уровень видимости юнита
 
 	// Поля для морских юнитов
 	NavalData *NavalUnitData `json:"naval_data,omitempty"`
@@ -101,7 +102,6 @@ type NavalUnitData struct {
 	Torpedoes                int            `json:"torpedoes"`
 	MaxTorpedoes             int            `json:"max_torpedoes"`
 	RadarLevel               int            `json:"radar_level"`
-	DetectionLevel           DetectionLevel `json:"detection_level"`
 	LastKnownPos             *string        `json:"last_known_pos"`
 	TaskForceID              *string        `json:"task_force_id"`
 	Damage                   []Damage       `json:"damage"`
@@ -125,27 +125,27 @@ type AirUnitData struct {
 
 // TaskForceModel представляет модель Task Force
 type TaskForceModel struct {
-	ID             string    `json:"id"`
-	GameID         string    `json:"game_id"`
-	Name           string    `json:"name"`
-	Owner          string    `json:"owner"`
-	Nationality    string    `json:"nationality"`
-	Position       string    `json:"position"`
-	Speed          int       `json:"speed"`
-	Units          []string  `json:"units"` // IDs юнитов
-	IsVisible      bool      `json:"is_visible"`
-	DetectionLevel string    `json:"detection_level"`
-	LastMoveTurn   int       `json:"last_move_turn"`
-	IsActivated    bool      `json:"is_activated"`
-	IsPatrolling   bool      `json:"is_patrolling"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             string         `json:"id"`
+	GameID         string         `json:"game_id"`
+	Name           string         `json:"name"`
+	Owner          string         `json:"owner"`
+	Nationality    string         `json:"nationality"`
+	Position       string         `json:"position"`
+	Speed          int            `json:"speed"`
+	Units          []string       `json:"units"` // IDs юнитов
+	IsVisible      bool           `json:"is_visible"`
+	Visibility     UnitVisibility `json:"visibility"`
+	LastMoveTurn   int            `json:"last_move_turn"`
+	IsActivated    bool           `json:"is_activated"`
+	IsPatrolling   bool           `json:"is_patrolling"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 }
 
 // EnemyContactModel представляет контакт противника
 type EnemyContactModel struct {
 	HexID            string         `json:"hex_id"`
-	DetectionLevel   DetectionLevel `json:"detection_level"`
+	Visibility       UnitVisibility `json:"visibility"`
 	ShipCount        int            `json:"ship_count"`
 	ClassSummary     string         `json:"class_summary"`
 	TaskForce        string         `json:"task_force"`
@@ -193,6 +193,7 @@ type GameEventModel struct {
 }
 
 // ConvertNavalUnitToUnitModel конвертирует NavalUnit в UnitModel
+// ВНИМАНИЕ: Видимость всегда устанавливается в VisibilityUnknown, так как видимость должна браться из GameModel
 func ConvertNavalUnitToUnitModel(unit *NavalUnit) *UnitModel {
 	return &UnitModel{
 		ID:          unit.ID,
@@ -204,6 +205,7 @@ func ConvertNavalUnitToUnitModel(unit *NavalUnit) *UnitModel {
 		Nationality: unit.Nationality,
 		Position:    unit.Position,
 		Status:      string(unit.Status),
+		Visibility:  VisibilityUnknown, // Видимость должна браться из GameModel, при конвертации из БД всегда unknown
 		NavalData: &NavalUnitData{
 			Class:                    unit.Class,
 			SetupHex:                 unit.SetupHex,
@@ -223,7 +225,6 @@ func ConvertNavalUnitToUnitModel(unit *NavalUnit) *UnitModel {
 			Torpedoes:                unit.Torpedoes,
 			MaxTorpedoes:             unit.MaxTorpedoes,
 			RadarLevel:               unit.RadarLevel,
-			DetectionLevel:           unit.DetectionLevel,
 			LastKnownPos:             unit.LastKnownPos,
 			TaskForceID:              unit.TaskForceID,
 			Damage:                   unit.Damage,
@@ -253,6 +254,7 @@ func ConvertAirUnitToUnitModel(unit *AirUnit) *UnitModel {
 		Nationality: "", // AirUnit не имеет nationality
 		Position:    unit.Position,
 		Status:      string(unit.Status),
+		Visibility:  VisibilityUnknown, // Воздушные юниты всегда unknown
 		AirData: &AirUnitData{
 			BasePosition:          unit.BasePosition,
 			MaxSpeed:              unit.MaxSpeed,
@@ -267,21 +269,21 @@ func ConvertAirUnitToUnitModel(unit *AirUnit) *UnitModel {
 // ConvertTaskForceToTaskForceModel конвертирует TaskForce в TaskForceModel
 func ConvertTaskForceToTaskForceModel(tf *TaskForce) *TaskForceModel {
 	return &TaskForceModel{
-		ID:             tf.ID,
-		GameID:         tf.GameID,
-		Name:           tf.Name,
-		Owner:          tf.Owner,
-		Nationality:    tf.Nationality,
-		Position:       tf.Position,
-		Speed:          tf.Speed,
-		Units:          tf.Units,
-		IsVisible:      tf.IsVisible,
-		DetectionLevel: tf.DetectionLevel,
-		LastMoveTurn:   tf.LastMoveTurn,
-		IsActivated:    tf.IsActivated,
-		IsPatrolling:   tf.IsPatrolling,
-		CreatedAt:      tf.CreatedAt,
-		UpdatedAt:      tf.UpdatedAt,
+		ID:          tf.ID,
+		GameID:      tf.GameID,
+		Name:        tf.Name,
+		Owner:       tf.Owner,
+		Nationality: tf.Nationality,
+		Position:    tf.Position,
+		Speed:       tf.Speed,
+		Units:       tf.Units,
+		IsVisible:   tf.IsVisible,
+		Visibility:  tf.Visibility,
+		LastMoveTurn: tf.LastMoveTurn,
+		IsActivated:  tf.IsActivated,
+		IsPatrolling: tf.IsPatrolling,
+		CreatedAt:    tf.CreatedAt,
+		UpdatedAt:    tf.UpdatedAt,
 	}
 }
 
@@ -289,7 +291,7 @@ func ConvertTaskForceToTaskForceModel(tf *TaskForce) *TaskForceModel {
 func ConvertEnemyContactToEnemyContactModel(contact *EnemyContact) *EnemyContactModel {
 	return &EnemyContactModel{
 		HexID:            contact.HexID,
-		DetectionLevel:   contact.DetectionLevel,
+		Visibility:       contact.Visibility,
 		ShipCount:        contact.ShipCount,
 		ClassSummary:     contact.ClassSummary,
 		TaskForce:        contact.TaskForce,
@@ -337,10 +339,9 @@ func ConvertUnitModelToNavalUnit(unitModel *UnitModel) (*NavalUnit, error) {
 		BaseSecondaryArmament:    unitModel.NavalData.BaseSecondaryArmament,
 		Torpedoes:                unitModel.NavalData.Torpedoes,
 		MaxTorpedoes:             unitModel.NavalData.MaxTorpedoes,
-		RadarLevel:               unitModel.NavalData.RadarLevel,
-		Status:                   UnitStatus(unitModel.Status),
-		DetectionLevel:           unitModel.NavalData.DetectionLevel,
-		LastKnownPos:             unitModel.NavalData.LastKnownPos,
+		RadarLevel:   unitModel.NavalData.RadarLevel,
+		Status:       UnitStatus(unitModel.Status),
+		LastKnownPos: unitModel.NavalData.LastKnownPos,
 		TaskForceID:              unitModel.NavalData.TaskForceID,
 		Damage:                   unitModel.NavalData.Damage,
 		PreviousTurnMovedHexes:   unitModel.NavalData.PreviousTurnMovedHexes,
@@ -393,6 +394,27 @@ func ConvertUnitModelToAirUnit(unitModel *UnitModel) (*AirUnit, error) {
 	}
 
 	return airUnit, nil
+}
+
+// ConvertTaskForceModelToTaskForce конвертирует TaskForceModel в TaskForce
+func ConvertTaskForceModelToTaskForce(tfModel *TaskForceModel) *TaskForce {
+	return &TaskForce{
+		ID:           tfModel.ID,
+		GameID:       tfModel.GameID,
+		Name:         tfModel.Name,
+		Owner:        tfModel.Owner,
+		Nationality:  tfModel.Nationality,
+		Position:     tfModel.Position,
+		Speed:        tfModel.Speed,
+		Units:        tfModel.Units,
+		IsVisible:    tfModel.IsVisible,
+		Visibility:   tfModel.Visibility,
+		LastMoveTurn: tfModel.LastMoveTurn,
+		IsActivated:  tfModel.IsActivated,
+		IsPatrolling: tfModel.IsPatrolling,
+		CreatedAt:    tfModel.CreatedAt,
+		UpdatedAt:    tfModel.UpdatedAt,
+	}
 }
 
 // ConvertGameEventToGameEventModel конвертирует GameEvent в GameEventModel

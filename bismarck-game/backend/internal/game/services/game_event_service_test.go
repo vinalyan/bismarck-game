@@ -35,7 +35,7 @@ func TestLogMovementEvent(t *testing.T) {
 	testUnitID := "550e8400-e29b-41d4-a716-446655440002"
 
 	// Create test game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
 	service := testServices.EventService
@@ -59,7 +59,7 @@ func TestLogPhaseChangeEvent(t *testing.T) {
 	testGameID := "550e8400-e29b-41d4-a716-446655440001"
 
 	// Create test game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
 	service := testServices.EventService
@@ -81,7 +81,7 @@ func TestLogTurnChangeEvent(t *testing.T) {
 	defer cleanup()
 
 	testGameID := "550e8400-e29b-41d4-a716-446655440001"
-	
+
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -109,7 +109,7 @@ func TestGetGameEvents(t *testing.T) {
 	testUnitID2 := "550e8400-e29b-41d4-a716-446655440003"
 
 	// Create test game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
 	service := testServices.EventService
@@ -180,9 +180,16 @@ func TestSaveEvent(t *testing.T) {
 	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	service := NewGameEventService(db, logger)
+	defer cleanup()
+
+	service := testServices.EventService
+	db = testServices.DB
+
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(db, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
+	require.NoError(t, err)
 
 	t.Run("successful save", func(t *testing.T) {
 		event := &models.GameEvent{
@@ -213,12 +220,13 @@ func TestSaveEvent(t *testing.T) {
 }
 
 func TestGetGameEventsWithPagination(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	testGameID1 := "550e8400-e29b-41d4-a716-446655440001"
 	testGameID2 := "550e8400-e29b-41d4-a716-446655440004"
+	db := testServices.DB
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM game_events WHERE game_id = $1 OR game_id = $2", testGameID1, testGameID2)
@@ -230,9 +238,13 @@ func TestGetGameEventsWithPagination(t *testing.T) {
 	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game 1', 'active'), ($2, 'Test Game 2', 'active')", testGameID1, testGameID2)
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
+	// Create GameModel for test games
+	_, err = CreateTestGameModel(db, testServices.GameStateService, testGameID1, 1, models.PhaseMovement)
 	require.NoError(t, err)
-	service := NewGameEventService(db, logger)
+	_, err = CreateTestGameModel(db, testServices.GameStateService, testGameID2, 1, models.PhaseMovement)
+	require.NoError(t, err)
+
+	service := testServices.EventService
 
 	// Create multiple test events
 	for i := 0; i < 5; i++ {
