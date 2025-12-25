@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupViewModelService(t *testing.T) (*ViewModelService, *GameStateService, *VisibilityService, *GameService, func()) {
+func setupViewModelService(t *testing.T) (*ViewModelService, *GameStateService, *GameService, func()) {
 	db, err := testutil.SetupTestDatabase()
 	require.NoError(t, err)
 
@@ -47,11 +47,8 @@ func setupViewModelService(t *testing.T) (*ViewModelService, *GameStateService, 
 		gameService,
 	)
 
-	visibilityService := NewVisibilityService(db, testLogger)
-
 	viewModelService := NewViewModelService(
 		gameStateService,
-		visibilityService,
 		gameService,
 		testLogger,
 	)
@@ -62,11 +59,11 @@ func setupViewModelService(t *testing.T) (*ViewModelService, *GameStateService, 
 		db.Close()
 	}
 
-	return viewModelService, gameStateService, visibilityService, gameService, cleanup
+	return viewModelService, gameStateService, gameService, cleanup
 }
 
 func TestViewModelService_FilterOwnUnits(t *testing.T) {
-	viewModelService, gameStateService, _, _, cleanup := setupViewModelService(t)
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
 	defer cleanup()
 
 	gameID := uuid.New().String()
@@ -107,19 +104,19 @@ func TestViewModelService_FilterOwnUnits(t *testing.T) {
 				Position:    "A1",
 				Status:      "active",
 				NavalData: &models.NavalUnitData{
-					Fuel:       100,
+					Fuel:        100,
 					CurrentHull: 8,
 				},
 			},
 		},
-		TaskForces:      make(map[string]*models.TaskForceModel),
-		EnemyContacts:   []*models.EnemyContactModel{},
-		Search:          &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
-		Events:          []*models.GameEventModel{},
+		TaskForces:           make(map[string]*models.TaskForceModel),
+		EnemyContacts:        []*models.EnemyContactModel{},
+		Search:               &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Events:               []*models.GameEventModel{},
 		IntrinsicSearchHexes: make(map[string]int),
-		VisibilityLevel: 1,
-		IsFog:           false,
-		WeatherTrack:    0,
+		VisibilityLevel:      1,
+		IsFog:                false,
+		WeatherTrack:         0,
 	}
 
 	err = gameStateService.UpdateGameModel(gameID, gameModel)
@@ -141,7 +138,7 @@ func TestViewModelService_FilterOwnUnits(t *testing.T) {
 }
 
 func TestViewModelService_FilterEnemyUnitsSighted(t *testing.T) {
-	viewModelService, gameStateService, visibilityService, _, cleanup := setupViewModelService(t)
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
 	defer cleanup()
 
 	gameID := uuid.New().String()
@@ -181,26 +178,24 @@ func TestViewModelService_FilterEnemyUnitsSighted(t *testing.T) {
 				Position:    "B2",
 				Status:      "active",
 				NavalData: &models.NavalUnitData{
-					Fuel:       80,
+					Fuel:        80,
 					CurrentHull: 6,
 				},
 			},
 		},
-		TaskForces:      make(map[string]*models.TaskForceModel),
-		EnemyContacts:   []*models.EnemyContactModel{},
-		Search:          &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
-		Events:          []*models.GameEventModel{},
+		TaskForces:           make(map[string]*models.TaskForceModel),
+		EnemyContacts:        []*models.EnemyContactModel{},
+		Search:               &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Events:               []*models.GameEventModel{},
 		IntrinsicSearchHexes: make(map[string]int),
-		VisibilityLevel: 1,
-		IsFog:           false,
-		WeatherTrack:    0,
+		VisibilityLevel:      1,
+		IsFog:                false,
+		WeatherTrack:         0,
 	}
 
+	// Set visibility as sighted directly in GameModel
+	gameModel.Units["enemy_unit"].Visibility = models.VisibilitySighted
 	err = gameStateService.UpdateGameModel(gameID, gameModel)
-	require.NoError(t, err)
-
-	// Set visibility as sighted
-	err = visibilityService.SetUnitSighted(gameID, "enemy_unit", player1ID, "B2")
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -214,12 +209,12 @@ func TestViewModelService_FilterEnemyUnitsSighted(t *testing.T) {
 	assert.Equal(t, models.UnitTypeBattlecruiser, unit.Type)
 	assert.Equal(t, models.VisibilitySighted, unit.Visibility)
 	assert.True(t, unit.IsVisible)
-	assert.Empty(t, unit.Name) // Name should not be visible
+	assert.Empty(t, unit.Name)    // Name should not be visible
 	assert.Nil(t, unit.NavalData) // NavalData should not be visible
 }
 
 func TestViewModelService_FilterEnemyUnitsUnknown(t *testing.T) {
-	viewModelService, gameStateService, visibilityService, _, cleanup := setupViewModelService(t)
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
 	defer cleanup()
 
 	gameID := uuid.New().String()
@@ -260,27 +255,23 @@ func TestViewModelService_FilterEnemyUnitsUnknown(t *testing.T) {
 				Status:      "active",
 			},
 		},
-		TaskForces:      make(map[string]*models.TaskForceModel),
-		EnemyContacts:   []*models.EnemyContactModel{},
-		Search:          &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
-		Events:          []*models.GameEventModel{},
+		TaskForces:           make(map[string]*models.TaskForceModel),
+		EnemyContacts:        []*models.EnemyContactModel{},
+		Search:               &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Events:               []*models.GameEventModel{},
 		IntrinsicSearchHexes: make(map[string]int),
-		VisibilityLevel: 1,
-		IsFog:           false,
-		WeatherTrack:    0,
+		VisibilityLevel:      1,
+		IsFog:                false,
+		WeatherTrack:         0,
 	}
 
+	// Set last known position and visibility as unknown in GameModel
+	lastKnownPos := "A1"
+	gameModel.Units["enemy_unit"].Visibility = models.VisibilityUnknown
+	gameModel.Units["enemy_unit"].NavalData = &models.NavalUnitData{
+		LastKnownPos: &lastKnownPos,
+	}
 	err = gameStateService.UpdateGameModel(gameID, gameModel)
-	require.NoError(t, err)
-
-	// Set last known position but keep visibility as unknown
-	err = visibilityService.UpdateUnitVisibility(gameID, "enemy_unit", player1ID, models.VisibilityUnknown)
-	require.NoError(t, err)
-
-	// Manually set last known hex
-	_, err = gameStateService.db.GetConnection().Exec(`
-		UPDATE unit_visibility SET last_known_hex = $1 WHERE game_id = $2 AND unit_id = $3 AND player_id = $4
-	`, "A1", gameID, "enemy_unit", player1ID)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -299,7 +290,7 @@ func TestViewModelService_FilterEnemyUnitsUnknown(t *testing.T) {
 }
 
 func TestViewModelService_FilterEvents(t *testing.T) {
-	viewModelService, gameStateService, _, _, cleanup := setupViewModelService(t)
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
 	defer cleanup()
 
 	gameID := uuid.New().String()
@@ -323,14 +314,14 @@ func TestViewModelService_FilterEvents(t *testing.T) {
 
 	// Create GameModel with events
 	gameModel := &models.GameModel{
-		GameID:      gameID,
-		Version:     1,
-		LastUpdated: time.Now(),
-		CurrentTurn: &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
-		Units:       make(map[string]*models.UnitModel),
-		TaskForces:  make(map[string]*models.TaskForceModel),
+		GameID:        gameID,
+		Version:       1,
+		LastUpdated:   time.Now(),
+		CurrentTurn:   &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
+		Units:         make(map[string]*models.UnitModel),
+		TaskForces:    make(map[string]*models.TaskForceModel),
 		EnemyContacts: []*models.EnemyContactModel{},
-		Search:      &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Search:        &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
 		Events: []*models.GameEventModel{
 			{
 				ID:          "event1",
@@ -380,13 +371,13 @@ func TestViewModelService_FilterEvents(t *testing.T) {
 	for _, event := range viewModel.Events {
 		eventIDs[event.ID] = true
 	}
-	assert.True(t, eventIDs["event1"]) // Public
-	assert.True(t, eventIDs["event2"]) // German
+	assert.True(t, eventIDs["event1"])  // Public
+	assert.True(t, eventIDs["event2"])  // German
 	assert.False(t, eventIDs["event3"]) // Allied - not visible
 }
 
 func TestViewModelService_FilterSearch(t *testing.T) {
-	viewModelService, gameStateService, _, _, cleanup := setupViewModelService(t)
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
 	defer cleanup()
 
 	gameID := uuid.New().String()
@@ -410,12 +401,12 @@ func TestViewModelService_FilterSearch(t *testing.T) {
 
 	// Create GameModel with search data
 	gameModel := &models.GameModel{
-		GameID:      gameID,
-		Version:     1,
-		LastUpdated: time.Now(),
-		CurrentTurn: &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
-		Units:       make(map[string]*models.UnitModel),
-		TaskForces:  make(map[string]*models.TaskForceModel),
+		GameID:        gameID,
+		Version:       1,
+		LastUpdated:   time.Now(),
+		CurrentTurn:   &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
+		Units:         make(map[string]*models.UnitModel),
+		TaskForces:    make(map[string]*models.TaskForceModel),
 		EnemyContacts: []*models.EnemyContactModel{},
 		Search: &models.SearchData{
 			German: map[string]models.SearchHexData{
@@ -425,7 +416,7 @@ func TestViewModelService_FilterSearch(t *testing.T) {
 				"B2": {Factor: 3, Ships: 1, Patrol: 0, AirSearch: 1, Intrinsic: 1},
 			},
 		},
-		Events:              []*models.GameEventModel{},
+		Events:               []*models.GameEventModel{},
 		IntrinsicSearchHexes: make(map[string]int),
 		VisibilityLevel:      1,
 		IsFog:                false,
@@ -447,7 +438,7 @@ func TestViewModelService_FilterSearch(t *testing.T) {
 }
 
 func TestViewModelService_FilterEnemyContacts(t *testing.T) {
-	viewModelService, gameStateService, _, _, cleanup := setupViewModelService(t)
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
 	defer cleanup()
 
 	gameID := uuid.New().String()
@@ -479,20 +470,20 @@ func TestViewModelService_FilterEnemyContacts(t *testing.T) {
 		TaskForces:  make(map[string]*models.TaskForceModel),
 		EnemyContacts: []*models.EnemyContactModel{
 			{
-				HexID:          "A1",
-				SearchingSide:  "german",
+				HexID:            "A1",
+				SearchingSide:    "german",
 				EnemyNationality: "allied",
-				ShipCount:     2,
+				ShipCount:        2,
 			},
 			{
-				HexID:          "B2",
-				SearchingSide:  "allied",
+				HexID:            "B2",
+				SearchingSide:    "allied",
 				EnemyNationality: "german",
-				ShipCount:     1,
+				ShipCount:        1,
 			},
 		},
-		Search:              &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
-		Events:              []*models.GameEventModel{},
+		Search:               &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Events:               []*models.GameEventModel{},
 		IntrinsicSearchHexes: make(map[string]int),
 		VisibilityLevel:      1,
 		IsFog:                false,
@@ -514,7 +505,7 @@ func TestViewModelService_FilterEnemyContacts(t *testing.T) {
 }
 
 func TestViewModelService_PlayerNotInGame(t *testing.T) {
-	viewModelService, gameStateService, _, _, cleanup := setupViewModelService(t)
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
 	defer cleanup()
 
 	gameID := uuid.New().String()
@@ -544,3 +535,362 @@ func TestViewModelService_PlayerNotInGame(t *testing.T) {
 	assert.Contains(t, err.Error(), "not part of game")
 }
 
+// ============================================================================
+// ЭТАП 4: Дополнительные тесты ViewModelService
+// ============================================================================
+
+// TestViewModelService_BuildViewModel_FiltersEnemyUnits_Sighted тестирует фильтрацию вражеских юнитов с VisibilitySighted
+func TestViewModelService_BuildViewModel_FiltersEnemyUnits_Sighted(t *testing.T) {
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
+	defer cleanup()
+
+	gameID := uuid.New().String()
+	player1ID := uuid.New().String()
+	player2ID := uuid.New().String()
+
+	// Create users and game
+	_, err := gameStateService.db.GetConnection().Exec(`
+		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
+		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (id) DO NOTHING
+	`, player1ID, player2ID)
+	require.NoError(t, err)
+
+	_, err = gameStateService.db.GetConnection().Exec(`
+		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
+		VALUES ($1, 'Test Game', $2, $3, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, gameID, player1ID, player2ID)
+	require.NoError(t, err)
+
+	// Create GameModel with enemy unit with VisibilitySighted
+	gameModel := &models.GameModel{
+		GameID:      gameID,
+		Version:     1,
+		LastUpdated: time.Now(),
+		CurrentTurn: &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
+		Units: map[string]*models.UnitModel{
+			"enemy_unit1": {
+				ID:          "enemy_unit1",
+				GameID:      gameID,
+				Name:        "Enemy Ship",
+				Nationality: "allied",
+				Position:    "H20",
+				Visibility:  models.VisibilitySighted,
+				Category:    models.UnitCategoryNaval,
+				NavalData:   &models.NavalUnitData{},
+			},
+		},
+		TaskForces:    make(map[string]*models.TaskForceModel),
+		EnemyContacts: []*models.EnemyContactModel{},
+		Search:        &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Events:        []*models.GameEventModel{},
+	}
+
+	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	require.NoError(t, err)
+
+	// Build ViewModel for player1 (german)
+	viewModel, err := viewModelService.BuildViewModel(gameID, player1ID)
+	require.NoError(t, err)
+	require.NotNil(t, viewModel)
+
+	// Check enemy unit is visible with Sighted visibility
+	assert.Contains(t, viewModel.Units, "enemy_unit1")
+	enemyUnit := viewModel.Units["enemy_unit1"]
+	assert.Equal(t, models.VisibilitySighted, enemyUnit.Visibility)
+	assert.True(t, enemyUnit.IsVisible)
+	assert.Equal(t, "H20", enemyUnit.Position)
+}
+
+// TestViewModelService_BuildViewModel_FiltersEnemyUnits_Shadowed тестирует фильтрацию вражеских юнитов с VisibilityShadowed
+func TestViewModelService_BuildViewModel_FiltersEnemyUnits_Shadowed(t *testing.T) {
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
+	defer cleanup()
+
+	gameID := uuid.New().String()
+	player1ID := uuid.New().String()
+	player2ID := uuid.New().String()
+
+	// Create users and game
+	_, err := gameStateService.db.GetConnection().Exec(`
+		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
+		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (id) DO NOTHING
+	`, player1ID, player2ID)
+	require.NoError(t, err)
+
+	_, err = gameStateService.db.GetConnection().Exec(`
+		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
+		VALUES ($1, 'Test Game', $2, $3, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, gameID, player1ID, player2ID)
+	require.NoError(t, err)
+
+	// Create GameModel with enemy unit with VisibilityShadowed
+	gameModel := &models.GameModel{
+		GameID:      gameID,
+		Version:     1,
+		LastUpdated: time.Now(),
+		CurrentTurn: &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
+		Units: map[string]*models.UnitModel{
+			"enemy_unit1": {
+				ID:          "enemy_unit1",
+				GameID:      gameID,
+				Name:        "Enemy Ship",
+				Nationality: "allied",
+				Position:    "K15",
+				Visibility:  models.VisibilityShadowed,
+				Category:    models.UnitCategoryNaval,
+				NavalData:   &models.NavalUnitData{},
+			},
+		},
+		TaskForces:    make(map[string]*models.TaskForceModel),
+		EnemyContacts: []*models.EnemyContactModel{},
+		Search:        &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Events:        []*models.GameEventModel{},
+	}
+
+	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	require.NoError(t, err)
+
+	// Build ViewModel for player1 (german)
+	viewModel, err := viewModelService.BuildViewModel(gameID, player1ID)
+	require.NoError(t, err)
+	require.NotNil(t, viewModel)
+
+	// Check enemy unit is visible with Shadowed visibility
+	assert.Contains(t, viewModel.Units, "enemy_unit1")
+	enemyUnit := viewModel.Units["enemy_unit1"]
+	assert.Equal(t, models.VisibilityShadowed, enemyUnit.Visibility)
+	assert.True(t, enemyUnit.IsVisible)
+	assert.Equal(t, "K15", enemyUnit.Position)
+}
+
+// TestViewModelService_BuildViewModel_FiltersEnemyUnits_Unknown тестирует фильтрацию вражеских юнитов с VisibilityUnknown
+func TestViewModelService_BuildViewModel_FiltersEnemyUnits_Unknown(t *testing.T) {
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
+	defer cleanup()
+
+	gameID := uuid.New().String()
+	player1ID := uuid.New().String()
+	player2ID := uuid.New().String()
+
+	// Create users and game
+	_, err := gameStateService.db.GetConnection().Exec(`
+		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
+		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (id) DO NOTHING
+	`, player1ID, player2ID)
+	require.NoError(t, err)
+
+	_, err = gameStateService.db.GetConnection().Exec(`
+		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
+		VALUES ($1, 'Test Game', $2, $3, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, gameID, player1ID, player2ID)
+	require.NoError(t, err)
+
+	lastKnownPos := "A10"
+	// Create GameModel with enemy unit with VisibilityUnknown and LastKnownPos
+	gameModel := &models.GameModel{
+		GameID:      gameID,
+		Version:     1,
+		LastUpdated: time.Now(),
+		CurrentTurn: &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
+		Units: map[string]*models.UnitModel{
+			"enemy_unit1": {
+				ID:          "enemy_unit1",
+				GameID:      gameID,
+				Name:        "Enemy Ship",
+				Nationality: "allied",
+				Position:    "H20",
+				Visibility:  models.VisibilityUnknown,
+				Category:    models.UnitCategoryNaval,
+				NavalData: &models.NavalUnitData{
+					LastKnownPos: &lastKnownPos,
+				},
+			},
+		},
+		TaskForces:    make(map[string]*models.TaskForceModel),
+		EnemyContacts: []*models.EnemyContactModel{},
+		Search:        &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Events:        []*models.GameEventModel{},
+	}
+
+	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	require.NoError(t, err)
+
+	// Build ViewModel for player1 (german)
+	viewModel, err := viewModelService.BuildViewModel(gameID, player1ID)
+	require.NoError(t, err)
+	require.NotNil(t, viewModel)
+
+	// Check enemy unit is visible with Unknown visibility and LastKnownPos
+	assert.Contains(t, viewModel.Units, "enemy_unit1")
+	enemyUnit := viewModel.Units["enemy_unit1"]
+	assert.Equal(t, models.VisibilityUnknown, enemyUnit.Visibility)
+	assert.False(t, enemyUnit.IsVisible)
+	assert.NotNil(t, enemyUnit.LastKnownPos)
+	assert.Equal(t, "A10", *enemyUnit.LastKnownPos)
+}
+
+// TestViewModelService_BuildViewModel_FiltersTaskForces тестирует фильтрацию TaskForces
+func TestViewModelService_BuildViewModel_FiltersTaskForces(t *testing.T) {
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
+	defer cleanup()
+
+	gameID := uuid.New().String()
+	player1ID := uuid.New().String()
+	player2ID := uuid.New().String()
+
+	// Create users and game
+	_, err := gameStateService.db.GetConnection().Exec(`
+		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
+		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (id) DO NOTHING
+	`, player1ID, player2ID)
+	require.NoError(t, err)
+
+	_, err = gameStateService.db.GetConnection().Exec(`
+		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
+		VALUES ($1, 'Test Game', $2, $3, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, gameID, player1ID, player2ID)
+	require.NoError(t, err)
+
+	// Create GameModel with own and enemy TaskForces
+	gameModel := &models.GameModel{
+		GameID:      gameID,
+		Version:     1,
+		LastUpdated: time.Now(),
+		CurrentTurn: &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
+		Units:       make(map[string]*models.UnitModel),
+		TaskForces: map[string]*models.TaskForceModel{
+			"own_tf": {
+				ID:          "own_tf",
+				GameID:      gameID,
+				Name:        "Own TF",
+				Nationality: "german",
+				Position:    "A1",
+				Visibility:  models.VisibilitySighted,
+			},
+			"enemy_tf": {
+				ID:          "enemy_tf",
+				GameID:      gameID,
+				Name:        "Enemy TF",
+				Nationality: "allied",
+				Position:    "B2",
+				Visibility:  models.VisibilitySighted,
+			},
+		},
+		EnemyContacts: []*models.EnemyContactModel{},
+		Search:        &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Events:        []*models.GameEventModel{},
+	}
+
+	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	require.NoError(t, err)
+
+	// Build ViewModel for player1 (german)
+	viewModel, err := viewModelService.BuildViewModel(gameID, player1ID)
+	require.NoError(t, err)
+	require.NotNil(t, viewModel)
+
+	// Check both TaskForces are visible (own always visible, enemy with Sighted)
+	assert.Contains(t, viewModel.TaskForces, "own_tf")
+	assert.Contains(t, viewModel.TaskForces, "enemy_tf")
+
+	ownTF := viewModel.TaskForces["own_tf"]
+	assert.Equal(t, models.VisibilitySighted, ownTF.Visibility)
+
+	enemyTF := viewModel.TaskForces["enemy_tf"]
+	assert.Equal(t, models.VisibilitySighted, enemyTF.Visibility)
+}
+
+// TestViewModelService_BuildViewModel_FiltersEvents тестирует фильтрацию событий
+func TestViewModelService_BuildViewModel_FiltersEvents(t *testing.T) {
+	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
+	defer cleanup()
+
+	gameID := uuid.New().String()
+	player1ID := uuid.New().String()
+	player2ID := uuid.New().String()
+
+	// Create users and game
+	_, err := gameStateService.db.GetConnection().Exec(`
+		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
+		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (id) DO NOTHING
+	`, player1ID, player2ID)
+	require.NoError(t, err)
+
+	_, err = gameStateService.db.GetConnection().Exec(`
+		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
+		VALUES ($1, 'Test Game', $2, $3, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, gameID, player1ID, player2ID)
+	require.NoError(t, err)
+
+	// Create GameModel with events for different sides
+	gameModel := &models.GameModel{
+		GameID:        gameID,
+		Version:       1,
+		LastUpdated:   time.Now(),
+		CurrentTurn:   &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
+		Units:         make(map[string]*models.UnitModel),
+		TaskForces:    make(map[string]*models.TaskForceModel),
+		EnemyContacts: []*models.EnemyContactModel{},
+		Search:        &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Events: []*models.GameEventModel{
+			{
+				ID:          "event1",
+				GameID:      gameID,
+				EventType:   models.EventTypeMovement,
+				Description: "German unit moved",
+				Visibility: map[string]interface{}{
+					"german": true,
+					"allied": false,
+				},
+			},
+			{
+				ID:          "event2",
+				GameID:      gameID,
+				EventType:   models.EventTypeMovement,
+				Description: "Allied unit moved",
+				Visibility: map[string]interface{}{
+					"german": false,
+					"allied": true,
+				},
+			},
+			{
+				ID:          "event3",
+				GameID:      gameID,
+				EventType:   models.EventTypeMovement,
+				Description: "Public event",
+				Visibility: map[string]interface{}{
+					"german": true,
+					"allied": true,
+				},
+			},
+		},
+	}
+
+	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	require.NoError(t, err)
+
+	// Build ViewModel for player1 (german)
+	viewModel, err := viewModelService.BuildViewModel(gameID, player1ID)
+	require.NoError(t, err)
+	require.NotNil(t, viewModel)
+
+	// Check that only german and public events are visible
+	eventIDs := make(map[string]bool)
+	for _, event := range viewModel.Events {
+		eventIDs[event.ID] = true
+	}
+
+	assert.True(t, eventIDs["event1"], "German event should be visible")
+	assert.False(t, eventIDs["event2"], "Allied event should not be visible")
+	assert.True(t, eventIDs["event3"], "Public event should be visible")
+}
