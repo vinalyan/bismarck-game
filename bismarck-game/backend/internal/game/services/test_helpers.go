@@ -105,9 +105,12 @@ func SetupTestServices() (*TestServices, func(), error) {
 		gameService,
 	)
 
-	// Устанавливаем gameStateService в unitService и eventService (нужно для работы с GameModel)
+	// Устанавливаем gameStateService во все сервисы, которые его требуют
 	unitService.SetGameStateService(gameStateService)
 	eventService.SetGameStateService(gameStateService)
+	searchService.SetGameStateService(gameStateService)
+	taskForceService.SetGameStateService(gameStateService)
+	phaseManager.SetGameStateService(gameStateService)
 
 	cleanup := func() {
 		db.Close()

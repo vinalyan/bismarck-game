@@ -22,19 +22,18 @@ func mustCreateNavalUnit(t *testing.T, testServices *TestServices, gameID, name,
 	t.Helper()
 
 	unit := &models.NavalUnit{
-		GameID:         gameID,
-		Name:           name,
-		Type:           models.UnitType(unitType),
-		Category:       models.UnitCategoryNaval,
-		Class:          class,
-		Owner:          owner,
-		Nationality:    nationality,
-		Position:       position,
-		SetupHex:       position,
-		SpeedRating:    models.SpeedTypeMedium,
-		Status:         models.UnitStatusActive,
-		DetectionLevel: models.DetectionLevelNone,
-		Damage:         []models.Damage{},
+		GameID:      gameID,
+		Name:        name,
+		Type:        models.UnitType(unitType),
+		Category:    models.UnitCategoryNaval,
+		Class:       class,
+		Owner:       owner,
+		Nationality: nationality,
+		Position:    position,
+		SetupHex:    position,
+		SpeedRating: models.SpeedTypeMedium,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 
 	require.NoError(t, testServices.UnitService.CreateNavalUnit(unit))
@@ -83,13 +82,13 @@ func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
 	err = handler.Start(gameID, 1)
 	require.NoError(t, err)
 
-	// Verify detection level from GameModel
+	// Verify visibility from GameModel
 	gameModel, err := testServices.GameStateService.LoadGameModel(gameID)
 	require.NoError(t, err)
 	enemyUnit, exists := gameModel.Units[enemyUnitID]
 	require.True(t, exists, "Enemy unit should exist in GameModel")
 	require.NotNil(t, enemyUnit.NavalData, "NavalData should exist")
-	assert.Equal(t, string(models.DetectionLevelShadowed), string(enemyUnit.NavalData.DetectionLevel))
+	assert.Equal(t, models.VisibilityShadowed, enemyUnit.Visibility)
 
 	// Verify visibility from GameModel (if stored there) or check through visibility service
 	// Note: visibility might be stored differently in GameModel, adjust as needed
@@ -148,7 +147,7 @@ func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
 	enemyUnit, exists := gameModel.Units[enemyUnitID]
 	require.True(t, exists, "Enemy unit should exist in GameModel")
 	require.NotNil(t, enemyUnit.NavalData, "NavalData should exist")
-	assert.Equal(t, string(models.DetectionLevelSighted), string(enemyUnit.NavalData.DetectionLevel))
+	assert.Equal(t, models.VisibilitySighted, enemyUnit.Visibility)
 
 	events := fetchSearchEvents(t, testServices, gameID)
 	descriptions := extractDescriptions(events)
@@ -206,7 +205,7 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 	enemyUnit, exists := gameModel.Units[enemyUnitID]
 	require.True(t, exists, "Enemy unit should exist in GameModel")
 	require.NotNil(t, enemyUnit.NavalData, "NavalData should exist")
-	assert.Equal(t, string(models.DetectionLevelNone), string(enemyUnit.NavalData.DetectionLevel))
+	assert.Equal(t, models.VisibilityUnknown, enemyUnit.Visibility)
 
 	events := fetchSearchEvents(t, testServices, gameID)
 	descriptions := extractDescriptions(events)

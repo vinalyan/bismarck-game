@@ -371,8 +371,12 @@ func TestLoadGameModel_RecalculatesSearchFactors(t *testing.T) {
 			"unit1": {
 				ID:          "unit1",
 				GameID:      testGameID,
+				Name:        "Test Unit",
 				Position:    "H20",
 				Nationality: "german",
+				Category:    models.UnitCategoryNaval,
+				Type:        models.UnitTypeBattleship,
+				Status:      string(models.UnitStatusActive),
 			},
 		},
 		TaskForces:    make(map[string]*models.TaskForceModel),

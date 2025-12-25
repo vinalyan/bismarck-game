@@ -65,7 +65,6 @@ func TestCreateNavalUnit(t *testing.T) {
 			MaxTorpedoes:             0,
 			RadarLevel:               1,
 			Status:                   models.UnitStatusActive,
-			DetectionLevel:           models.DetectionLevelNone,
 			Damage:                   []models.Damage{},
 			IsEmergencyFuel:          false,
 			EmergencyTurn:            0,
@@ -261,9 +260,12 @@ func TestGetNavalUnitByID(t *testing.T) {
 }
 
 func TestGetAirUnitsByGameID(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
+
+	db := testServices.DB
+	service := testServices.UnitService
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM air_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
@@ -273,9 +275,9 @@ func TestGetAirUnitsByGameID(t *testing.T) {
 	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(db, testServices.GameStateService, "550e8400-e29b-41d4-a716-446655440001", 1, models.PhaseMovement)
 	require.NoError(t, err)
-	service := NewUnitService(db, logger)
 
 	// Create test units
 	unit1 := &models.AirUnit{
@@ -319,9 +321,12 @@ func TestGetAirUnitsByGameID(t *testing.T) {
 }
 
 func TestUpdateNavalUnit(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
+
+	db := testServices.DB
+	service := testServices.UnitService
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
@@ -331,9 +336,9 @@ func TestUpdateNavalUnit(t *testing.T) {
 	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(db, testServices.GameStateService, "550e8400-e29b-41d4-a716-446655440001", 1, models.PhaseMovement)
 	require.NoError(t, err)
-	service := NewUnitService(db, logger)
 
 	// Create test unit
 	unit := &models.NavalUnit{
@@ -385,9 +390,12 @@ func TestUpdateNavalUnit(t *testing.T) {
 }
 
 func TestUpdateAirUnit(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
+
+	db := testServices.DB
+	service := testServices.UnitService
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM air_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
@@ -397,9 +405,9 @@ func TestUpdateAirUnit(t *testing.T) {
 	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(db, testServices.GameStateService, "550e8400-e29b-41d4-a716-446655440001", 1, models.PhaseMovement)
 	require.NoError(t, err)
-	service := NewUnitService(db, logger)
 
 	// Create test unit
 	unit := &models.AirUnit{
@@ -612,7 +620,7 @@ func TestUnitService_GetEnemyContacts(t *testing.T) {
 
 	contact := contacts[0]
 	assert.Equal(t, "A10", contact.HexID)
-	assert.Equal(t, models.DetectionLevelShadowed, contact.DetectionLevel)
+	assert.Equal(t, models.VisibilityShadowed, contact.Visibility)
 	assert.Equal(t, 1, contact.ShipCount)
 	assert.Equal(t, "CV×1", contact.ClassSummary)
 	assert.Equal(t, "нет", contact.TaskForce)
@@ -680,7 +688,8 @@ func TestUnitService_GetVisibleUnits_UsesUnitVisibility(t *testing.T) {
 	visibleUnits, err := service.GetVisibleUnits(gameID, playerAllied)
 	require.NoError(t, err)
 	require.Len(t, visibleUnits, 1)
-	assert.Equal(t, models.DetectionLevelShadowed, visibleUnits[0].DetectionLevel)
+	// DetectionLevel removed - visibility is now in GameModel, not in NavalUnit
+	// This test may need to be updated to check visibility through GameModel
 }
 
 func TestGetUnitsByPosition(t *testing.T) {

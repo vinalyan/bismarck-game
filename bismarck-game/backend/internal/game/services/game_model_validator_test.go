@@ -282,7 +282,7 @@ func TestGameModelValidator_ValidateModel_InvalidTaskForces(t *testing.T) {
 
 		err := validator.ValidateModel(invalidModel)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unit.*in task force does not exist")
+		assert.Contains(t, err.Error(), "in task force does not exist")
 	})
 }
 

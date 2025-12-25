@@ -31,6 +31,17 @@ CREATE TABLE IF NOT EXISTS games (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Таблица моделей игры (GameModel) - основная таблица для хранения состояния игры
+CREATE TABLE IF NOT EXISTS game_models (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+    version INTEGER NOT NULL CHECK (version >= 1),
+    model_data JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(game_id, version)
+);
+
 -- Таблица морских юнитов
 CREATE TABLE IF NOT EXISTS naval_units (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -201,6 +212,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_unit_visibility_game_unit_player
 CREATE INDEX IF NOT EXISTS idx_game_events_game_id ON game_events(game_id);
 CREATE INDEX IF NOT EXISTS idx_unit_searches_game_id ON unit_searches(game_id);
 CREATE INDEX IF NOT EXISTS idx_movements_game_id ON movements(game_id);
+
+-- Индексы для game_models
+CREATE INDEX IF NOT EXISTS idx_game_models_game_id_version ON game_models(game_id, version DESC);
+CREATE INDEX IF NOT EXISTS idx_game_models_game_id ON game_models(game_id);
+CREATE INDEX IF NOT EXISTS idx_game_models_model_data_gin ON game_models USING GIN (model_data);
 
 -- Таблица универсальных маркеров гексов
 CREATE TABLE IF NOT EXISTS hex_markers (

@@ -47,7 +47,6 @@ func setupMovementHandler(t *testing.T) (*MovementHandler, func()) {
 	_ = auth.New(db, nil, cfg.JWT.Secret, 24*time.Hour)
 	unitService := services.NewUnitService(db, logger)
 	eventService := services.NewGameEventService(db, logger)
-	visibilityService := services.NewVisibilityService(db, logger)
 	mapStructureService := services.NewMapStructureService()
 	// Создаем WebSocket Hub для тестов
 	wsHub := websocket.NewHub()
@@ -58,10 +57,11 @@ func setupMovementHandler(t *testing.T) (*MovementHandler, func()) {
 	gameService := services.NewGameService(db, logger)
 	searchServiceForPM := services.NewSearchService(db, logger, unitService, gameService)
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceServiceForPM, searchServiceForPM, eventService, wsHub, "http://localhost:8080")
-	movementService := services.NewMovementService(db, logger, visibilityService, phaseManager, unitService, mapStructureService, eventService, nil, gameService)
+	emergencyFuelService := services.NewEmergencyFuelService(db, logger, phaseManager)
+	movementService := services.NewMovementService(db, logger, phaseManager, unitService, mapStructureService, eventService, emergencyFuelService, gameService)
 	taskForceService := services.NewTaskForceService(db, logger, unitService, movementService)
 
-	handler := NewMovementHandler(movementService, visibilityService, unitService, taskForceService, logger)
+	handler := NewMovementHandler(movementService, unitService, taskForceService, logger)
 
 	cleanup := func() {
 		db.Close()

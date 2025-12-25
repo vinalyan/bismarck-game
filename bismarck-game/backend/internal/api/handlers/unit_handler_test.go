@@ -56,8 +56,10 @@ func setupUnitHandler(t *testing.T) (*UnitHandler, func()) {
 	gameService := services.NewGameService(db, logger)
 	searchServiceForPM := services.NewSearchService(db, logger, unitService, gameService)
 	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceServiceForPM, searchServiceForPM, eventService, wsHub, "http://localhost:8080")
+	mapStructureService := services.NewMapStructureService()
+	emergencyFuelService := services.NewEmergencyFuelService(db, logger, phaseManager)
 
-	movementService := services.NewMovementService(db, logger, nil, phaseManager, unitService, nil, eventService, nil, gameService)
+	movementService := services.NewMovementService(db, logger, phaseManager, unitService, mapStructureService, eventService, emergencyFuelService, gameService)
 	taskForceService := services.NewTaskForceService(db, logger, unitService, movementService)
 	handler := NewUnitHandler(unitService, movementService, taskForceService, logger)
 
