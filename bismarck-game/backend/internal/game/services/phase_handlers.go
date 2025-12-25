@@ -365,23 +365,79 @@ func (h *ShadowPhaseHandler) Complete(gameID string, turn int) error {
 
 	turnNumber, phaseLabel := getTurnAndPhase(pm, gameID, models.PhaseShadow)
 
-	var sightedTransitions []DetectionTarget
-	if pm.unitService != nil {
-		if targets, err := pm.unitService.ListUnitsByVisibility(gameID, models.VisibilitySighted, nil); err != nil {
-			log.Printf("Shadow phase - failed to collect sighted units for reset: %v", err)
+	// После всех попыток преследования убираем оставшиеся Sighted
+	// Все операции выполняются только через GameModel, без работы с БД
+	var sightedUnitTransitions []DetectionTarget
+	var sightedTaskForceTransitions []DetectionTarget
+
+	if pm.gameStateService != nil {
+		// Сначала загружаем GameModel, чтобы собрать список sighted юнитов для логирования
+		model, err := pm.gameStateService.LoadGameModel(gameID)
+		if err != nil {
+			log.Printf("Shadow phase - failed to load GameModel for removing remaining sighted: %v", err)
 		} else {
-			sightedTransitions = targets
+			// Собираем sighted юниты и Task Forces для логирования (до обновления)
+			for unitID, unit := range model.Units {
+				if unit.Visibility == models.VisibilitySighted {
+					sightedUnitTransitions = append(sightedUnitTransitions, DetectionTarget{
+						ID:       unitID,
+						Name:     unit.Name,
+						Owner:    unit.Nationality, // Используем Nationality как owner_side
+						Position: unit.Position,
+						Type:     "unit",
+					})
+				}
+			}
+
+			for tfID, tf := range model.TaskForces {
+				if tf.Visibility == models.VisibilitySighted {
+					sightedTaskForceTransitions = append(sightedTaskForceTransitions, DetectionTarget{
+						ID:       tfID,
+						Name:     tf.Name,
+						Owner:    tf.Nationality, // Используем Nationality как owner_side
+						Position: tf.Position,
+						Type:     "task_force",
+					})
+				}
+			}
+
+			log.Printf("Shadow phase - found %d sighted units and %d sighted task forces to reset to unknown",
+				len(sightedUnitTransitions), len(sightedTaskForceTransitions))
+
+			// Теперь обновляем GameModel, изменяя видимость на unknown
+			err = pm.gameStateService.UpdateGameModelWithRetry(gameID, func(updateModel *models.GameModel) error {
+				// Обновляем юниты: sighted -> unknown
+				for _, target := range sightedUnitTransitions {
+					if unit, exists := updateModel.Units[target.ID]; exists && unit.Visibility == models.VisibilitySighted {
+						unit.Visibility = models.VisibilityUnknown
+						updateModel.Units[target.ID] = unit
+					}
+				}
+
+				// Обновляем Task Forces: sighted -> unknown
+				for _, target := range sightedTaskForceTransitions {
+					if tf, exists := updateModel.TaskForces[target.ID]; exists && tf.Visibility == models.VisibilitySighted {
+						tf.Visibility = models.VisibilityUnknown
+						updateModel.TaskForces[target.ID] = tf
+					}
+				}
+
+				return nil
+			}, 3)
+
+			if err != nil {
+				log.Printf("Shadow phase - failed to remove remaining sighted in GameModel: %v", err)
+				// Не возвращаем ошибку, продолжаем выполнение
+			} else {
+				log.Printf("Shadow phase - successfully reset %d units and %d task forces from sighted to unknown",
+					len(sightedUnitTransitions), len(sightedTaskForceTransitions))
+			}
 		}
 	}
 
-	// После всех попыток преследования убираем оставшиеся Sighted
-	err := pm.unitService.RemoveRemainingSighted(gameID)
-	if err != nil {
-		log.Printf("Failed to remove remaining sighted: %v", err)
-		// Не возвращаем ошибку, продолжаем выполнение
-	}
-
-	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedTransitions, models.VisibilitySighted, models.VisibilityUnknown, "фаза слежения: очистка обнаружения")
+	// Логируем переходы видимости
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedUnitTransitions, models.VisibilitySighted, models.VisibilityUnknown, "фаза слежения: очистка обнаружения")
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedTaskForceTransitions, models.VisibilitySighted, models.VisibilityUnknown, "фаза слежения: очистка обнаружения")
 
 	return nil
 }
@@ -530,6 +586,84 @@ func (h *MovementPhaseHandler) Complete(gameID string, turn int) error {
 	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitFogTransitions, models.VisibilityShadowed, models.VisibilityUnknown, "туман: окончание фазы движения")
 	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, tfFogTransitions, models.VisibilityShadowed, models.VisibilityUnknown, "туман: окончание фазы движения")
 
+	// Правило 7.8: Перевернуть маркеры "Преследуется" на сторону "Обнаружено"
+	// Все операции выполняются только через GameModel, без работы с БД
+	var unitShadowedToSightedTransitions []DetectionTarget
+	var taskForceShadowedToSightedTransitions []DetectionTarget
+
+	if pm.gameStateService != nil {
+		// Сначала загружаем GameModel, чтобы собрать список юнитов для логирования
+		model, err := pm.gameStateService.LoadGameModel(gameID)
+		if err != nil {
+			log.Printf("Movement phase - failed to load GameModel for shadowed to sighted conversion: %v", err)
+		} else {
+			// Собираем shadowed юниты и Task Forces для логирования (до обновления)
+			for unitID, unit := range model.Units {
+				if unit.Visibility == models.VisibilityShadowed {
+					unitShadowedToSightedTransitions = append(unitShadowedToSightedTransitions, DetectionTarget{
+						ID:       unitID,
+						Name:     unit.Name,
+						Owner:    unit.Nationality, // Используем Nationality как owner_side для определения стороны
+						Position: unit.Position,
+						Type:     "unit",
+					})
+				}
+			}
+
+			for tfID, tf := range model.TaskForces {
+				if tf.Visibility == models.VisibilityShadowed {
+					taskForceShadowedToSightedTransitions = append(taskForceShadowedToSightedTransitions, DetectionTarget{
+						ID:       tfID,
+						Name:     tf.Name,
+						Owner:    tf.Nationality, // Используем Nationality как owner_side
+						Position: tf.Position,
+						Type:     "task_force",
+					})
+				}
+			}
+
+			log.Printf("Movement phase - found %d shadowed units and %d shadowed task forces to convert to sighted",
+				len(unitShadowedToSightedTransitions), len(taskForceShadowedToSightedTransitions))
+			for _, target := range unitShadowedToSightedTransitions {
+				log.Printf("Movement phase - will convert unit %s (%s) from shadowed to sighted", target.ID, target.Name)
+			}
+
+			// Теперь обновляем GameModel, изменяя видимость на sighted
+			err = pm.gameStateService.UpdateGameModelWithRetry(gameID, func(updateModel *models.GameModel) error {
+				// Обновляем юниты
+				for _, target := range unitShadowedToSightedTransitions {
+					if unit, exists := updateModel.Units[target.ID]; exists && unit.Visibility == models.VisibilityShadowed {
+						unit.Visibility = models.VisibilitySighted
+						updateModel.Units[target.ID] = unit
+					}
+				}
+
+				// Обновляем Task Forces
+				for _, target := range taskForceShadowedToSightedTransitions {
+					if tf, exists := updateModel.TaskForces[target.ID]; exists && tf.Visibility == models.VisibilityShadowed {
+						tf.Visibility = models.VisibilitySighted
+						updateModel.TaskForces[target.ID] = tf
+					}
+				}
+
+				return nil
+			}, 3)
+
+			if err != nil {
+				log.Printf("Movement phase - failed to convert shadowed to sighted in GameModel: %v", err)
+				// Не возвращаем ошибку, продолжаем выполнение
+			} else {
+				log.Printf("Movement phase - successfully converted %d units and %d task forces from shadowed to sighted",
+					len(unitShadowedToSightedTransitions), len(taskForceShadowedToSightedTransitions))
+			}
+		}
+	}
+
+	// Логируем переходы видимости
+	log.Printf("Movement phase - logging %d unit transitions and %d task force transitions", len(unitShadowedToSightedTransitions), len(taskForceShadowedToSightedTransitions))
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, unitShadowedToSightedTransitions, models.VisibilityShadowed, models.VisibilitySighted, "правило 7.8: окончание фазы движения")
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, taskForceShadowedToSightedTransitions, models.VisibilityShadowed, models.VisibilitySighted, "правило 7.8: окончание фазы движения")
+
 	return nil
 }
 
@@ -604,36 +738,6 @@ func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
 	if model.Search.Allied == nil {
 		model.Search.Allied = make(map[string]models.SearchHexData)
 	}
-
-	// В начале фазы поиска: Shadowed -> Sighted (очищаем результаты предыдущего поиска)
-	turnNumberForLogging, phaseLabel := getTurnAndPhase(pm, gameID, models.PhaseSearch)
-
-	var unitTransitions []DetectionTarget
-	if pm.unitService != nil {
-		if targets, err := pm.unitService.ListUnitsByVisibility(gameID, models.VisibilityShadowed, nil); err != nil {
-			log.Printf("Search phase - failed to collect shadowed units before reset: %v", err)
-		} else {
-			unitTransitions = targets
-		}
-		if err := pm.unitService.ConvertShadowedToSighted(gameID); err != nil {
-			log.Printf("Search phase - failed to convert shadowed units to sighted: %v", err)
-		}
-	}
-
-	var taskForceTransitions []DetectionTarget
-	if pm.taskForceService != nil {
-		if targets, err := pm.taskForceService.ListTaskForcesByDetectionLevel(gameID, "shadowed", nil); err != nil {
-			log.Printf("Search phase - failed to collect shadowed task forces before reset: %v", err)
-		} else {
-			taskForceTransitions = targets
-		}
-		if err := pm.taskForceService.ConvertShadowedToSighted(gameID); err != nil {
-			log.Printf("Search phase - failed to convert shadowed task forces to sighted: %v", err)
-		}
-	}
-
-	logDetectionTransitions(pm, gameID, turnNumberForLogging, phaseLabel, unitTransitions, models.VisibilityShadowed, models.VisibilitySighted, "автосброс: начало фазы поиска")
-	logDetectionTransitions(pm, gameID, turnNumberForLogging, phaseLabel, taskForceTransitions, models.VisibilityShadowed, models.VisibilitySighted, "автосброс: начало фазы поиска")
 
 	sides := []searchSide{
 		{label: "allied", playerID: ctx.alliedPlayerID, opponentLabel: "german", opponentPlayerID: ctx.germanPlayerID},
@@ -914,7 +1018,7 @@ func (h *SearchPhaseHandler) executeSearchForSide(pm *PhaseManager, gameID strin
 			// Преобразуем TaskForceModel в TaskForce для логирования
 			taskForceForLog := models.ConvertTaskForceModelToTaskForce(tf)
 			enemyTaskForcesForLog = append(enemyTaskForcesForLog, taskForceForLog)
-			
+
 			// Получаем юниты для логирования
 			if tf.Units != nil {
 				units := make([]models.NavalUnit, 0)
@@ -1533,7 +1637,6 @@ func (h *SearchPhaseHandler) applyDetectionToTaskForces(pm *PhaseManager, gameID
 	}
 }
 
-
 func (h *SearchPhaseHandler) isHexFogged(pm *PhaseManager, hexID string) bool {
 	if pm.mapStructureService == nil {
 		return false
@@ -1925,4 +2028,3 @@ func (h *AdminPhaseHandler) isInPort(position string) bool {
 	}
 	return false
 }
-

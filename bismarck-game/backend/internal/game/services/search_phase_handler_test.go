@@ -63,7 +63,7 @@ func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
 	// Create game with GameModel
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
 	require.NoError(t, err)
-	
+
 	// Update game with players
 	_, err = testServices.DB.GetConnection().Exec(`
         UPDATE games SET player1_id = $1, player2_id = $2, visibility_level = 3, is_fog = false
@@ -125,7 +125,7 @@ func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
 	// Create game with GameModel
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
 	require.NoError(t, err)
-	
+
 	// Update game with players
 	_, err = testServices.DB.GetConnection().Exec(`
         UPDATE games SET player1_id = $1, player2_id = $2, visibility_level = 1, is_fog = false
@@ -183,7 +183,7 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 	// Create game with GameModel
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
 	require.NoError(t, err)
-	
+
 	// Update game with players and fog
 	_, err = testServices.DB.GetConnection().Exec(`
         UPDATE games SET player1_id = $1, player2_id = $2, visibility_level = 2, is_fog = true
@@ -214,7 +214,7 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 	assert.GreaterOrEqual(t, countOccurrences(descriptions, expectedDescription), 1)
 }
 
-func TestSearchPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
+func TestMovementPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
@@ -234,9 +234,9 @@ func TestSearchPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
+	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
-	
+
 	// Update game with players
 	_, err = testServices.DB.GetConnection().Exec(`
         UPDATE games SET player1_id = $1, player2_id = $2, visibility_level = 1, is_fog = false
@@ -245,41 +245,47 @@ func TestSearchPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 	require.NoError(t, err)
 
 	unit := &models.NavalUnit{
-		GameID:         gameID,
-		Name:           "Allied Shadowed",
-		Type:           models.UnitType("CL"),
-		Category:       models.UnitCategoryNaval,
-		Class:          "scout",
-		Owner:          alliedPlayerID,
-		Nationality:    "allied",
-		Position:       hexID,
-		SetupHex:       hexID,
-		SpeedRating:    models.SpeedTypeMedium,
-		Status:         models.UnitStatusActive,
-		DetectionLevel: models.DetectionLevelShadowed,
-		Damage:         []models.Damage{},
+		GameID:      gameID,
+		Name:        "Allied Shadowed",
+		Type:        models.UnitType("CL"),
+		Category:    models.UnitCategoryNaval,
+		Class:       "scout",
+		Owner:       alliedPlayerID,
+		Nationality: "allied",
+		Position:    hexID,
+		SetupHex:    hexID,
+		SpeedRating: models.SpeedTypeMedium,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	require.NoError(t, testServices.UnitService.CreateNavalUnit(unit))
 
-	handler := &SearchPhaseHandler{}
-	handler.SetPhaseManager(testServices.PhaseManager)
-
-	err = handler.Start(gameID, 1)
+	// Set detection_level in DB to 'shadowed' so ConvertShadowedToSighted can find it
+	_, err = testServices.DB.GetConnection().Exec(`
+		UPDATE naval_units 
+		SET detection_level = 'shadowed', updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+	`, unit.ID)
 	require.NoError(t, err)
 
-	// Verify detection level from GameModel
+	handler := &MovementPhaseHandler{}
+	handler.SetPhaseManager(testServices.PhaseManager)
+
+	err = handler.Complete(gameID, 1)
+	require.NoError(t, err)
+
+	// Verify visibility from GameModel
 	gameModel, err := testServices.GameStateService.LoadGameModel(gameID)
 	require.NoError(t, err)
 	updatedUnit, exists := gameModel.Units[unit.ID]
 	require.True(t, exists, "Unit should exist in GameModel")
-	require.NotNil(t, updatedUnit.NavalData, "NavalData should exist")
-	assert.Equal(t, string(models.DetectionLevelSighted), string(updatedUnit.NavalData.DetectionLevel))
+	assert.Equal(t, models.VisibilitySighted, updatedUnit.Visibility, "Unit visibility should be sighted after movement phase complete")
 
 	events := fetchSearchEvents(t, testServices, gameID)
 	descriptions := extractDescriptions(events)
 
-	assert.True(t, containsSubstring(descriptions, fmt.Sprintf("Detection «unit %s: status shadowed → sighted", unit.Name)))
-	assert.True(t, containsSubstring(descriptions, fmt.Sprintf("Detection warning «hex %s: наш unit %s перешёл в статус sighted", hexID, unit.Name)))
+	assert.True(t, containsSubstring(descriptions, fmt.Sprintf("Detection «unit %s: status shadowed → sighted", unit.Name)), "Should log shadowed → sighted transition")
+	assert.True(t, containsSubstring(descriptions, fmt.Sprintf("Detection warning «hex %s: наш unit %s перешёл в статус sighted", hexID, unit.Name)), "Should log detection warning")
 }
 
 func fetchSearchEvents(t *testing.T, testServices *TestServices, gameID string) []loggedEvent {
