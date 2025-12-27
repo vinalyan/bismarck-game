@@ -156,8 +156,32 @@ func (s *ViewModelService) filterUnits(
 				// Name, Status, NavalData, AirData - не видны
 			}
 
+		case models.VisibilityLost:
+			// Lost: отображаем в LastKnownPos с минимальной информацией
+			var lastKnownPos *string
+			if unit.NavalData != nil && unit.NavalData.LastKnownPos != nil && *unit.NavalData.LastKnownPos != "" {
+				lastKnownPos = unit.NavalData.LastKnownPos
+			} else if visibilityState != nil && visibilityState.LastKnownHex != "" {
+				lastKnownPos = &visibilityState.LastKnownHex
+			}
+			// Lost юнит всегда должен иметь LastKnownPos
+			if lastKnownPos != nil {
+				result[unitID] = &models.UnitViewModel{
+					ID:           unit.ID,
+					Type:         unit.Type,
+					Category:     unit.Category,
+					Owner:        unit.Owner,
+					Nationality:  unit.Nationality,
+					Visibility:   models.VisibilityLost,
+					IsVisible:    false, // Не видим текущую позицию, но видим LastKnownPos
+					Position:     *lastKnownPos, // Показываем в LastKnownPos
+					LastKnownPos: lastKnownPos,
+					// Name, Status, NavalData, AirData - не видны
+				}
+			}
+
 		case models.VisibilityUnknown:
-			// Только LastKnownPos (если есть)
+			// Только LastKnownPos (если есть) - для юнитов, которые никогда не были обнаружены
 			var lastKnownPos *string
 			if visibilityState != nil && visibilityState.LastKnownHex != "" {
 				lastKnownPos = &visibilityState.LastKnownHex
@@ -212,6 +236,14 @@ func (s *ViewModelService) buildVisibilityMapFromGameModel(
 			}
 		}
 
+		// Для lost - обязательно должен быть LastKnownPos
+		if visibility == models.VisibilityLost {
+			if unit.NavalData.LastKnownPos == nil || *unit.NavalData.LastKnownPos == "" {
+				// Если lost без LastKnownPos - это ошибка, пропускаем
+				continue
+			}
+		}
+
 		// Создаем UnitVisibilityState
 		state := &models.UnitVisibilityState{
 			UnitID:       unitID,
@@ -229,6 +261,9 @@ func (s *ViewModelService) buildVisibilityMapFromGameModel(
 			state.LastKnownHex = *unit.NavalData.LastKnownPos
 		} else if visibility == models.VisibilitySighted {
 			// Для sighted используем текущую позицию как LastKnownHex
+			state.LastKnownHex = unit.Position
+		} else if visibility == models.VisibilityLost {
+			// Для lost LastKnownPos обязателен, но если его нет - используем текущую позицию как fallback
 			state.LastKnownHex = unit.Position
 		}
 
@@ -267,6 +302,17 @@ func (s *ViewModelService) filterTaskForces(
 			// Для unknown visibility: если нет LastKnownPos, TaskForce не включается в результат
 			if visibility == models.VisibilityUnknown && lastKnownPos == nil {
 				continue
+			}
+			// Для lost visibility: LastKnownPos обязателен
+			if visibility == models.VisibilityLost {
+				if lastKnownPos == nil {
+					// Пытаемся взять из позиции ТФ как fallback
+					if tf.Position != "" {
+						lastKnownPos = &tf.Position
+					} else {
+						continue // Если нет LastKnownPos и нет позиции - пропускаем
+					}
+				}
 			}
 		}
 
@@ -309,6 +355,22 @@ func (s *ViewModelService) filterTaskForces(
 				Position:    position,
 				Units:       tf.Units, // Только IDs, детали не видны
 				// Speed, DetectionLevel, LastMoveTurn, IsActivated, IsPatrolling - не видны
+			}
+
+		case models.VisibilityLost:
+			// Lost: отображаем в LastKnownPos
+			if lastKnownPos != nil {
+				result[tfID] = &models.TaskForceViewModel{
+					ID:           tf.ID,
+					Owner:        tf.Owner,
+					Nationality:  tf.Nationality,
+					Visibility:   models.VisibilityLost,
+					IsVisible:    false, // Не видим текущую позицию, но видим LastKnownPos
+					Position:     *lastKnownPos, // Показываем в LastKnownPos
+					LastKnownPos: lastKnownPos,
+					Units:        tf.Units, // Только IDs
+					// Speed, DetectionLevel, LastMoveTurn, IsActivated, IsPatrolling - не видны
+				}
 			}
 
 		case models.VisibilityUnknown:

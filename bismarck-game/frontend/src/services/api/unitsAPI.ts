@@ -49,7 +49,7 @@ export interface GameUnit {
   is_emergency_fuel: boolean;
   emergency_turn: number;
   is_patrolling: boolean;
-  visibility?: 'unknown' | 'sighted' | 'shadowed';
+  visibility?: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   created_at: string;
   updated_at: string;
 }
@@ -66,7 +66,7 @@ export interface TaskForce {
   last_move_turn: number;
   is_activated: boolean;
   is_patrolling: boolean;
-  visibility?: 'unknown' | 'sighted' | 'shadowed';
+  visibility?: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   created_at: string;
   updated_at: string;
 }
@@ -74,7 +74,7 @@ export interface TaskForce {
 // Интерфейс для ответа API
 export interface EnemyContact {
   hex_id: string;
-  visibility: 'unknown' | 'sighted' | 'shadowed';
+  visibility: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   ship_count: number;
   class_summary: string;
   task_force: string;
@@ -161,7 +161,7 @@ interface UnitModel {
   nationality: string;
   position: string;
   status: string;
-  visibility?: 'unknown' | 'sighted' | 'shadowed';
+  visibility?: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   naval_data?: {
     class: string;
     setup_hex: string;
@@ -213,7 +213,7 @@ interface TaskForceModel {
   speed: number;
   units: string[];
   is_visible: boolean;
-  visibility?: 'unknown' | 'sighted' | 'shadowed';
+  visibility?: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   detection_level: string;
   last_move_turn: number;
   is_activated: boolean;
@@ -224,7 +224,7 @@ interface TaskForceModel {
 
 interface EnemyContactModel {
   hex_id: string;
-  visibility: 'unknown' | 'sighted' | 'shadowed';
+  visibility: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   ship_count: number;
   class_summary: string;
   task_force: string;

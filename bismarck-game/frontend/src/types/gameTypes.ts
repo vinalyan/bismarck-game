@@ -347,6 +347,7 @@ export enum AirUnitStatus {
 // Уровень обнаружения
 export enum DetectionLevel {
   None = 'none',
+  Lost = 'lost',
   Sighted = 'sighted',
   Shadowed = 'shadowed',
   Lost = 'lost'
@@ -395,7 +396,7 @@ export interface NavalUnit {
   maxTorpedoes: number;
   radarLevel: number; // 0, 1, 2 (RADAR I, RADAR II, RADAR II*)
   status: UnitStatus;
-  visibility: 'unknown' | 'sighted' | 'shadowed';
+  visibility: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   lastKnownPos?: string;
   taskForceId?: string;
   damage: Damage[];
@@ -446,7 +447,7 @@ export interface TaskForce {
   speed: number;
   units: string[]; // IDs юнитов
   isVisible: boolean;
-  visibility: 'unknown' | 'sighted' | 'shadowed';
+  visibility: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   lastMoveTurn: number;
   isActivated: boolean;
   createdAt: string;

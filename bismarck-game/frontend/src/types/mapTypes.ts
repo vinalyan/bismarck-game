@@ -88,7 +88,7 @@ export type UnitState = 'idle' | 'selected' | 'active' | 'cannot-move' | 'emerge
 
 export interface EnemyContactSummary {
   hex_id: string;
-  visibility: 'unknown' | 'sighted' | 'shadowed';
+  visibility: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   ship_count: number;
   class_summary: string;
   task_force: string;

@@ -23,6 +23,8 @@ func convertVisibilityToDetectionLevelString(visibility models.UnitVisibility) s
 		return "sighted"
 	case models.VisibilityShadowed:
 		return "shadowed"
+	case models.VisibilityLost:
+		return "lost" // lost хранится в БД как "lost"
 	case models.VisibilityUnknown:
 		return "none"
 	default:
@@ -37,7 +39,9 @@ func convertVisibilityToDetectionLevelStringReverse(dl string) models.UnitVisibi
 		return models.VisibilitySighted
 	case "shadowed":
 		return models.VisibilityShadowed
-	case "none", "lost":
+	case "lost":
+		return models.VisibilityLost
+	case "none":
 		return models.VisibilityUnknown
 	default:
 		return models.VisibilityUnknown
@@ -661,6 +665,7 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 
 	visibilityRanks := map[models.UnitVisibility]rank{
 		models.VisibilityUnknown:  rankNone,
+		models.VisibilityLost:     rankNone, // lost имеет тот же ранг что и unknown
 		models.VisibilitySighted:  rankSighted,
 		models.VisibilityShadowed: rankShadowed,
 	}
@@ -683,6 +688,8 @@ func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.
 			vis = models.VisibilityShadowed
 		case models.VisibilitySighted:
 			vis = models.VisibilitySighted
+		case models.VisibilityLost:
+			vis = models.VisibilityLost
 		default:
 			vis = models.VisibilityUnknown
 		}
@@ -963,6 +970,8 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 			visibility = models.VisibilityShadowed
 		case "sighted":
 			visibility = models.VisibilitySighted
+		case "lost":
+			visibility = models.VisibilityLost
 		default:
 			visibility = models.VisibilityUnknown
 		}

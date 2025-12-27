@@ -182,8 +182,16 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 				if unit.Position == "" || !fogHexesMap[unit.Position] {
 					continue
 				}
-				if unit.Visibility != models.VisibilityUnknown {
-					unit.Visibility = models.VisibilityUnknown
+				if unit.Visibility != models.VisibilityUnknown && unit.Visibility != models.VisibilityLost {
+					// При тумане: sighted/shadowed -> lost (сохраняем LastKnownPos)
+					// Позиция уже проверена выше, поэтому она гарантированно есть
+					if unit.Visibility == models.VisibilitySighted || unit.Visibility == models.VisibilityShadowed {
+						unit.NavalData.LastKnownPos = &unit.Position
+						unit.Visibility = models.VisibilityLost
+					} else {
+						// Для других статусов (если такие есть) -> unknown
+						unit.Visibility = models.VisibilityUnknown
+					}
 				}
 			}
 
@@ -192,8 +200,21 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 				if tf.Position == "" || !fogHexesMap[tf.Position] {
 					continue
 				}
-				if tf.Visibility != models.VisibilityUnknown {
-					tf.Visibility = models.VisibilityUnknown
+				if tf.Visibility != models.VisibilityUnknown && tf.Visibility != models.VisibilityLost {
+					// При тумане: sighted/shadowed -> lost (сохраняем LastKnownPos для всех юнитов в ТФ)
+					// Позиция уже проверена выше, поэтому она гарантированно есть
+					if tf.Visibility == models.VisibilitySighted || tf.Visibility == models.VisibilityShadowed {
+						for _, unitID := range tf.Units {
+							if unit, exists := m.Units[unitID]; exists && unit.NavalData != nil {
+								unit.NavalData.LastKnownPos = &tf.Position
+								m.Units[unitID] = unit
+							}
+						}
+						tf.Visibility = models.VisibilityLost
+					} else {
+						// Для других статусов (если такие есть) -> unknown
+						tf.Visibility = models.VisibilityUnknown
+					}
 				}
 			}
 
@@ -217,17 +238,46 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 			// Сбрасываем видимость для всех юнитов
 			for _, unit := range m.Units {
 				if unit.Category == models.UnitCategoryNaval && unit.NavalData != nil {
-					if unit.Visibility != models.VisibilityUnknown {
-						unit.Visibility = models.VisibilityUnknown
+					if unit.Visibility != models.VisibilityUnknown && unit.Visibility != models.VisibilityLost {
+						// При видимости X: sighted/shadowed -> lost (сохраняем LastKnownPos)
+						if unit.Visibility == models.VisibilitySighted || unit.Visibility == models.VisibilityShadowed {
+							if unit.Position != "" {
+								unit.NavalData.LastKnownPos = &unit.Position
+								unit.Visibility = models.VisibilityLost
+							} else {
+								// Если нет позиции (ошибка состояния) -> unknown
+								unit.Visibility = models.VisibilityUnknown
+							}
+						} else {
+							// Для других статусов -> unknown
+							unit.Visibility = models.VisibilityUnknown
+						}
 					}
 				}
 			}
 
 			// Сбрасываем видимость для всех Task Forces
 			for _, tf := range m.TaskForces {
-				if tf.Visibility != models.VisibilityUnknown {
-					tf.Visibility = models.VisibilityUnknown
-				}
+					if tf.Visibility != models.VisibilityUnknown && tf.Visibility != models.VisibilityLost {
+						// При видимости X: sighted/shadowed -> lost (сохраняем LastKnownPos для всех юнитов в ТФ)
+						if tf.Visibility == models.VisibilitySighted || tf.Visibility == models.VisibilityShadowed {
+							if tf.Position != "" {
+								for _, unitID := range tf.Units {
+									if unit, exists := m.Units[unitID]; exists && unit.NavalData != nil {
+										unit.NavalData.LastKnownPos = &tf.Position
+										m.Units[unitID] = unit
+									}
+								}
+								tf.Visibility = models.VisibilityLost
+							} else {
+								// Если нет позиции (ошибка состояния) -> unknown
+								tf.Visibility = models.VisibilityUnknown
+							}
+						} else {
+							// Для других статусов -> unknown
+							tf.Visibility = models.VisibilityUnknown
+						}
+					}
 			}
 
 			return nil
@@ -401,23 +451,35 @@ func (h *ShadowPhaseHandler) Complete(gameID string, turn int) error {
 				}
 			}
 
-			log.Printf("Shadow phase - found %d sighted units and %d sighted task forces to reset to unknown",
+			log.Printf("Shadow phase - found %d sighted units and %d sighted task forces to reset to lost",
 				len(sightedUnitTransitions), len(sightedTaskForceTransitions))
 
-			// Теперь обновляем GameModel, изменяя видимость на unknown
+			// Теперь обновляем GameModel, изменяя видимость на lost
 			err = pm.gameStateService.UpdateGameModelWithRetry(gameID, func(updateModel *models.GameModel) error {
-				// Обновляем юниты: sighted -> unknown
+				// Обновляем юниты: sighted -> lost
 				for _, target := range sightedUnitTransitions {
 					if unit, exists := updateModel.Units[target.ID]; exists && unit.Visibility == models.VisibilitySighted {
-						unit.Visibility = models.VisibilityUnknown
+						unit.Visibility = models.VisibilityLost
+						// Устанавливаем LastKnownPos при снятии маркера sighted
+						if unit.NavalData != nil && unit.Position != "" {
+							unit.NavalData.LastKnownPos = &unit.Position
+						}
 						updateModel.Units[target.ID] = unit
 					}
 				}
 
-				// Обновляем Task Forces: sighted -> unknown
+				// Обновляем Task Forces: sighted -> lost
+				// Для Task Forces LastKnownPos устанавливается через юниты в составе ТФ
 				for _, target := range sightedTaskForceTransitions {
 					if tf, exists := updateModel.TaskForces[target.ID]; exists && tf.Visibility == models.VisibilitySighted {
-						tf.Visibility = models.VisibilityUnknown
+						tf.Visibility = models.VisibilityLost
+						// Устанавливаем LastKnownPos для всех юнитов в составе ТФ
+						for _, unitID := range tf.Units {
+							if unit, exists := updateModel.Units[unitID]; exists && unit.NavalData != nil && tf.Position != "" {
+								unit.NavalData.LastKnownPos = &tf.Position
+								updateModel.Units[unitID] = unit
+							}
+						}
 						updateModel.TaskForces[target.ID] = tf
 					}
 				}
@@ -429,15 +491,15 @@ func (h *ShadowPhaseHandler) Complete(gameID string, turn int) error {
 				log.Printf("Shadow phase - failed to remove remaining sighted in GameModel: %v", err)
 				// Не возвращаем ошибку, продолжаем выполнение
 			} else {
-				log.Printf("Shadow phase - successfully reset %d units and %d task forces from sighted to unknown",
+				log.Printf("Shadow phase - successfully reset %d units and %d task forces from sighted to lost",
 					len(sightedUnitTransitions), len(sightedTaskForceTransitions))
 			}
 		}
 	}
 
 	// Логируем переходы видимости
-	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedUnitTransitions, models.VisibilitySighted, models.VisibilityUnknown, "фаза слежения: очистка обнаружения")
-	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedTaskForceTransitions, models.VisibilitySighted, models.VisibilityUnknown, "фаза слежения: очистка обнаружения")
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedUnitTransitions, models.VisibilitySighted, models.VisibilityLost, "фаза слежения: очистка обнаружения")
+	logDetectionTransitions(pm, gameID, turnNumber, phaseLabel, sightedTaskForceTransitions, models.VisibilitySighted, models.VisibilityLost, "фаза слежения: очистка обнаружения")
 
 	return nil
 }

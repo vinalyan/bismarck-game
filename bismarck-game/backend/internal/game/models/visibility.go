@@ -8,9 +8,10 @@ import (
 type UnitVisibility string
 
 const (
-	VisibilityUnknown   UnitVisibility = "unknown"    // Юнит не обнаружен
-	VisibilitySighted   UnitVisibility = "sighted"    // Юнит обнаружен (маркер "Обнаружено")
-	VisibilityShadowed  UnitVisibility = "shadowed"   // Юнит преследуется (маркер "Преследуется")
+	VisibilityUnknown   UnitVisibility = "unknown"    // Юнит не обнаружен (никогда не видели)
+	VisibilityLost     UnitVisibility = "lost"      // Юнит потерян (видели, но потеряли контакт, есть LastKnownPos)
+	VisibilitySighted  UnitVisibility = "sighted"   // Юнит обнаружен (маркер "Обнаружено")
+	VisibilityShadowed UnitVisibility = "shadowed"  // Юнит преследуется (маркер "Преследуется")
 )
 
 // UnitVisibilityState представляет состояние видимости юнита для конкретного игрока
@@ -75,6 +76,8 @@ func (uv UnitVisibility) GetVisibilityText() string {
 	switch uv {
 	case VisibilityUnknown:
 		return "Неизвестно"
+	case VisibilityLost:
+		return "Потерян"
 	case VisibilitySighted:
 		return "Обнаружено"
 	case VisibilityShadowed:
@@ -91,6 +94,8 @@ func (uv UnitVisibility) GetVisibilityMarker() string {
 		return "SIGHTED"
 	case VisibilityShadowed:
 		return "SHADOWED"
+	case VisibilityLost:
+		return "LOST"
 	default:
 		return ""
 	}
@@ -116,6 +121,6 @@ func ShouldBeVisible(unitOwner, playerSide string, visibility UnitVisibility) bo
 		return true
 	}
 	
-	// Юниты противника видимы только если обнаружены или преследуются
-	return visibility == VisibilitySighted || visibility == VisibilityShadowed
+	// Юниты противника видимы только если обнаружены, преследуются или потеряны (с LastKnownPos)
+	return visibility == VisibilitySighted || visibility == VisibilityShadowed || visibility == VisibilityLost
 }

@@ -236,6 +236,7 @@ export const movementUtils = {
 
   // Получить текст описания видимости
   getVisibilityText: (visibility: string): string => {
+    if (visibility === 'lost') return 'Потерян';
     const visibilityMap: Record<string, string> = {
       'unknown': 'Неизвестно',
       'sighted': 'Обнаружено',
@@ -248,7 +249,8 @@ export const movementUtils = {
   getVisibilityMarker: (visibility: string): string => {
     const markerMap: Record<string, string> = {
       'sighted': 'SIGHTED',
-      'shadowed': 'SHADOWED'
+      'shadowed': 'SHADOWED',
+      'lost': 'LOST'
     };
     return markerMap[visibility] || '';
   },
