@@ -158,6 +158,7 @@ func (s *ViewModelService) filterUnits(
 
 		case models.VisibilityLost:
 			// Lost: отображаем в LastKnownPos с минимальной информацией
+			// position содержит гекс из LastKnownPos GameModel, last_known_pos не включаем
 			var lastKnownPos *string
 			if unit.NavalData != nil && unit.NavalData.LastKnownPos != nil && *unit.NavalData.LastKnownPos != "" {
 				lastKnownPos = unit.NavalData.LastKnownPos
@@ -167,15 +168,15 @@ func (s *ViewModelService) filterUnits(
 			// Lost юнит всегда должен иметь LastKnownPos
 			if lastKnownPos != nil {
 				result[unitID] = &models.UnitViewModel{
-					ID:           unit.ID,
-					Type:         unit.Type,
-					Category:     unit.Category,
-					Owner:        unit.Owner,
-					Nationality:  unit.Nationality,
-					Visibility:   models.VisibilityLost,
-					IsVisible:    false, // Не видим текущую позицию, но видим LastKnownPos
-					Position:     *lastKnownPos, // Показываем в LastKnownPos
-					LastKnownPos: lastKnownPos,
+					ID:          unit.ID,
+					Type:        unit.Type,
+					Category:    unit.Category,
+					Owner:       unit.Owner,
+					Nationality: unit.Nationality,
+					Visibility:  models.VisibilityLost,
+					IsVisible:   false, // Не видим текущую позицию, но видим LastKnownPos
+					Position:    *lastKnownPos, // Показываем в LastKnownPos (из GameModel)
+					// LastKnownPos не устанавливаем - не включаем в JSON для lost юнитов
 					// Name, Status, NavalData, AirData - не видны
 				}
 			}
@@ -359,16 +360,17 @@ func (s *ViewModelService) filterTaskForces(
 
 		case models.VisibilityLost:
 			// Lost: отображаем в LastKnownPos
+			// position содержит гекс из LastKnownPos GameModel, last_known_pos не включаем
 			if lastKnownPos != nil {
 				result[tfID] = &models.TaskForceViewModel{
-					ID:           tf.ID,
-					Owner:        tf.Owner,
-					Nationality:  tf.Nationality,
-					Visibility:   models.VisibilityLost,
-					IsVisible:    false, // Не видим текущую позицию, но видим LastKnownPos
-					Position:     *lastKnownPos, // Показываем в LastKnownPos
-					LastKnownPos: lastKnownPos,
-					Units:        tf.Units, // Только IDs
+					ID:          tf.ID,
+					Owner:       tf.Owner,
+					Nationality: tf.Nationality,
+					Visibility:  models.VisibilityLost,
+					IsVisible:   false, // Не видим текущую позицию, но видим LastKnownPos
+					Position:    *lastKnownPos, // Показываем в LastKnownPos (из GameModel)
+					// LastKnownPos не устанавливаем - не включаем в JSON для lost TaskForces
+					Units:       tf.Units, // Только IDs
 					// Speed, DetectionLevel, LastMoveTurn, IsActivated, IsPatrolling - не видны
 				}
 			}

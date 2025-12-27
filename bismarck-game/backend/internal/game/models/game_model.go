@@ -341,7 +341,15 @@ func ConvertUnitModelToNavalUnit(unitModel *UnitModel) (*NavalUnit, error) {
 		MaxTorpedoes:             unitModel.NavalData.MaxTorpedoes,
 		RadarLevel:   unitModel.NavalData.RadarLevel,
 		Status:       UnitStatus(unitModel.Status),
-		LastKnownPos: unitModel.NavalData.LastKnownPos,
+		// ВАЖНО: Создаем копию строки, а не копируем указатель
+		// Это предотвращает случайное обновление LastKnownPos в GameModel
+		LastKnownPos: func() *string {
+			if unitModel.NavalData.LastKnownPos != nil {
+				val := *unitModel.NavalData.LastKnownPos
+				return &val
+			}
+			return nil
+		}(),
 		TaskForceID:              unitModel.NavalData.TaskForceID,
 		Damage:                   unitModel.NavalData.Damage,
 		PreviousTurnMovedHexes:   unitModel.NavalData.PreviousTurnMovedHexes,

@@ -350,7 +350,8 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 			unitModel.NavalData.Fuel = unit.Fuel
 			unitModel.NavalData.CurrentHull = unit.CurrentHull
 			unitModel.NavalData.Torpedoes = unit.Torpedoes
-			unitModel.NavalData.LastKnownPos = unit.LastKnownPos
+			// LastKnownPos обновляется ТОЛЬКО в триггерах (при сбросе маркеров) и при обнаружении
+			// Здесь НЕ обновляем LastKnownPos - он управляется через триггеры видимости
 			unitModel.NavalData.TaskForceID = unit.TaskForceID
 			unitModel.NavalData.Damage = unit.Damage
 			unitModel.NavalData.NoMovementTurnsLeft = unit.NoMovementTurnsLeft

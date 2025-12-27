@@ -257,6 +257,7 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 	// Обновляем позицию юнита
 	oldPosition := unit.Position
 	unit.Position = toHex
+	// ВАЖНО: LastKnownPos НЕ обновляется при движении - он управляется только через триггеры видимости
 
 	// Обновляем данные о движении
 	if s.phaseManager != nil {
@@ -322,6 +323,7 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 
 	// Обновляем юнит в GameModel (позиция, топливо и ограничения)
 	// UpdateNavalUnit теперь сохраняет изменения в GameModel через GameStateService
+	// ВАЖНО: LastKnownPos НЕ обновляется здесь - он управляется только через триггеры видимости
 	if err := s.unitService.UpdateNavalUnit(unit); err != nil {
 		return nil, fmt.Errorf("failed to update unit position: %w", err)
 	}

@@ -1523,7 +1523,7 @@ func (h *SearchPhaseHandler) ownerMatches(owner, opponentPlayerID, opponentSide 
 
 // applyVisibilityToUnitsInModel обновляет Visibility для юнитов через GameModel
 // ВАЖНО: Видимость должна быть единой для всех игроков, поэтому используем максимальное значение
-// Порядок приоритета: shadowed > sighted > unknown
+// Порядок приоритета: shadowed > sighted > lost > unknown
 func (h *SearchPhaseHandler) applyVisibilityToUnitsInModel(
 	pm *PhaseManager,
 	gameID string,
@@ -1552,10 +1552,20 @@ func (h *SearchPhaseHandler) applyVisibilityToUnitsInModel(
 				continue
 			}
 
-			// Определяем максимальную видимость (shadowed > sighted > unknown)
+			// Определяем максимальную видимость (shadowed > sighted > lost > unknown)
 			oldVisibility := unit.Visibility
 			finalVisibility := h.maxVisibility(oldVisibility, newVisibility)
 			unit.Visibility = finalVisibility
+
+			// Обновляем LastKnownPos при обнаружении (lost/unknown → sighted/shadowed)
+			// Это триггер обновления LastKnownPos при обнаружении
+			if (oldVisibility == models.VisibilityLost || oldVisibility == models.VisibilityUnknown) &&
+				(finalVisibility == models.VisibilitySighted || finalVisibility == models.VisibilityShadowed) {
+				// При обнаружении lost/unknown юнита обновляем LastKnownPos на позицию обнаружения
+				if unit.NavalData != nil && hexID != "" {
+					unit.NavalData.LastKnownPos = &hexID
+				}
+			}
 
 			// Логируем переход только если видимость изменилась
 			if oldVisibility != finalVisibility {
@@ -1574,20 +1584,24 @@ func (h *SearchPhaseHandler) applyVisibilityToUnitsInModel(
 	return nil
 }
 
-// maxVisibility возвращает максимальную видимость из двух (shadowed > sighted > unknown)
+// maxVisibility возвращает максимальную видимость из двух (shadowed > sighted > lost > unknown)
 func (h *SearchPhaseHandler) maxVisibility(v1, v2 models.UnitVisibility) models.UnitVisibility {
-	// Приоритет: shadowed > sighted > unknown
+	// Приоритет: shadowed > sighted > lost > unknown
 	if v1 == models.VisibilityShadowed || v2 == models.VisibilityShadowed {
 		return models.VisibilityShadowed
 	}
 	if v1 == models.VisibilitySighted || v2 == models.VisibilitySighted {
 		return models.VisibilitySighted
 	}
+	if v1 == models.VisibilityLost || v2 == models.VisibilityLost {
+		return models.VisibilityLost
+	}
 	return models.VisibilityUnknown
 }
 
 // applyVisibilityToTaskForcesInModel обновляет Visibility для Task Forces через GameModel
 // ВАЖНО: Видимость должна быть единой для всех игроков, поэтому используем максимальное значение
+// Порядок приоритета: shadowed > sighted > lost > unknown
 func (h *SearchPhaseHandler) applyVisibilityToTaskForcesInModel(
 	pm *PhaseManager,
 	gameID string,
@@ -1611,10 +1625,15 @@ func (h *SearchPhaseHandler) applyVisibilityToTaskForcesInModel(
 				continue
 			}
 
-			// Определяем максимальную видимость
+			// Определяем максимальную видимость (shadowed > sighted > lost > unknown)
 			oldVisibility := tf.Visibility
 			finalVisibility := h.maxVisibility(oldVisibility, newVisibility)
 			tf.Visibility = finalVisibility
+
+			// Обновляем LastKnownPos для всех юнитов в ТФ при обнаружении (lost/unknown → sighted/shadowed)
+			// Это триггер обновления LastKnownPos при обнаружении Task Force
+			shouldUpdateLastKnownPos := (oldVisibility == models.VisibilityLost || oldVisibility == models.VisibilityUnknown) &&
+				(finalVisibility == models.VisibilitySighted || finalVisibility == models.VisibilityShadowed)
 
 			// Логируем переход только если видимость изменилась
 			if oldVisibility != finalVisibility {
@@ -1631,6 +1650,11 @@ func (h *SearchPhaseHandler) applyVisibilityToTaskForcesInModel(
 
 				if unit.Category != models.UnitCategoryNaval || unit.NavalData == nil {
 					continue
+				}
+
+				// Обновляем LastKnownPos для юнитов в ТФ при обнаружении
+				if shouldUpdateLastKnownPos && hexID != "" {
+					unit.NavalData.LastKnownPos = &hexID
 				}
 
 				oldUnitVisibility := unit.Visibility
