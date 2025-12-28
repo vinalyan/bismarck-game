@@ -370,13 +370,26 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 
 	// Обновляем GameModel после движения
 	// Используем UpdateGameModelWithRetry для атомарности
+	// ВАЖНО: UpdateNavalUnit уже обновляет позицию и другие поля в GameModel
+	// Здесь обновляем только дополнительные поля, которые не обновляются в UpdateNavalUnit
+	// LastKnownPos НЕ обновляется здесь - он управляется только через триггеры видимости
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
 			// Обновляем юнит в модели напрямую
-			// Движение уже выполнено, обновляем позицию и топливо юнита в модели
+			// Движение уже выполнено через UpdateNavalUnit, обновляем только дополнительные поля
 			if unitModel, exists := model.Units[unit.ID]; exists {
+				// ВАЖНО: Position уже обновлена в UpdateNavalUnit, но обновляем для совместимости
+				// НО: LastKnownPos НЕ обновляется - он управляется только через триггеры видимости
 				unitModel.Position = unit.Position
 				if unitModel.NavalData != nil {
+					// ВАЖНО: Для lost юнитов LastKnownPos НЕ должен обновляться при движении
+					// Сохраняем текущий LastKnownPos для lost юнитов
+					var savedLastKnownPos *string
+					if unitModel.Visibility == models.VisibilityLost && unitModel.NavalData.LastKnownPos != nil {
+						val := *unitModel.NavalData.LastKnownPos
+						savedLastKnownPos = &val
+					}
+					
 					unitModel.NavalData.Fuel = unit.Fuel
 					unitModel.NavalData.LastMoveTurn = unit.LastMoveTurn
 					unitModel.NavalData.NoMovementTurnsLeft = unit.NoMovementTurnsLeft
@@ -384,6 +397,11 @@ func (h *MovementHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 					unitModel.NavalData.IsEmergencyFuel = unit.IsEmergencyFuel
 					unitModel.NavalData.EmergencyTurn = unit.EmergencyTurn
 					unitModel.NavalData.IsPatrolling = unit.IsPatrolling
+					
+					// Восстанавливаем LastKnownPos для lost юнитов
+					if savedLastKnownPos != nil {
+						unitModel.NavalData.LastKnownPos = savedLastKnownPos
+					}
 				}
 			}
 			return nil
