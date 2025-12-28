@@ -74,6 +74,11 @@ func (s *UnitService) SetGameStateService(gameStateService *GameStateService) {
 	s.gameStateService = gameStateService
 }
 
+// GetGameStateService возвращает GameStateService (для доступа из других сервисов)
+func (s *UnitService) GetGameStateService() *GameStateService {
+	return s.gameStateService
+}
+
 // SetEmergencyFuelService устанавливает сервис аварийного топлива
 func (s *UnitService) SetEmergencyFuelService(service *EmergencyFuelService) {
 	s.emergencyFuelService = service
@@ -350,8 +355,10 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 			unitModel.NavalData.Fuel = unit.Fuel
 			unitModel.NavalData.CurrentHull = unit.CurrentHull
 			unitModel.NavalData.Torpedoes = unit.Torpedoes
-			// LastKnownPos обновляется ТОЛЬКО в триггерах (при сбросе маркеров) и при обнаружении
+			// ВАЖНО: LastKnownPos обновляется ТОЛЬКО в триггерах (при сбросе маркеров) и при обнаружении
 			// Здесь НЕ обновляем LastKnownPos - он управляется через триггеры видимости
+			// Для lost юнитов LastKnownPos НЕ должен изменяться при движении
+			// unitModel.NavalData.LastKnownPos остается без изменений
 			unitModel.NavalData.TaskForceID = unit.TaskForceID
 			unitModel.NavalData.Damage = unit.Damage
 			unitModel.NavalData.NoMovementTurnsLeft = unit.NoMovementTurnsLeft

@@ -186,7 +186,11 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 					// При тумане: sighted/shadowed -> lost (сохраняем LastKnownPos)
 					// Позиция уже проверена выше, поэтому она гарантированно есть
 					if unit.Visibility == models.VisibilitySighted || unit.Visibility == models.VisibilityShadowed {
-						unit.NavalData.LastKnownPos = &unit.Position
+						// ВАЖНО: Создаем копию строки, а не указатель на поле Position
+						// Иначе при обновлении Position LastKnownPos тоже изменится
+						// Используем string() для явного создания новой строки
+						lastKnownPos := string([]byte(unit.Position))
+						unit.NavalData.LastKnownPos = &lastKnownPos
 						unit.Visibility = models.VisibilityLost
 					} else {
 						// Для других статусов (если такие есть) -> unknown
@@ -204,9 +208,13 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 					// При тумане: sighted/shadowed -> lost (сохраняем LastKnownPos для всех юнитов в ТФ)
 					// Позиция уже проверена выше, поэтому она гарантированно есть
 					if tf.Visibility == models.VisibilitySighted || tf.Visibility == models.VisibilityShadowed {
+						// ВАЖНО: Создаем копию строки, а не указатель на поле Position
+						// Иначе при обновлении Position LastKnownPos тоже изменится
+						// Используем string() для явного создания новой строки
+						lastKnownPos := string([]byte(tf.Position))
 						for _, unitID := range tf.Units {
 							if unit, exists := m.Units[unitID]; exists && unit.NavalData != nil {
-								unit.NavalData.LastKnownPos = &tf.Position
+								unit.NavalData.LastKnownPos = &lastKnownPos
 								m.Units[unitID] = unit
 							}
 						}
@@ -242,7 +250,11 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 						// При видимости X: sighted/shadowed -> lost (сохраняем LastKnownPos)
 						if unit.Visibility == models.VisibilitySighted || unit.Visibility == models.VisibilityShadowed {
 							if unit.Position != "" {
-								unit.NavalData.LastKnownPos = &unit.Position
+								// ВАЖНО: Создаем копию строки, а не указатель на поле Position
+								// Иначе при обновлении Position LastKnownPos тоже изменится
+								// Используем string() для явного создания новой строки
+								lastKnownPos := string([]byte(unit.Position))
+								unit.NavalData.LastKnownPos = &lastKnownPos
 								unit.Visibility = models.VisibilityLost
 							} else {
 								// Если нет позиции (ошибка состояния) -> unknown
@@ -262,9 +274,13 @@ func (h *VisibilityPhaseHandler) Start(gameID string, turn int) error {
 						// При видимости X: sighted/shadowed -> lost (сохраняем LastKnownPos для всех юнитов в ТФ)
 						if tf.Visibility == models.VisibilitySighted || tf.Visibility == models.VisibilityShadowed {
 							if tf.Position != "" {
+								// ВАЖНО: Создаем копию строки, а не указатель на поле Position
+								// Иначе при обновлении Position LastKnownPos тоже изменится
+								// Используем string() для явного создания новой строки
+								lastKnownPos := string([]byte(tf.Position))
 								for _, unitID := range tf.Units {
 									if unit, exists := m.Units[unitID]; exists && unit.NavalData != nil {
-										unit.NavalData.LastKnownPos = &tf.Position
+										unit.NavalData.LastKnownPos = &lastKnownPos
 										m.Units[unitID] = unit
 									}
 								}

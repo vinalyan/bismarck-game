@@ -241,9 +241,17 @@ func ConvertNavalUnitToUnitModel(unit *NavalUnit) *UnitModel {
 			BaseSecondaryArmament:    unit.BaseSecondaryArmament,
 			Torpedoes:                unit.Torpedoes,
 			MaxTorpedoes:             unit.MaxTorpedoes,
-			RadarLevel:               unit.RadarLevel,
-			LastKnownPos:             unit.LastKnownPos,
-			TaskForceID:              unit.TaskForceID,
+		RadarLevel:               unit.RadarLevel,
+		// ВАЖНО: Создаем копию строки, а не копируем указатель
+		// Это предотвращает случайное обновление LastKnownPos при обновлении Position
+		LastKnownPos: func() *string {
+			if unit.LastKnownPos != nil {
+				val := *unit.LastKnownPos
+				return &val
+			}
+			return nil
+		}(),
+		TaskForceID:              unit.TaskForceID,
 			Damage:                   unit.Damage,
 			MovementUsed:             unit.MovementUsed,
 			PreviousTurnMovedHexes:   unit.PreviousTurnMovedHexes,
