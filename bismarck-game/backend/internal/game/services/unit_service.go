@@ -346,6 +346,19 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 		currentStatus = unitModel.Status
 
 		// Обновляем все поля юнита
+		// ВАЖНО: Проверяем, не указывает ли LastKnownPos на Position перед обновлением Position
+		// Если да, создаем копию строки, чтобы предотвратить автоматическое обновление LastKnownPos
+		if unitModel.NavalData != nil && unitModel.NavalData.LastKnownPos != nil {
+			// Проверяем, не является ли LastKnownPos указателем на Position
+			lastKnownPosPtr := unitModel.NavalData.LastKnownPos
+			positionPtr := &unitModel.Position
+			if lastKnownPosPtr == positionPtr {
+				// КРИТИЧЕСКАЯ ПРОБЛЕМА: LastKnownPos указывает на Position!
+				// Создаем копию строки перед обновлением Position
+				lastKnownPosValue := *unitModel.NavalData.LastKnownPos
+				unitModel.NavalData.LastKnownPos = &lastKnownPosValue
+			}
+		}
 		unitModel.Position = unit.Position
 		unitModel.Status = string(unit.Status)
 		// ВНИМАНИЕ: Видимость НЕ обновляется из NavalUnit, так как она должна храниться только в GameModel
@@ -594,8 +607,8 @@ func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, playe
 			Torpedoes:                shipConfig.MaxTorpedos,
 			MaxTorpedoes:             shipConfig.MaxTorpedos,
 			RadarLevel:               shipConfig.RadarLevel,
-			Status: models.UnitStatusActive,
-			Damage: []models.Damage{},
+			Status:                   models.UnitStatusActive,
+			Damage:                   []models.Damage{},
 			CreatedAt:                time.Now(),
 			UpdatedAt:                time.Now(),
 		}

@@ -478,7 +478,10 @@ func (h *ShadowPhaseHandler) Complete(gameID string, turn int) error {
 						unit.Visibility = models.VisibilityLost
 						// Устанавливаем LastKnownPos при снятии маркера sighted
 						if unit.NavalData != nil && unit.Position != "" {
-							unit.NavalData.LastKnownPos = &unit.Position
+							// ВАЖНО: Используем копию строки, а не указатель на Position
+							// Иначе при обновлении Position LastKnownPos тоже изменится
+							lastKnownPosCopy := unit.Position
+							unit.NavalData.LastKnownPos = &lastKnownPosCopy
 						}
 						updateModel.Units[target.ID] = unit
 					}
@@ -492,7 +495,10 @@ func (h *ShadowPhaseHandler) Complete(gameID string, turn int) error {
 						// Устанавливаем LastKnownPos для всех юнитов в составе ТФ
 						for _, unitID := range tf.Units {
 							if unit, exists := updateModel.Units[unitID]; exists && unit.NavalData != nil && tf.Position != "" {
-								unit.NavalData.LastKnownPos = &tf.Position
+								// ВАЖНО: Используем копию строки, а не указатель на Position
+								// Иначе при обновлении Position LastKnownPos тоже изменится
+								lastKnownPosCopy := tf.Position
+								unit.NavalData.LastKnownPos = &lastKnownPosCopy
 								updateModel.Units[unitID] = unit
 							}
 						}
