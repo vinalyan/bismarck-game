@@ -1411,12 +1411,7 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 
 		// Инициализируем Search если нужно
-		if model.Search == nil {
-			model.Search = &models.SearchData{
-				German: make(map[string]models.SearchHexData),
-				Allied: make(map[string]models.SearchHexData),
-			}
-		}
+		model.EnsureSearchInitialized()
 
 		// Получаем позицию юнита для маркера патруля
 		hexID = unitModel.Position

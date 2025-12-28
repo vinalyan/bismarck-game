@@ -77,22 +77,7 @@ func (v *GameModelValidator) ValidateModel(model *models.GameModel) error {
 	}
 
 	// Валидация Search блока
-	if model.Search == nil {
-		model.Search = &models.SearchData{
-			German: make(map[string]models.SearchHexData),
-			Allied: make(map[string]models.SearchHexData),
-		}
-	}
-
-	// Валидация German
-	if model.Search.German == nil {
-		model.Search.German = make(map[string]models.SearchHexData)
-	}
-
-	// Валидация Allied
-	if model.Search.Allied == nil {
-		model.Search.Allied = make(map[string]models.SearchHexData)
-	}
+	model.EnsureSearchInitialized()
 
 	// Валидация Events
 	if model.Events == nil {

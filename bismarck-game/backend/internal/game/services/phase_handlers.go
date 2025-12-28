@@ -788,18 +788,7 @@ func (h *SearchPhaseHandler) Start(gameID string, turn int) error {
 	}
 
 	// Инициализируем GameModel.Search если нужно
-	if model.Search == nil {
-		model.Search = &models.SearchData{
-			German: make(map[string]models.SearchHexData),
-			Allied: make(map[string]models.SearchHexData),
-		}
-	}
-	if model.Search.German == nil {
-		model.Search.German = make(map[string]models.SearchHexData)
-	}
-	if model.Search.Allied == nil {
-		model.Search.Allied = make(map[string]models.SearchHexData)
-	}
+	model.EnsureSearchInitialized()
 
 	sides := []searchSide{
 		{label: "allied", playerID: ctx.alliedPlayerID, opponentLabel: "german", opponentPlayerID: ctx.germanPlayerID},

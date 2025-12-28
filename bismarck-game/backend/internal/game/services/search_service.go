@@ -777,22 +777,7 @@ func (s *SearchService) RecalculateSearchDataForHex(gameID, hexID string) error 
 	// Сохраняем в GameModel только ненулевые значения для каждой стороны
 	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
 		// Инициализируем Search если нужно
-		if model.Search == nil {
-			model.Search = &models.SearchData{
-				German: make(map[string]models.SearchHexData),
-				Allied: make(map[string]models.SearchHexData),
-			}
-		}
-
-		// Инициализируем German если нужно
-		if model.Search.German == nil {
-			model.Search.German = make(map[string]models.SearchHexData)
-		}
-
-		// Инициализируем Allied если нужно
-		if model.Search.Allied == nil {
-			model.Search.Allied = make(map[string]models.SearchHexData)
-		}
+		model.EnsureSearchInitialized()
 
 		// Сохраняем данные для немецкой стороны только если есть ненулевые значения
 		if germanHasData {
@@ -1202,24 +1187,13 @@ func (s *SearchService) AddHexMarker(gameID, playerID, hexID, markerType string)
 	if markerType == string(models.MarkerTypeFlightPathSearch) {
 		err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
 			// Инициализируем Search если нужно
-			if model.Search == nil {
-				model.Search = &models.SearchData{
-					German: make(map[string]models.SearchHexData),
-					Allied: make(map[string]models.SearchHexData),
-				}
-			}
+			model.EnsureSearchInitialized()
 
 			// Определяем, какую сторону обновлять
 			var searchSide map[string]models.SearchHexData
 			if playerSide == "german" {
-				if model.Search.German == nil {
-					model.Search.German = make(map[string]models.SearchHexData)
-				}
 				searchSide = model.Search.German
 			} else if playerSide == "allied" {
-				if model.Search.Allied == nil {
-					model.Search.Allied = make(map[string]models.SearchHexData)
-				}
 				searchSide = model.Search.Allied
 			} else {
 				return fmt.Errorf("invalid player side: %s", playerSide)

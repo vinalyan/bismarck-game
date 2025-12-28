@@ -175,6 +175,23 @@ type SearchData struct {
 	Allied map[string]SearchHexData `json:"allied"` // hex_id -> SearchHexData
 }
 
+// EnsureSearchInitialized гарантирует, что Search структура полностью инициализирована
+// Эта функция устраняет дублирование кода инициализации Search в 40+ местах
+func (model *GameModel) EnsureSearchInitialized() {
+	if model.Search == nil {
+		model.Search = &SearchData{
+			German: make(map[string]SearchHexData),
+			Allied: make(map[string]SearchHexData),
+		}
+	}
+	if model.Search.German == nil {
+		model.Search.German = make(map[string]SearchHexData)
+	}
+	if model.Search.Allied == nil {
+		model.Search.Allied = make(map[string]SearchHexData)
+	}
+}
+
 // GameEventModel представляет событие игры
 type GameEventModel struct {
 	ID          string                 `json:"id"`

@@ -318,12 +318,7 @@ func (h *SearchHandler) AddHexMarker(w http.ResponseWriter, r *http.Request) {
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
 			// Инициализируем Search если нужно
-			if model.Search == nil {
-				model.Search = &models.SearchData{
-					German: make(map[string]models.SearchHexData),
-					Allied: make(map[string]models.SearchHexData),
-				}
-			}
+			model.EnsureSearchInitialized()
 			// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
 			return nil
 		}, 3); err != nil {
@@ -375,12 +370,7 @@ func (h *SearchHandler) RemoveHexMarker(w http.ResponseWriter, r *http.Request) 
 	if h.gameStateService != nil {
 		if err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
 			// Инициализируем Search если нужно
-			if model.Search == nil {
-				model.Search = &models.SearchData{
-					German: make(map[string]models.SearchHexData),
-					Allied: make(map[string]models.SearchHexData),
-				}
-			}
+			model.EnsureSearchInitialized()
 			// TODO: Пересчитать SearchHexData для этого гекса для обеих сторон
 			return nil
 		}, 3); err != nil {
