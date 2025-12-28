@@ -79,11 +79,12 @@ func (s *TaskForceService) CreateTaskForce(taskForce *models.TaskForce) error {
 				return fmt.Errorf("unit %s is not in the same hex as task force", unitID)
 			}
 			// Проверяем уровень видимости из GameModel
+			// По правилам игры (раздел 7.2): нельзя создавать ТФ из кораблей с маркером "Преследуется" (shadowed)
 			if s.gameStateService != nil {
 				model, err := s.gameStateService.LoadGameModel(taskForce.GameID)
 				if err == nil {
-					if unitModel, exists := model.Units[unitID]; exists && unitModel.Visibility == models.VisibilitySighted {
-						return fmt.Errorf("cannot form task force - unit %s is sighted", unitID)
+					if unitModel, exists := model.Units[unitID]; exists && unitModel.Visibility == models.VisibilityShadowed {
+						return fmt.Errorf("cannot form task force - unit %s is shadowed", unitID)
 					}
 				}
 			}
@@ -296,8 +297,9 @@ func (s *TaskForceService) AddUnitToTaskForce(taskForceID string, unitID string)
 	}
 
 	// Проверяем, можно ли добавить юниты (правила игры)
+	// По правилам игры (раздел 7.2): нельзя добавлять юниты в ТФ, если ТФ имеет маркер "Преследуется" (shadowed)
 	if !taskForce.CanAddUnit() {
-		return fmt.Errorf("cannot add unit to task force - it is sighted")
+		return fmt.Errorf("cannot add unit to task force - it is shadowed")
 	}
 
 	// Получаем юнит из GameModel
@@ -322,11 +324,12 @@ func (s *TaskForceService) AddUnitToTaskForce(taskForceID string, unitID string)
 	}
 
 	// Проверяем уровень видимости юнита из GameModel
+	// По правилам игры (раздел 7.2): нельзя добавлять в ТФ корабли с маркером "Преследуется" (shadowed)
 	if s.gameStateService != nil {
 		model, err := s.gameStateService.LoadGameModel(taskForce.GameID)
 		if err == nil {
-			if unitModel, exists := model.Units[unitID]; exists && unitModel.Visibility == models.VisibilitySighted {
-				return fmt.Errorf("cannot add sighted unit to task force")
+			if unitModel, exists := model.Units[unitID]; exists && unitModel.Visibility == models.VisibilityShadowed {
+				return fmt.Errorf("cannot add shadowed unit to task force")
 			}
 		}
 	}
@@ -404,8 +407,9 @@ func (s *TaskForceService) RemoveUnitFromTaskForce(taskForceID string, unitID st
 	}
 
 	// Проверяем, можно ли удалить юнит (правила игры)
+	// По правилам игры (раздел 7.2): нельзя удалять юниты из ТФ, если ТФ имеет маркер "Преследуется" (shadowed)
 	if !taskForce.CanRemoveUnit() {
-		return fmt.Errorf("cannot remove unit from task force - it is sighted")
+		return fmt.Errorf("cannot remove unit from task force - it is shadowed")
 	}
 
 	// 1) Назначаем позицию юниту равной позиции TF и снимаем привязку к TF ДО изменения состава TF

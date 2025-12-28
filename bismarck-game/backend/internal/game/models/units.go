@@ -426,13 +426,15 @@ func (tf *TaskForce) CanMoveThisTurn(currentTurn int) bool {
 }
 
 // CanAddUnit проверяет, можно ли добавить юнит в Task Force
+// По правилам игры (раздел 7.2): нельзя добавлять юниты в ТФ, если ТФ имеет маркер "Преследуется" (shadowed)
 func (tf *TaskForce) CanAddUnit() bool {
-	return tf.Visibility != VisibilitySighted
+	return tf.Visibility != VisibilityShadowed
 }
 
 // CanRemoveUnit проверяет, можно ли удалить юнит из Task Force
+// По правилам игры (раздел 7.2): нельзя удалять юниты из ТФ, если ТФ имеет маркер "Преследуется" (shadowed)
 func (tf *TaskForce) CanRemoveUnit() bool {
-	return tf.Visibility != VisibilitySighted
+	return tf.Visibility != VisibilityShadowed
 }
 
 // GetNextAvailableName генерирует следующее доступное имя для Task Force
