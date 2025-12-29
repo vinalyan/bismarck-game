@@ -1,3 +1,15 @@
 Планы/общая инфа.md
 .DS_Store
 .gitignore
+
+# Бинарники
+bismarck-game/backend/main
+bismarck-game/backend/server
+bismarck-game/backend/bin/
+
+# Логи и временные файлы
+*.log
+*.pid
+*.tmp
+bismarck-game/backend/current_test_results.txt
+bismarck-game/frontend/server.pid
