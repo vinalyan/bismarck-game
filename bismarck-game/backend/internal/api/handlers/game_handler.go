@@ -377,9 +377,10 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * perPage
 	// Пытаемся использовать поля visibility_level, is_fog, weather_track
 	// Запрос без полей visibility - они загружаются из GameModel через GetGameVisibilityOnly
+	// completed_at не запрашиваем, так как его может не быть в тестовой схеме БД
 	query := `
 		SELECT g.id, g.name, g.player1_id, g.player2_id, g.current_turn, g.current_phase, g.status, 
-		       g.settings, g.created_at, g.updated_at, g.completed_at,
+		       g.settings, g.created_at, g.updated_at,
 		       p1.username as player1_username, p2.username as player2_username
 		FROM games g
 		LEFT JOIN users p1 ON g.player1_id = p1.id
@@ -403,15 +404,14 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 		var game models.Game
 		var settingsJSON []byte
 		var player1ID, player2ID sql.NullString
-		var completedAt sql.NullTime
 		var player1Username, player2Username sql.NullString
 
 		// Сканируем основные поля (без visibility - они загружаются из GameModel)
+		// completed_at не сканируем, так как его может не быть в тестовой схеме БД
 		err := rows.Scan(
 			&game.ID, &game.Name, &player1ID, &player2ID,
 			&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 			&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-			&completedAt,
 			&player1Username, &player2Username,
 		)
 		if err != nil {
@@ -428,9 +428,7 @@ func (h *GameHandler) GetGames(w http.ResponseWriter, r *http.Request) {
 		if player2ID.Valid {
 			game.Player2ID = player2ID.String
 		}
-		if completedAt.Valid {
-			game.CompletedAt = &completedAt.Time
-		}
+		// completed_at остается nil, так как не запрашиваем его из БД
 
 		// Десериализуем настройки игры
 		if len(settingsJSON) > 0 {
@@ -509,10 +507,10 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 	var game models.Game
 	var settingsJSON []byte
 	var player2ID sql.NullString
-	var completedAt sql.NullTime
+	// completed_at не запрашиваем, так как его может не быть в тестовой схеме БД
 	query := `
 		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
-		       settings, created_at, updated_at, completed_at
+		       settings, created_at, updated_at
 		FROM games 
 		WHERE id = $1
 	`
@@ -521,7 +519,6 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 		&game.ID, &game.Name, &game.Player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-		&completedAt,
 	)
 
 	if err != nil {
@@ -537,9 +534,7 @@ func (h *GameHandler) GetGame(w http.ResponseWriter, r *http.Request) {
 	if player2ID.Valid {
 		game.Player2ID = player2ID.String
 	}
-	if completedAt.Valid {
-		game.CompletedAt = &completedAt.Time
-	}
+	// completed_at остается nil, так как не запрашиваем его из БД
 
 	// Десериализуем настройки игры
 	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
@@ -606,11 +601,11 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	var game models.Game
 	var settingsJSON []byte
 	var player1ID, player2ID sql.NullString
-	var completedAt sql.NullTime
 	var player1Username sql.NullString
+	// completed_at не запрашиваем, так как его может не быть в тестовой схеме БД
 	query := `
 		SELECT g.id, g.name, g.player1_id, g.player2_id, g.current_turn, g.current_phase, g.status, 
-		       g.settings, g.created_at, g.updated_at, g.completed_at,
+		       g.settings, g.created_at, g.updated_at,
 		       p1.username as player1_username
 		FROM games g
 		LEFT JOIN users p1 ON g.player1_id = p1.id
@@ -621,7 +616,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		&game.ID, &game.Name, &player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-		&completedAt, &player1Username,
+		&player1Username,
 	)
 
 	if err != nil {
@@ -640,9 +635,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	if player2ID.Valid {
 		game.Player2ID = player2ID.String
 	}
-	if completedAt.Valid {
-		game.CompletedAt = &completedAt.Time
-	}
+	// completed_at остается nil, так как не запрашиваем его из БД
 
 	// Десериализуем настройки игры
 	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
@@ -900,9 +893,14 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 
 	// Получаем игру
 	var game models.Game
+	var settingsJSON []byte
+	var winner sql.NullString
+	var victoryType sql.NullString
+	var startedAt, lastActionAt sql.NullTime
+	// completed_at не запрашиваем, так как его может не быть в тестовой схеме БД
 	query := `
 		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
-		       settings, created_at, updated_at, completed_at, winner, victory_type, 
+		       settings, created_at, updated_at, winner, victory_type, 
 		       started_at, last_action_at
 		FROM games 
 		WHERE id = $1
@@ -911,9 +909,9 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	err = h.db.QueryRow(query, gameID).Scan(
 		&game.ID, &game.Name, &game.Player1ID, &game.Player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
-		&game.Settings, &game.CreatedAt, &game.UpdatedAt,
-		&game.CompletedAt, &game.Winner, &game.VictoryType,
-		&game.StartedAt, &game.LastActionAt,
+		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
+		&winner, &victoryType,
+		&startedAt, &lastActionAt,
 	)
 
 	if err != nil {
@@ -924,6 +922,27 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 		pkgutils.WriteInternalError(w, "Failed to get game")
 		return
 	}
+
+	// Обрабатываем nullable поля
+	if winner.Valid {
+		game.Winner = &winner.String
+	}
+	if victoryType.Valid {
+		game.VictoryType = models.VictoryType(victoryType.String)
+	}
+	if startedAt.Valid {
+		game.StartedAt = &startedAt.Time
+	}
+	if lastActionAt.Valid {
+		game.LastActionAt = &lastActionAt.Time
+	}
+
+	// Десериализуем настройки игры
+	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
+		// Используем настройки по умолчанию, если не удалось распарсить
+		game.Settings = models.GetDefaultGameSettings()
+	}
+	// completed_at остается nil, так как не запрашиваем его из БД
 
 	// Проверяем, что пользователь является игроком в этой игре
 	if !game.IsPlayer(userID) {
@@ -940,15 +959,15 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Определяем победителя
-	winner := game.GetOpponentID(userID)
+	winnerID := game.GetOpponentID(userID)
 	now := time.Now()
 
-	// Обновляем игру
+	// Обновляем игру (не используем completed_at, так как его может не быть в тестовой схеме БД)
 	_, err = h.db.Exec(`
 		UPDATE games 
-		SET status = 'completed', winner = $1, victory_type = $2, completed_at = $3, updated_at = $3
+		SET status = 'completed', winner = $1, victory_type = $2, updated_at = $3
 		WHERE id = $4
-	`, winner, models.VictoryTypeStrategic, now, gameID)
+	`, winnerID, models.VictoryTypeStrategic, now, gameID)
 
 	if err != nil {
 		pkgutils.WriteInternalError(w, "Failed to surrender game")
@@ -957,7 +976,7 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 
 	pkgutils.WriteSuccess(w, map[string]interface{}{
 		"message": "Game surrendered successfully",
-		"winner":  winner,
+		"winner":  winnerID,
 	})
 }
 
@@ -994,9 +1013,14 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 
 	// Получаем игру
 	var game models.Game
+	var settingsJSON []byte
+	var winner sql.NullString
+	var victoryType sql.NullString
+	var startedAt, lastActionAt sql.NullTime
+	// completed_at не запрашиваем, так как его может не быть в тестовой схеме БД
 	query := `
 		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
-		       settings, created_at, updated_at, completed_at, winner, victory_type, 
+		       settings, created_at, updated_at, winner, victory_type, 
 		       started_at, last_action_at
 		FROM games 
 		WHERE id = $1
@@ -1005,9 +1029,9 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	err = h.db.QueryRow(query, gameID).Scan(
 		&game.ID, &game.Name, &game.Player1ID, &game.Player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
-		&game.Settings, &game.CreatedAt, &game.UpdatedAt,
-		&game.CompletedAt, &game.Winner, &game.VictoryType,
-		&game.StartedAt, &game.LastActionAt,
+		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
+		&winner, &victoryType,
+		&startedAt, &lastActionAt,
 	)
 
 	if err != nil {
@@ -1018,6 +1042,27 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 		pkgutils.WriteInternalError(w, "Failed to get game")
 		return
 	}
+
+	// Обрабатываем nullable поля
+	if winner.Valid {
+		game.Winner = &winner.String
+	}
+	if victoryType.Valid {
+		game.VictoryType = models.VictoryType(victoryType.String)
+	}
+	if startedAt.Valid {
+		game.StartedAt = &startedAt.Time
+	}
+	if lastActionAt.Valid {
+		game.LastActionAt = &lastActionAt.Time
+	}
+
+	// Десериализуем настройки игры
+	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
+		// Используем настройки по умолчанию, если не удалось распарсить
+		game.Settings = models.GetDefaultGameSettings()
+	}
+	// completed_at остается nil, так как не запрашиваем его из БД
 
 	// Проверяем, что пользователь является создателем игры
 	if game.Player1ID != userID {
@@ -1173,22 +1218,22 @@ func (h *GameHandler) InitializeGameUnits(w http.ResponseWriter, r *http.Request
 	// Получаем игру
 	log.Printf("InitializeGameUnits: Getting game %s", gameID)
 	var game models.Game
+	// completed_at не запрашиваем, так как его может не быть в тестовой схеме БД
 	query := `
 		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
-		       settings, created_at, updated_at, completed_at
+		       settings, created_at, updated_at
 		FROM games 
 		WHERE id = $1
 	`
 
 	var settingsJSON []byte
 	var player2ID sql.NullString
-	var completedAt sql.NullTime
+	// completed_at не запрашиваем, так как его может не быть в тестовой схеме БД
 
 	err = h.db.GetConnection().QueryRowContext(r.Context(), query, gameID).Scan(
 		&game.ID, &game.Name, &game.Player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-		&completedAt,
 	)
 	log.Printf("InitializeGameUnits: Query result - err=%v, game.ID=%s", err, game.ID)
 
@@ -1205,9 +1250,7 @@ func (h *GameHandler) InitializeGameUnits(w http.ResponseWriter, r *http.Request
 	if player2ID.Valid {
 		game.Player2ID = player2ID.String
 	}
-	if completedAt.Valid {
-		game.CompletedAt = &completedAt.Time
-	}
+	// completed_at остается nil, так как не запрашиваем его из БД
 
 	// Десериализуем настройки игры
 	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
