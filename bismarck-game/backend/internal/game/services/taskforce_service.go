@@ -826,11 +826,9 @@ func (s *TaskForceService) HandleUnitSunk(unitID string) error {
 
 	// Ищем юнит во всех играх в памяти через GameModel
 	s.gameStateService.memoryCacheMutex.RLock()
-	var gameID string
 	var unitModel *models.UnitModel
-	for gID, model := range s.gameStateService.memoryCache {
+	for _, model := range s.gameStateService.memoryCache {
 		if uModel, exists := model.Units[unitID]; exists {
-			gameID = gID
 			unitModel = uModel
 			break
 		}
