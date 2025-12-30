@@ -171,15 +171,17 @@ func (s *AuthService) Login(req *models.LoginRequest) (*models.User, string, err
 
 // Logout выполняет выход пользователя
 func (s *AuthService) Logout(token string) error {
-	// Удаляем сессию из Redis
-	err := s.redis.DeleteSession(token)
-	if err != nil {
-		logger.Warn("Failed to delete session from Redis", "error", err)
+	// Удаляем сессию из Redis (если Redis доступен)
+	if s.redis != nil {
+		err := s.redis.DeleteSession(token)
+		if err != nil {
+			logger.Warn("Failed to delete session from Redis", "error", err)
+		}
 	}
 
 	// Деактивируем сессию в базе данных
 	tokenHash := s.hashToken(token)
-	_, err = s.db.Exec("UPDATE user_sessions SET is_active = false WHERE token_hash = $1", tokenHash)
+	_, err := s.db.Exec("UPDATE user_sessions SET is_active = false WHERE token_hash = $1", tokenHash)
 	if err != nil {
 		logger.Warn("Failed to deactivate session in database", "error", err)
 	}

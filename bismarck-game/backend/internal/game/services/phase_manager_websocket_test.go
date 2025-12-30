@@ -45,6 +45,8 @@ func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 		testServices.WSHub,
 		testServer.URL,
 	)
+	// Устанавливаем gameStateService для PhaseManager
+	testServices.PhaseManager.SetGameStateService(testServices.GameStateService)
 
 	// Создаем тестовую игру с GameModel
 	gameID := "550e8400-e29b-41d4-a716-446655440002"
@@ -96,6 +98,8 @@ func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 		testServices.WSHub,
 		testServer.URL,
 	)
+	// Устанавливаем gameStateService для PhaseManager
+	testServices.PhaseManager.SetGameStateService(testServices.GameStateService)
 
 	// Создаем тестовую игру с GameModel
 	gameID := "550e8400-e29b-41d4-a716-446655440003"
@@ -162,6 +166,8 @@ func TestPhaseManager_StartPhase_CallsCurrentPhaseAPI(t *testing.T) {
 		testServices.WSHub,
 		testServer.URL,
 	)
+	// Устанавливаем gameStateService для PhaseManager
+	testServices.PhaseManager.SetGameStateService(testServices.GameStateService)
 
 	// Создаем тестовую игру с GameModel
 	gameID := "550e8400-e29b-41d4-a716-446655440004"

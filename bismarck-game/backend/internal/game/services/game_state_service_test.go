@@ -1269,6 +1269,9 @@ func TestGameStateService_UpdateGameModelWithRetry_RetryOnConflict(t *testing.T)
 		VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`, testGameID, conflictModel.Version, conflictJSON)
 
+	// Инвалидируем кэш, чтобы LoadGameModel загрузил версию 10 из БД
+	service.InvalidateGameModel(testGameID)
+
 	// Update with retry - should retry and eventually succeed with new version
 	err = service.UpdateGameModelWithRetry(testGameID, func(model *models.GameModel) error {
 		model.Units["unit1"] = &models.UnitModel{
@@ -1286,8 +1289,9 @@ func TestGameStateService_UpdateGameModelWithRetry_RetryOnConflict(t *testing.T)
 	// Verify update succeeded
 	loadedModel, err := service.LoadGameModel(testGameID)
 	require.NoError(t, err)
-	// Version should be 11 (10 + 1)
-	assert.Equal(t, 11, loadedModel.Version)
+	// Version should be 12 (10 + 1 for the update + 1 for search data recalculation)
+	// UpdateGameModel автоматически пересчитывает search data, что увеличивает версию еще раз
+	assert.Equal(t, 12, loadedModel.Version)
 }
 
 // TestGameStateService_UpdateGameModelWithRetry_MaxRetries тестирует достижение максимума попыток

@@ -194,8 +194,17 @@ func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} map[string]interface{}
 // @Router /auth/profile [put]
 func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	// Получаем ID пользователя из контекста
-	userID := r.Context().Value("user_id").(string)
+	// Получаем ID пользователя из контекста (устанавливается middleware)
+	userIDValue := r.Context().Value("user_id")
+	if userIDValue == nil {
+		utils.WriteUnauthorized(w, "user not authenticated")
+		return
+	}
+	userID, ok := userIDValue.(string)
+	if !ok || userID == "" {
+		utils.WriteUnauthorized(w, "user not authenticated")
+		return
+	}
 
 	var req models.UpdateUserRequest
 	if err := utils.ParseJSON(r, &req); err != nil {

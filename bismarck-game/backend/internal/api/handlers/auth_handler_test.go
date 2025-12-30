@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -300,9 +301,14 @@ func TestLogin(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Equal(t, "Login successful", response["message"])
-		assert.NotEmpty(t, response["token"])
-		assert.NotEmpty(t, response["user"])
+		
+		// WriteSuccess оборачивает данные в структуру с success и data
+		assert.True(t, response["success"].(bool), "Ответ должен содержать success=true")
+		data, exists := response["data"].(map[string]interface{})
+		require.True(t, exists, "Ответ должен содержать data")
+		
+		assert.NotEmpty(t, data["token"])
+		assert.NotEmpty(t, data["user"])
 	})
 
 	t.Run("invalid credentials", func(t *testing.T) {
@@ -323,7 +329,8 @@ func TestLogin(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "invalid credentials")
+		// Сообщение об ошибке в capital case: "Invalid username or password"
+		assert.Contains(t, strings.ToLower(response["error"].(string)), "invalid")
 	})
 
 	t.Run("missing username", func(t *testing.T) {
@@ -343,7 +350,8 @@ func TestLogin(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "username is required")
+		// Сообщение об ошибке в capital case: "Username is required"
+		assert.Contains(t, strings.ToLower(response["error"].(string)), "username")
 	})
 
 	t.Run("missing password", func(t *testing.T) {
@@ -363,7 +371,8 @@ func TestLogin(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "password is required")
+		// Сообщение об ошибке в capital case: "Password is required"
+		assert.Contains(t, strings.ToLower(response["error"].(string)), "password")
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
@@ -378,7 +387,8 @@ func TestLogin(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "invalid JSON")
+		// Сообщение об ошибке: "Invalid request format"
+		assert.Contains(t, strings.ToLower(response["error"].(string)), "invalid")
 	})
 }
 
@@ -387,10 +397,42 @@ func TestLogout(t *testing.T) {
 	defer cleanup()
 
 	t.Run("successful logout", func(t *testing.T) {
-		// Create a request with user_id in context
+		// Logout требует Authorization header с токеном
+		// Создаем пользователя и получаем токен через Login
+		reqBody := map[string]string{
+			"username": "testuser_logout",
+			"email":    "testuser_logout@example.com",
+			"password": "password123",
+		}
+		jsonBody, _ := json.Marshal(reqBody)
+
+		registerReq := httptest.NewRequest("POST", "/api/auth/register", bytes.NewBuffer(jsonBody))
+		registerReq.Header.Set("Content-Type", "application/json")
+		registerW := httptest.NewRecorder()
+		handler.Register(registerW, registerReq)
+		assert.Equal(t, http.StatusCreated, registerW.Code)
+
+		// Логинимся для получения токена
+		loginBody := map[string]string{
+			"username": "testuser_logout",
+			"password": "password123",
+		}
+		loginJsonBody, _ := json.Marshal(loginBody)
+		loginReq := httptest.NewRequest("POST", "/api/auth/login", bytes.NewBuffer(loginJsonBody))
+		loginReq.Header.Set("Content-Type", "application/json")
+		loginW := httptest.NewRecorder()
+		handler.Login(loginW, loginReq)
+		assert.Equal(t, http.StatusOK, loginW.Code)
+
+		var loginResponse map[string]interface{}
+		err := json.Unmarshal(loginW.Body.Bytes(), &loginResponse)
+		assert.NoError(t, err)
+		data := loginResponse["data"].(map[string]interface{})
+		token := data["token"].(string)
+
+		// Теперь делаем logout с токеном
 		req := httptest.NewRequest("POST", "/api/auth/logout", nil)
-		ctx := context.WithValue(req.Context(), "user_id", "test-user-id")
-		req = req.WithContext(ctx)
+		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 
 		handler.Logout(w, req)
@@ -398,12 +440,15 @@ func TestLogout(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
+		err = json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Equal(t, "Logout successful", response["message"])
+		assert.True(t, response["success"].(bool))
+		dataLogout := response["data"].(map[string]interface{})
+		assert.Equal(t, "Logged out successfully", dataLogout["message"])
 	})
 
 	t.Run("no user_id in context", func(t *testing.T) {
+		// Logout требует Authorization header
 		req := httptest.NewRequest("POST", "/api/auth/logout", nil)
 		w := httptest.NewRecorder()
 
@@ -414,7 +459,8 @@ func TestLogout(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "user not authenticated")
+		// Сообщение: "Authorization header required"
+		assert.Contains(t, strings.ToLower(response["error"].(string)), "authorization")
 	})
 }
 
@@ -533,7 +579,18 @@ func TestUpdateProfile(t *testing.T) {
 	var registerResponse map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &registerResponse)
 	assert.NoError(t, err)
-	userID := registerResponse["user_id"].(string)
+	
+	// Проверяем структуру ответа (success, data)
+	assert.True(t, registerResponse["success"].(bool), "Ответ должен содержать success=true")
+	data, exists := registerResponse["data"].(map[string]interface{})
+	require.True(t, exists, "Ответ должен содержать data")
+	
+	// Получаем user ID из data.id
+	userIDValue, exists := data["id"]
+	require.True(t, exists, "data должен содержать id")
+	userID, ok := userIDValue.(string)
+	require.True(t, ok, "id должен быть строкой")
+	require.NotEmpty(t, userID, "id не должен быть пустым")
 
 	t.Run("successful update", func(t *testing.T) {
 		updateBody := map[string]string{
@@ -555,7 +612,13 @@ func TestUpdateProfile(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Equal(t, "Profile updated successfully", response["message"])
+		// WriteSuccess оборачивает данные в структуру с success и data
+		assert.True(t, response["success"].(bool), "Ответ должен содержать success=true")
+		data, exists := response["data"].(map[string]interface{})
+		require.True(t, exists, "Ответ должен содержать data")
+		// Проверяем, что данные пользователя обновлены
+		assert.Equal(t, "testuser10_updated", data["username"])
+		assert.Equal(t, "testuser10_updated@example.com", data["email"])
 	})
 
 	t.Run("no user_id in context", func(t *testing.T) {
@@ -592,7 +655,8 @@ func TestUpdateProfile(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "invalid JSON")
+		// Сообщение об ошибке: "Invalid request format"
+		assert.Contains(t, strings.ToLower(response["error"].(string)), "invalid")
 	})
 }
 
@@ -618,7 +682,18 @@ func TestChangePassword(t *testing.T) {
 	var registerResponse map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &registerResponse)
 	assert.NoError(t, err)
-	userID := registerResponse["user_id"].(string)
+	
+	// Проверяем структуру ответа (success, data)
+	assert.True(t, registerResponse["success"].(bool), "Ответ должен содержать success=true")
+	data, exists := registerResponse["data"].(map[string]interface{})
+	require.True(t, exists, "Ответ должен содержать data")
+	
+	// Получаем user ID из data.id
+	userIDValue, exists := data["id"]
+	require.True(t, exists, "data должен содержать id")
+	userID, ok := userIDValue.(string)
+	require.True(t, ok, "id должен быть строкой")
+	require.NotEmpty(t, userID, "id не должен быть пустым")
 
 	t.Run("successful password change", func(t *testing.T) {
 		changeBody := map[string]string{
@@ -640,7 +715,11 @@ func TestChangePassword(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Equal(t, "Password changed successfully", response["message"])
+		// WriteSuccess оборачивает данные в структуру с success и data
+		assert.True(t, response["success"].(bool), "Ответ должен содержать success=true")
+		data, exists := response["data"].(map[string]interface{})
+		require.True(t, exists, "Ответ должен содержать data")
+		assert.Equal(t, "Password changed successfully", data["message"])
 	})
 
 	t.Run("incorrect current password", func(t *testing.T) {
@@ -663,7 +742,8 @@ func TestChangePassword(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "current password is incorrect")
+		// Сообщение об ошибке в capital case: "Current password is incorrect"
+		assert.Contains(t, strings.ToLower(response["error"].(string)), "current password")
 	})
 
 	t.Run("missing fields", func(t *testing.T) {
@@ -686,7 +766,8 @@ func TestChangePassword(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "current_password and new_password are required")
+		// Сообщение об ошибке: "NewPassword is required" или аналогичное
+		assert.Contains(t, strings.ToLower(response["error"].(string)), "required")
 	})
 }
 

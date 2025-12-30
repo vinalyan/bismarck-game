@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"bismarck-game/backend/internal/game/models"
@@ -208,6 +209,11 @@ func (s *TaskForceService) GetTaskForcesByGameID(gameID string) ([]models.TaskFo
 
 	model, err := s.gameStateService.LoadGameModel(gameID)
 	if err != nil {
+		// Для несуществующей игры возвращаем пустой список, а не ошибку
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "game not found") {
+			s.logger.Info("Game not found, returning empty list", "game_id", gameID)
+			return []models.TaskForce{}, nil
+		}
 		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
 		return nil, fmt.Errorf("failed to load GameModel: %w", err)
 	}
