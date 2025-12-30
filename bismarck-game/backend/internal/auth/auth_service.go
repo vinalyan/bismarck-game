@@ -241,10 +241,12 @@ func (s *AuthService) ValidateToken(token string) (*models.User, error) {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
-	// Проверяем сессию в Redis
-	_, err = s.redis.GetSession(token)
-	if err != nil {
-		return nil, fmt.Errorf("session not found or expired")
+	// Проверяем сессию в Redis (если Redis доступен)
+	if s.redis != nil {
+		_, err = s.redis.GetSession(token)
+		if err != nil {
+			return nil, fmt.Errorf("session not found or expired")
+		}
 	}
 
 	return &user, nil

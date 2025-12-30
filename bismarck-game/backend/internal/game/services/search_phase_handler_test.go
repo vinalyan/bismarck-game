@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"bismarck-game/backend/internal/auth"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/testutil"
 )
@@ -50,30 +52,44 @@ func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
 	gameID := "550e8400-e29b-41d4-a716-4466554400cc"
 	hexID := "A1"
 
-	// Create users
-	_, err = testServices.DB.GetConnection().Exec(`
-        INSERT INTO users (id, username, email, password_hash)
-        VALUES ($1, 'german', 'german@test.com', 'hash1'),
-               ($2, 'allied', 'allied@test.com', 'hash2')
-        ON CONFLICT DO NOTHING
-    `, germanPlayerID, alliedPlayerID)
-	require.NoError(t, err)
-
 	// Create game with GameModel
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
 	require.NoError(t, err)
 
-	// Update game with players
-	_, err = testServices.DB.GetConnection().Exec(`
-        UPDATE games SET player1_id = $1, player2_id = $2, visibility_level = 3, is_fog = false
-        WHERE id = $3
-    `, germanPlayerID, alliedPlayerID, gameID)
+	// Update game with players and visibility through GameModel
+	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		model.VisibilityLevel = 3
+		model.IsFog = false
+		return nil
+	}, 3)
 	require.NoError(t, err)
 
-	_ = mustCreateNavalUnit(t, testServices, gameID, "Allied Scout", "CL", "scout", alliedPlayerID, "allied", hexID)
-	enemyUnitID := mustCreateNavalUnit(t, testServices, gameID, "German Raider", "CA", "raider", germanPlayerID, "german", hexID)
+	// Create users through AuthService (not direct SQL)
+	authService := auth.New(testServices.DB, nil, "test-secret", 24*time.Hour)
+	germanUser, err := authService.Register(&models.CreateUserRequest{
+		Username: fmt.Sprintf("german_%s", germanPlayerID[:8]),
+		Email:    fmt.Sprintf("german_%s@test.com", germanPlayerID[:8]),
+		Password: "testpass",
+	})
+	require.NoError(t, err)
+	alliedUser, err := authService.Register(&models.CreateUserRequest{
+		Username: fmt.Sprintf("allied_%s", alliedPlayerID[:8]),
+		Email:    fmt.Sprintf("allied_%s@test.com", alliedPlayerID[:8]),
+		Password: "testpass",
+	})
+	require.NoError(t, err)
 
-	err = testServices.SearchService.AddHexMarker(gameID, alliedPlayerID, hexID, string(models.MarkerTypeFlightPathSearch))
+	// Update games table with players (needed for GetGamePlayers)
+	_, err = testServices.DB.GetConnection().Exec(`
+        UPDATE games SET player1_id = $1, player2_id = $2
+        WHERE id = $3
+    `, germanUser.ID, alliedUser.ID, gameID)
+	require.NoError(t, err)
+
+	_ = mustCreateNavalUnit(t, testServices, gameID, "Allied Scout", "CL", "scout", alliedUser.ID, "allied", hexID)
+	enemyUnitID := mustCreateNavalUnit(t, testServices, gameID, "German Raider", "CA", "raider", germanUser.ID, "german", hexID)
+
+	err = testServices.SearchService.AddHexMarker(gameID, alliedUser.ID, hexID, string(models.MarkerTypeFlightPathSearch))
 	require.NoError(t, err)
 
 	handler := &SearchPhaseHandler{}
@@ -112,28 +128,42 @@ func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
 	gameID := "550e8400-e29b-41d4-a716-4466554401cc"
 	hexID := "B2"
 
-	// Create users
-	_, err = testServices.DB.GetConnection().Exec(`
-        INSERT INTO users (id, username, email, password_hash)
-        VALUES ($1, 'german2', 'german2@test.com', 'hash1'),
-               ($2, 'allied2', 'allied2@test.com', 'hash2')
-        ON CONFLICT DO NOTHING
-    `, germanPlayerID, alliedPlayerID)
-	require.NoError(t, err)
-
 	// Create game with GameModel
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
 	require.NoError(t, err)
 
-	// Update game with players
-	_, err = testServices.DB.GetConnection().Exec(`
-        UPDATE games SET player1_id = $1, player2_id = $2, visibility_level = 1, is_fog = false
-        WHERE id = $3
-    `, germanPlayerID, alliedPlayerID, gameID)
+	// Update game with players and visibility through GameModel
+	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		model.VisibilityLevel = 1
+		model.IsFog = false
+		return nil
+	}, 3)
 	require.NoError(t, err)
 
-	_ = mustCreateNavalUnit(t, testServices, gameID, "Allied Scout 2", "CL", "scout", alliedPlayerID, "allied", hexID)
-	enemyUnitID := mustCreateNavalUnit(t, testServices, gameID, "German Raider 2", "CA", "raider", germanPlayerID, "german", hexID)
+	// Create users through AuthService (not direct SQL)
+	authService := auth.New(testServices.DB, nil, "test-secret", 24*time.Hour)
+	germanUser, err := authService.Register(&models.CreateUserRequest{
+		Username: fmt.Sprintf("german_%s", germanPlayerID[:8]),
+		Email:    fmt.Sprintf("german_%s@test.com", germanPlayerID[:8]),
+		Password: "testpass",
+	})
+	require.NoError(t, err)
+	alliedUser, err := authService.Register(&models.CreateUserRequest{
+		Username: fmt.Sprintf("allied_%s", alliedPlayerID[:8]),
+		Email:    fmt.Sprintf("allied_%s@test.com", alliedPlayerID[:8]),
+		Password: "testpass",
+	})
+	require.NoError(t, err)
+
+	// Update games table with players (needed for GetGamePlayers)
+	_, err = testServices.DB.GetConnection().Exec(`
+        UPDATE games SET player1_id = $1, player2_id = $2
+        WHERE id = $3
+    `, germanUser.ID, alliedUser.ID, gameID)
+	require.NoError(t, err)
+
+	_ = mustCreateNavalUnit(t, testServices, gameID, "Allied Scout 2", "CL", "scout", alliedUser.ID, "allied", hexID)
+	enemyUnitID := mustCreateNavalUnit(t, testServices, gameID, "German Raider 2", "CA", "raider", germanUser.ID, "german", hexID)
 
 	handler := &SearchPhaseHandler{}
 	handler.SetPhaseManager(testServices.PhaseManager)
@@ -170,28 +200,46 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 	alliedPlayerID := "550e8400-e29b-41d4-a716-4466554402bb"
 	gameID := "550e8400-e29b-41d4-a716-4466554402cc"
 
-	// Create users
-	_, err = testServices.DB.GetConnection().Exec(`
-        INSERT INTO users (id, username, email, password_hash)
-        VALUES ($1, 'german3', 'german3@test.com', 'hash1'),
-               ($2, 'allied3', 'allied3@test.com', 'hash2')
-        ON CONFLICT DO NOTHING
-    `, germanPlayerID, alliedPlayerID)
-	require.NoError(t, err)
-
 	// Create game with GameModel
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
 	require.NoError(t, err)
 
-	// Update game with players and fog
-	_, err = testServices.DB.GetConnection().Exec(`
-        UPDATE games SET player1_id = $1, player2_id = $2, visibility_level = 2, is_fog = true
-        WHERE id = $3
-    `, germanPlayerID, alliedPlayerID, gameID)
+	// Update game with players and fog through GameModel
+	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		model.VisibilityLevel = 2
+		model.IsFog = true
+		return nil
+	}, 3)
 	require.NoError(t, err)
 
-	_ = mustCreateNavalUnit(t, testServices, gameID, "Allied Scout 3", "CL", "scout", alliedPlayerID, "allied", fogHex)
-	enemyUnitID := mustCreateNavalUnit(t, testServices, gameID, "German Raider 3", "CA", "raider", germanPlayerID, "german", fogHex)
+	// Create users through AuthService (not direct SQL)
+	authService := auth.New(testServices.DB, nil, "test-secret", 24*time.Hour)
+	germanUser, err := authService.Register(&models.CreateUserRequest{
+		Username: fmt.Sprintf("german_%s", germanPlayerID[:8]),
+		Email:    fmt.Sprintf("german_%s@test.com", germanPlayerID[:8]),
+		Password: "testpass",
+	})
+	require.NoError(t, err)
+	alliedUser, err := authService.Register(&models.CreateUserRequest{
+		Username: fmt.Sprintf("allied_%s", alliedPlayerID[:8]),
+		Email:    fmt.Sprintf("allied_%s@test.com", alliedPlayerID[:8]),
+		Password: "testpass",
+	})
+	require.NoError(t, err)
+
+	// Update games table with players (needed for GetGamePlayers)
+	_, err = testServices.DB.GetConnection().Exec(`
+        UPDATE games SET player1_id = $1, player2_id = $2
+        WHERE id = $3
+    `, germanUser.ID, alliedUser.ID, gameID)
+	require.NoError(t, err)
+
+	_ = mustCreateNavalUnit(t, testServices, gameID, "Allied Scout 3", "CL", "scout", alliedUser.ID, "allied", fogHex)
+	enemyUnitID := mustCreateNavalUnit(t, testServices, gameID, "German Raider 3", "CA", "raider", germanUser.ID, "german", fogHex)
+
+	// Add search markers to fogHex so search can happen, but it should be skipped due to fog
+	err = testServices.SearchService.AddHexMarker(gameID, alliedUser.ID, fogHex, string(models.MarkerTypeFlightPathSearch))
+	require.NoError(t, err)
 
 	handler := &SearchPhaseHandler{}
 	handler.SetPhaseManager(testServices.PhaseManager)
@@ -223,24 +271,38 @@ func TestMovementPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 	gameID := "550e8400-e29b-41d4-a716-4466554430cc"
 	hexID := "A5"
 
-	// Create users
-	_, err = testServices.DB.GetConnection().Exec(`
-        INSERT INTO users (id, username, email, password_hash)
-        VALUES ($1, 'german_log', 'german_log@test.com', 'hash1'),
-               ($2, 'allied_log', 'allied_log@test.com', 'hash2')
-        ON CONFLICT DO NOTHING
-    `, germanPlayerID, alliedPlayerID)
-	require.NoError(t, err)
-
 	// Create game with GameModel
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Update game with players
+	// Update game with players and visibility through GameModel
+	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		model.VisibilityLevel = 1
+		model.IsFog = false
+		return nil
+	}, 3)
+	require.NoError(t, err)
+
+	// Create users through AuthService (not direct SQL)
+	authService := auth.New(testServices.DB, nil, "test-secret", 24*time.Hour)
+	germanUser, err := authService.Register(&models.CreateUserRequest{
+		Username: fmt.Sprintf("german_%s", germanPlayerID[:8]),
+		Email:    fmt.Sprintf("german_%s@test.com", germanPlayerID[:8]),
+		Password: "testpass",
+	})
+	require.NoError(t, err)
+	alliedUser, err := authService.Register(&models.CreateUserRequest{
+		Username: fmt.Sprintf("allied_%s", alliedPlayerID[:8]),
+		Email:    fmt.Sprintf("allied_%s@test.com", alliedPlayerID[:8]),
+		Password: "testpass",
+	})
+	require.NoError(t, err)
+
+	// Update games table with players (needed for GetGamePlayers)
 	_, err = testServices.DB.GetConnection().Exec(`
-        UPDATE games SET player1_id = $1, player2_id = $2, visibility_level = 1, is_fog = false
+        UPDATE games SET player1_id = $1, player2_id = $2
         WHERE id = $3
-    `, germanPlayerID, alliedPlayerID, gameID)
+    `, germanUser.ID, alliedUser.ID, gameID)
 	require.NoError(t, err)
 
 	unit := &models.NavalUnit{
@@ -249,7 +311,7 @@ func TestMovementPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 		Type:        models.UnitType("CL"),
 		Category:    models.UnitCategoryNaval,
 		Class:       "scout",
-		Owner:       alliedPlayerID,
+		Owner:       alliedUser.ID,
 		Nationality: "allied",
 		Position:    hexID,
 		SetupHex:    hexID,
@@ -259,12 +321,15 @@ func TestMovementPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 	}
 	require.NoError(t, testServices.UnitService.CreateNavalUnit(unit))
 
-	// Set detection_level in DB to 'shadowed' so ConvertShadowedToSighted can find it
-	_, err = testServices.DB.GetConnection().Exec(`
-		UPDATE naval_units 
-		SET detection_level = 'shadowed', updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1
-	`, unit.ID)
+	// Set visibility to 'shadowed' in GameModel (not in DB)
+	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		unitModel, exists := model.Units[unit.ID]
+		if !exists {
+			return fmt.Errorf("unit %s not found in GameModel", unit.ID)
+		}
+		unitModel.Visibility = models.VisibilityShadowed
+		return nil
+	}, 3)
 	require.NoError(t, err)
 
 	handler := &MovementPhaseHandler{}

@@ -17,6 +17,7 @@ import (
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/testutil"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,9 +72,6 @@ func setupUnitHandler(t *testing.T) (*UnitHandler, func()) {
 }
 
 func TestGetUnit(t *testing.T) {
-	handler, cleanup := setupUnitHandler(t)
-	defer cleanup()
-
 	// Setup test services
 	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
@@ -86,15 +84,21 @@ func TestGetUnit(t *testing.T) {
 	}
 	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
+	logger, err := logger.New(logger.INFO, "text", "stdout")
+	require.NoError(t, err)
+
+	// Create handler with properly configured services from testServices
+	handler := NewUnitHandler(testServices.UnitService, testServices.MovementService, testServices.TaskForceService, logger)
+
 	userID, gameID := createTestUserAndGame(t, testServices, authService)
 	unitID := createTestUnit(t, testServices, gameID, userID)
 
 	t.Run("successful get unit", func(t *testing.T) {
 		// Create a mux router to handle the request properly
 		router := mux.NewRouter()
-		router.HandleFunc("/api/units/{unitId}", handler.GetUnit).Methods("GET")
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}", handler.GetUnit).Methods("GET")
 
-		req := httptest.NewRequest("GET", "/api/units/"+unitID, nil)
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units/"+unitID, nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
@@ -108,15 +112,15 @@ func TestGetUnit(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, unitID, response["data"].(map[string]interface{})["unit"].(map[string]interface{})["id"])
 		assert.Equal(t, "Test Ship", response["data"].(map[string]interface{})["unit"].(map[string]interface{})["name"])
-		assert.Equal(t, "battleship", response["data"].(map[string]interface{})["unit"].(map[string]interface{})["type"])
+		assert.Equal(t, "BB", response["data"].(map[string]interface{})["unit"].(map[string]interface{})["type"])
 	})
 
 	t.Run("unit not found", func(t *testing.T) {
 		// Create a mux router to handle the request properly
 		router := mux.NewRouter()
-		router.HandleFunc("/api/units/{unitId}", handler.GetUnit).Methods("GET")
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}", handler.GetUnit).Methods("GET")
 
-		req := httptest.NewRequest("GET", "/api/units/non-existing-id", nil)
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units/non-existing-id", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
@@ -134,9 +138,9 @@ func TestGetUnit(t *testing.T) {
 	t.Run("invalid unit ID", func(t *testing.T) {
 		// Create a mux router to handle the request properly
 		router := mux.NewRouter()
-		router.HandleFunc("/api/units/{unitId}", handler.GetUnit).Methods("GET")
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}", handler.GetUnit).Methods("GET")
 
-		req := httptest.NewRequest("GET", "/api/units/invalid-id", nil)
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units/invalid-id", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
@@ -153,9 +157,6 @@ func TestGetUnit(t *testing.T) {
 }
 
 func TestGetUnits(t *testing.T) {
-	handler, cleanup := setupUnitHandler(t)
-	defer cleanup()
-
 	// Setup test services
 	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
@@ -167,6 +168,12 @@ func TestGetUnits(t *testing.T) {
 		},
 	}
 	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
+
+	logger, err := logger.New(logger.INFO, "text", "stdout")
+	require.NoError(t, err)
+
+	// Create handler with properly configured services from testServices
+	handler := NewUnitHandler(testServices.UnitService, testServices.MovementService, testServices.TaskForceService, logger)
 
 	userID, gameID := createTestUserAndGame(t, testServices, authService)
 
@@ -270,7 +277,7 @@ func TestGetUnits(t *testing.T) {
 		router := mux.NewRouter()
 		router.HandleFunc("/api/games/{gameId}/units", handler.GetUnits).Methods("GET")
 
-		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units?type=battleship", nil)
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units?type=BB", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()
@@ -286,14 +293,11 @@ func TestGetUnits(t *testing.T) {
 
 		navalUnits := response["data"].(map[string]interface{})["naval_units"].([]interface{})
 		assert.Len(t, navalUnits, 1) // Only battleship
-		assert.Equal(t, "battleship", navalUnits[0].(map[string]interface{})["type"])
+		assert.Equal(t, "BB", navalUnits[0].(map[string]interface{})["type"])
 	})
 }
 
 func TestUnitMoveUnit(t *testing.T) {
-	handler, cleanup := setupUnitHandler(t)
-	defer cleanup()
-
 	// Setup test services
 	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
@@ -305,6 +309,12 @@ func TestUnitMoveUnit(t *testing.T) {
 		},
 	}
 	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
+
+	logger, err := logger.New(logger.INFO, "text", "stdout")
+	require.NoError(t, err)
+
+	// Create handler with properly configured services from testServices
+	handler := NewUnitHandler(testServices.UnitService, testServices.MovementService, testServices.TaskForceService, logger)
 
 	userID, gameID := createTestUserAndGame(t, testServices, authService)
 	unitID := createTestUnit(t, testServices, gameID, userID)
@@ -337,7 +347,7 @@ func TestUnitMoveUnit(t *testing.T) {
 		assert.Equal(t, "Unit moved successfully", response["data"].(map[string]interface{})["message"])
 
 		// Verify unit was moved
-		updatedUnit, err := testServices.UnitService.GetNavalUnitByID(unitID)
+		updatedUnit, err := testServices.UnitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 		assert.NoError(t, err)
 		assert.Equal(t, "B1", updatedUnit.Position)
 	})
@@ -484,9 +494,6 @@ func TestUnitMoveUnit(t *testing.T) {
 }
 
 func TestGetUnitsWithFilters(t *testing.T) {
-	handler, cleanup := setupUnitHandler(t)
-	defer cleanup()
-
 	// Setup test services
 	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
@@ -499,6 +506,12 @@ func TestGetUnitsWithFilters(t *testing.T) {
 	}
 	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
+	logger, err := logger.New(logger.INFO, "text", "stdout")
+	require.NoError(t, err)
+
+	// Create handler with properly configured services from testServices
+	handler := NewUnitHandler(testServices.UnitService, testServices.MovementService, testServices.TaskForceService, logger)
+
 	userID1, gameID1 := createTestUserAndGame(t, testServices, authService)
 
 	// Create second user and game
@@ -510,7 +523,8 @@ func TestGetUnitsWithFilters(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create game with GameModel
-	game2, err := services.CreateTestGameModel(testServices.DB, testServices.GameStateService, "", 1, models.PhaseSetup)
+	gameID2 := uuid.New().String()
+	game2, err := services.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID2, 1, models.PhaseSetup)
 	require.NoError(t, err)
 	_, err = testServices.DB.GetConnection().Exec(`
 		UPDATE games SET player1_id = $1, name = $2, status = $3 WHERE id = $4
@@ -522,7 +536,7 @@ func TestGetUnitsWithFilters(t *testing.T) {
 	createTestUnit(t, testServices, game2.GameID, user2.ID)
 
 	t.Run("get units with multiple filters", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/games/"+gameID1+"/units?owner="+userID1+"&type=battleship", nil)
+		req := httptest.NewRequest("GET", "/api/games/"+gameID1+"/units?owner="+userID1+"&type=BB", nil)
 		ctx := context.WithValue(req.Context(), "user_id", userID1)
 		req = req.WithContext(ctx)
 		w := httptest.NewRecorder()

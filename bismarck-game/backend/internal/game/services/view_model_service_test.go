@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"bismarck-game/backend/internal/auth"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/websocket"
 	"bismarck-game/backend/pkg/logger"
@@ -62,29 +63,47 @@ func setupViewModelService(t *testing.T) (*ViewModelService, *GameStateService, 
 	return viewModelService, gameStateService, gameService, cleanup
 }
 
+// setupTestUsersAndGame создает пользователей и игру для тестов
+// Возвращает player1ID и player2ID
+func setupTestUsersAndGame(t *testing.T, gameStateService *GameStateService, gameID string) (string, string) {
+	t.Helper()
+
+	// Create users through AuthService (not direct SQL)
+	authService := auth.New(gameStateService.db, nil, "test-secret", 24*time.Hour)
+
+	player1, err := authService.Register(&models.CreateUserRequest{
+		Username: "player1",
+		Email:    "player1@test.com",
+		Password: "testpass",
+	})
+	require.NoError(t, err)
+
+	player2, err := authService.Register(&models.CreateUserRequest{
+		Username: "player2",
+		Email:    "player2@test.com",
+		Password: "testpass",
+	})
+	require.NoError(t, err)
+
+	// Create game with GameModel
+	_, err = CreateTestGameModel(gameStateService.db, gameStateService, gameID, 1, models.PhaseAdmin)
+	require.NoError(t, err)
+
+	// Update games.player1_id and player2_id (metadata not in GameModel)
+	_, err = gameStateService.db.GetConnection().Exec(`
+		UPDATE games SET player1_id = $1, player2_id = $2 WHERE id = $3
+	`, player1.ID, player2.ID, gameID)
+	require.NoError(t, err)
+
+	return player1.ID, player2.ID
+}
+
 func TestViewModelService_FilterOwnUnits(t *testing.T) {
 	viewModelService, gameStateService, _, cleanup := setupViewModelService(t)
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	// Create game
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'admin', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	// Create GameModel with own unit
 	gameModel := &models.GameModel{
@@ -103,9 +122,12 @@ func TestViewModelService_FilterOwnUnits(t *testing.T) {
 				Nationality: "german",
 				Position:    "A1",
 				Status:      "active",
+				Visibility:  models.VisibilitySighted,
 				NavalData: &models.NavalUnitData{
 					Fuel:        100,
+					MaxFuel:     100,
 					CurrentHull: 8,
+					HullBoxes:   8,
 				},
 			},
 		},
@@ -119,7 +141,7 @@ func TestViewModelService_FilterOwnUnits(t *testing.T) {
 		WeatherTrack:         0,
 	}
 
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -142,23 +164,7 @@ func TestViewModelService_FilterEnemyUnitsSighted(t *testing.T) {
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'admin', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	// Create GameModel with enemy unit
 	gameModel := &models.GameModel{
@@ -179,7 +185,9 @@ func TestViewModelService_FilterEnemyUnitsSighted(t *testing.T) {
 				Status:      "active",
 				NavalData: &models.NavalUnitData{
 					Fuel:        80,
+					MaxFuel:     100,
 					CurrentHull: 6,
+					HullBoxes:   8,
 				},
 			},
 		},
@@ -195,7 +203,7 @@ func TestViewModelService_FilterEnemyUnitsSighted(t *testing.T) {
 
 	// Set visibility as sighted directly in GameModel
 	gameModel.Units["enemy_unit"].Visibility = models.VisibilitySighted
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -218,23 +226,7 @@ func TestViewModelService_FilterEnemyUnitsUnknown(t *testing.T) {
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'admin', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	// Create GameModel with enemy unit
 	gameModel := &models.GameModel{
@@ -271,7 +263,7 @@ func TestViewModelService_FilterEnemyUnitsUnknown(t *testing.T) {
 	gameModel.Units["enemy_unit"].NavalData = &models.NavalUnitData{
 		LastKnownPos: &lastKnownPos,
 	}
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -294,23 +286,7 @@ func TestViewModelService_FilterEvents(t *testing.T) {
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'admin', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	// Create GameModel with events
 	gameModel := &models.GameModel{
@@ -357,7 +333,7 @@ func TestViewModelService_FilterEvents(t *testing.T) {
 		WeatherTrack:         0,
 	}
 
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -381,23 +357,7 @@ func TestViewModelService_FilterSearch(t *testing.T) {
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'admin', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	// Create GameModel with search data
 	gameModel := &models.GameModel{
@@ -423,7 +383,7 @@ func TestViewModelService_FilterSearch(t *testing.T) {
 		WeatherTrack:         0,
 	}
 
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -442,23 +402,7 @@ func TestViewModelService_FilterEnemyContacts(t *testing.T) {
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'admin', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	// Create GameModel with enemy contacts
 	gameModel := &models.GameModel{
@@ -490,7 +434,7 @@ func TestViewModelService_FilterEnemyContacts(t *testing.T) {
 		WeatherTrack:         0,
 	}
 
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -509,28 +453,19 @@ func TestViewModelService_PlayerNotInGame(t *testing.T) {
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-	player3ID := uuid.New().String()
+	_, _ = setupTestUsersAndGame(t, gameStateService, gameID)
 
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($3, 'player3', 'player3@test.com', 'hash3', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID, player3ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'admin', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
+	// Create player3 (not in game) through AuthService
+	authService := auth.New(gameStateService.db, nil, "test-secret", 24*time.Hour)
+	player3, err := authService.Register(&models.CreateUserRequest{
+		Username: "player3",
+		Email:    "player3@test.com",
+		Password: "testpass",
+	})
 	require.NoError(t, err)
 
 	// Try to build ViewModel for player3 (not in game)
-	_, err = viewModelService.BuildViewModel(gameID, player3ID)
+	_, err = viewModelService.BuildViewModel(gameID, player3.ID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not part of game")
 }
@@ -545,23 +480,7 @@ func TestViewModelService_BuildViewModel_FiltersEnemyUnits_Sighted(t *testing.T)
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	// Create GameModel with enemy unit with VisibilitySighted
 	gameModel := &models.GameModel{
@@ -587,7 +506,7 @@ func TestViewModelService_BuildViewModel_FiltersEnemyUnits_Sighted(t *testing.T)
 		Events:        []*models.GameEventModel{},
 	}
 
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -609,23 +528,7 @@ func TestViewModelService_BuildViewModel_FiltersEnemyUnits_Shadowed(t *testing.T
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	// Create GameModel with enemy unit with VisibilityShadowed
 	gameModel := &models.GameModel{
@@ -651,7 +554,7 @@ func TestViewModelService_BuildViewModel_FiltersEnemyUnits_Shadowed(t *testing.T
 		Events:        []*models.GameEventModel{},
 	}
 
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -673,23 +576,7 @@ func TestViewModelService_BuildViewModel_FiltersEnemyUnits_Unknown(t *testing.T)
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	lastKnownPos := "A10"
 	// Create GameModel with enemy unit with VisibilityUnknown and LastKnownPos
@@ -718,7 +605,7 @@ func TestViewModelService_BuildViewModel_FiltersEnemyUnits_Unknown(t *testing.T)
 		Events:        []*models.GameEventModel{},
 	}
 
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -741,23 +628,7 @@ func TestViewModelService_BuildViewModel_FiltersTaskForces(t *testing.T) {
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	// Create GameModel with own and enemy TaskForces
 	gameModel := &models.GameModel{
@@ -789,7 +660,7 @@ func TestViewModelService_BuildViewModel_FiltersTaskForces(t *testing.T) {
 		Events:        []*models.GameEventModel{},
 	}
 
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)
@@ -814,23 +685,7 @@ func TestViewModelService_BuildViewModel_FiltersEvents(t *testing.T) {
 	defer cleanup()
 
 	gameID := uuid.New().String()
-	player1ID := uuid.New().String()
-	player2ID := uuid.New().String()
-
-	// Create users and game
-	_, err := gameStateService.db.GetConnection().Exec(`
-		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
-		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
-	`, player1ID, player2ID)
-	require.NoError(t, err)
-
-	_, err = gameStateService.db.GetConnection().Exec(`
-		INSERT INTO games (id, name, player1_id, player2_id, current_turn, current_phase, status, created_at, updated_at)
-		VALUES ($1, 'Test Game', $2, $3, 1, 'movement', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	`, gameID, player1ID, player2ID)
-	require.NoError(t, err)
+	player1ID, _ := setupTestUsersAndGame(t, gameStateService, gameID)
 
 	// Create GameModel with events for different sides
 	gameModel := &models.GameModel{
@@ -849,8 +704,8 @@ func TestViewModelService_BuildViewModel_FiltersEvents(t *testing.T) {
 				EventType:   models.EventTypeMovement,
 				Description: "German unit moved",
 				Visibility: map[string]interface{}{
-					"german": true,
-					"allied": false,
+					"player_side": "german",
+					"is_public":   false,
 				},
 			},
 			{
@@ -859,8 +714,8 @@ func TestViewModelService_BuildViewModel_FiltersEvents(t *testing.T) {
 				EventType:   models.EventTypeMovement,
 				Description: "Allied unit moved",
 				Visibility: map[string]interface{}{
-					"german": false,
-					"allied": true,
+					"player_side": "allied",
+					"is_public":   false,
 				},
 			},
 			{
@@ -869,14 +724,13 @@ func TestViewModelService_BuildViewModel_FiltersEvents(t *testing.T) {
 				EventType:   models.EventTypeMovement,
 				Description: "Public event",
 				Visibility: map[string]interface{}{
-					"german": true,
-					"allied": true,
+					"is_public": true,
 				},
 			},
 		},
 	}
 
-	err = gameStateService.UpdateGameModel(gameID, gameModel)
+	err := gameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Build ViewModel for player1 (german)

@@ -48,6 +48,7 @@ func (h *UnitHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	unitRouter.HandleFunc("/{gameId}/task-forces/{taskForceId}/patrol", h.SetTaskForcePatrol).Methods("PUT")
 
 	// Unit routes
+	unitRouter.HandleFunc("/{gameId}/units/{unitId}", h.GetUnit).Methods("GET")
 	unitRouter.HandleFunc("/{gameId}/units/{unitId}/patrol", h.SetPatrol).Methods("PUT")
 }
 
@@ -150,10 +151,11 @@ func (h *UnitHandler) GetUnits(w http.ResponseWriter, r *http.Request) {
 // GetUnit возвращает информацию о конкретном юните
 func (h *UnitHandler) GetUnit(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	gameID := vars["gameId"]
 	unitID := vars["unitId"]
 
-	// Пытаемся получить как морской юнит
-	navalUnit, err := h.unitService.GetNavalUnitByID(unitID)
+	// Пытаемся получить как морской юнит из GameModel
+	navalUnit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 	if err == nil {
 		response := map[string]interface{}{
 			"unit":       navalUnit,
@@ -228,7 +230,7 @@ func (h *UnitHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Обрабатываем как NavalUnit (существующая логика)
-	unit, err := h.unitService.GetNavalUnitByID(req.UnitID)
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, req.UnitID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
 		return
@@ -249,7 +251,7 @@ func (h *UnitHandler) MoveUnit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем обновленный юнит
-	updatedUnit, err := h.unitService.GetNavalUnitByID(req.UnitID)
+	updatedUnit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, req.UnitID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get updated unit")
 		return
@@ -283,7 +285,7 @@ func (h *UnitHandler) SearchUnit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получаем юнит для проверки
-	unit, err := h.unitService.GetNavalUnitByID(req.UnitID)
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, req.UnitID)
 	if err != nil {
 		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
 		return

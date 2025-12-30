@@ -498,58 +498,53 @@ func (s *UnitService) RecordSearch(search *models.UnitSearch) error {
 	return nil
 }
 
-// GetUnitsByPosition возвращает все юниты в указанной позиции
+// GetUnitsByPosition возвращает все юниты в указанной позиции из GameModel
 func (s *UnitService) GetUnitsByPosition(gameID string, position string) ([]models.NavalUnit, []models.AirUnit, error) {
-	// Получаем морские юниты
-	navalQuery := BuildNavalUnitSelectQuery(
-		[]string{}, // без дополнительных полей
-		"WHERE game_id = $1 AND position = $2",
-	)
-
-	navalRows, err := s.db.Query(navalQuery, gameID, position)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get naval units by position: %w", err)
+	// Загружаем GameModel
+	if s.gameStateService == nil {
+		return nil, nil, fmt.Errorf("gameStateService is required for GetUnitsByPosition")
 	}
-	defer navalRows.Close()
+
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
+		return nil, nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
 
 	var navalUnits []models.NavalUnit
-	for navalRows.Next() {
-		unit, err := ScanNavalUnitFromRow(navalRows, false, false) // includeCategory=false, useNullableEmergencyTurn=false
-		if err != nil {
-			continue
-		}
-
-		navalUnits = append(navalUnits, *unit)
-	}
-
-	// Получаем воздушные юниты
-	airQuery := `
-		SELECT id, game_id, name, type, owner, position, base_position,
-			   max_speed, endurance, current_fuel, search_factors,
-			   status, detection_level, is_visible, last_known_pos,
-			   markers, created_at, updated_at
-		FROM air_units
-		WHERE game_id = $1 AND position = $2`
-
-	airRows, err := s.db.Query(airQuery, gameID, position)
-	if err != nil {
-		return navalUnits, nil, fmt.Errorf("failed to get air units by position: %w", err)
-	}
-	defer airRows.Close()
-
 	var airUnits []models.AirUnit
-	for airRows.Next() {
-		var unit models.AirUnit
 
-		err := airRows.Scan(
-			&unit.ID, &unit.GameID, &unit.Name, &unit.Type, &unit.Owner, &unit.Position, &unit.BasePosition,
-			&unit.MaxSpeed, &unit.Endurance, &unit.Status, &unit.CreatedAt, &unit.UpdatedAt,
-		)
-		if err != nil {
+	// Проходим по всем юнитам в GameModel
+	for _, unitModel := range model.Units {
+		// Пропускаем, если позиция не совпадает
+		if unitModel.Position != position {
 			continue
 		}
 
-		airUnits = append(airUnits, unit)
+		// Пропускаем потопленные юниты
+		if unitModel.Status == string(models.UnitStatusSunk) {
+			continue
+		}
+
+		// Обрабатываем морские юниты
+		if unitModel.Category == models.UnitCategoryNaval && unitModel.NavalData != nil {
+			navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+			if err != nil {
+				s.logger.Warn("Failed to convert UnitModel to NavalUnit", "unit_id", unitModel.ID, "error", err)
+				continue
+			}
+			navalUnits = append(navalUnits, *navalUnit)
+		}
+
+		// Обрабатываем воздушные юниты
+		if unitModel.Category == models.UnitCategoryAir && unitModel.AirData != nil {
+			airUnit, err := models.ConvertUnitModelToAirUnit(unitModel)
+			if err != nil {
+				s.logger.Warn("Failed to convert UnitModel to AirUnit", "unit_id", unitModel.ID, "error", err)
+				continue
+			}
+			airUnits = append(airUnits, *airUnit)
+		}
 	}
 
 	return navalUnits, airUnits, nil

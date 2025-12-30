@@ -49,7 +49,7 @@ func TestCreateTaskForce(t *testing.T) {
 	defer cleanup()
 
 	testGameID := uuid.New().String()
-	
+
 	// Create test game with GameModel
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestGetTaskForcesByGameID(t *testing.T) {
 	defer cleanup()
 
 	testGameID := uuid.New().String()
-	
+
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -171,7 +171,6 @@ func TestGetTaskForceByID(t *testing.T) {
 	service := testServices.TaskForceService
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	// Create test game and two units and task force
@@ -179,7 +178,7 @@ func TestGetTaskForceByID(t *testing.T) {
 	// Create GameModel for the test game
 	_, err = CreateTestGameModel(db, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
-	
+
 	u1 := &models.NavalUnit{GameID: testGameID, Name: "Ship 1", Type: models.UnitTypeHeavyCruiser, Class: "Prinz Eugen", Owner: "testuser1", Nationality: "german", Position: "A1", SetupHex: "A1", Evasion: 4, BaseEvasion: 4, SpeedRating: models.SpeedTypeFast, Fuel: 80, MaxFuel: 80, HullBoxes: 6, CurrentHull: 6, Status: models.UnitStatusActive}
 	u2 := &models.NavalUnit{GameID: testGameID, Name: "Ship 2", Type: models.UnitTypeBattleship, Class: "Bismarck", Owner: "testuser1", Nationality: "german", Position: "A1", SetupHex: "A1", Evasion: 3, BaseEvasion: 3, SpeedRating: models.SpeedTypeMedium, Fuel: 100, MaxFuel: 100, HullBoxes: 8, CurrentHull: 8, Status: models.UnitStatusActive}
 	require.NoError(t, unitService.CreateNavalUnit(u1))
@@ -227,9 +226,7 @@ func TestAddUnitToTaskForce(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	unitService := testServices.UnitService
@@ -298,62 +295,48 @@ func TestAddUnitToTaskForce(t *testing.T) {
 // Position rules tests
 // 1) When unit is added to TF, its position must be cleared
 func TestAddUnitToTaskForce_ClearsUnitPosition(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	testGameID := uuid.New().String()
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
-	require.NoError(t, err)
-
-	logger, _ := logger.New(logger.INFO, "text", "stdout")
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	tf := &models.TaskForce{GameID: testGameID, Name: "TF-Pos-Add", Owner: "u", Position: "J10", IsVisible: true, Units: []string{}}
 	require.NoError(t, service.CreateTaskForce(tf))
 
-	unit := &models.NavalUnit{GameID: testGameID, Name: "Ship", Type: models.UnitTypeBattleship, Class: "Bismarck", Owner: "u", Nationality: "german", Position: "J10", SetupHex: "J10", Evasion: 3, BaseEvasion: 3, SpeedRating: models.SpeedTypeMedium, Fuel: 100, MaxFuel: 100, HullBoxes: 8, CurrentHull: 8, Status: models.UnitStatusActive}
+	unit := &models.NavalUnit{GameID: testGameID, Name: "Ship", Type: models.UnitTypeBattleship, Class: "Bismarck", Owner: "u", Nationality: "german", Position: "J10", SetupHex: "J10", Evasion: 3, BaseEvasion: 3, SpeedRating: models.SpeedTypeMedium, Fuel: 100, MaxFuel: 100, HullBoxes: 8, CurrentHull: 8, Status: models.UnitStatusActive, Damage: []models.Damage{}}
 	require.NoError(t, unitService.CreateNavalUnit(unit))
 
 	err = service.AddUnitToTaskForce(tf.ID, unit.ID)
 	require.NoError(t, err)
 
-	updated, err := unitService.GetNavalUnitByID(unit.ID)
+	updated, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, unit.ID)
 	require.NoError(t, err)
 	assert.Empty(t, updated.Position, "Unit position must be cleared when added to TF")
 }
 
 // 2) When unit is removed from TF (TF remains), unit.position must become TF.position
 func TestRemoveUnitFromTaskForce_SetsUnitPositionToTF(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	testGameID := uuid.New().String()
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
-	require.NoError(t, err)
-
-	logger, _ := logger.New(logger.INFO, "text", "stdout")
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create 3 units in same hex
 	pos := "K20"
 	makeUnit := func(name string) *models.NavalUnit {
-		u := &models.NavalUnit{GameID: testGameID, Name: name, Type: models.UnitTypeHeavyCruiser, Class: "Prinz Eugen", Owner: "u", Nationality: "german", Position: pos, SetupHex: pos, Evasion: 4, BaseEvasion: 4, SpeedRating: models.SpeedTypeFast, Fuel: 80, MaxFuel: 80, HullBoxes: 6, CurrentHull: 6, Status: models.UnitStatusActive}
+		u := &models.NavalUnit{GameID: testGameID, Name: name, Type: models.UnitTypeHeavyCruiser, Class: "Prinz Eugen", Owner: "u", Nationality: "german", Position: pos, SetupHex: pos, Evasion: 4, BaseEvasion: 4, SpeedRating: models.SpeedTypeFast, Fuel: 80, MaxFuel: 80, HullBoxes: 6, CurrentHull: 6, Status: models.UnitStatusActive, Damage: []models.Damage{}}
 		require.NoError(t, unitService.CreateNavalUnit(u))
 		return u
 	}
@@ -369,7 +352,7 @@ func TestRemoveUnitFromTaskForce_SetsUnitPositionToTF(t *testing.T) {
 	require.NoError(t, err)
 
 	// Unit should get TF position
-	updated, err := unitService.GetNavalUnitByID(u1.ID)
+	updated, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, u1.ID)
 	require.NoError(t, err)
 	assert.Equal(t, pos, updated.Position, "Removed unit must receive TF hex position")
 
@@ -381,27 +364,20 @@ func TestRemoveUnitFromTaskForce_SetsUnitPositionToTF(t *testing.T) {
 
 // 3) When TF is disbanded (after removal leaves <2), all its units must receive TF.position
 func TestRemoveUnitFromTaskForce_Disband_AssignsPositionsToAll(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	testGameID := uuid.New().String()
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
-	require.NoError(t, err)
-
-	logger, _ := logger.New(logger.INFO, "text", "stdout")
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	pos := "M30"
-	unitA := &models.NavalUnit{GameID: testGameID, Name: "A", Type: models.UnitTypeBattleship, Class: "Bismarck", Owner: "u", Nationality: "german", Position: pos, SetupHex: pos, Evasion: 3, BaseEvasion: 3, SpeedRating: models.SpeedTypeMedium, Fuel: 100, MaxFuel: 100, HullBoxes: 8, CurrentHull: 8, Status: models.UnitStatusActive}
-	unitB := &models.NavalUnit{GameID: testGameID, Name: "B", Type: models.UnitTypeHeavyCruiser, Class: "Prinz Eugen", Owner: "u", Nationality: "german", Position: pos, SetupHex: pos, Evasion: 4, BaseEvasion: 4, SpeedRating: models.SpeedTypeFast, Fuel: 80, MaxFuel: 80, HullBoxes: 6, CurrentHull: 6, Status: models.UnitStatusActive}
+	unitA := &models.NavalUnit{GameID: testGameID, Name: "A", Type: models.UnitTypeBattleship, Class: "Bismarck", Owner: "u", Nationality: "german", Position: pos, SetupHex: pos, Evasion: 3, BaseEvasion: 3, SpeedRating: models.SpeedTypeMedium, Fuel: 100, MaxFuel: 100, HullBoxes: 8, CurrentHull: 8, Status: models.UnitStatusActive, Damage: []models.Damage{}}
+	unitB := &models.NavalUnit{GameID: testGameID, Name: "B", Type: models.UnitTypeHeavyCruiser, Class: "Prinz Eugen", Owner: "u", Nationality: "german", Position: pos, SetupHex: pos, Evasion: 4, BaseEvasion: 4, SpeedRating: models.SpeedTypeFast, Fuel: 80, MaxFuel: 80, HullBoxes: 6, CurrentHull: 6, Status: models.UnitStatusActive, Damage: []models.Damage{}}
 	require.NoError(t, unitService.CreateNavalUnit(unitA))
 	require.NoError(t, unitService.CreateNavalUnit(unitB))
 
@@ -417,9 +393,9 @@ func TestRemoveUnitFromTaskForce_Disband_AssignsPositionsToAll(t *testing.T) {
 	assert.Error(t, err, "Task Force should be deleted after falling below 2 units")
 
 	// Both units must have position == original TF position
-	aAfter, err := unitService.GetNavalUnitByID(unitA.ID)
+	aAfter, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, unitA.ID)
 	require.NoError(t, err)
-	bAfter, err := unitService.GetNavalUnitByID(unitB.ID)
+	bAfter, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, unitB.ID)
 	require.NoError(t, err)
 	assert.Equal(t, pos, aAfter.Position)
 	assert.Equal(t, pos, bAfter.Position)
@@ -438,9 +414,7 @@ func TestRemoveUnitFromTaskForce(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	testServices, cleanup, err := SetupTestServices()
@@ -548,28 +522,23 @@ func TestRemoveUnitFromTaskForce(t *testing.T) {
 }
 
 func TestMoveTaskForce(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	testGameID := uuid.New().String()
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
+	// Create test game with GameModel
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	service := testServices.TaskForceService
 
 	// Create game and two units for TF movement test
-	require.NoError(t, testutil.CreateTestGame(db.GetConnection(), testGameID))
 	u1 := &models.NavalUnit{GameID: testGameID, Name: "Ship 1", Type: models.UnitTypeHeavyCruiser, Class: "Prinz Eugen", Owner: "testuser1", Nationality: "german", Position: "A1", SetupHex: "A1", Evasion: 4, BaseEvasion: 4, SpeedRating: models.SpeedTypeFast, Fuel: 80, MaxFuel: 80, HullBoxes: 6, CurrentHull: 6, Status: models.UnitStatusActive}
 	u2 := &models.NavalUnit{GameID: testGameID, Name: "Ship 2", Type: models.UnitTypeBattleship, Class: "Bismarck", Owner: "testuser1", Nationality: "german", Position: "A1", SetupHex: "A1", Evasion: 3, BaseEvasion: 3, SpeedRating: models.SpeedTypeMedium, Fuel: 100, MaxFuel: 100, HullBoxes: 8, CurrentHull: 8, Status: models.UnitStatusActive}
-	require.NoError(t, unitService.CreateNavalUnit(u1))
-	require.NoError(t, unitService.CreateNavalUnit(u2))
+	require.NoError(t, testServices.UnitService.CreateNavalUnit(u1))
+	require.NoError(t, testServices.UnitService.CreateNavalUnit(u2))
 	taskForce := &models.TaskForce{
 		GameID:    testGameID,
 		Name:      "Test Task Force",
@@ -603,13 +572,12 @@ func TestDeleteTaskForce(t *testing.T) {
 	defer db.Close()
 
 	testGameID := uuid.New().String()
-	
+
 	// Create test game first to satisfy foreign key constraint
 	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -662,9 +630,7 @@ func TestGetTaskForceUnits(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -763,9 +729,7 @@ func TestGetTaskForceEffectiveSpeed(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -859,9 +823,7 @@ func TestGetTaskForceTotalSearchFactors(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -961,9 +923,7 @@ func TestGetTaskForceAvailableMoves_WorstCaseScenario(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -1076,9 +1036,7 @@ func TestTaskForceMovement_NoMovementTurnsLeft(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -1182,9 +1140,7 @@ func TestTaskForceMovement_FuelRestrictions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -1300,9 +1256,7 @@ func TestTaskForceMovement_EmergencyFuel(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -1316,7 +1270,7 @@ func TestTaskForceMovement_EmergencyFuel(t *testing.T) {
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceServiceForPM, searchService, eventService, wsHub, "http://localhost:8080")
-	
+
 	// Start turn for phase manager
 	_, err = phaseManager.StartTurn(testGameID)
 	require.NoError(t, err)
@@ -1325,7 +1279,7 @@ func TestTaskForceMovement_EmergencyFuel(t *testing.T) {
 	unitService.SetEmergencyFuelService(emergencyFuelService)
 	movementService := NewMovementService(db, logger, phaseManager, unitService, mapStructService, eventService, emergencyFuelService, gameService)
 	service := NewTaskForceService(db, logger, unitService, movementService)
-	
+
 	// Create hex calculator for distance calculations
 	hexCalculator := hexgrid.NewStandardHexCalculator()
 
@@ -1461,7 +1415,7 @@ func TestTaskForceMovement_EmergencyFuel(t *testing.T) {
 		require.NoError(t, err)
 
 		// Get updated unit
-		updatedUnit2, err := unitService.GetNavalUnitByID(unit2.ID)
+		updatedUnit2, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, unit2.ID)
 		require.NoError(t, err)
 		assert.False(t, updatedUnit2.IsEmergencyFuel, "Emergency fuel should be cleared after refueling")
 		assert.Greater(t, updatedUnit2.Fuel, 0, "Unit should have fuel after refueling")
@@ -1506,9 +1460,7 @@ func TestExecuteTaskForceMovement_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -1598,9 +1550,9 @@ func TestExecuteTaskForceMovement_Integration(t *testing.T) {
 		assert.NotEqual(t, originalPosition, updatedTF.Position, "Task Force should have moved")
 
 		// Verify all units in TF have moved (positions should be empty since they're in TF)
-		updatedUnit1, err := unitService.GetNavalUnitByID(unit1.ID)
+		updatedUnit1, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, unit1.ID)
 		require.NoError(t, err)
-		updatedUnit2, err := unitService.GetNavalUnitByID(unit2.ID)
+		updatedUnit2, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, unit2.ID)
 		require.NoError(t, err)
 
 		// Units in Task Force should not have individual positions
@@ -1647,9 +1599,7 @@ func TestTaskForceFuelConsumption_Individual(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -1733,9 +1683,9 @@ func TestTaskForceFuelConsumption_Individual(t *testing.T) {
 		require.NoError(t, err)
 
 		// Check fuel consumption for each unit individually
-		updatedUnit1, err := unitService.GetNavalUnitByID(unit1.ID)
+		updatedUnit1, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, unit1.ID)
 		require.NoError(t, err)
-		updatedUnit2, err := unitService.GetNavalUnitByID(unit2.ID)
+		updatedUnit2, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, unit2.ID)
 		require.NoError(t, err)
 
 		// Fast unit should consume fuel
@@ -1770,9 +1720,7 @@ func TestTaskForceMovement_UpdateAllUnits(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -1823,7 +1771,7 @@ func TestTaskForceMovement_UpdateAllUnits(t *testing.T) {
 	t.Run("all units updated when task force moves", func(t *testing.T) {
 		// Verify all units start with individual positions
 		for _, unitID := range unitIDs {
-			unit, err := unitService.GetNavalUnitByID(unitID)
+			unit, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, unitID)
 			require.NoError(t, err)
 			assert.Empty(t, unit.Position, "Unit in Task Force should not have individual position")
 		}
@@ -1844,7 +1792,7 @@ func TestTaskForceMovement_UpdateAllUnits(t *testing.T) {
 
 		// Verify all units have nullified positions (they move with TF)
 		for i, unitID := range unitIDs {
-			unit, err := unitService.GetNavalUnitByID(unitID)
+			unit, err := unitService.GetNavalUnitByIDFromGameModel(testGameID, unitID)
 			require.NoError(t, err)
 
 			// Units in Task Force should not have individual positions
@@ -1878,9 +1826,7 @@ func TestCreateTaskForce_ShadowedUnitsRejected(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -1891,46 +1837,46 @@ func TestCreateTaskForce_ShadowedUnitsRejected(t *testing.T) {
 
 	// Create normal unit (not sighted)
 	normalUnit := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "Hidden Ship",
-		Type:           models.UnitTypeHeavyCruiser,
-		Class:          "Prinz Eugen",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "F1",
-		SetupHex:       "F1",
-		Evasion:        4,
-		BaseEvasion:    4,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           80,
-		MaxFuel:        80,
-		HullBoxes:      6,
-		CurrentHull:    6,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "Hidden Ship",
+		Type:        models.UnitTypeHeavyCruiser,
+		Class:       "Prinz Eugen",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "F1",
+		SetupHex:    "F1",
+		Evasion:     4,
+		BaseEvasion: 4,
+		SpeedRating: models.SpeedTypeFast,
+		Fuel:        80,
+		MaxFuel:     80,
+		HullBoxes:   6,
+		CurrentHull: 6,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(normalUnit)
 	require.NoError(t, err)
 
 	// Create shadowed unit (преследуемый корабль)
 	shadowedUnit := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "Shadowed Ship",
-		Type:           models.UnitTypeBattleship,
-		Class:          "Bismarck",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "F1",
-		SetupHex:       "F1",
-		Evasion:        3,
-		BaseEvasion:    3,
-		SpeedRating:    models.SpeedTypeMedium,
-		Fuel:           100,
-		MaxFuel:        100,
-		HullBoxes:      8,
-		CurrentHull:    8,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "Shadowed Ship",
+		Type:        models.UnitTypeBattleship,
+		Class:       "Bismarck",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "F1",
+		SetupHex:    "F1",
+		Evasion:     3,
+		BaseEvasion: 3,
+		SpeedRating: models.SpeedTypeMedium,
+		Fuel:        100,
+		MaxFuel:     100,
+		HullBoxes:   8,
+		CurrentHull: 8,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(shadowedUnit)
 	require.NoError(t, err)
@@ -1956,23 +1902,23 @@ func TestCreateTaskForce_ShadowedUnitsRejected(t *testing.T) {
 	t.Run("can create task force with only hidden units", func(t *testing.T) {
 		// Create another normal unit
 		hiddenUnit2 := &models.NavalUnit{
-			GameID:         testGameID,
-			Name:           "Another Hidden Ship",
-			Type:           "destroyer",
-			Class:          "Z-23",
-			Owner:          "testuser1",
-			Nationality:    "german",
-			Position:       "F1",
-			SetupHex:       "F1",
-			Evasion:        5,
-			BaseEvasion:    5,
-			SpeedRating:    models.SpeedTypeFast,
-			Fuel:           60,
-			MaxFuel:        60,
-			HullBoxes:      4,
-			CurrentHull:    4,
-			Status:         models.UnitStatusActive,
-			Damage:         []models.Damage{},
+			GameID:      testGameID,
+			Name:        "Another Hidden Ship",
+			Type:        "destroyer",
+			Class:       "Z-23",
+			Owner:       "testuser1",
+			Nationality: "german",
+			Position:    "F1",
+			SetupHex:    "F1",
+			Evasion:     5,
+			BaseEvasion: 5,
+			SpeedRating: models.SpeedTypeFast,
+			Fuel:        60,
+			MaxFuel:     60,
+			HullBoxes:   4,
+			CurrentHull: 4,
+			Status:      models.UnitStatusActive,
+			Damage:      []models.Damage{},
 		}
 		err = unitService.CreateNavalUnit(hiddenUnit2)
 		require.NoError(t, err)
@@ -2007,9 +1953,7 @@ func TestAddUnitToTaskForce_ShadowedUnitRejected(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -2020,45 +1964,45 @@ func TestAddUnitToTaskForce_ShadowedUnitRejected(t *testing.T) {
 
 	// Create two hidden units for initial Task Force
 	unit1 := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "TF Unit 1",
-		Type:           models.UnitTypeHeavyCruiser,
-		Class:          "Prinz Eugen",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "G1",
-		SetupHex:       "G1",
-		Evasion:        4,
-		BaseEvasion:    4,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           80,
-		MaxFuel:        80,
-		HullBoxes:      6,
-		CurrentHull:    6,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "TF Unit 1",
+		Type:        models.UnitTypeHeavyCruiser,
+		Class:       "Prinz Eugen",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "G1",
+		SetupHex:    "G1",
+		Evasion:     4,
+		BaseEvasion: 4,
+		SpeedRating: models.SpeedTypeFast,
+		Fuel:        80,
+		MaxFuel:     80,
+		HullBoxes:   6,
+		CurrentHull: 6,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(unit1)
 	require.NoError(t, err)
 
 	unit2 := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "TF Unit 2",
-		Type:           models.UnitTypeBattleship,
-		Class:          "Bismarck",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "G1",
-		SetupHex:       "G1",
-		Evasion:        3,
-		BaseEvasion:    3,
-		SpeedRating:    models.SpeedTypeMedium,
-		Fuel:           100,
-		MaxFuel:        100,
-		HullBoxes:      8,
-		CurrentHull:    8,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "TF Unit 2",
+		Type:        models.UnitTypeBattleship,
+		Class:       "Bismarck",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "G1",
+		SetupHex:    "G1",
+		Evasion:     3,
+		BaseEvasion: 3,
+		SpeedRating: models.SpeedTypeMedium,
+		Fuel:        100,
+		MaxFuel:     100,
+		HullBoxes:   8,
+		CurrentHull: 8,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(unit2)
 	require.NoError(t, err)
@@ -2078,23 +2022,23 @@ func TestAddUnitToTaskForce_ShadowedUnitRejected(t *testing.T) {
 	// Create shadowed unit to try to add (преследуемый корабль)
 	// По правилам игры (раздел 7.2): нельзя добавлять в ТФ корабли с маркером "Преследуется" (shadowed)
 	shadowedUnit := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "Shadowed Unit",
-		Type:           "destroyer",
-		Class:          "Z-23",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "G1",
-		SetupHex:       "G1",
-		Evasion:        5,
-		BaseEvasion:    5,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           60,
-		MaxFuel:        60,
-		HullBoxes:      4,
-		CurrentHull:    4,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "Shadowed Unit",
+		Type:        "destroyer",
+		Class:       "Z-23",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "G1",
+		SetupHex:    "G1",
+		Evasion:     5,
+		BaseEvasion: 5,
+		SpeedRating: models.SpeedTypeFast,
+		Fuel:        60,
+		MaxFuel:     60,
+		HullBoxes:   4,
+		CurrentHull: 4,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(shadowedUnit)
 	require.NoError(t, err)
@@ -2109,23 +2053,23 @@ func TestAddUnitToTaskForce_ShadowedUnitRejected(t *testing.T) {
 	t.Run("can add hidden unit to task force", func(t *testing.T) {
 		// Create another hidden unit
 		hiddenUnit := &models.NavalUnit{
-			GameID:         testGameID,
-			Name:           "Hidden Unit",
-			Type:           "destroyer",
-			Class:          "Z-23",
-			Owner:          "testuser1",
-			Nationality:    "german",
-			Position:       "G1",
-			SetupHex:       "G1",
-			Evasion:        5,
-			BaseEvasion:    5,
-			SpeedRating:    models.SpeedTypeFast,
-			Fuel:           60,
-			MaxFuel:        60,
-			HullBoxes:      4,
-			CurrentHull:    4,
-			Status:         models.UnitStatusActive,
-			Damage:         []models.Damage{},
+			GameID:      testGameID,
+			Name:        "Hidden Unit",
+			Type:        "destroyer",
+			Class:       "Z-23",
+			Owner:       "testuser1",
+			Nationality: "german",
+			Position:    "G1",
+			SetupHex:    "G1",
+			Evasion:     5,
+			BaseEvasion: 5,
+			SpeedRating: models.SpeedTypeFast,
+			Fuel:        60,
+			MaxFuel:     60,
+			HullBoxes:   4,
+			CurrentHull: 4,
+			Status:      models.UnitStatusActive,
+			Damage:      []models.Damage{},
 		}
 		err = unitService.CreateNavalUnit(hiddenUnit)
 		require.NoError(t, err)
@@ -2150,9 +2094,7 @@ func TestCanTaskForceMove_SightedTaskForce(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -2163,57 +2105,57 @@ func TestCanTaskForceMove_SightedTaskForce(t *testing.T) {
 
 	// Create units for Task Force
 	unit1 := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "TF Ship 1",
-		Type:           models.UnitTypeHeavyCruiser,
-		Class:          "Prinz Eugen",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "H1",
-		SetupHex:       "H1",
-		Evasion:        4,
-		BaseEvasion:    4,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           80,
-		MaxFuel:        80,
-		HullBoxes:      6,
-		CurrentHull:    6,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "TF Ship 1",
+		Type:        models.UnitTypeHeavyCruiser,
+		Class:       "Prinz Eugen",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "H1",
+		SetupHex:    "H1",
+		Evasion:     4,
+		BaseEvasion: 4,
+		SpeedRating: models.SpeedTypeFast,
+		Fuel:        80,
+		MaxFuel:     80,
+		HullBoxes:   6,
+		CurrentHull: 6,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(unit1)
 	require.NoError(t, err)
 
 	unit2 := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "TF Ship 2",
-		Type:           models.UnitTypeBattleship,
-		Class:          "Bismarck",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "H1",
-		SetupHex:       "H1",
-		Evasion:        3,
-		BaseEvasion:    3,
-		SpeedRating:    models.SpeedTypeMedium,
-		Fuel:           100,
-		MaxFuel:        100,
-		HullBoxes:      8,
-		CurrentHull:    8,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "TF Ship 2",
+		Type:        models.UnitTypeBattleship,
+		Class:       "Bismarck",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "H1",
+		SetupHex:    "H1",
+		Evasion:     3,
+		BaseEvasion: 3,
+		SpeedRating: models.SpeedTypeMedium,
+		Fuel:        100,
+		MaxFuel:     100,
+		HullBoxes:   8,
+		CurrentHull: 8,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(unit2)
 	require.NoError(t, err)
 
 	// Create hidden Task Force
 	taskForce := &models.TaskForce{
-		GameID:         testGameID,
-		Name:           "Detection Test TF",
-		Owner:          "testuser1",
-		Position:       "H1",
-		IsVisible:      true,
-		Units:          []string{unit1.ID, unit2.ID},
+		GameID:    testGameID,
+		Name:      "Detection Test TF",
+		Owner:     "testuser1",
+		Position:  "H1",
+		IsVisible: true,
+		Units:     []string{unit1.ID, unit2.ID},
 	}
 	err = service.CreateTaskForce(taskForce)
 	require.NoError(t, err)
@@ -2254,9 +2196,7 @@ func TestCanAddUnit_DetectionLevelCheck(t *testing.T) {
 	require.NoError(t, err)
 
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM task_forces WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", testGameID)
 	require.NoError(t, err)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -2267,45 +2207,45 @@ func TestCanAddUnit_DetectionLevelCheck(t *testing.T) {
 
 	// Create base units for Task Force
 	unit1 := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "Base Unit 1",
-		Type:           models.UnitTypeHeavyCruiser,
-		Class:          "Prinz Eugen",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "I1",
-		SetupHex:       "I1",
-		Evasion:        4,
-		BaseEvasion:    4,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           80,
-		MaxFuel:        80,
-		HullBoxes:      6,
-		CurrentHull:    6,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "Base Unit 1",
+		Type:        models.UnitTypeHeavyCruiser,
+		Class:       "Prinz Eugen",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "I1",
+		SetupHex:    "I1",
+		Evasion:     4,
+		BaseEvasion: 4,
+		SpeedRating: models.SpeedTypeFast,
+		Fuel:        80,
+		MaxFuel:     80,
+		HullBoxes:   6,
+		CurrentHull: 6,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(unit1)
 	require.NoError(t, err)
 
 	unit2 := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "Base Unit 2",
-		Type:           models.UnitTypeBattleship,
-		Class:          "Bismarck",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "I1",
-		SetupHex:       "I1",
-		Evasion:        3,
-		BaseEvasion:    3,
-		SpeedRating:    models.SpeedTypeMedium,
-		Fuel:           100,
-		MaxFuel:        100,
-		HullBoxes:      8,
-		CurrentHull:    8,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "Base Unit 2",
+		Type:        models.UnitTypeBattleship,
+		Class:       "Bismarck",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "I1",
+		SetupHex:    "I1",
+		Evasion:     3,
+		BaseEvasion: 3,
+		SpeedRating: models.SpeedTypeMedium,
+		Fuel:        100,
+		MaxFuel:     100,
+		HullBoxes:   8,
+		CurrentHull: 8,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(unit2)
 	require.NoError(t, err)
@@ -2324,45 +2264,45 @@ func TestCanAddUnit_DetectionLevelCheck(t *testing.T) {
 
 	// Create test units with different detection levels
 	hiddenUnit := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "Hidden Test Unit",
-		Type:           "destroyer",
-		Class:          "Z-23",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "I1",
-		SetupHex:       "I1",
-		Evasion:        5,
-		BaseEvasion:    5,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           60,
-		MaxFuel:        60,
-		HullBoxes:      4,
-		CurrentHull:    4,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "Hidden Test Unit",
+		Type:        "destroyer",
+		Class:       "Z-23",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "I1",
+		SetupHex:    "I1",
+		Evasion:     5,
+		BaseEvasion: 5,
+		SpeedRating: models.SpeedTypeFast,
+		Fuel:        60,
+		MaxFuel:     60,
+		HullBoxes:   4,
+		CurrentHull: 4,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(hiddenUnit)
 	require.NoError(t, err)
 
 	shadowedUnit := &models.NavalUnit{
-		GameID:         testGameID,
-		Name:           "Shadowed Test Unit",
-		Type:           "destroyer",
-		Class:          "Z-23",
-		Owner:          "testuser1",
-		Nationality:    "german",
-		Position:       "I1",
-		SetupHex:       "I1",
-		Evasion:        5,
-		BaseEvasion:    5,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           60,
-		MaxFuel:        60,
-		HullBoxes:      4,
-		CurrentHull:    4,
-		Status:         models.UnitStatusActive,
-		Damage:         []models.Damage{},
+		GameID:      testGameID,
+		Name:        "Shadowed Test Unit",
+		Type:        "destroyer",
+		Class:       "Z-23",
+		Owner:       "testuser1",
+		Nationality: "german",
+		Position:    "I1",
+		SetupHex:    "I1",
+		Evasion:     5,
+		BaseEvasion: 5,
+		SpeedRating: models.SpeedTypeFast,
+		Fuel:        60,
+		MaxFuel:     60,
+		HullBoxes:   4,
+		CurrentHull: 4,
+		Status:      models.UnitStatusActive,
+		Damage:      []models.Damage{},
 	}
 	err = unitService.CreateNavalUnit(shadowedUnit)
 	require.NoError(t, err)
@@ -2388,7 +2328,7 @@ func TestCanAddUnit_DetectionLevelCheck(t *testing.T) {
 		// Note: This test may need to be updated to work with GameModel visibility system
 		// For now, we test the CanAddUnit method directly
 		tf.Visibility = models.VisibilityShadowed
-		
+
 		canAdd := tf.CanAddUnit()
 		assert.False(t, canAdd, "Shadowed Task Force should not be able to accept new units")
 		t.Logf("Shadowed Task Force cannot accept units: %t", canAdd)

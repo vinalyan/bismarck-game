@@ -12,8 +12,6 @@ import (
 	"bismarck-game/backend/internal/config"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
-	"bismarck-game/backend/pkg/logger"
-	"bismarck-game/backend/pkg/testutil"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -21,15 +19,8 @@ import (
 )
 
 func setupSearchHandler(t *testing.T) (*SearchHandler, *auth.AuthService, string, func(), *models.User) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
-
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM hex_markers")
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM games")
-	require.NoError(t, err)
-	_, err = db.GetConnection().Exec("DELETE FROM users")
+	// Setup test services with all dependencies
+	testServices, testCleanup, err := services.SetupTestServices()
 	require.NoError(t, err)
 
 	cfg := &config.Config{
@@ -38,14 +29,11 @@ func setupSearchHandler(t *testing.T) (*SearchHandler, *auth.AuthService, string
 		},
 	}
 
-	log, err := logger.New(logger.INFO, "test", "stdout")
-	require.NoError(t, err)
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*3600*1000000000) // 24 hours in nanoseconds
 
-	authService := auth.New(db, nil, cfg.JWT.Secret, 24*3600*1000000000) // 24 hours in nanoseconds
-	unitService := services.NewUnitService(db, log)
-	gameService := services.NewGameService(db, log)
-	searchService := services.NewSearchService(db, log, unitService, gameService)
-	handler := NewSearchHandler(searchService, log)
+	// Create handler with properly configured services
+	handler := NewSearchHandler(testServices.SearchService, testServices.Logger)
+	handler.SetGameStateService(testServices.GameStateService)
 
 	// Create test user
 	user, err := authService.Register(&models.CreateUserRequest{
@@ -55,25 +43,29 @@ func setupSearchHandler(t *testing.T) (*SearchHandler, *auth.AuthService, string
 	})
 	require.NoError(t, err)
 
-	// Create test game
+	// Create test game with GameModel
 	gameID := "550e8400-e29b-41d4-a716-446655440020"
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
-	
+
 	// Create second user
-	_, err = db.GetConnection().Exec(
+	_, err = testServices.DB.GetConnection().Exec(
 		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player2', 'p2@test.com', 'hash2') ON CONFLICT DO NOTHING",
 		player2ID,
 	)
 	require.NoError(t, err)
-	
-	_, err = db.GetConnection().Exec(
-		"INSERT INTO games (id, name, status, player1_id, player2_id) VALUES ($1, 'Test Game', 'active', $2, $3)",
-		gameID, user.ID, player2ID,
+
+	// Create game with GameModel
+	_, err = services.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSetup)
+	require.NoError(t, err)
+
+	_, err = testServices.DB.GetConnection().Exec(
+		"UPDATE games SET player1_id = $1, player2_id = $2, name = $3, status = $4 WHERE id = $5",
+		user.ID, player2ID, "Test Game", "active", gameID,
 	)
 	require.NoError(t, err)
 
 	cleanup := func() {
-		db.Close()
+		testCleanup()
 	}
 
 	return handler, authService, gameID, cleanup, user
@@ -168,11 +160,11 @@ func TestSearchHandler_GetHexMarkers(t *testing.T) {
 		// WriteSuccessResponse wraps data in "data" field
 		data, ok := response["data"].(map[string]interface{})
 		require.True(t, ok, "response should have data field")
-		
+
 		// markers can be either []interface{} or []string depending on JSON unmarshaling
 		markersInterface := data["markers"]
 		require.NotNil(t, markersInterface, "markers should not be nil")
-		
+
 		// Try to convert to []interface{}
 		markers, ok := markersInterface.([]interface{})
 		if !ok {
@@ -279,24 +271,23 @@ func TestSearchHandler_GetSearchFactorsByHexes_WithHexMarkers(t *testing.T) {
 		assert.True(t, response["success"].(bool))
 
 		data := response["data"].(map[string]interface{})
-		
+
 		// Check hex_factors exists
 		hexFactors, ok := data["hex_factors"].(map[string]interface{})
 		assert.True(t, ok)
-		
+
 		// Check hex_markers exists
 		hexMarkers, ok := data["hex_markers"].(map[string]interface{})
 		assert.True(t, ok)
-		
+
 		// Check F26 has markers
 		f26Markers, ok := hexMarkers["F26"].(map[string]interface{})
 		assert.True(t, ok)
 		assert.Contains(t, f26Markers, string(models.MarkerTypeFlightPathSearch))
-		
+
 		// Check factors include marker contribution
 		f26Factors, ok := hexFactors["F26"].(float64)
 		assert.True(t, ok)
 		assert.GreaterOrEqual(t, f26Factors, float64(2)) // At least 2 from marker
 	})
 }
-

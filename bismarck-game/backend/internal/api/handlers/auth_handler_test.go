@@ -807,7 +807,16 @@ func TestValidateToken(t *testing.T) {
 	var loginResponse map[string]interface{}
 	err := json.Unmarshal(loginW.Body.Bytes(), &loginResponse)
 	assert.NoError(t, err)
-	token := loginResponse["token"].(string)
+	
+	// WriteSuccess оборачивает данные в структуру с success и data
+	assert.True(t, loginResponse["success"].(bool), "Ответ должен содержать success=true")
+	data, exists := loginResponse["data"].(map[string]interface{})
+	require.True(t, exists, "Ответ должен содержать data")
+	tokenValue, exists := data["token"]
+	require.True(t, exists, "data должен содержать token")
+	token, ok := tokenValue.(string)
+	require.True(t, ok, "token должен быть строкой")
+	require.NotEmpty(t, token, "token не должен быть пустым")
 
 	t.Run("valid token", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/auth/validate", nil)
@@ -821,8 +830,12 @@ func TestValidateToken(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Equal(t, "Token is valid", response["message"])
-		assert.NotEmpty(t, response["user"])
+		
+		// WriteSuccess оборачивает данные в структуру с success и data
+		assert.True(t, response["success"].(bool), "Ответ должен содержать success=true")
+		responseData, exists := response["data"].(map[string]interface{})
+		require.True(t, exists, "Ответ должен содержать data")
+		assert.NotEmpty(t, responseData["id"], "Ответ должен содержать user id")
 	})
 
 	t.Run("missing authorization header", func(t *testing.T) {
@@ -866,6 +879,6 @@ func TestValidateToken(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "invalid token")
+		assert.Contains(t, strings.ToLower(response["error"].(string)), "invalid")
 	})
 }
