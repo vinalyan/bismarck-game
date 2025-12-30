@@ -166,17 +166,11 @@ func TestGetTaskForceByID(t *testing.T) {
 	defer cleanup()
 
 	testGameID := uuid.New().String()
-	db := testServices.DB
 	unitService := testServices.UnitService
 	service := testServices.TaskForceService
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-
-	// Create test game and two units and task force
-	require.NoError(t, testutil.CreateTestGame(db.GetConnection(), testGameID))
 	// Create GameModel for the test game
-	_, err = CreateTestGameModel(db, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
 	u1 := &models.NavalUnit{GameID: testGameID, Name: "Ship 1", Type: models.UnitTypeHeavyCruiser, Class: "Prinz Eugen", Owner: "testuser1", Nationality: "german", Position: "A1", SetupHex: "A1", Evasion: 4, BaseEvasion: 4, SpeedRating: models.SpeedTypeFast, Fuel: 80, MaxFuel: 80, HullBoxes: 6, CurrentHull: 6, Status: models.UnitStatusActive}
@@ -215,18 +209,9 @@ func TestAddUnitToTaskForce(t *testing.T) {
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
-	db := testServices.DB
-
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
-	require.NoError(t, err)
 
 	// Create GameModel for the test game
-	_, err = CreateTestGameModel(db, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
-	require.NoError(t, err)
-
-	// Clean up any existing test data
-	require.NoError(t, err)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
 	unitService := testServices.UnitService
@@ -402,32 +387,19 @@ func TestRemoveUnitFromTaskForce_Disband_AssignsPositionsToAll(t *testing.T) {
 }
 
 func TestRemoveUnitFromTaskForce(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
-	defer db.Close()
-
-	// Generate test game ID
-	testGameID := uuid.New().String()
-
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
-	require.NoError(t, err)
-
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
 	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
 	defer cleanup()
 
-	unitService := testServices.UnitService
-	service := testServices.TaskForceService
-	db = testServices.DB
+	// Generate test game ID
+	testGameID := uuid.New().String()
 
 	// Create GameModel for the test game
-	_, err = CreateTestGameModel(db, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
+
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create test unit
 	unit := &models.NavalUnit{
@@ -567,24 +539,18 @@ func TestMoveTaskForce(t *testing.T) {
 }
 
 func TestDeleteTaskForce(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	testGameID := uuid.New().String()
 
-	// Create test game first to satisfy foreign key constraint
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create two units for delete test
 	u1 := &models.NavalUnit{GameID: testGameID, Name: "Ship 1", Type: models.UnitTypeHeavyCruiser, Class: "Prinz Eugen", Owner: "testuser1", Nationality: "german", Position: "A1", SetupHex: "A1", Evasion: 4, BaseEvasion: 4, SpeedRating: models.SpeedTypeFast, Fuel: 80, MaxFuel: 80, HullBoxes: 6, CurrentHull: 6, Status: models.UnitStatusActive}
@@ -618,26 +584,19 @@ func TestDeleteTaskForce(t *testing.T) {
 }
 
 func TestGetTaskForceUnits(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create test units
 	unit1 := &models.NavalUnit{
@@ -717,26 +676,19 @@ func TestGetTaskForceUnits(t *testing.T) {
 }
 
 func TestGetTaskForceEffectiveSpeed(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create test units with different speeds
 	unit1 := &models.NavalUnit{
@@ -811,26 +763,19 @@ func TestGetTaskForceEffectiveSpeed(t *testing.T) {
 }
 
 func TestGetTaskForceTotalSearchFactors(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create test units with different search factors
 	unit1 := &models.NavalUnit{
@@ -911,26 +856,20 @@ func TestGetTaskForceTotalSearchFactors(t *testing.T) {
 
 // TestGetTaskForceAvailableMoves_WorstCaseScenario тестирует пересечение доступных гексов всех юнитов в TF
 func TestGetTaskForceAvailableMoves_WorstCaseScenario(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	movementService := testServices.MovementService
+	service := testServices.TaskForceService
 
 	// Create test units with different movement capabilities
 	// Unit 1: Fast unit (can move 2 hexes)
@@ -1024,26 +963,19 @@ func TestGetTaskForceAvailableMoves_WorstCaseScenario(t *testing.T) {
 
 // TestTaskForceMovement_NoMovementTurnsLeft тестирует применение ограничений движения
 func TestTaskForceMovement_NoMovementTurnsLeft(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create units with different movement restrictions
 	// Unit 1: Can move freely
@@ -1128,26 +1060,20 @@ func TestTaskForceMovement_NoMovementTurnsLeft(t *testing.T) {
 
 // TestTaskForceMovement_FuelRestrictions тестирует учет топливных ограничений каждого корабля
 func TestTaskForceMovement_FuelRestrictions(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	movementService := testServices.MovementService
+	service := testServices.TaskForceService
 
 	// Unit 1: Has fuel
 	unit1 := &models.NavalUnit{
@@ -1244,41 +1170,24 @@ func TestTaskForceMovement_FuelRestrictions(t *testing.T) {
 
 // TestTaskForceMovement_EmergencyFuel тестирует движение TF с кораблём на аварийном топливе
 func TestTaskForceMovement_EmergencyFuel(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
-
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	eventService := NewGameEventService(db, logger)
-	gameService := NewGameService(db, logger)
-	mapStructService := NewMapStructureService()
-	taskForceServiceForPM := NewTaskForceService(db, logger, unitService, nil)
-	searchService := NewSearchService(db, logger, unitService, gameService)
-	wsHub := websocket.NewHub()
-	go wsHub.Run()
-	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceServiceForPM, searchService, eventService, wsHub, "http://localhost:8080")
 
 	// Start turn for phase manager
-	_, err = phaseManager.StartTurn(testGameID)
+	_, err = testServices.PhaseManager.StartTurn(testGameID)
 	require.NoError(t, err)
 
-	emergencyFuelService := NewEmergencyFuelService(db, logger, phaseManager)
-	unitService.SetEmergencyFuelService(emergencyFuelService)
-	movementService := NewMovementService(db, logger, phaseManager, unitService, mapStructService, eventService, emergencyFuelService, gameService)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	movementService := testServices.MovementService
+	service := testServices.TaskForceService
 
 	// Create hex calculator for distance calculations
 	hexCalculator := hexgrid.NewStandardHexCalculator()
@@ -1448,26 +1357,20 @@ func TestTaskForceMovement_EmergencyFuel(t *testing.T) {
 
 // TestExecuteTaskForceMovement_Integration тестирует полный цикл движения TF
 func TestExecuteTaskForceMovement_Integration(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	movementService := testServices.MovementService
+	service := testServices.TaskForceService
 
 	// Create test units for Task Force
 	unit1 := &models.NavalUnit{
@@ -1587,26 +1490,20 @@ func TestExecuteTaskForceMovement_Integration(t *testing.T) {
 
 // TestTaskForceFuelConsumption_Individual тестирует индивидуальное потребление топлива
 func TestTaskForceFuelConsumption_Individual(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	movementService := testServices.MovementService
+	service := testServices.TaskForceService
 
 	// Create units with different fuel consumption characteristics
 	// Unit 1: Fast unit (consumes fuel)
@@ -1708,26 +1605,20 @@ func TestTaskForceFuelConsumption_Individual(t *testing.T) {
 
 // TestTaskForceMovement_UpdateAllUnits тестирует обновление позиций всех юнитов в TF
 func TestTaskForceMovement_UpdateAllUnits(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	movementService := testServices.MovementService
+	service := testServices.TaskForceService
 
 	// Create multiple units
 	unitIDs := []string{}
@@ -1814,26 +1705,19 @@ func TestTaskForceMovement_UpdateAllUnits(t *testing.T) {
 
 // TestCreateTaskForce_ShadowedUnitsRejected тестирует нельзя создать TF с преследуемыми кораблями
 func TestCreateTaskForce_ShadowedUnitsRejected(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create normal unit (not sighted)
 	normalUnit := &models.NavalUnit{
@@ -1882,6 +1766,22 @@ func TestCreateTaskForce_ShadowedUnitsRejected(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("cannot create task force with shadowed units", func(t *testing.T) {
+		// Set unit as shadowed in GameModel
+		gameModel, err := testServices.GameStateService.LoadGameModel(testGameID)
+		require.NoError(t, err)
+		unitModel, exists := gameModel.Units[shadowedUnit.ID]
+		require.True(t, exists, "Shadowed unit must exist in GameModel")
+		unitModel.Visibility = models.VisibilityShadowed
+		err = testServices.GameStateService.UpdateGameModel(testGameID, gameModel)
+		require.NoError(t, err)
+
+		// Verify visibility is set correctly
+		gameModel, err = testServices.GameStateService.LoadGameModel(testGameID)
+		require.NoError(t, err)
+		unitModel, exists = gameModel.Units[shadowedUnit.ID]
+		require.True(t, exists)
+		assert.Equal(t, models.VisibilityShadowed, unitModel.Visibility, "Unit must be shadowed")
+
 		// Try to create Task Force with shadowed unit
 		// По правилам игры (раздел 7.2): нельзя создавать ТФ из кораблей с маркером "Преследуется" (shadowed)
 		taskForce := &models.TaskForce{
@@ -1941,26 +1841,19 @@ func TestCreateTaskForce_ShadowedUnitsRejected(t *testing.T) {
 
 // TestAddUnitToTaskForce_ShadowedUnitRejected тестирует нельзя добавить преследуемый корабль
 func TestAddUnitToTaskForce_ShadowedUnitRejected(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create two hidden units for initial Task Force
 	unit1 := &models.NavalUnit{
@@ -2044,6 +1937,22 @@ func TestAddUnitToTaskForce_ShadowedUnitRejected(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("cannot add shadowed unit to task force", func(t *testing.T) {
+		// Set unit as shadowed in GameModel
+		gameModel, err := testServices.GameStateService.LoadGameModel(testGameID)
+		require.NoError(t, err)
+		unitModel, exists := gameModel.Units[shadowedUnit.ID]
+		require.True(t, exists, "Shadowed unit must exist in GameModel")
+		unitModel.Visibility = models.VisibilityShadowed
+		err = testServices.GameStateService.UpdateGameModel(testGameID, gameModel)
+		require.NoError(t, err)
+
+		// Verify visibility is set correctly
+		gameModel, err = testServices.GameStateService.LoadGameModel(testGameID)
+		require.NoError(t, err)
+		unitModel, exists = gameModel.Units[shadowedUnit.ID]
+		require.True(t, exists)
+		assert.Equal(t, models.VisibilityShadowed, unitModel.Visibility, "Unit must be shadowed")
+
 		err = service.AddUnitToTaskForce(taskForce.ID, shadowedUnit.ID)
 		assert.Error(t, err, "Should not be able to add shadowed unit to Task Force")
 		assert.Contains(t, err.Error(), "shadowed", "Error should mention shadowed units")
@@ -2082,26 +1991,19 @@ func TestAddUnitToTaskForce_ShadowedUnitRejected(t *testing.T) {
 
 // TestCanTaskForceMove_SightedTaskForce тестирует обнаруженный TF не может двигаться
 func TestCanTaskForceMove_SightedTaskForce(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create units for Task Force
 	unit1 := &models.NavalUnit{
@@ -2167,13 +2069,14 @@ func TestCanTaskForceMove_SightedTaskForce(t *testing.T) {
 	})
 
 	t.Run("sighted task force can move", func(t *testing.T) {
-		// Make Task Force sighted
-		// DetectionLevel removed - visibility is now in GameModel
-		// Update visibility through GameModel if needed
-		_, err = db.GetConnection().Exec(`
-			-- detection_level field removed, visibility is in GameModel
-		`)
+		// Make Task Force sighted in GameModel
+		gameModel, err := testServices.GameStateService.LoadGameModel(testGameID)
 		require.NoError(t, err)
+		if tfModel, exists := gameModel.TaskForces[taskForce.ID]; exists {
+			tfModel.Visibility = models.VisibilitySighted
+			err = testServices.GameStateService.UpdateGameModel(testGameID, gameModel)
+			require.NoError(t, err)
+		}
 
 		canMove, reason := service.CanTaskForceMove(taskForce.ID)
 		assert.True(t, canMove, "Sighted Task Force should be able to move")
@@ -2184,26 +2087,19 @@ func TestCanTaskForceMove_SightedTaskForce(t *testing.T) {
 
 // TestCanAddUnit_DetectionLevelCheck тестирует проверку метода CanAddUnit()
 func TestCanAddUnit_DetectionLevelCheck(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
+	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)
-	defer db.Close()
+	defer cleanup()
 
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
-	// Create test game
-	err = testutil.CreateTestGame(db.GetConnection(), testGameID)
+	// Create GameModel for the test game
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Clean up any existing test data
-	require.NoError(t, err)
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	unitService := NewUnitService(db, logger)
-	movementService := setupTestMovementService(db, logger)
-	service := NewTaskForceService(db, logger, unitService, movementService)
+	unitService := testServices.UnitService
+	service := testServices.TaskForceService
 
 	// Create base units for Task Force
 	unit1 := &models.NavalUnit{
@@ -2325,11 +2221,19 @@ func TestCanAddUnit_DetectionLevelCheck(t *testing.T) {
 	t.Run("shadowed task force cannot accept new units", func(t *testing.T) {
 		// По правилам игры (раздел 7.2): нельзя добавлять юниты в ТФ, если ТФ имеет маркер "Преследуется" (shadowed)
 		// Make Task Force shadowed through GameModel
-		// Note: This test may need to be updated to work with GameModel visibility system
-		// For now, we test the CanAddUnit method directly
-		tf.Visibility = models.VisibilityShadowed
+		gameModel, err := testServices.GameStateService.LoadGameModel(testGameID)
+		require.NoError(t, err)
+		if tfModel, exists := gameModel.TaskForces[taskForce.ID]; exists {
+			tfModel.Visibility = models.VisibilityShadowed
+			err = testServices.GameStateService.UpdateGameModel(testGameID, gameModel)
+			require.NoError(t, err)
+		}
 
-		canAdd := tf.CanAddUnit()
+		// Get updated Task Force
+		updatedTF, err := service.GetTaskForceByID(taskForce.ID)
+		require.NoError(t, err)
+
+		canAdd := updatedTF.CanAddUnit()
 		assert.False(t, canAdd, "Shadowed Task Force should not be able to accept new units")
 		t.Logf("Shadowed Task Force cannot accept units: %t", canAdd)
 	})

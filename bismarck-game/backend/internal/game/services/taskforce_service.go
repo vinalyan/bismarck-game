@@ -611,13 +611,38 @@ func (s *TaskForceService) GetTaskForceUnits(taskForceID string) ([]models.Naval
 		return nil, fmt.Errorf("failed to get task force: %w", err)
 	}
 
+	if taskForce.GameID == "" {
+		return nil, fmt.Errorf("task force %s has no gameID", taskForceID)
+	}
+
+	// Загружаем GameModel напрямую, чтобы убедиться, что у нас актуальные данные
+	model, err := s.gameStateService.LoadGameModel(taskForce.GameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Получаем Task Force из загруженной модели
+	tfModel, exists := model.TaskForces[taskForceID]
+	if !exists {
+		return nil, fmt.Errorf("task force %s not found in GameModel", taskForceID)
+	}
+
 	var units []models.NavalUnit
-	for _, unitID := range taskForce.Units {
-		unit, err := s.unitService.GetNavalUnitByID(unitID)
+	for _, unitID := range tfModel.Units {
+		if unitID == "" {
+			s.logger.Warn("Empty unit ID in task force", "task_force_id", taskForceID)
+			continue
+		}
+		unit, err := s.unitService.GetNavalUnitByIDFromGameModel(taskForce.GameID, unitID)
 		if err != nil {
+			s.logger.Warn("Failed to get unit from GameModel", "unit_id", unitID, "task_force_id", taskForceID, "game_id", taskForce.GameID, "error", err)
 			continue
 		}
 		units = append(units, *unit)
+	}
+
+	if len(units) == 0 && len(tfModel.Units) > 0 {
+		s.logger.Warn("No units found for task force", "task_force_id", taskForceID, "expected_unit_ids", tfModel.Units, "game_id", taskForce.GameID)
 	}
 
 	return units, nil
@@ -681,11 +706,15 @@ func (s *TaskForceService) CanTaskForceMove(taskForceID string) (bool, string) {
 	// Примечание: Task Force может двигаться независимо от DetectionLevel
 	// Ограничения DetectionLevel применяются только к составу (добавление/удаление юнитов)
 
+	if taskForce.GameID == "" {
+		return false, "task force has no gameID"
+	}
+
 	// Получаем все корабли в составе TF и проверяем их ограничения
 	for _, unitID := range taskForce.Units {
-		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		unit, err := s.unitService.GetNavalUnitByIDFromGameModel(taskForce.GameID, unitID)
 		if err != nil {
-			s.logger.Warn("Failed to get unit for movement check", "unit_id", unitID, "error", err)
+			s.logger.Warn("Failed to get unit for movement check", "unit_id", unitID, "game_id", taskForce.GameID, "error", err)
 			continue
 		}
 
@@ -710,7 +739,7 @@ func (s *TaskForceService) CanTaskForceMove(taskForceID string) (bool, string) {
 
 		// Проверяем ограничения для медленных кораблей (S/VS)
 		if unit.NoMovementTurnsLeft > 0 {
-			return false, fmt.Sprintf("unit %s (%s) cannot move - %d movement restriction turns left",
+			return false, fmt.Sprintf("unit %s (%s) has movement restriction - %d turns left",
 				unit.Name, unitID, unit.NoMovementTurnsLeft)
 		}
 	}
@@ -738,11 +767,16 @@ func (s *TaskForceService) GetTaskForceMovementRestrictions(taskForceID string) 
 	hasEmergencyFuel := false
 	minMovementTurnsLeft := 0
 
+	if taskForce.GameID == "" {
+		restrictions["error"] = "task force has no gameID"
+		return restrictions
+	}
+
 	// Анализируем ограничения для каждого корабля
 	for _, unitID := range taskForce.Units {
-		unit, err := s.unitService.GetNavalUnitByID(unitID)
+		unit, err := s.unitService.GetNavalUnitByIDFromGameModel(taskForce.GameID, unitID)
 		if err != nil {
-			s.logger.Warn("Failed to get unit for restrictions analysis", "unit_id", unitID, "error", err)
+			s.logger.Warn("Failed to get unit for restrictions analysis", "unit_id", unitID, "game_id", taskForce.GameID, "error", err)
 			continue
 		}
 
@@ -786,24 +820,39 @@ func (s *TaskForceService) GetTaskForceMovementRestrictions(taskForceID string) 
 
 // HandleUnitSunk обрабатывает потопление корабля - удаляет его из Task Force
 func (s *TaskForceService) HandleUnitSunk(unitID string) error {
-	// Получаем информацию о юните
-	unit, err := s.unitService.GetNavalUnitByID(unitID)
-	if err != nil {
-		// Если юнит не найден, возможно он уже удален - это нормально
-		s.logger.Debug("Unit not found when handling sunk event", "unit_id", unitID, "error", err)
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for HandleUnitSunk")
+	}
+
+	// Ищем юнит во всех играх в памяти через GameModel
+	s.gameStateService.memoryCacheMutex.RLock()
+	var gameID string
+	var unitModel *models.UnitModel
+	for gID, model := range s.gameStateService.memoryCache {
+		if uModel, exists := model.Units[unitID]; exists {
+			gameID = gID
+			unitModel = uModel
+			break
+		}
+	}
+	s.gameStateService.memoryCacheMutex.RUnlock()
+
+	// Если не нашли в памяти, возвращаем nil (юнит уже удален или не существует)
+	if unitModel == nil {
+		s.logger.Debug("Unit not found in GameModel when handling sunk event", "unit_id", unitID)
 		return nil
 	}
 
 	// Если юнит не в Task Force, ничего не делаем
-	if unit.TaskForceID == nil {
+	if unitModel.NavalData == nil || unitModel.NavalData.TaskForceID == nil {
 		return nil
 	}
 
-	taskForceID := *unit.TaskForceID
-	s.logger.Info("Removing sunk unit from task force", "unit_id", unitID, "unit_name", unit.Name, "task_force_id", taskForceID)
+	taskForceID := *unitModel.NavalData.TaskForceID
+	s.logger.Info("Removing sunk unit from task force", "unit_id", unitID, "unit_name", unitModel.Name, "task_force_id", taskForceID)
 
 	// Удаляем юнит из Task Force
-	err = s.RemoveUnitFromTaskForce(taskForceID, unitID)
+	err := s.RemoveUnitFromTaskForce(taskForceID, unitID)
 	if err != nil {
 		s.logger.Error("Failed to remove sunk unit from task force", "unit_id", unitID, "task_force_id", taskForceID, "error", err)
 		return fmt.Errorf("failed to remove sunk unit from task force: %w", err)

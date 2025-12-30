@@ -1,54 +1,33 @@
 package handlers
 
 import (
-	"bismarck-game/backend/internal/config"
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
-	"bismarck-game/backend/internal/websocket"
-	"bismarck-game/backend/pkg/database"
-	"bismarck-game/backend/pkg/logger"
-	"bismarck-game/backend/pkg/testutil"
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 // TestPhaseAPIEndpoints тестирует API endpoints для работы с фазами
 func TestPhaseAPIEndpoints(t *testing.T) {
-	// Настройка тестовой базы данных
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
-	defer db.Close()
+	// Настройка тестовых сервисов
+	testServices, cleanup, err := services.SetupTestServices()
+	require.NoError(t, err)
+	defer cleanup()
 
-	// Создаем менеджер фаз и обработчик
-	unitService := createTestUnitService(db.GetConnection())
-	eventService := createTestEventService(db.GetConnection())
-	// Создаем WebSocket Hub для тестов
-	wsHub := websocket.NewHub()
-	go wsHub.Run()
+	// Создаем обработчик фаз
+	phaseHandler := NewPhaseHandler(testServices.PhaseManager, testServices.GameStateService)
 
-	// Создаем logger для taskForceService
-	log, _ := logger.New(logger.INFO, "test", "")
-	taskForceService := services.NewTaskForceService(db, log, unitService, nil)
-	gameService := services.NewGameService(db, log)
-	searchService := services.NewSearchService(db, log, unitService, gameService)
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
-	phaseHandler := NewPhaseHandler(phaseManager, nil)
-
-	// Создаем тестовую игру
-	gameID := "550e8400-e29b-41d4-a716-446655440001"
-	err = testutil.CreateTestGame(db.GetConnection(), gameID)
-	if err != nil {
-		t.Fatalf("Failed to create test game: %v", err)
-	}
+	// Создаем тестовую игру через GameModel
+	gameID := uuid.New().String()
+	_, err = services.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
+	require.NoError(t, err)
 
 	// Тест 1: Начало хода
 	t.Run("StartTurn", func(t *testing.T) {
@@ -191,8 +170,18 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 			t.Fatalf("Failed to unmarshal response: %v", err)
 		}
 
-		if response["game_id"] != gameID {
-			t.Errorf("Expected game_id %s, got %v", gameID, response["game_id"])
+		if !response["success"].(bool) {
+			t.Errorf("Expected success=true, got %v", response["success"])
+		}
+
+		// Проверяем game_id в data
+		data, ok := response["data"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("Expected data field in response, got %v", response)
+		}
+
+		if data["game_id"] != gameID {
+			t.Errorf("Expected game_id %s, got %v", gameID, data["game_id"])
 		}
 
 		t.Logf("GetCurrentPhase API test passed")
@@ -225,34 +214,18 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 
 // TestPhaseSequenceAPI тестирует полную последовательность фаз через API
 func TestPhaseSequenceAPI(t *testing.T) {
-	// Настройка тестовой базы данных
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
-	defer db.Close()
+	// Настройка тестовых сервисов
+	testServices, cleanup, err := services.SetupTestServices()
+	require.NoError(t, err)
+	defer cleanup()
 
-	// Создаем менеджер фаз и обработчик
-	unitService := createTestUnitService(db.GetConnection())
-	eventService := createTestEventService(db.GetConnection())
-	// Создаем WebSocket Hub для тестов
-	wsHub := websocket.NewHub()
-	go wsHub.Run()
+	// Создаем обработчик фаз
+	phaseHandler := NewPhaseHandler(testServices.PhaseManager, testServices.GameStateService)
 
-	// Создаем logger для taskForceService
-	log, _ := logger.New(logger.INFO, "test", "")
-	taskForceService := services.NewTaskForceService(db, log, unitService, nil)
-	gameService := services.NewGameService(db, log)
-	searchService := services.NewSearchService(db, log, unitService, gameService)
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
-	phaseHandler := NewPhaseHandler(phaseManager, nil)
-
-	// Создаем тестовую игру
-	gameID := "550e8400-e29b-41d4-a716-446655440002"
-	err = testutil.CreateTestGame(db.GetConnection(), gameID)
-	if err != nil {
-		t.Fatalf("Failed to create test game: %v", err)
-	}
+	// Создаем тестовую игру через GameModel
+	gameID := uuid.New().String()
+	_, err = services.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
+	require.NoError(t, err)
 
 	// Начинаем ход
 	startTurnReq := map[string]interface{}{
@@ -270,8 +243,44 @@ func TestPhaseSequenceAPI(t *testing.T) {
 		t.Fatalf("Failed to start turn: %d. Response: %s", w.Code, w.Body.String())
 	}
 
-	// Получаем последовательность фаз для первого хода
-	phases := models.GetPhaseSequence(1)
+	// Получаем текущий ход после StartTurn
+	var startTurnResponse map[string]interface{}
+	err = json.Unmarshal(w.Body.Bytes(), &startTurnResponse)
+	require.NoError(t, err)
+
+	if !startTurnResponse["success"].(bool) {
+		t.Fatalf("StartTurn failed: %v", startTurnResponse)
+	}
+
+	turnData, ok := startTurnResponse["data"].(map[string]interface{})
+	require.True(t, ok, "Expected data field in StartTurn response, got: %v", startTurnResponse)
+
+	// Безопасно извлекаем turn_number
+	var currentTurnNumber int
+	turnNumberVal, exists := turnData["turn_number"]
+	if !exists || turnNumberVal == nil {
+		// Если turn_number отсутствует, получаем текущий ход из GameModel
+		currentPhase, err := testServices.PhaseManager.GetCurrentPhase(gameID)
+		require.NoError(t, err)
+		require.NotNil(t, currentPhase, "Current phase should not be nil")
+		currentTurnNumber = currentPhase.TurnNumber
+		t.Logf("Got current turn from GetCurrentPhase: %d", currentTurnNumber)
+	} else {
+		switch v := turnNumberVal.(type) {
+		case float64:
+			currentTurnNumber = int(v)
+		case int:
+			currentTurnNumber = v
+		case int64:
+			currentTurnNumber = int(v)
+		default:
+			t.Fatalf("Unexpected type for turn_number: %T, value: %v", v, v)
+		}
+		t.Logf("Current turn after StartTurn: %d", currentTurnNumber)
+	}
+
+	// Получаем последовательность фаз для текущего хода
+	phases := models.GetPhaseSequence(currentTurnNumber)
 	t.Logf("Testing API sequence for phases: %v", phases)
 
 	// Проходим через все фазы через API
@@ -282,7 +291,7 @@ func TestPhaseSequenceAPI(t *testing.T) {
 			// Начинаем фазу
 			startPhaseReq := map[string]interface{}{
 				"game_id": gameID,
-				"turn":    1,
+				"turn":    currentTurnNumber,
 				"phase":   string(phase),
 			}
 			startPhaseBody, _ := json.Marshal(startPhaseReq)
@@ -300,7 +309,7 @@ func TestPhaseSequenceAPI(t *testing.T) {
 			// Завершаем фазу
 			completePhaseReq := map[string]interface{}{
 				"game_id": gameID,
-				"turn":    1,
+				"turn":    currentTurnNumber,
 				"phase":   string(phase),
 			}
 			completePhaseBody, _ := json.Marshal(completePhaseReq)
@@ -315,29 +324,27 @@ func TestPhaseSequenceAPI(t *testing.T) {
 				t.Errorf("Failed to complete phase %s: %d. Response: %s", phase, w.Code, w.Body.String())
 			}
 
-			// Если это не последняя фаза, переходим к следующей
-			if i < len(phases)-1 {
-				nextPhaseReq := map[string]interface{}{
-					"game_id": gameID,
-				}
-				nextPhaseBody, _ := json.Marshal(nextPhaseReq)
+			// Переходим к следующей фазе (или завершаем ход, если это последняя фаза)
+			nextPhaseReq := map[string]interface{}{
+				"game_id": gameID,
+			}
+			nextPhaseBody, _ := json.Marshal(nextPhaseReq)
 
-				req = httptest.NewRequest("POST", "/phases/next", bytes.NewBuffer(nextPhaseBody))
-				req.Header.Set("Content-Type", "application/json")
-				w = httptest.NewRecorder()
+			req = httptest.NewRequest("POST", "/phases/next", bytes.NewBuffer(nextPhaseBody))
+			req.Header.Set("Content-Type", "application/json")
+			w = httptest.NewRecorder()
 
-				phaseHandler.NextPhase(w, req)
+			phaseHandler.NextPhase(w, req)
 
-				if w.Code != http.StatusOK {
-					t.Errorf("Failed to advance to next phase: %d. Response: %s", w.Code, w.Body.String())
-				}
+			if w.Code != http.StatusOK {
+				t.Errorf("Failed to advance to next phase (or complete turn): %d. Response: %s", w.Code, w.Body.String())
 			}
 
 			t.Logf("Phase %s completed successfully via API", phase)
 		})
 	}
 
-	// Проверяем, что ход завершен
+	// Проверяем, что ход завершен и начался следующий ход
 	req = httptest.NewRequest("GET", fmt.Sprintf("/phases/current?game_id=%s", gameID), nil)
 	w = httptest.NewRecorder()
 
@@ -353,36 +360,65 @@ func TestPhaseSequenceAPI(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if response["status"] != "completed" {
-		t.Errorf("Expected turn to be completed, got status: %v", response["status"])
+	if !response["success"].(bool) {
+		t.Errorf("Expected success=true, got %v", response["success"])
 	}
 
-	t.Logf("Full phase sequence completed successfully via API")
+	// Проверяем data в response
+	data, ok := response["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected data field in response, got %v", response)
+	}
+
+	// Проверяем, не является ли data вложенным объектом (может быть двойная обертка)
+	var actualData map[string]interface{}
+	if nestedData, hasNestedData := data["data"].(map[string]interface{}); hasNestedData {
+		actualData = nestedData
+	} else {
+		actualData = data
+	}
+
+	// После завершения всех фаз NextPhase автоматически завершает ход и начинает следующий
+	// Поэтому текущий ход должен быть больше исходного
+	currentTurnFromResponse, ok := actualData["turn_number"]
+	if !ok {
+		t.Fatalf("Expected turn_number in data, got %v (actualData: %v)", data, actualData)
+	}
+
+	var currentTurn int
+	switch v := currentTurnFromResponse.(type) {
+	case float64:
+		currentTurn = int(v)
+	case int:
+		currentTurn = v
+	case int64:
+		currentTurn = int(v)
+	default:
+		t.Fatalf("Unexpected type for turn_number: %T, value: %v", v, v)
+	}
+
+	// После завершения всех фаз должен начаться следующий ход
+	if currentTurn <= currentTurnNumber {
+		t.Errorf("Expected new turn to start (turn > %d), got turn: %d", currentTurnNumber, currentTurn)
+	}
+
+	// Проверяем, что статус активен (новый ход активен)
+	if status, ok := actualData["status"].(string); ok && status != "active" {
+		t.Errorf("Expected status to be 'active' for new turn, got: %v", status)
+	}
+
+	t.Logf("Full phase sequence completed successfully via API - turn %d completed, turn %d started", currentTurnNumber, currentTurn)
 }
 
 // TestPhaseValidationAPI тестирует валидацию API endpoints
 func TestPhaseValidationAPI(t *testing.T) {
-	// Настройка тестовой базы данных
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
-	defer db.Close()
+	// Настройка тестовых сервисов
+	testServices, cleanup, err := services.SetupTestServices()
+	require.NoError(t, err)
+	defer cleanup()
 
-	// Создаем менеджер фаз и обработчик
-	unitService := createTestUnitService(db.GetConnection())
-	eventService := createTestEventService(db.GetConnection())
-	// Создаем WebSocket Hub для тестов
-	wsHub := websocket.NewHub()
-	go wsHub.Run()
-
-	// Создаем logger для taskForceService
-	log, _ := logger.New(logger.INFO, "test", "")
-	taskForceService := services.NewTaskForceService(db, log, unitService, nil)
-	gameService := services.NewGameService(db, log)
-	searchService := services.NewSearchService(db, log, unitService, gameService)
-	phaseManager := services.NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
-	phaseHandler := NewPhaseHandler(phaseManager, nil)
+	// Создаем обработчик фаз
+	phaseHandler := NewPhaseHandler(testServices.PhaseManager, testServices.GameStateService)
 
 	// Тест 1: Отсутствующий game_id
 	t.Run("MissingGameID", func(t *testing.T) {
@@ -436,78 +472,4 @@ func TestPhaseValidationAPI(t *testing.T) {
 	})
 
 	t.Logf("Phase validation API tests passed")
-}
-
-// Вспомогательные функции
-
-func createTestUnitService(db *sql.DB) *services.UnitService {
-	// Создаем простой UnitService для тестов
-	// В реальном проекте нужно использовать правильную инициализацию
-	return &services.UnitService{}
-}
-
-func createTestEventService(db *sql.DB) *services.GameEventService {
-	// Загружаем конфигурацию из config.json
-	cfg, err := loadTestConfig()
-	if err != nil {
-		// Fallback к тестовой конфигурации
-		cfg = config.GetTestConfig()
-	}
-
-	// Создаем подключение к базе данных
-	dbWrapper, err := database.New(&cfg.Database)
-	if err != nil {
-		// Если не удается подключиться, создаем пустой сервис
-		return &services.GameEventService{}
-	}
-
-	// Создаем logger
-	log, err := logger.New(logger.INFO, "text", "")
-	if err != nil {
-		// Fallback к пустому logger
-		log = &logger.Logger{}
-	}
-
-	return services.NewGameEventService(dbWrapper, log)
-}
-
-func loadTestConfig() (*config.Config, error) {
-	// Сначала пытаемся загрузить из config.json
-	configPath := findConfigFile()
-	if configPath != "" {
-		cfg, err := config.Load(configPath)
-		if err == nil {
-			return cfg, nil
-		}
-	}
-
-	// Если не удалось загрузить из файла, используем тестовую конфигурацию
-	return config.GetTestConfig(), nil
-}
-
-func findConfigFile() string {
-	// Список возможных путей к конфигурации
-	possiblePaths := []string{
-		"config.json",
-		"../config.json",
-		"../../config.json",
-		"../../../config.json",
-		"../../../../config.json",
-	}
-
-	// Получаем текущую рабочую директорию
-	wd, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-
-	// Проверяем каждый возможный путь
-	for _, path := range possiblePaths {
-		fullPath := filepath.Join(wd, path)
-		if _, err := os.Stat(fullPath); err == nil {
-			return fullPath
-		}
-	}
-
-	return ""
 }
