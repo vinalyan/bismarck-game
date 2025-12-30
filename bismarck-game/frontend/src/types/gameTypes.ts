@@ -349,8 +349,7 @@ export enum DetectionLevel {
   None = 'none',
   Lost = 'lost',
   Sighted = 'sighted',
-  Shadowed = 'shadowed',
-  Lost = 'lost'
+  Shadowed = 'shadowed'
 }
 
 
