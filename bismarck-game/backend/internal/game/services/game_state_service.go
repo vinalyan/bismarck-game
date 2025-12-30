@@ -300,14 +300,18 @@ func (s *GameStateService) InvalidateGameModel(gameID string) {
 	delete(s.memoryCache, gameID)
 	s.memoryCacheMutex.Unlock()
 
-	// Удаляем из Redis
+	// Удаляем из Redis (если Redis доступен)
 	key := fmt.Sprintf("game_model:%s", gameID)
 	redisDeleted := true
-	if err := s.redis.DeleteCache(key); err != nil {
-		s.logger.Warn("Failed to delete from Redis",
-			"game_id", gameID,
-			"error", err,
-		)
+	if s.redis != nil {
+		if err := s.redis.DeleteCache(key); err != nil {
+			s.logger.Warn("Failed to delete from Redis",
+				"game_id", gameID,
+				"error", err,
+			)
+			redisDeleted = false
+		}
+	} else {
 		redisDeleted = false
 	}
 

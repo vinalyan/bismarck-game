@@ -161,12 +161,21 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // @Router /auth/profile [get]
 func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID пользователя из контекста (устанавливается middleware)
-	userID := r.Context().Value("user_id").(string)
+	userIDValue := r.Context().Value("user_id")
+	if userIDValue == nil {
+		utils.WriteUnauthorized(w, "user not authenticated")
+		return
+	}
+	userID, ok := userIDValue.(string)
+	if !ok || userID == "" {
+		utils.WriteUnauthorized(w, "user not authenticated")
+		return
+	}
 
 	// Получаем информацию о пользователе
 	user, err := h.authService.GetUserByID(userID)
 	if err != nil {
-		utils.WriteNotFound(w, "User not found")
+		utils.WriteNotFound(w, "user not found")
 		return
 	}
 

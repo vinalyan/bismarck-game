@@ -440,7 +440,21 @@ func TestGetProfile(t *testing.T) {
 	var registerResponse map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &registerResponse)
 	assert.NoError(t, err)
-	userID := registerResponse["user_id"].(string)
+	
+	// Проверяем структуру ответа (success, data)
+	assert.True(t, registerResponse["success"].(bool), "Ответ должен содержать success=true")
+	data, exists := registerResponse["data"].(map[string]interface{})
+	require.True(t, exists, "Ответ должен содержать data")
+	
+	// Получаем user ID из data.id
+	userIDValue, exists := data["id"]
+	require.True(t, exists, "data должен содержать id")
+	if !exists || userIDValue == nil {
+		t.Fatalf("Registration failed or id is missing. Response: %+v", registerResponse)
+	}
+	userID, ok := userIDValue.(string)
+	require.True(t, ok, "id должен быть строкой")
+	require.NotEmpty(t, userID, "id не должен быть пустым")
 
 	t.Run("successful get profile", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/auth/profile", nil)
@@ -455,9 +469,15 @@ func TestGetProfile(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Equal(t, userID, response["id"])
-		assert.Equal(t, "testuser9", response["username"])
-		assert.Equal(t, "testuser9@example.com", response["email"])
+		
+		// WriteSuccess оборачивает данные в структуру с success и data
+		assert.True(t, response["success"].(bool), "Ответ должен содержать success=true")
+		data, exists := response["data"].(map[string]interface{})
+		require.True(t, exists, "Ответ должен содержать data")
+		
+		assert.Equal(t, userID, data["id"])
+		assert.Equal(t, "testuser9", data["username"])
+		assert.Equal(t, "testuser9@example.com", data["email"])
 	})
 
 	t.Run("no user_id in context", func(t *testing.T) {

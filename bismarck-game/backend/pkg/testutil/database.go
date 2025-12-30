@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // SetupTestDB создает подключение к тестовой базе данных используя конфигурацию
@@ -166,8 +167,22 @@ func createTestSchema(db *sql.DB) error {
 	}
 
 	// Выполняем SQL схему
+	// Игнорируем ошибки дублирования (объекты уже существуют)
 	_, err = db.Exec(string(schemaSQL))
-	return err
+	if err != nil {
+		// Игнорируем ошибки дублирования типов и других объектов
+		errStr := err.Error()
+		if strings.Contains(errStr, "duplicate key value violates unique constraint") ||
+			strings.Contains(errStr, "pg_type_typname_nsp_index") ||
+			strings.Contains(errStr, "already exists") {
+			fmt.Printf("Warning: ignoring duplicate schema error (schema may already exist): %v\n", err)
+			return nil // Схема уже существует, это нормально
+		}
+		// Для других ошибок возвращаем ошибку
+		return fmt.Errorf("failed to create test schema: %w", err)
+	}
+	
+	return nil
 }
 
 // createBasicSchema создает базовую схему если файл schema.sql не найден

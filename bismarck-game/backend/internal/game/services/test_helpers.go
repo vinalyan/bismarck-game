@@ -111,6 +111,15 @@ func SetupTestServices() (*TestServices, func(), error) {
 	searchService.SetGameStateService(gameStateService)
 	taskForceService.SetGameStateService(gameStateService)
 	phaseManager.SetGameStateService(gameStateService)
+	
+	// Устанавливаем зависимости для MovementService
+	movementService.SetGameStateService(gameStateService)
+	movementService.SetTaskForceService(taskForceService)
+	movementService.SetSearchService(searchService)
+	
+	// Устанавливаем зависимости для EmergencyFuelService
+	emergencyFuelService.SetGameStateService(gameStateService)
+	emergencyFuelService.SetUnitService(unitService)
 
 	cleanup := func() {
 		db.Close()
