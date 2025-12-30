@@ -186,7 +186,7 @@ func TestPhaseSequenceIntegration(t *testing.T) {
 	})
 }
 
-// TestPhaseRecordsIntegration тестирует корректность записей о фазах в базе данных
+// TestPhaseRecordsIntegration тестирует корректность переходов между фазами
 func TestPhaseRecordsIntegration(t *testing.T) {
 	db, err := testutil.SetupTestDatabase()
 	if err != nil {
@@ -224,76 +224,43 @@ func TestPhaseRecordsIntegration(t *testing.T) {
 
 	// Получаем последовательность фаз
 	phases := models.GetPhaseSequence(turnNumber)
-	t.Logf("Testing phase records for phases: %v", phases)
+	t.Logf("Testing phase transitions for phases: %v", phases)
 
-	// Проходим через все фазы и проверяем записи
+	// Проходим через все фазы и проверяем переходы
 	for i, phase := range phases {
 		t.Logf("Testing phase %d: %s", i+1, phase)
 
-		// Получаем записи о фазах до завершения
-		recordsBefore, err := phaseManager.GetPhaseRecords(gameID, turnNumber)
+		// Получаем текущую фазу до запуска
+		currentPhase, err := phaseManager.GetCurrentPhase(gameID)
 		if err != nil {
-			t.Fatalf("Failed to get phase records: %v", err)
+			t.Fatalf("Failed to get current phase: %v", err)
+		}
+		if currentPhase == nil {
+			t.Fatalf("Current phase is nil")
 		}
 
-		// Находим запись о текущей фазе
-		var currentRecord *models.PhaseRecord
-		for _, record := range recordsBefore {
-			if record.Phase == phase {
-				currentRecord = &record
-				break
-			}
+		// Запускаем фазу
+		err = phaseManager.StartPhase(gameID, turnNumber, phase)
+		if err != nil {
+			t.Fatalf("Failed to start phase %s: %v", phase, err)
 		}
 
-		if currentRecord == nil {
-			t.Fatalf("Phase record not found for phase %s", phase)
+		// Проверяем, что фаза действительно запущена
+		currentPhase, err = phaseManager.GetCurrentPhase(gameID)
+		if err != nil {
+			t.Fatalf("Failed to get current phase after start: %v", err)
 		}
-
-		// Проверяем, что фаза активна
-		if currentRecord.Status != models.PhaseStatusActive {
-			t.Errorf("Expected phase %s to be active, got status: %s", phase, currentRecord.Status)
+		if currentPhase == nil {
+			t.Fatalf("Current phase is nil after start")
+		}
+		if currentPhase.CurrentPhase != phase {
+			t.Errorf("Expected current phase to be %s, got %s", phase, currentPhase.CurrentPhase)
 		}
 
 		// Завершаем фазу
 		err = phaseManager.CompletePhase(gameID, turnNumber, phase)
 		if err != nil {
 			t.Fatalf("Failed to complete phase %s: %v", phase, err)
-		}
-
-		// Получаем записи о фазах после завершения
-		recordsAfter, err := phaseManager.GetPhaseRecords(gameID, turnNumber)
-		if err != nil {
-			t.Fatalf("Failed to get phase records after completion: %v", err)
-		}
-
-		// Находим обновленную запись о фазе
-		var updatedRecord *models.PhaseRecord
-		for _, record := range recordsAfter {
-			if record.Phase == phase {
-				updatedRecord = &record
-				break
-			}
-		}
-
-		if updatedRecord == nil {
-			t.Fatalf("Updated phase record not found for phase %s", phase)
-		}
-
-		// Проверяем, что фаза завершена
-		if updatedRecord.Status != models.PhaseStatusCompleted {
-			t.Errorf("Expected phase %s to be completed, got status: %s", phase, updatedRecord.Status)
-		}
-
-		// Проверяем, что время завершения установлено
-		if updatedRecord.EndTime == nil {
-			t.Errorf("Expected EndTime to be set for completed phase %s", phase)
-		}
-
-		// Проверяем, что время завершения больше времени начала
-		if updatedRecord.StartTime != nil && updatedRecord.EndTime != nil {
-			if !updatedRecord.EndTime.After(*updatedRecord.StartTime) {
-				t.Errorf("EndTime should be after StartTime for phase %s", phase)
-			}
 		}
 
 		// Если это не последняя фаза, переходим к следующей
@@ -305,7 +272,7 @@ func TestPhaseRecordsIntegration(t *testing.T) {
 		}
 	}
 
-	t.Logf("All phase records validated successfully")
+	t.Logf("All phase transitions validated successfully")
 }
 
 // TestPhaseHandlersIntegration тестирует работу обработчиков фаз

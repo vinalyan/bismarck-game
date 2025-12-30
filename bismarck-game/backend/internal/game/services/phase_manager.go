@@ -387,56 +387,6 @@ func (pm *PhaseManager) GetGameVisibility(gameID string) (*GameVisibility, error
 	}, nil
 }
 
-// GetPhaseRecords возвращает записи о фазах для хода
-func (pm *PhaseManager) GetPhaseRecords(gameID string, turnNumber int) ([]models.PhaseRecord, error) {
-	query := `
-		SELECT phase, turn_number, status, start_time, end_time, data
-		FROM phase_records
-		WHERE game_id = $1 AND turn_number = $2
-		ORDER BY 
-			CASE phase
-				WHEN 'setup' THEN 1
-				WHEN 'visibility' THEN 2
-				WHEN 'pursuit' THEN 3
-				WHEN 'movement' THEN 4
-				WHEN 'search' THEN 5
-				WHEN 'air_attack' THEN 6
-				WHEN 'naval_combat' THEN 7
-				WHEN 'chance' THEN 8
-				WHEN 'admin' THEN 9
-			END
-	`
-
-	rows, err := pm.db.Query(query, gameID, turnNumber)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query phase records: %v", err)
-	}
-	defer rows.Close()
-
-	var records []models.PhaseRecord
-	for rows.Next() {
-		var record models.PhaseRecord
-		var startTime, endTime sql.NullTime
-
-		err := rows.Scan(&record.Phase, &record.Turn, &record.Status,
-			&startTime, &endTime, &record.Data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan phase record: %v", err)
-		}
-
-		if startTime.Valid {
-			record.StartTime = &startTime.Time
-		}
-		if endTime.Valid {
-			record.EndTime = &endTime.Time
-		}
-
-		records = append(records, record)
-	}
-
-	return records, nil
-}
-
 // callCurrentPhaseAPI вызывает API endpoint для получения текущей фазы
 func (pm *PhaseManager) callCurrentPhaseAPI(gameID string) {
 	log.Printf("🔗 callCurrentPhaseAPI called for game %s (apiBaseURL=%s)", gameID, pm.apiBaseURL)

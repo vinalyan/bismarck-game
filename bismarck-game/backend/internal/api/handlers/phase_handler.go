@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
@@ -77,58 +76,6 @@ func (h *PhaseHandler) GetCurrentPhase(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"data":    responseData,
-	})
-}
-
-// GetPhaseRecords возвращает записи о фазах для хода
-// @Summary Получение записей фаз
-// @Tags Phases
-// @Accept json
-// @Produce json
-// @Param game_id query string true "ID игры"
-// @Param turn query int true "Номер хода"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]interface{}
-// @Router /phases/records [get]
-func (h *PhaseHandler) GetPhaseRecords(w http.ResponseWriter, r *http.Request) {
-	gameID := r.URL.Query().Get("game_id")
-	if gameID == "" {
-		utils.WriteValidationError(w, "Game ID is required", map[string]string{
-			"game_id": "Game ID parameter is required",
-		})
-		return
-	}
-
-	turnStr := r.URL.Query().Get("turn")
-	if turnStr == "" {
-		utils.WriteValidationError(w, "Turn number is required", map[string]string{
-			"turn": "Turn number parameter is required",
-		})
-		return
-	}
-
-	turnNumber, err := strconv.Atoi(turnStr)
-	if err != nil {
-		utils.WriteValidationError(w, "Invalid turn number", map[string]string{
-			"turn": "Turn number must be a valid integer",
-		})
-		return
-	}
-
-	log.Printf("Getting phase records for game: %s, turn: %d", gameID, turnNumber)
-
-	records, err := h.phaseManager.GetPhaseRecords(gameID, turnNumber)
-	if err != nil {
-		log.Printf("Failed to get phase records: %v", err)
-		utils.WriteInternalError(w, "Failed to get phase records")
-		return
-	}
-
-	log.Printf("Found %d phase records", len(records))
-
-	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"success": true,
-		"data":    records,
 	})
 }
 
@@ -400,7 +347,6 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 // RegisterRoutes регистрирует маршруты для управления фазами
 func (h *PhaseHandler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/api/phases/current", h.GetCurrentPhase).Methods("GET")
-	router.HandleFunc("/api/phases/records", h.GetPhaseRecords).Methods("GET")
 	router.HandleFunc("/api/phases/start", h.StartPhase).Methods("POST")
 	router.HandleFunc("/api/phases/complete", h.CompletePhase).Methods("POST")
 	router.HandleFunc("/api/phases/next", h.NextPhase).Methods("POST")
