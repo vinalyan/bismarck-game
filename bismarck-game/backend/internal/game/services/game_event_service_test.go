@@ -144,10 +144,10 @@ func TestGetGameEvents(t *testing.T) {
 		// GetGameEvents теперь читает из GameModel
 		events, err := service.GetGameEvents(testGameID, "german", 10)
 		require.NoError(t, err)
-		
+
 		// Проверяем, что события возвращаются из GameModel
 		assert.GreaterOrEqual(t, len(events), 3, "Должно быть минимум 3 события")
-		
+
 		// Проверяем типы событий
 		eventTypes := make([]string, 0)
 		for _, event := range events {
@@ -156,14 +156,14 @@ func TestGetGameEvents(t *testing.T) {
 		assert.Contains(t, eventTypes, "movement", "Должно быть событие движения")
 		assert.Contains(t, eventTypes, "phase_change", "Должно быть событие смены фазы")
 		assert.Contains(t, eventTypes, "combat", "Должно быть событие боя")
-		
+
 		// Проверяем, что события отсортированы по времени создания (DESC - новые первыми)
 		for i := 1; i < len(events); i++ {
 			assert.True(t, events[i-1].CreatedAt.After(events[i].CreatedAt) || events[i-1].CreatedAt.Equal(events[i].CreatedAt),
 				"События должны быть отсортированы по времени создания (DESC)")
 		}
 	})
-	
+
 	t.Run("get events filtered by visibility", func(t *testing.T) {
 		// Создаем публичное событие
 		publicEvent := &models.GameEvent{
@@ -177,7 +177,7 @@ func TestGetGameEvents(t *testing.T) {
 		}
 		err = service.saveEvent(publicEvent)
 		require.NoError(t, err)
-		
+
 		// Создаем событие только для allied
 		alliedEvent := &models.GameEvent{
 			GameID:    testGameID,
@@ -191,11 +191,11 @@ func TestGetGameEvents(t *testing.T) {
 		}
 		err = service.saveEvent(alliedEvent)
 		require.NoError(t, err)
-		
+
 		// Получаем события для german стороны
 		germanEvents, err := service.GetGameEvents(testGameID, "german", 0)
 		require.NoError(t, err)
-		
+
 		// German должен видеть публичные события и свои события, но не allied события
 		eventTypes := make([]string, 0)
 		for _, event := range germanEvents {
@@ -319,11 +319,11 @@ func TestGetGameEventsWithPagination(t *testing.T) {
 		// GetGameEvents теперь читает из GameModel
 		events, err := service.GetGameEvents(testGameID1, "german", 3)
 		require.NoError(t, err)
-		
+
 		// Проверяем, что лимит применяется
 		assert.LessOrEqual(t, len(events), 3, "Должно быть не более 3 событий при лимите 3")
 		assert.GreaterOrEqual(t, len(events), 1, "Должно быть хотя бы 1 событие")
-		
+
 		// Проверяем, что события отсортированы по времени создания (DESC)
 		for i := 1; i < len(events); i++ {
 			assert.True(t, events[i-1].CreatedAt.After(events[i].CreatedAt) || events[i-1].CreatedAt.Equal(events[i].CreatedAt),
@@ -353,11 +353,11 @@ func TestGetGameEventsWithPagination(t *testing.T) {
 		events1, err := service.GetGameEvents(testGameID1, "german", 10)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(events1), 5, "Должно быть минимум 5 событий для testGameID1")
-		
+
 		events2, err := service.GetGameEvents(testGameID2, "german", 10)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(events2), 1, "Должно быть минимум 1 событие для testGameID2")
-		
+
 		// Проверяем, что события из разных игр не смешиваются
 		for _, e := range events1 {
 			assert.Equal(t, testGameID1, e.GameID, "События должны принадлежать правильной игре")

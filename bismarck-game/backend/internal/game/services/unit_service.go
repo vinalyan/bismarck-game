@@ -1122,59 +1122,94 @@ func (s *UnitService) ResetDetectionInFog(gameID string, fogHexes []string) erro
 }
 
 // ListUnitsByVisibility возвращает юниты с указанным уровнем видимости (опционально по гексам)
-// ВНИМАНИЕ: Этот метод работает напрямую с БД. Если все работает через GameModel, используйте GameModel напрямую.
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) ListUnitsByVisibility(gameID string, visibility models.UnitVisibility, hexes []string) ([]DetectionTarget, error) {
-	query := `
-		SELECT nu.id,
-		       nu.name,
-		       CASE
-		         WHEN g.player1_id IS NOT NULL AND nu.owner = g.player1_id::text THEN 'german'
-		         WHEN g.player2_id IS NOT NULL AND nu.owner = g.player2_id::text THEN 'allied'
-		         ELSE nu.owner
-		       END AS owner_side,
-		       COALESCE(nu.position, '')
-		FROM naval_units nu
-		JOIN games g ON g.id = nu.game_id
-		WHERE nu.game_id = $1
-		AND nu.detection_level = $2
-	`
-
-	args := []interface{}{gameID, convertVisibilityToDetectionLevelString(visibility)}
-	if len(hexes) > 0 {
-		query += " AND nu.position = ANY($3)"
-		args = append(args, pq.Array(hexes))
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for ListUnitsByVisibility")
 	}
 
-	rows, err := s.db.Query(query, args...)
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list units by detection level: %w", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
 	}
-	defer rows.Close()
+
+	// Создаем map для быстрой проверки гексов (если указаны)
+	hexMap := make(map[string]bool)
+	for _, hex := range hexes {
+		hexMap[hex] = true
+	}
+
+	// Получаем игроков для определения стороны
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game players: %w", err)
+	}
 
 	var result []DetectionTarget
-	for rows.Next() {
-		var target DetectionTarget
-		if err := rows.Scan(&target.ID, &target.Name, &target.Owner, &target.Position); err != nil {
-			return nil, fmt.Errorf("failed to scan unit detection target: %w", err)
+	for _, unitModel := range model.Units {
+		// Пропускаем не морские юниты
+		if unitModel.Category != models.UnitCategoryNaval || unitModel.NavalData == nil {
+			continue
 		}
-		target.Type = "unit"
+
+		// Пропускаем, если видимость не совпадает
+		if unitModel.Visibility != visibility {
+			continue
+		}
+
+		// Пропускаем, если указаны гексы и позиция не в списке
+		if len(hexes) > 0 && !hexMap[unitModel.Position] {
+			continue
+		}
+
+		// Определяем сторону владельца
+		var ownerSide string
+		if unitModel.Owner == player1ID {
+			ownerSide = "german"
+		} else if unitModel.Owner == player2ID {
+			ownerSide = "allied"
+		} else {
+			ownerSide = unitModel.Owner // Fallback
+		}
+
+		target := DetectionTarget{
+			ID:       unitModel.ID,
+			Name:     unitModel.Name,
+			Owner:    ownerSide,
+			Position: unitModel.Position,
+			Type:     "unit",
+		}
 		result = append(result, target)
 	}
 
-	return result, rows.Err()
+	return result, nil
 }
 
 // ResetAllDetection сбрасывает все обнаружения при видимости X
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) ResetAllDetection(gameID string) error {
-	query := `
-		UPDATE naval_units 
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $2 
-		AND detection_level IN ($3, $4)
-	`
-	_, err := s.db.Exec(query, "none", gameID, "sighted", "shadowed")
-	if err != nil {
-		s.logger.Error("Failed to reset all detection", "game_id", gameID, "error", err)
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for ResetAllDetection")
+	}
+
+	// Обновляем видимость всех юнитов в GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for _, unitModel := range model.Units {
+			// Пропускаем не морские юниты
+			if unitModel.Category != models.UnitCategoryNaval || unitModel.NavalData == nil {
+				continue
+			}
+
+			// Сбрасываем видимость для sighted и shadowed юнитов
+			if unitModel.Visibility == models.VisibilitySighted || unitModel.Visibility == models.VisibilityShadowed {
+				unitModel.Visibility = models.VisibilityUnknown
+				unitModel.UpdatedAt = time.Now()
+			}
+		}
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to reset all detection in GameModel", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset all detection: %w", err)
 	}
 
@@ -1183,18 +1218,30 @@ func (s *UnitService) ResetAllDetection(gameID string) error {
 }
 
 // RemoveRemainingSighted убирает DetectionLevelSighted у тех, кто не стал Shadowed
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) RemoveRemainingSighted(gameID string) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RemoveRemainingSighted")
+	}
+
 	// Этот метод вызывается после фазы преследования
 	// Убираем только Sighted, оставляя Shadowed
-	query := `
-		UPDATE naval_units 
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $2 
-		AND detection_level = $3
-	`
-	_, err := s.db.Exec(query, "none", gameID, "sighted")
-	if err != nil {
-		s.logger.Error("Failed to remove remaining sighted", "game_id", gameID, "error", err)
+	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for _, unitModel := range model.Units {
+			// Пропускаем не морские юниты
+			if unitModel.Category != models.UnitCategoryNaval || unitModel.NavalData == nil {
+				continue
+			}
+
+			// Убираем только Sighted, оставляя Shadowed
+			if unitModel.Visibility == models.VisibilitySighted {
+				unitModel.Visibility = models.VisibilityUnknown
+				unitModel.UpdatedAt = time.Now()
+			}
+		}
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to remove remaining sighted in GameModel", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to remove remaining sighted: %w", err)
 	}
 
@@ -1203,16 +1250,29 @@ func (s *UnitService) RemoveRemainingSighted(gameID string) error {
 }
 
 // ConvertShadowedToSighted переводит все DetectionLevelShadowed в DetectionLevelSighted
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) ConvertShadowedToSighted(gameID string) error {
-	query := `
-		UPDATE naval_units 
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $2 
-		AND detection_level = $3
-	`
-	_, err := s.db.Exec(query, "sighted", gameID, "shadowed")
-	if err != nil {
-		s.logger.Error("Failed to convert shadowed to sighted", "game_id", gameID, "error", err)
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for ConvertShadowedToSighted")
+	}
+
+	// Переводим все Shadowed в Sighted
+	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for _, unitModel := range model.Units {
+			// Пропускаем не морские юниты
+			if unitModel.Category != models.UnitCategoryNaval || unitModel.NavalData == nil {
+				continue
+			}
+
+			// Переводим Shadowed в Sighted
+			if unitModel.Visibility == models.VisibilityShadowed {
+				unitModel.Visibility = models.VisibilitySighted
+				unitModel.UpdatedAt = time.Now()
+			}
+		}
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to convert shadowed to sighted in GameModel", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to convert shadowed to sighted: %w", err)
 	}
 
@@ -1221,12 +1281,13 @@ func (s *UnitService) ConvertShadowedToSighted(gameID string) error {
 }
 
 // ResetDetectionForUnitsInFog сбрасывает обнаружение у shadowed юнитов в туманных гексах
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) ResetDetectionForUnitsInFog(gameID string, fogHexes []string) error {
-	// Получаем информацию об игре, чтобы проверить туман
 	if s.gameStateService == nil {
 		return fmt.Errorf("gameStateService is required for ResetDetectionForUnitsInFog")
 	}
 
+	// Получаем информацию об игре, чтобы проверить туман
 	_, isFog, _, err := s.gameStateService.GetGameVisibilityOnly(gameID)
 	if err != nil {
 		s.logger.Error("Failed to get fog status", "game_id", gameID, "error", err)
@@ -1238,18 +1299,29 @@ func (s *UnitService) ResetDetectionForUnitsInFog(gameID string, fogHexes []stri
 		return nil
 	}
 
-	// Если туман, сбрасываем обнаружение у shadowed юнитов
-	// В будущем можно проверить конкретные туманные гексы
-	query := `
-		UPDATE naval_units 
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $2 
-		AND detection_level = $3
-		AND position = ANY($4)
-	`
-	_, err = s.db.Exec(query, "none", gameID, "shadowed", pq.Array(fogHexes))
-	if err != nil {
-		s.logger.Error("Failed to reset detection for units in fog", "game_id", gameID, "error", err)
+	// Создаем map для быстрой проверки туманных гексов
+	fogHexMap := make(map[string]bool)
+	for _, hex := range fogHexes {
+		fogHexMap[hex] = true
+	}
+
+	// Если туман, сбрасываем обнаружение у shadowed юнитов в туманных гексах
+	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for _, unitModel := range model.Units {
+			// Пропускаем не морские юниты
+			if unitModel.Category != models.UnitCategoryNaval || unitModel.NavalData == nil {
+				continue
+			}
+
+			// Проверяем, что юнит в туманном гексе и имеет статус shadowed
+			if unitModel.Visibility == models.VisibilityShadowed && fogHexMap[unitModel.Position] {
+				unitModel.Visibility = models.VisibilityUnknown
+				unitModel.UpdatedAt = time.Now()
+			}
+		}
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to reset detection for units in fog in GameModel", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset detection for units in fog: %w", err)
 	}
 
@@ -1269,46 +1341,58 @@ func (s *UnitService) GetShadowedUnits(gameID, playerID string) ([]*models.Naval
 		return nil, fmt.Errorf("failed to get game players: %w", err)
 	}
 
-	// Определяем сторону игрока
-	var playerSide string
+	// Определяем ID противника
+	var opponentID string
 	if player1ID == playerID {
-		playerSide = "german"
+		opponentID = player2ID
 	} else if player2ID == playerID {
-		playerSide = "allied"
+		opponentID = player1ID
 	} else {
 		return nil, fmt.Errorf("player %s is not part of game %s", playerID, gameID)
 	}
 
-	// Определяем сторону противника
-	var opponentSide string
-	if playerSide == "german" {
-		opponentSide = "allied"
-	} else {
-		opponentSide = "german"
-	}
-
-	query := BuildNavalUnitSelectQuery(
-		[]string{"category"}, // включаем поле category
-		"WHERE game_id = $1 AND owner = $2 AND detection_level = $3 AND status != 'sunk'\nORDER BY position",
-	)
-
-	rows, err := s.db.Query(query, gameID, opponentSide, "shadowed")
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
 	if err != nil {
-		s.logger.Error("Failed to get shadowed units", "game_id", gameID, "player_id", playerID, "error", err)
-		return nil, fmt.Errorf("failed to get shadowed units: %w", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
 	}
-	defer rows.Close()
 
 	var units []*models.NavalUnit
-	for rows.Next() {
-		unit, err := ScanNavalUnitFromRow(rows, true, false) // includeCategory=true, useNullableDetectionLevel=false, useNullableEmergencyTurn=false
+	for _, unitModel := range model.Units {
+		// Пропускаем не морские юниты
+		if unitModel.Category != models.UnitCategoryNaval || unitModel.NavalData == nil {
+			continue
+		}
+
+		// Пропускаем потопленные юниты
+		if unitModel.Status == string(models.UnitStatusSunk) {
+			continue
+		}
+
+		// Пропускаем юниты, которые не принадлежат противнику
+		if unitModel.Owner != opponentID {
+			continue
+		}
+
+		// Пропускаем юниты, которые не преследуются (shadowed)
+		if unitModel.Visibility != models.VisibilityShadowed {
+			continue
+		}
+
+		// Конвертируем UnitModel в NavalUnit
+		unit, err := models.ConvertUnitModelToNavalUnit(unitModel)
 		if err != nil {
-			s.logger.Error("Failed to scan shadowed unit", "error", err)
+			s.logger.Error("Failed to convert UnitModel to NavalUnit", "unit_id", unitModel.ID, "error", err)
 			continue
 		}
 
 		units = append(units, unit)
 	}
+
+	// Сортируем по позиции
+	sort.Slice(units, func(i, j int) bool {
+		return units[i].Position < units[j].Position
+	})
 
 	return units, nil
 }

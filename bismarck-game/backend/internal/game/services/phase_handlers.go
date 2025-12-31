@@ -1691,7 +1691,7 @@ func (h *SearchPhaseHandler) applyVisibilityToTaskForcesInModel(
 
 func (h *SearchPhaseHandler) applyDetectionToUnits(pm *PhaseManager, gameID, hexID, playerID, sideLabel string, visibility models.UnitVisibility, units []*models.NavalUnit) {
 	for _, unit := range units {
-		if err := pm.unitService.UpdateUnitVisibility(unit.ID, visibility); err != nil {
+		if err := pm.unitService.UpdateUnitVisibility(gameID, unit.ID, visibility); err != nil {
 			log.Printf("Search phase - failed to update visibility for unit %s: %v", unit.ID, err)
 			continue
 		}
@@ -1725,7 +1725,7 @@ func (h *SearchPhaseHandler) applyDetectionToTaskForces(pm *PhaseManager, gameID
 		}
 
 		for _, unit := range units {
-			if err := pm.unitService.UpdateUnitVisibility(unit.ID, visibility); err != nil {
+			if err := pm.unitService.UpdateUnitVisibility(gameID, unit.ID, visibility); err != nil {
 				log.Printf("Search phase - failed to update visibility for unit %s in task force %s: %v", unit.ID, tf.ID, err)
 			}
 		}
