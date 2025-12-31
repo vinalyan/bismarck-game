@@ -5,6 +5,12 @@
 
 set -e  # Прекратить выполнение при первой ошибке
 
+# Определяем директорию скрипта и переходим в backend директорию
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+SCRIPTS_DIR="$SCRIPT_DIR"  # Сохраняем путь к директории со скриптами
+cd "$BACKEND_DIR"
+
 echo "🔄 Сброс тестовой среды..."
 
 # Удаляем контейнеры и volume
@@ -30,11 +36,12 @@ echo "👥 Создание тестовых пользователей..."
 set +e
 
 # Проверяем, есть ли файл register_users.sh
-if [ -f "register_users.sh" ]; then
+REGISTER_SCRIPT="$SCRIPTS_DIR/register_users.sh"
+if [ -f "$REGISTER_SCRIPT" ]; then
     # Проверяем права на выполнение
-    if [ ! -x "register_users.sh" ]; then
+    if [ ! -x "$REGISTER_SCRIPT" ]; then
         echo "   Установка прав на выполнение для register_users.sh..."
-        chmod +x register_users.sh
+        chmod +x "$REGISTER_SCRIPT"
     fi
     
     # Функция для проверки доступности сервера
@@ -48,7 +55,7 @@ if [ -f "register_users.sh" ]; then
     echo "   Проверка доступности сервера..."
     if check_server; then
         echo "   ✅ Сервер доступен, создаем пользователей..."
-        ./register_users.sh
+        "$REGISTER_SCRIPT"
         REGISTER_STATUS=$?
     else
         echo "   ⚠️  Сервер не доступен на http://localhost:8080"
@@ -96,7 +103,7 @@ if [ -f "register_users.sh" ]; then
                     sleep 1
                     if check_server; then
                         echo "   ✅ Сервер запущен (через ${i} секунд), создаем пользователей..."
-                        ./register_users.sh
+                        "$REGISTER_SCRIPT"
                         REGISTER_STATUS=$?
                         break
                     fi
@@ -122,7 +129,7 @@ if [ -f "register_users.sh" ]; then
                 sleep 1
                 if check_server; then
                     echo "   ✅ Сервер готов, создаем пользователей..."
-                    ./register_users.sh
+                    "$REGISTER_SCRIPT"
                     REGISTER_STATUS=$?
                     break
                 fi
