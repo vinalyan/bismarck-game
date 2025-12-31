@@ -1489,33 +1489,30 @@ func (h *SearchPhaseHandler) getEnemyUnitsInHex(pm *PhaseManager, gameID, hexID,
 }
 
 func (h *SearchPhaseHandler) getEnemyTaskForcesInHex(pm *PhaseManager, gameID, hexID, opponentPlayerID, opponentSide string) ([]*models.TaskForce, error) {
-	rows, err := pm.db.Query(`SELECT id, owner FROM task_forces WHERE game_id = $1 AND position = $2`, gameID, hexID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query task forces: %w", err)
+	// Загружаем GameModel
+	if pm.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for getEnemyTaskForcesInHex")
 	}
-	defer rows.Close()
+
+	model, err := pm.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
 
 	var taskForces []*models.TaskForce
-	for rows.Next() {
-		var (
-			taskForceID string
-			owner       string
-		)
-		if err := rows.Scan(&taskForceID, &owner); err != nil {
-			log.Printf("Search phase - failed to scan task force in hex %s: %v", hexID, err)
+	for _, tfModel := range model.TaskForces {
+		// Пропускаем, если позиция не совпадает
+		if tfModel.Position != hexID {
 			continue
 		}
 
-		if !h.ownerMatches(owner, opponentPlayerID, opponentSide) {
+		// Проверяем, что владелец соответствует противнику
+		if !h.ownerMatches(tfModel.Owner, opponentPlayerID, opponentSide) {
 			continue
 		}
 
-		taskForce, err := pm.taskForceService.GetTaskForceByID(taskForceID)
-		if err != nil {
-			log.Printf("Search phase - failed to load task force %s: %v", taskForceID, err)
-			continue
-		}
-
+		// Конвертируем TaskForceModel в TaskForce
+		taskForce := models.ConvertTaskForceModelToTaskForce(tfModel)
 		taskForces = append(taskForces, taskForce)
 	}
 

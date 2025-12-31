@@ -986,36 +986,56 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 }
 
 // GetUnitsWithExpiredEmergencyFuel возвращает корабли с истекшим аварийным топливом
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) GetUnitsWithExpiredEmergencyFuel(gameID string, currentTurn int) ([]*models.NavalUnit, error) {
-	query := BuildNavalUnitSelectQuery(
-		[]string{}, // без дополнительных полей
-		"WHERE game_id = $1 AND is_emergency_fuel = true AND emergency_turn <= $2\nORDER BY emergency_turn",
-	)
-
-	rows, err := s.db.Query(query, gameID, currentTurn)
-	if err != nil {
-		s.logger.Error("Failed to get units with expired emergency fuel", "game_id", gameID, "current_turn", currentTurn, "error", err)
-		return nil, fmt.Errorf("failed to get units with expired emergency fuel: %w", err)
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetUnitsWithExpiredEmergencyFuel")
 	}
-	defer rows.Close()
+
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
 
 	var units []*models.NavalUnit
-	for rows.Next() {
-		unit, err := ScanNavalUnitFromRow(rows, false, false) // includeCategory=false, useNullableEmergencyTurn=false
+	for _, unitModel := range model.Units {
+		// Пропускаем не морские юниты
+		if unitModel.Category != models.UnitCategoryNaval || unitModel.NavalData == nil {
+			continue
+		}
+
+		// Проверяем, что у юнита включено аварийное топливо
+		if !unitModel.NavalData.IsEmergencyFuel {
+			continue
+		}
+
+		// Проверяем, что аварийное топливо истекло (EmergencyTurn <= currentTurn)
+		if unitModel.NavalData.EmergencyTurn <= 0 || unitModel.NavalData.EmergencyTurn > currentTurn {
+			continue
+		}
+
+		// Конвертируем UnitModel в NavalUnit
+		unit, err := models.ConvertUnitModelToNavalUnit(unitModel)
 		if err != nil {
-			s.logger.Error("Failed to scan unit with expired emergency fuel", "error", err)
+			s.logger.Error("Failed to convert UnitModel to NavalUnit", "unit_id", unitModel.ID, "error", err)
 			continue
 		}
 
 		units = append(units, unit)
 	}
 
+	// Сортируем по emergency_turn
+	sort.Slice(units, func(i, j int) bool {
+		return units[i].EmergencyTurn < units[j].EmergencyTurn
+	})
+
 	s.logger.Info("Found units with expired emergency fuel",
 		"game_id", gameID,
 		"current_turn", currentTurn,
 		"count", len(units))
 
-	return units, rows.Err()
+	return units, nil
 }
 
 // getCurrentTurn получает текущий ход игры
