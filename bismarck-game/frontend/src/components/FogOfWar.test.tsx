@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FogOfWar from './FogOfWar';
-import { NavalUnit } from '../types/gameTypes';
+import { NavalUnit, UnitType, SpeedType, UnitStatus } from '../types/gameTypes';
 
 // Мокируем API
 const mockUseVisibilityReturn = {
@@ -58,14 +58,14 @@ describe('FogOfWar', () => {
       id: 'unit-1',
       gameId: mockGameId,
       name: 'Bismarck',
-      type: 'BB',
+      type: UnitType.Battleship,
       class: 'Battleship',
       owner: mockPlayerId,
       nationality: 'german',
       position: 'A1',
       evasion: 5,
       baseEvasion: 5,
-      speedRating: 'F',
+      speedRating: SpeedType.Fast,
       fuel: 100,
       maxFuel: 100,
       hullBoxes: 10,
@@ -79,9 +79,16 @@ describe('FogOfWar', () => {
       torpedoes: 0,
       maxTorpedoes: 0,
       radarLevel: 3,
-      status: 'active',
+      status: UnitStatus.Active,
       visibility: 'sighted',
       damage: [],
+      evasionEffects: [],
+      tacticalDamageTaken: [],
+      hasFired: false,
+      torpedoesUsed: 0,
+      movementUsed: 0,
+      isEmergencyFuel: false,
+      emergencyTurn: 0,
       createdAt: '2023-01-01',
       updatedAt: '2023-01-01',
     },
@@ -89,14 +96,14 @@ describe('FogOfWar', () => {
       id: 'unit-2',
       gameId: mockGameId,
       name: 'Enemy Ship',
-      type: 'CA',
+      type: UnitType.HeavyCruiser,
       class: 'Cruiser',
       owner: 'player-2',
       nationality: 'allied',
       position: 'B2',
       evasion: 4,
       baseEvasion: 4,
-      speedRating: 'M',
+      speedRating: SpeedType.Medium,
       fuel: 80,
       maxFuel: 80,
       hullBoxes: 8,
@@ -110,9 +117,16 @@ describe('FogOfWar', () => {
       torpedoes: 0,
       maxTorpedoes: 0,
       radarLevel: 2,
-      status: 'active',
+      status: UnitStatus.Active,
       visibility: 'unknown',
       damage: [],
+      evasionEffects: [],
+      tacticalDamageTaken: [],
+      hasFired: false,
+      torpedoesUsed: 0,
+      movementUsed: 0,
+      isEmergencyFuel: false,
+      emergencyTurn: 0,
       createdAt: '2023-01-01',
       updatedAt: '2023-01-01',
     },
@@ -222,7 +236,7 @@ describe('FogOfWar', () => {
 
   describe('Error Handling', () => {
     it('should display error message when error occurs', () => {
-      mockUseVisibilityReturn.error = 'Error loading visibility';
+      mockUseVisibilityReturn.error = 'Error loading visibility' as any;
       
       render(<FogOfWar {...defaultProps} />);
       

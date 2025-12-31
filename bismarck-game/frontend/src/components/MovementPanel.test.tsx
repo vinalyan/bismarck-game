@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MovementPanel from './MovementPanel';
-import { NavalUnit } from '../types/gameTypes';
+import { NavalUnit, UnitType, UnitStatus } from '../types/gameTypes';
 import { HexCoordinate } from '../types/mapTypes';
 
 // Мокируем API
@@ -35,10 +35,10 @@ describe('MovementPanel', () => {
   const mockPlayerId = 'player-1';
   const mockAuthToken = 'test-token';
 
-  const mockSelectedUnit: NavalUnit = {
+  const mockSelectedUnit: any = {
     id: 'unit-1',
     name: 'Bismarck',
-    type: 'battleship',
+    type: UnitType.Battleship,
     class: 'Battleship',
     owner: mockPlayerId,
     nationality: 'german',
@@ -60,7 +60,7 @@ describe('MovementPanel', () => {
     torpedoes: 0,
     max_torpedoes: 0,
     radar_level: 3,
-    status: 'active',
+    status: UnitStatus.Active,
     detection_level: 'visible',
     last_known_pos: null,
     task_force_id: null,

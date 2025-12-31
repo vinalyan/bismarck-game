@@ -356,6 +356,7 @@ describe('gameStore', () => {
           type: NotificationType.Info,
           title: 'Test',
           message: 'Test message',
+          read: false,
         });
       });
 
@@ -375,6 +376,7 @@ describe('gameStore', () => {
           type: NotificationType.Info,
           title: 'Test',
           message: 'Test message',
+          read: false,
         });
       });
 
@@ -395,6 +397,7 @@ describe('gameStore', () => {
           type: NotificationType.Info,
           title: 'Test',
           message: 'Test message',
+          read: false,
         });
       });
 
@@ -415,11 +418,13 @@ describe('gameStore', () => {
           type: NotificationType.Info,
           title: 'Test 1',
           message: 'Message 1',
+          read: false,
         });
         result.current.addNotification({
           type: NotificationType.Error,
           title: 'Test 2',
           message: 'Message 2',
+          read: false,
         });
       });
 
@@ -992,6 +997,7 @@ describe('gameStore', () => {
           type: NotificationType.Info,
           title: 'Test',
           message: 'Message',
+          read: false,
         });
       });
 

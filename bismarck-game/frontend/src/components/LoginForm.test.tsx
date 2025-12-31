@@ -183,6 +183,7 @@ describe('LoginForm', () => {
         data: {
           user: mockUser,
           token: 'test-token',
+          expiresAt: '2024-01-01T00:00:00Z',
         },
       });
 
@@ -230,6 +231,7 @@ describe('LoginForm', () => {
         data: {
           user: mockUser,
           token: 'test-token',
+          expiresAt: '2024-01-01T00:00:00Z',
         },
       });
 
@@ -274,6 +276,7 @@ describe('LoginForm', () => {
         data: {
           user: mockUser,
           token: 'test-token',
+          expiresAt: '2024-01-01T00:00:00Z',
         },
       });
 
@@ -379,7 +382,7 @@ describe('LoginForm', () => {
   describe('Loading state', () => {
     it('should show loading text when submitting', async () => {
       mockAuthAPI.login.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve({ success: true, data: { user: {} as any, token: 'token' } }), 100))
+        () => new Promise(resolve => setTimeout(() => resolve({ success: true, data: { user: {} as any, token: 'token', expiresAt: '2024-01-01T00:00:00Z' } }), 100))
       );
 
       render(<LoginForm />);
@@ -399,7 +402,7 @@ describe('LoginForm', () => {
 
     it('should disable inputs when loading', async () => {
       mockAuthAPI.login.mockImplementation(
-        () => new Promise(resolve => setTimeout(() => resolve({ success: true, data: { user: {} as any, token: 'token' } }), 100))
+        () => new Promise(resolve => setTimeout(() => resolve({ success: true, data: { user: {} as any, token: 'token', expiresAt: '2024-01-01T00:00:00Z' } }), 100))
       );
 
       render(<LoginForm />);
@@ -425,6 +428,7 @@ describe('LoginForm', () => {
         data: {
           user: {} as any,
           token: 'test-token',
+          expiresAt: '2024-01-01T00:00:00Z',
         },
       });
 
@@ -461,6 +465,7 @@ describe('LoginForm', () => {
         data: {
           user: {} as any,
           token: 'test-token',
+          expiresAt: '2024-01-01T00:00:00Z',
         },
       });
 

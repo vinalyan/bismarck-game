@@ -11,7 +11,14 @@ describe('shipStateUtils', () => {
     type: 'BB',
     side: 'german',
     maxFuel: 100,
+    baseEvasion: 30,
     radarLevel: 2,
+    hullBoxes: 10,
+    basePrimaryArmamentBow: 8,
+    basePrimaryArmamentStern: 8,
+    baseSecondaryArmament: 4,
+    maxTorpedos: 0,
+    speedType: 'M',
     specialRules: []
   };
 
@@ -21,7 +28,14 @@ describe('shipStateUtils', () => {
     type: 'BB',
     side: 'german',
     maxFuel: 100,
+    baseEvasion: 30,
     radarLevel: 2,
+    hullBoxes: 10,
+    basePrimaryArmamentBow: 8,
+    basePrimaryArmamentStern: 8,
+    baseSecondaryArmament: 4,
+    maxTorpedos: 0,
+    speedType: 'M',
     specialRules: [
       {
         type: 'radar_loss_after_first_round',

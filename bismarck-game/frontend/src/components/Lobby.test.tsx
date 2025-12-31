@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Lobby from './Lobby';
-import { GameStatus, PlayerSide, ViewType, NotificationType } from '../types/gameTypes';
+import { GameStatus, PlayerSide, ViewType, NotificationType, GameResponse } from '../types/gameTypes';
 
 // Мокируем gameStore
 jest.mock('../stores/gameStore', () => ({
@@ -117,7 +117,7 @@ describe('Lobby', () => {
 
   const mockStoreState = {
     user: mockUser,
-    games: [],
+    games: [] as GameResponse[],
     setGames: jest.fn(),
     addGame: jest.fn(),
     updateGame: jest.fn(),

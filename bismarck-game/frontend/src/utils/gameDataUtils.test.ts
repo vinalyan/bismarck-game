@@ -4,7 +4,7 @@ import {
   updateGameDataFromModel
 } from './gameDataUtils';
 import { UnitsResponse } from '../services/api/unitsAPI';
-import { GameResponse } from '../types/gameTypes';
+import { GameResponse, GameStatus, PlayerSide } from '../types/gameTypes';
 import { GameTurn } from '../types/phaseTypes';
 import { HexMarkers } from '../services/api/searchAPI';
 
@@ -19,11 +19,17 @@ describe('gameDataUtils', () => {
             search_hexes: {
               'A1': {
                 factor: 5,
-                air_search: 0
+                air_search: 0,
+                ships: 0,
+                patrol: 0,
+                intrinsic: 5
               },
               'B2': {
                 factor: 10,
-                air_search: 3
+                air_search: 3,
+                ships: 5,
+                patrol: 2,
+                intrinsic: 3
               }
             }
           }
@@ -48,11 +54,17 @@ describe('gameDataUtils', () => {
             search_hexes: {
               'A1': {
                 factor: 5,
-                air_search: 0
+                air_search: 0,
+                ships: 0,
+                patrol: 0,
+                intrinsic: 5
               },
               'B2': {
                 factor: 10,
-                air_search: 5
+                air_search: 5,
+                ships: 5,
+                patrol: 2,
+                intrinsic: 3
               }
             }
           }
@@ -103,7 +115,10 @@ describe('gameDataUtils', () => {
             search_hexes: {
               'A1': {
                 factor: undefined as any,
-                air_search: 0
+                air_search: 0,
+                ships: 0,
+                patrol: 0,
+                intrinsic: 0
               }
             }
           }
@@ -124,7 +139,10 @@ describe('gameDataUtils', () => {
             search_hexes: {
               'A1': {
                 factor: 5,
-                air_search: 0
+                air_search: 0,
+                ships: 0,
+                patrol: 0,
+                intrinsic: 5
               }
             }
           }
@@ -143,7 +161,31 @@ describe('gameDataUtils', () => {
     const mockGame: GameResponse = {
       id: 'test-game',
       name: 'Test Game',
-      status: 'active',
+      player1_id: 'player-1',
+      player1_side: PlayerSide.German,
+      player2_side: PlayerSide.Allied,
+      current_turn: 1,
+      current_phase: 'movement',
+      status: GameStatus.InProgress,
+      settings: {
+        use_optional_units: false,
+        enable_crew_exhaustion: false,
+        victory_conditions: {
+          bismarck_sunk_vp: -10,
+          bismarck_france_vp: -5,
+          bismarck_norway_vp: -7,
+          bismarck_end_game_vp: -10,
+          bismarck_no_fuel_vp: -15,
+          ship_vp_values: {},
+          convoy_vp: {},
+        },
+        time_limit_minutes: 180,
+        private_lobby: false,
+        max_turn_time: 30,
+        allow_spectators: true,
+        auto_save: true,
+        difficulty: 'standard',
+      },
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z',
       visibility_level: 3,
@@ -209,7 +251,31 @@ describe('gameDataUtils', () => {
     const mockGame: GameResponse = {
       id: 'test-game',
       name: 'Test Game',
-      status: 'active',
+      player1_id: 'player-1',
+      player1_side: PlayerSide.German,
+      player2_side: PlayerSide.Allied,
+      current_turn: 1,
+      current_phase: 'movement',
+      status: GameStatus.InProgress,
+      settings: {
+        use_optional_units: false,
+        enable_crew_exhaustion: false,
+        victory_conditions: {
+          bismarck_sunk_vp: -10,
+          bismarck_france_vp: -5,
+          bismarck_norway_vp: -7,
+          bismarck_end_game_vp: -10,
+          bismarck_no_fuel_vp: -15,
+          ship_vp_values: {},
+          convoy_vp: {},
+        },
+        time_limit_minutes: 180,
+        private_lobby: false,
+        max_turn_time: 30,
+        allow_spectators: true,
+        auto_save: true,
+        difficulty: 'standard',
+      },
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
     };
@@ -311,7 +377,10 @@ describe('gameDataUtils', () => {
             search_hexes: {
               'A1': {
                 factor: 5,
-                air_search: 0
+                air_search: 0,
+                ships: 0,
+                patrol: 0,
+                intrinsic: 5
               }
             }
           }
@@ -333,7 +402,10 @@ describe('gameDataUtils', () => {
             search_hexes: {
               'B2': {
                 factor: 10,
-                air_search: 3
+                air_search: 3,
+                ships: 5,
+                patrol: 2,
+                intrinsic: 3
               }
             }
           }
@@ -356,7 +428,10 @@ describe('gameDataUtils', () => {
             search_hexes: {
               'A1': {
                 factor: 5,
-                air_search: 0
+                air_search: 0,
+                ships: 0,
+                patrol: 0,
+                intrinsic: 5
               }
             }
           }

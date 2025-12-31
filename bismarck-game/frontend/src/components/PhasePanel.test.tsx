@@ -45,11 +45,14 @@ describe('PhasePanel', () => {
   };
 
   const mockCurrentTurn: GameTurn = {
+    id: 'turn-1',
+    game_id: mockGameId,
     turn_number: 1,
     current_phase: 'movement',
     status: 'active',
-    started_at: '2023-01-01',
-    completed_at: null,
+    start_time: '2023-01-01',
+    created_at: '2023-01-01',
+    updated_at: '2023-01-01',
   };
 
   beforeEach(() => {
@@ -96,13 +99,13 @@ describe('PhasePanel', () => {
     it('should load phase records on mount when currentTurn is provided', async () => {
       const mockRecords: PhaseRecord[] = [
         {
-          id: 'record-1',
-          game_id: mockGameId,
           turn: 1,
           phase: 'setup',
           status: 'completed',
-          started_at: '2023-01-01',
-          completed_at: '2023-01-01',
+          start_time: '2023-01-01',
+          end_time: '2023-01-01',
+          duration: 0,
+          data: '',
         },
       ];
 
@@ -229,11 +232,14 @@ describe('PhasePanel', () => {
   describe('Start Turn', () => {
     it('should call startTurn API and dispatch turnUpdated event', async () => {
       const mockNewTurn: GameTurn = {
+        id: 'turn-1',
+        game_id: mockGameId,
         turn_number: 1,
         current_phase: 'setup',
         status: 'active',
-        started_at: '2023-01-01',
-        completed_at: null,
+        start_time: '2023-01-01',
+        created_at: '2023-01-01',
+        updated_at: '2023-01-01',
       };
 
       mockPhaseAPI.startTurn.mockResolvedValue(mockNewTurn);
