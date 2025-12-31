@@ -520,10 +520,6 @@ func TestRecordSearch(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM unit_searches WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
-	require.NoError(t, err)
-
 	// Create test game first
 	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
 	require.NoError(t, err)
@@ -547,19 +543,26 @@ func TestRecordSearch(t *testing.T) {
 			Phase:         models.PhaseSearch,
 		}
 
+		// RecordSearch теперь только логирует, не записывает в БД
+		// Таблица unit_searches удалена, метод работает только с logger
 		err := service.RecordSearch(search)
 		assert.NoError(t, err)
+		// Проверяем, что ID и CreatedAt установлены (генерируются в методе)
 		assert.NotEmpty(t, search.ID)
 		assert.NotZero(t, search.CreatedAt)
 	})
 
-	t.Run("database error", func(t *testing.T) {
+	t.Run("record with empty game_id", func(t *testing.T) {
 		search := &models.UnitSearch{
-			GameID: "", // Empty game_id should cause constraint violation
+			GameID: "", // Empty game_id - метод должен работать (только логирование)
 		}
 
+		// Метод не должен возвращать ошибку, так как он только логирует
 		err := service.RecordSearch(search)
-		assert.Error(t, err)
+		assert.NoError(t, err)
+		// Проверяем, что ID и CreatedAt установлены
+		assert.NotEmpty(t, search.ID)
+		assert.NotZero(t, search.CreatedAt)
 	})
 }
 

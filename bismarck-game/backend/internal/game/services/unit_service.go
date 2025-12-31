@@ -20,6 +20,22 @@ import (
 type UnitSunkHandler func(unitID string) error
 
 // UnitService предоставляет методы для работы с юнитами
+//
+// АРХИТЕКТУРА:
+// UnitService использует GameModel как единственный источник истины для игрового состояния.
+// Все операции с юнитами (создание, обновление, получение) работают через GameStateService,
+// который управляет GameModel с трехуровневым кэшированием (память, Redis, PostgreSQL).
+//
+// ВАЖНО:
+// - Все методы работают с GameModel через gameStateService.UpdateGameModelWithRetry
+// - Прямые обращения к старым таблицам (naval_units, air_units, unit_visibility) удалены
+// - Видимость юнитов хранится в UnitModel.Visibility
+// - Все изменения проходят через оптимистичную блокировку с автоматическим retry
+//
+// УСТАРЕВШИЕ МЕТОДЫ:
+// - BuildNavalUnitSelectQuery, ScanNavalUnitFromRow - помечены как устаревшие
+// - ResetDetectionInFog - используйте ResetDetectionForUnitsInFog
+// - RecordSearch - теперь только логирует, не записывает в БД
 type UnitService struct {
 	db                   *database.Database
 	logger               *logger.Logger
