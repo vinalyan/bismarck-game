@@ -20,7 +20,7 @@ class MockWebSocket {
   static CLOSED = 3;
 
   url: string;
-  readyState: number = MockWebSocket.OPEN; // Начинаем уже открытым для упрощения
+  readyState: number = MockWebSocket.CONNECTING;
   onopen: ((event: Event) => void) | null = null;
   onclose: ((event: CloseEvent) => void) | null = null;
   onmessage: ((event: MessageEvent) => void) | null = null;
@@ -31,19 +31,40 @@ class MockWebSocket {
 
   constructor(url: string) {
     this.url = url;
-    // Симулируем синхронное подключение через следующий тик event loop
-    // Используем Promise.resolve().then для асинхронности, но без задержки
-    Promise.resolve().then(() => {
-      this.readyState = MockWebSocket.OPEN;
-      if (this.onopen) {
-        this.onopen(new Event('open'));
-      }
-    });
+    // Симулируем асинхронное подключение
+    // Используем setImmediate для следующего тика event loop
+    if (typeof setImmediate !== 'undefined') {
+      setImmediate(() => {
+        this.readyState = MockWebSocket.OPEN;
+        if (this.onopen) {
+          this.onopen(new Event('open'));
+        }
+      });
+    } else {
+      // Fallback для окружений без setImmediate
+      setTimeout(() => {
+        this.readyState = MockWebSocket.OPEN;
+        if (this.onopen) {
+          this.onopen(new Event('open'));
+        }
+      }, 0);
+    }
   }
 }
 
+// Создаем функцию-конструктор для WebSocket, которая работает с Jest
+const createMockWebSocket = function(this: any, url: string) {
+  return new MockWebSocket(url);
+} as any;
+
+// Копируем статические свойства
+createMockWebSocket.CONNECTING = MockWebSocket.CONNECTING;
+createMockWebSocket.OPEN = MockWebSocket.OPEN;
+createMockWebSocket.CLOSING = MockWebSocket.CLOSING;
+createMockWebSocket.CLOSED = MockWebSocket.CLOSED;
+
 // Заменяем глобальный WebSocket
-(global as any).WebSocket = MockWebSocket as any;
+(global as any).WebSocket = createMockWebSocket;
 
 describe('WebSocketClient', () => {
   let mockStoreState: any;
@@ -85,7 +106,11 @@ describe('WebSocketClient', () => {
 
   describe('connect', () => {
     it('should connect to WebSocket with token and gameId', async () => {
-      await wsClient.connect('test-token', 'game-1');
+      const connectPromise = wsClient.connect('test-token', 'game-1');
+      
+      // Ждем разрешения промиса
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise;
 
       expect(wsClient.isConnected()).toBe(true);
       expect(mockStoreState.setConnected).toHaveBeenCalledWith(true);
@@ -93,7 +118,9 @@ describe('WebSocketClient', () => {
 
     it('should not reconnect if already connected to the same game', async () => {
       // Первое подключение
-      await wsClient.connect('test-token', 'game-1');
+      const connectPromise1 = wsClient.connect('test-token', 'game-1');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise1;
       
       jest.clearAllMocks();
 
@@ -109,6 +136,7 @@ describe('WebSocketClient', () => {
       const promise1 = wsClient.connect('test-token', 'game-1');
       const promise2 = wsClient.connect('test-token', 'game-1');
       
+      await new Promise(resolve => setTimeout(resolve, 10));
       await Promise.all([promise1, promise2]);
 
       // Оба промиса должны разрешиться
@@ -117,24 +145,31 @@ describe('WebSocketClient', () => {
     });
 
     it('should build correct WebSocket URL with parameters', async () => {
-      const WebSocketSpy = jest.spyOn(global, 'WebSocket' as any);
+      const originalWebSocket = (global as any).WebSocket;
+      const WebSocketCalls: string[] = [];
       
-      await wsClient.connect('token-123', 'game-456');
+      (global as any).WebSocket = function(url: string) {
+        WebSocketCalls.push(url);
+        return new MockWebSocket(url);
+      };
+      
+      const connectPromise = wsClient.connect('token-123', 'game-456');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise;
 
-      expect(WebSocketSpy).toHaveBeenCalledWith(
-        expect.stringContaining('token=token-123')
-      );
-      expect(WebSocketSpy).toHaveBeenCalledWith(
-        expect.stringContaining('game_id=game-456')
-      );
+      expect(WebSocketCalls.length).toBeGreaterThan(0);
+      expect(WebSocketCalls[0]).toContain('token=token-123');
+      expect(WebSocketCalls[0]).toContain('game_id=game-456');
 
-      WebSocketSpy.mockRestore();
+      (global as any).WebSocket = originalWebSocket;
     });
   });
 
   describe('disconnect', () => {
     it('should close WebSocket connection', async () => {
-      await wsClient.connect('test-token', 'game-1');
+      const connectPromise = wsClient.connect('test-token', 'game-1');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise;
 
       const mockWs = (wsClient as any).ws;
       wsClient.disconnect();
@@ -144,7 +179,9 @@ describe('WebSocketClient', () => {
     });
 
     it('should stop ping interval on disconnect', async () => {
-      await wsClient.connect('test-token', 'game-1');
+      const connectPromise = wsClient.connect('test-token', 'game-1');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise;
 
       const pingIntervalBefore = (wsClient as any).pingInterval;
       wsClient.disconnect();
@@ -157,7 +194,9 @@ describe('WebSocketClient', () => {
 
   describe('send', () => {
     it('should send message when connected', async () => {
-      await wsClient.connect('test-token', 'game-1');
+      const connectPromise = wsClient.connect('test-token', 'game-1');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise;
 
       const message = {
         type: WSMessageType.Ping,
@@ -173,7 +212,9 @@ describe('WebSocketClient', () => {
     });
 
     it('should add timestamp to sent message', async () => {
-      await wsClient.connect('test-token', 'game-1');
+      const connectPromise = wsClient.connect('test-token', 'game-1');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise;
 
       const beforeSend = Date.now();
       wsClient.send({
@@ -206,7 +247,9 @@ describe('WebSocketClient', () => {
     let mockWs: MockWebSocket;
 
     beforeEach(async () => {
-      await wsClient.connect('test-token', 'game-1');
+      const connectPromise = wsClient.connect('test-token', 'game-1');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise;
       mockWs = (wsClient as any).ws;
     });
 
@@ -502,7 +545,9 @@ describe('WebSocketClient', () => {
 
   describe('sendChatMessage', () => {
     it('should send chat message with correct format', async () => {
-      await wsClient.connect('test-token', 'game-1');
+      const connectPromise = wsClient.connect('test-token', 'game-1');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise;
 
       wsClient.sendChatMessage('Hello', 'game-1');
 
@@ -517,7 +562,9 @@ describe('WebSocketClient', () => {
 
   describe('sendGameAction', () => {
     it('should send game action with correct format', async () => {
-      await wsClient.connect('test-token', 'game-1');
+      const connectPromise = wsClient.connect('test-token', 'game-1');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise;
 
       const action = { type: 'move', unitId: 'unit-1' };
       wsClient.sendGameAction(action, 'game-1');
@@ -533,7 +580,9 @@ describe('WebSocketClient', () => {
 
   describe('isConnected', () => {
     it('should return true when connected', async () => {
-      await wsClient.connect('test-token', 'game-1');
+      const connectPromise = wsClient.connect('test-token', 'game-1');
+      await new Promise(resolve => setTimeout(resolve, 10));
+      await connectPromise;
 
       expect(wsClient.isConnected()).toBe(true);
     });
