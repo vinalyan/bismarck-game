@@ -118,12 +118,44 @@ func TestCreateAirUnit(t *testing.T) {
 		assert.NotEmpty(t, unit.ID)
 		assert.NotZero(t, unit.CreatedAt)
 		assert.NotZero(t, unit.UpdatedAt)
+
+		// Verify the unit is in GameModel
+		units, err := service.GetAirUnitsByGameID(gameID)
+		require.NoError(t, err)
+
+		var foundUnit *models.AirUnit
+		for i := range units {
+			if units[i].ID == unit.ID {
+				foundUnit = &units[i]
+				break
+			}
+		}
+
+		require.NotNil(t, foundUnit, "Created unit should be found in GameModel")
+		assert.Equal(t, unit.Type, foundUnit.Type)
+		assert.Equal(t, unit.Position, foundUnit.Position)
+		assert.Equal(t, unit.Status, foundUnit.Status)
 	})
 
-	t.Run("database error", func(t *testing.T) {
-		// Create unit with invalid data
+	t.Run("missing gameStateService", func(t *testing.T) {
+		// Create a service without gameStateService
+		serviceWithoutGameState := NewUnitService(testServices.DB, testServices.Logger)
+
 		unit := &models.AirUnit{
-			GameID: "", // Empty game_id should cause constraint violation
+			GameID: gameID,
+			Type:   models.UnitTypeCombatAircraft,
+		}
+
+		err := serviceWithoutGameState.CreateAirUnit(unit)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "gameStateService is required")
+	})
+
+	t.Run("empty game_id", func(t *testing.T) {
+		// Create unit with empty game_id
+		unit := &models.AirUnit{
+			GameID: "", // Empty game_id should cause error
+			Type:   models.UnitTypeCombatAircraft,
 		}
 
 		err := service.CreateAirUnit(unit)
@@ -399,14 +431,25 @@ func TestUpdateAirUnit(t *testing.T) {
 		unit.Position = "B1"
 		unit.Status = models.AirUnitStatusOnRaid
 
-		// NOTE: UpdateAirUnit currently only updates the database table, not GameModel.
-		// This method may need to be updated to work with GameModel architecture.
+		// UpdateAirUnit now works with GameModel
 		err := service.UpdateAirUnit(unit)
 		assert.NoError(t, err)
 
-		// Just verify the method doesn't return an error
-		// The actual update may not be reflected in GameModel if the method is outdated
-		// GetAirUnitsByGameID reads from GameModel, so it won't see the update
+		// Verify the update is reflected in GameModel
+		updatedUnits, err := service.GetAirUnitsByGameID(unit.GameID)
+		require.NoError(t, err)
+
+		var foundUnit *models.AirUnit
+		for i := range updatedUnits {
+			if updatedUnits[i].ID == unit.ID {
+				foundUnit = &updatedUnits[i]
+				break
+			}
+		}
+
+		require.NotNil(t, foundUnit, "Updated unit should be found in GameModel")
+		assert.Equal(t, "B1", foundUnit.Position, "Position should be updated in GameModel")
+		assert.Equal(t, models.AirUnitStatusOnRaid, foundUnit.Status, "Status should be updated in GameModel")
 	})
 
 	t.Run("update non-existing unit", func(t *testing.T) {
@@ -477,10 +520,6 @@ func TestRecordSearch(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM unit_searches WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
-	require.NoError(t, err)
-
 	// Create test game first
 	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
 	require.NoError(t, err)
@@ -504,19 +543,26 @@ func TestRecordSearch(t *testing.T) {
 			Phase:         models.PhaseSearch,
 		}
 
+		// RecordSearch теперь только логирует, не записывает в БД
+		// Таблица unit_searches удалена, метод работает только с logger
 		err := service.RecordSearch(search)
 		assert.NoError(t, err)
+		// Проверяем, что ID и CreatedAt установлены (генерируются в методе)
 		assert.NotEmpty(t, search.ID)
 		assert.NotZero(t, search.CreatedAt)
 	})
 
-	t.Run("database error", func(t *testing.T) {
+	t.Run("record with empty game_id", func(t *testing.T) {
 		search := &models.UnitSearch{
-			GameID: "", // Empty game_id should cause constraint violation
+			GameID: "", // Empty game_id - метод должен работать (только логирование)
 		}
 
+		// Метод не должен возвращать ошибку, так как он только логирует
 		err := service.RecordSearch(search)
-		assert.Error(t, err)
+		assert.NoError(t, err)
+		// Проверяем, что ID и CreatedAt установлены
+		assert.NotEmpty(t, search.ID)
+		assert.NotZero(t, search.CreatedAt)
 	})
 }
 
@@ -605,24 +651,27 @@ func TestGetUnitsByPosition(t *testing.T) {
 	require.NoError(t, err)
 
 	airUnit := &models.AirUnit{
-		GameID:   gameID,
-		Type:     "fighter",
-		Owner:    "testuser1",
-		Position: "A1",
-		Status:   models.AirUnitStatusOperational,
+		GameID:       gameID,
+		Type:         models.UnitTypeCombatAircraft,
+		Owner:        "testuser1",
+		Position:     "A1",
+		BasePosition: "A1", // Required by GameModel validator
+		MaxSpeed:     300,
+		Endurance:    2,
+		Status:       models.AirUnitStatusOperational,
 	}
 	err = service.CreateAirUnit(airUnit)
 	require.NoError(t, err)
 
 	t.Run("get units at position", func(t *testing.T) {
-		// GetUnitsByPosition now reads from GameModel, not from database
-		// NOTE: CreateAirUnit doesn't add air units to GameModel, so airUnits will be empty
+		// GetUnitsByPosition now reads from GameModel
 		navalUnits, airUnits, err := service.GetUnitsByPosition(gameID, "A1")
 		assert.NoError(t, err)
 		assert.Len(t, navalUnits, 1)
 		assert.Equal(t, "Naval Ship", navalUnits[0].Name)
-		// CreateAirUnit doesn't add to GameModel, so airUnits will be empty
-		assert.Len(t, airUnits, 0)
+		// CreateAirUnit now adds to GameModel, so airUnits should be found
+		assert.Len(t, airUnits, 1)
+		assert.Equal(t, airUnit.ID, airUnits[0].ID)
 	})
 
 	t.Run("get units at empty position", func(t *testing.T) {

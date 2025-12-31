@@ -1489,33 +1489,30 @@ func (h *SearchPhaseHandler) getEnemyUnitsInHex(pm *PhaseManager, gameID, hexID,
 }
 
 func (h *SearchPhaseHandler) getEnemyTaskForcesInHex(pm *PhaseManager, gameID, hexID, opponentPlayerID, opponentSide string) ([]*models.TaskForce, error) {
-	rows, err := pm.db.Query(`SELECT id, owner FROM task_forces WHERE game_id = $1 AND position = $2`, gameID, hexID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query task forces: %w", err)
+	// Загружаем GameModel
+	if pm.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for getEnemyTaskForcesInHex")
 	}
-	defer rows.Close()
+
+	model, err := pm.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
 
 	var taskForces []*models.TaskForce
-	for rows.Next() {
-		var (
-			taskForceID string
-			owner       string
-		)
-		if err := rows.Scan(&taskForceID, &owner); err != nil {
-			log.Printf("Search phase - failed to scan task force in hex %s: %v", hexID, err)
+	for _, tfModel := range model.TaskForces {
+		// Пропускаем, если позиция не совпадает
+		if tfModel.Position != hexID {
 			continue
 		}
 
-		if !h.ownerMatches(owner, opponentPlayerID, opponentSide) {
+		// Проверяем, что владелец соответствует противнику
+		if !h.ownerMatches(tfModel.Owner, opponentPlayerID, opponentSide) {
 			continue
 		}
 
-		taskForce, err := pm.taskForceService.GetTaskForceByID(taskForceID)
-		if err != nil {
-			log.Printf("Search phase - failed to load task force %s: %v", taskForceID, err)
-			continue
-		}
-
+		// Конвертируем TaskForceModel в TaskForce
+		taskForce := models.ConvertTaskForceModelToTaskForce(tfModel)
 		taskForces = append(taskForces, taskForce)
 	}
 
@@ -1691,7 +1688,7 @@ func (h *SearchPhaseHandler) applyVisibilityToTaskForcesInModel(
 
 func (h *SearchPhaseHandler) applyDetectionToUnits(pm *PhaseManager, gameID, hexID, playerID, sideLabel string, visibility models.UnitVisibility, units []*models.NavalUnit) {
 	for _, unit := range units {
-		if err := pm.unitService.UpdateUnitVisibility(unit.ID, visibility); err != nil {
+		if err := pm.unitService.UpdateUnitVisibility(gameID, unit.ID, visibility); err != nil {
 			log.Printf("Search phase - failed to update visibility for unit %s: %v", unit.ID, err)
 			continue
 		}
@@ -1712,9 +1709,7 @@ func (h *SearchPhaseHandler) applyDetectionToTaskForces(pm *PhaseManager, gameID
 	}
 
 	for _, tf := range taskForces {
-		// ВНИМАНИЕ: TaskForceService все еще использует старый метод с строкой
-		// TODO: Обновить TaskForceService для использования UnitVisibility
-		if err := pm.taskForceService.UpdateTaskForceDetectionLevel(tf.ID, detectionLevel); err != nil {
+		if err := pm.taskForceService.UpdateTaskForceDetectionLevel(gameID, tf.ID, detectionLevel); err != nil {
 			log.Printf("Search phase - failed to update visibility for task force %s: %v", tf.ID, err)
 			continue
 		}
@@ -1727,7 +1722,7 @@ func (h *SearchPhaseHandler) applyDetectionToTaskForces(pm *PhaseManager, gameID
 		}
 
 		for _, unit := range units {
-			if err := pm.unitService.UpdateUnitVisibility(unit.ID, visibility); err != nil {
+			if err := pm.unitService.UpdateUnitVisibility(gameID, unit.ID, visibility); err != nil {
 				log.Printf("Search phase - failed to update visibility for unit %s in task force %s: %v", unit.ID, tf.ID, err)
 			}
 		}
