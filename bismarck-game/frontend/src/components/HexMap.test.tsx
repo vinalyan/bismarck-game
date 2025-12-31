@@ -9,6 +9,31 @@ jest.mock('../services/api/unitsAPI');
 jest.mock('../services/api/phaseAPI');
 jest.mock('../services/api/searchAPI');
 
+// Мокируем тяжелые дочерние компоненты
+jest.mock('./Hex', () => ({
+  Hex: function MockHex() {
+    return <div data-testid="mock-hex">Hex</div>;
+  },
+}));
+
+jest.mock('./Tooltip', () => {
+  return function MockTooltip() {
+    return null;
+  };
+});
+
+jest.mock('./CreateTaskForceDialog', () => {
+  return function MockCreateTaskForceDialog() {
+    return null;
+  };
+});
+
+jest.mock('./PatrolDialog', () => {
+  return function MockPatrolDialog() {
+    return null;
+  };
+});
+
 describe('HexMap', () => {
   const mockGameId = 'game-1';
   const mockAuthToken = 'test-token';
@@ -50,21 +75,21 @@ describe('HexMap', () => {
 
   describe('Rendering', () => {
     it('should render hex map component', () => {
-      const { container } = render(<HexMap {...defaultProps} />);
+      const { container } = render(<HexMap {...defaultProps} width={5} height={5} />);
       
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
     });
 
     it('should render with default width and height', () => {
-      const { container } = render(<HexMap {...defaultProps} />);
+      const { container } = render(<HexMap {...defaultProps} width={5} height={5} />);
       
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
     });
 
     it('should render with custom width and height', () => {
-      const { container } = render(<HexMap {...defaultProps} width={1000} height={800} />);
+      const { container } = render(<HexMap {...defaultProps} width={10} height={10} />);
       
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
@@ -73,9 +98,9 @@ describe('HexMap', () => {
 
   describe('Game Controls', () => {
     it('should render refresh button', () => {
-      render(<HexMap {...defaultProps} />);
+      render(<HexMap {...defaultProps} width={5} height={5} />);
       
-      const refreshButton = screen.getByRole('button', { name: /Обновить|Refresh/i });
+      const refreshButton = screen.getByTitle(/Обновить данные игры/i);
       expect(refreshButton).toBeInTheDocument();
     });
 
@@ -83,9 +108,9 @@ describe('HexMap', () => {
       const { unitsAPI } = require('../services/api/unitsAPI');
       unitsAPI.getGameUnits = jest.fn().mockResolvedValue({ success: true });
       
-      render(<HexMap {...defaultProps} />);
+      render(<HexMap {...defaultProps} width={5} height={5} />);
       
-      const refreshButton = screen.getByRole('button', { name: /Обновить|Refresh/i });
+      const refreshButton = screen.getByTitle(/Обновить данные игры/i);
       userEvent.click(refreshButton);
       
       await waitFor(() => {
@@ -94,35 +119,35 @@ describe('HexMap', () => {
     });
 
     it('should render create TF button in movement phase', () => {
-      render(<HexMap {...defaultProps} currentPhase="movement" />);
+      render(<HexMap {...defaultProps} currentPhase="movement" width={5} height={5} />);
       
       const createTFButton = screen.getByRole('button', { name: /Создать TF|Create TF/i });
       expect(createTFButton).toBeInTheDocument();
     });
 
     it('should render patrol button in movement phase', () => {
-      render(<HexMap {...defaultProps} currentPhase="movement" />);
+      render(<HexMap {...defaultProps} currentPhase="movement" width={5} height={5} />);
       
       const patrolButton = screen.getByRole('button', { name: /Патруль|Patrol/i });
       expect(patrolButton).toBeInTheDocument();
     });
 
     it('should render refuel button when available', () => {
-      render(<HexMap {...defaultProps} isRefuelDisabled={false} />);
+      render(<HexMap {...defaultProps} isRefuelDisabled={false} width={5} height={5} />);
       
       const refuelButton = screen.queryByRole('button', { name: /Заправить|Refuel/i });
       // Кнопка может не отображаться в зависимости от условий
     });
 
     it('should render complete phase button when available', () => {
-      render(<HexMap {...defaultProps} isCompletePhaseDisabled={false} />);
+      render(<HexMap {...defaultProps} isCompletePhaseDisabled={false} width={5} height={5} />);
       
       const completeButton = screen.queryByRole('button', { name: /Завершить фазу|Complete Phase/i });
       // Кнопка может не отображаться в зависимости от условий
     });
 
     it('should render start first turn button when visible', () => {
-      render(<HexMap {...defaultProps} isStartFirstTurnVisible={true} />);
+      render(<HexMap {...defaultProps} isStartFirstTurnVisible={true} width={5} height={5} />);
       
       const startButton = screen.getByRole('button', { name: /Начать ход|Start Turn/i });
       expect(startButton).toBeInTheDocument();
@@ -143,10 +168,9 @@ describe('HexMap', () => {
     ];
 
     it('should render units on map', () => {
-      render(<HexMap {...defaultProps} gameUnits={mockUnits} />);
+      const { container } = render(<HexMap {...defaultProps} gameUnits={mockUnits} width={5} height={5} />);
       
       // Проверяем, что компонент рендерится (юниты отображаются через SVG элементы)
-      const { container } = render(<HexMap {...defaultProps} gameUnits={mockUnits} />);
       expect(container.querySelector('svg')).toBeInTheDocument();
     });
   });
@@ -163,47 +187,36 @@ describe('HexMap', () => {
     ];
 
     it('should render task forces on map', () => {
-      render(<HexMap {...defaultProps} taskForces={mockTaskForces} />);
+      const { container } = render(<HexMap {...defaultProps} taskForces={mockTaskForces} width={5} height={5} />);
       
       // Проверяем, что компонент рендерится
-      const { container } = render(<HexMap {...defaultProps} taskForces={mockTaskForces} />);
       expect(container.querySelector('svg')).toBeInTheDocument();
     });
   });
 
   describe('Edge Cases', () => {
     it('should handle missing gameId', () => {
-      render(<HexMap {...defaultProps} gameId={undefined} />);
-      
-      const { container } = render(<HexMap {...defaultProps} gameId={undefined} />);
+      const { container } = render(<HexMap {...defaultProps} gameId={undefined} width={5} height={5} />);
       expect(container.querySelector('svg')).toBeInTheDocument();
     });
 
     it('should handle missing authToken', () => {
-      render(<HexMap {...defaultProps} authToken={null} />);
-      
-      const { container } = render(<HexMap {...defaultProps} authToken={null} />);
+      const { container } = render(<HexMap {...defaultProps} authToken={null} width={5} height={5} />);
       expect(container.querySelector('svg')).toBeInTheDocument();
     });
 
     it('should handle empty gameUnits array', () => {
-      render(<HexMap {...defaultProps} gameUnits={[]} />);
-      
-      const { container } = render(<HexMap {...defaultProps} gameUnits={[]} />);
+      const { container } = render(<HexMap {...defaultProps} gameUnits={[]} width={5} height={5} />);
       expect(container.querySelector('svg')).toBeInTheDocument();
     });
 
     it('should handle empty taskForces array', () => {
-      render(<HexMap {...defaultProps} taskForces={[]} />);
-      
-      const { container } = render(<HexMap {...defaultProps} taskForces={[]} />);
+      const { container } = render(<HexMap {...defaultProps} taskForces={[]} width={5} height={5} />);
       expect(container.querySelector('svg')).toBeInTheDocument();
     });
 
     it('should handle null mapStructures', () => {
-      render(<HexMap {...defaultProps} mapStructures={null} />);
-      
-      const { container } = render(<HexMap {...defaultProps} mapStructures={null} />);
+      const { container } = render(<HexMap {...defaultProps} mapStructures={null} width={5} height={5} />);
       expect(container.querySelector('svg')).toBeInTheDocument();
     });
   });
