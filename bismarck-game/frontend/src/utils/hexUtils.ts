@@ -332,20 +332,6 @@ export function buildPath(from: OffsetCoord, to: OffsetCoord): OffsetCoord[] {
   return path;
 }
 
-// Преобразование offset координат в гексагональные (legacy функции)
-export function qoffsetFromCube(offset: number, h: Hex): OffsetCoord {
-  const col = h.q;
-  const row = h.r + (h.q + offset * (h.q & 1)) / 2;
-  return { col, row };
-}
-
-export function qoffsetToCube(offset: number, h: OffsetCoord): Hex {
-  const q = h.col;
-  const r = h.row - (h.col + offset * (h.col & 1)) / 2;
-  const s = -q - r;
-  return hex(q, r, s);
-}
-
 // Создание макета для отрисовки
 export function createLayout(
   orientation: Orientation,

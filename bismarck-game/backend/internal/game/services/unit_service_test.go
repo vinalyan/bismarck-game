@@ -515,57 +515,6 @@ func TestSearchUnit(t *testing.T) {
 	})
 }
 
-func TestRecordSearch(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
-	defer db.Close()
-
-	// Create test game first
-	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
-	require.NoError(t, err)
-
-	logger, err := logger.New(logger.INFO, "text", "stdout")
-	require.NoError(t, err)
-	service := NewUnitService(db, logger)
-
-	t.Run("successful record", func(t *testing.T) {
-		// Generate a valid UUID for unitID
-		unitID := "12345678-1234-1234-1234-123456789012"
-		search := &models.UnitSearch{
-			GameID:        "550e8400-e29b-41d4-a716-446655440001",
-			UnitID:        unitID,
-			TargetHex:     "B1",
-			SearchType:    "radar",
-			SearchFactors: 1,
-			Result:        "contact",
-			UnitsFound:    []string{"enemy-ship-1"},
-			Turn:          1,
-			Phase:         models.PhaseSearch,
-		}
-
-		// RecordSearch теперь только логирует, не записывает в БД
-		// Таблица unit_searches удалена, метод работает только с logger
-		err := service.RecordSearch(search)
-		assert.NoError(t, err)
-		// Проверяем, что ID и CreatedAt установлены (генерируются в методе)
-		assert.NotEmpty(t, search.ID)
-		assert.NotZero(t, search.CreatedAt)
-	})
-
-	t.Run("record with empty game_id", func(t *testing.T) {
-		search := &models.UnitSearch{
-			GameID: "", // Empty game_id - метод должен работать (только логирование)
-		}
-
-		// Метод не должен возвращать ошибку, так как он только логирует
-		err := service.RecordSearch(search)
-		assert.NoError(t, err)
-		// Проверяем, что ID и CreatedAt установлены
-		assert.NotEmpty(t, search.ID)
-		assert.NotZero(t, search.CreatedAt)
-	})
-}
-
 func TestUnitService_GetEnemyContacts(t *testing.T) {
 	testServices, cleanup, err := SetupTestServices()
 	require.NoError(t, err)

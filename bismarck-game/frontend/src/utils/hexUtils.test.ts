@@ -20,8 +20,6 @@ import {
   getCubeNeighbors,
   getClosestNeighbors,
   buildPath,
-  qoffsetFromCube,
-  qoffsetToCube,
   createLayout,
   hexRange,
   hexRing,

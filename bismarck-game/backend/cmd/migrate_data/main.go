@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"strings"
 
 	"bismarck-game/backend/internal/config"
 	"bismarck-game/backend/internal/game/services"
@@ -34,10 +35,11 @@ func main() {
 
 	// Подключаемся к Redis (опционально)
 	var redisClient *redis.Client
-	if cfg.Redis.Enabled {
-		redisClient, err = redis.NewClient(&cfg.Redis)
+	if cfg.Redis.Address != "" {
+		redisClient, err = redis.New(&cfg.Redis)
 		if err != nil {
 			log.Printf("Warning: Failed to connect to Redis: %v (continuing without Redis)", err)
+			redisClient = nil
 		}
 	}
 
@@ -49,7 +51,7 @@ func main() {
 	gameService := services.NewGameService(db, gameStateLogger)
 	eventService := services.NewGameEventService(db, gameStateLogger)
 	searchService := services.NewSearchService(db, gameStateLogger, unitService, gameService)
-	mapStructureService := services.NewMapStructureService(gameStateLogger)
+	mapStructureService := services.NewMapStructureService()
 	if err := mapStructureService.LoadConfig("./config/map-structures.json"); err != nil {
 		log.Printf("Warning: Failed to load map structures: %v (continuing)", err)
 	}
@@ -97,45 +99,18 @@ func main() {
 			continue
 		}
 
-		// Загружаем GameModel из старых таблиц
-		model, err := gameStateService.LoadFromLegacyTables(gameID)
-		if err != nil {
-			fmt.Printf("  ❌ Failed to load GameModel from legacy tables: %v\n", err)
-			errorCount++
-			continue
-		}
+		// Миграция завершена - метод loadFromLegacyTables удален
+		// GameModel теперь является единственным источником истины
+		// Если GameModel не найден, значит игра еще не была мигрирована или создана после миграции
+		fmt.Printf("  ⚠️  GameModel not found - migration already completed or game created after migration\n")
+		skippedCount++
+		continue
 
-		// Устанавливаем версию = 1 для миграции
-		model.Version = 1
-
-		if *dryRun {
-			fmt.Printf("  🔍 Would save GameModel (version %d, %d units, %d task forces, %d events)\n",
-				model.Version,
-				len(model.Units),
-				len(model.TaskForces),
-				len(model.Events),
-			)
-			successCount++
-			continue
-		}
-
-		// Сохраняем в game_models
-		if err := gameStateService.SaveGameModelToDatabase(gameID, model); err != nil {
-			fmt.Printf("  ❌ Failed to save GameModel: %v\n", err)
-			errorCount++
-			continue
-		}
-
-		fmt.Printf("  ✅ GameModel saved successfully (version %d, %d units, %d task forces, %d events)\n",
-			model.Version,
-			len(model.Units),
-			len(model.TaskForces),
-			len(model.Events),
-		)
-		successCount++
+		// Код миграции удален - миграция завершена
+		// Если нужна повторная миграция, используйте старую версию кода
 	}
 
-	fmt.Printf("\n" + "=".repeat(50) + "\n")
+	fmt.Printf("\n" + strings.Repeat("=", 50) + "\n")
 	fmt.Printf("Migration Summary:\n")
 	fmt.Printf("  ✅ Success: %d\n", successCount)
 	fmt.Printf("  ❌ Errors: %d\n", errorCount)

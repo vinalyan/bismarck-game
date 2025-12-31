@@ -16,16 +16,6 @@ export interface SearchFactorsResponse {
   error?: string;
 }
 
-// Старый интерфейс для обратной совместимости (deprecated)
-export interface LegacySearchFactorsResponse {
-  success: boolean;
-  data?: {
-    hex_factors: Record<string, number>;
-    hex_markers?: Record<string, HexMarkers>;
-  };
-  error?: string;
-}
-
 // API клиент для работы с поиском
 export const searchAPI = {
   // Получить факторы поиска для указанных гексов (возвращает факторы и маркеры)

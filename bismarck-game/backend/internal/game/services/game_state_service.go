@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"sync"
 	"time"
 
@@ -102,7 +101,7 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 			return model, nil
 		}
 		// Если нет ни в памяти, ни в Redis, загружаем из БД без пересчета
-		return s.loadFromDatabaseWithoutRecalculation(gameID)
+		return s.loadFromDatabase(gameID, true)
 	}
 
 	// Устанавливаем флаг загрузки
@@ -137,7 +136,7 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 				if len(relevantHexes) > 0 {
 					s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
 					// Перезагружаем модель из БД после пересчета
-					if updatedModel, err := s.loadFromDatabaseWithoutRecalculation(gameID); err == nil {
+					if updatedModel, err := s.loadFromDatabase(gameID, true); err == nil {
 						model = updatedModel
 						// Обновляем кэш
 						s.saveToMemory(gameID, model)
@@ -175,7 +174,7 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 				if len(relevantHexes) > 0 {
 					s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
 					// Перезагружаем модель из БД после пересчета
-					if updatedModel, err := s.loadFromDatabaseWithoutRecalculation(gameID); err == nil {
+					if updatedModel, err := s.loadFromDatabase(gameID, true); err == nil {
 						model = updatedModel
 						// Обновляем кэши
 						s.saveToMemory(gameID, model)
@@ -224,7 +223,7 @@ func (s *GameStateService) LoadGameModel(gameID string) (*models.GameModel, erro
 			if len(relevantHexes) > 0 {
 				s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
 				// Перезагружаем модель из БД после пересчета
-				if updatedModel, err := s.loadFromDatabaseWithoutRecalculation(gameID); err == nil {
+				if updatedModel, err := s.loadFromDatabase(gameID, true); err == nil {
 					model = updatedModel
 				}
 			}
@@ -374,13 +373,6 @@ func (s *GameStateService) loadFromDatabase(gameID string, skipRecalculation boo
 	return model, nil
 }
 
-// loadFromDatabaseWithoutRecalculation загружает GameModel из БД без пересчета
-// УСТАРЕЛО: Используйте loadFromDatabase(gameID, true) вместо этой функции
-// Оставлено для обратной совместимости
-func (s *GameStateService) loadFromDatabaseWithoutRecalculation(gameID string) (*models.GameModel, error) {
-	return s.loadFromDatabase(gameID, true)
-}
-
 // CreateInitialGameModel создает начальный GameModel для новой игры
 // Правильный алгоритм:
 // 1. Загружает GameModel из БД (таблица game_models)
@@ -428,7 +420,7 @@ func (s *GameStateService) CreateInitialGameModel(gameID string) (*models.GameMo
 			if len(relevantHexes) > 0 {
 				s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
 				// Перезагружаем модель из БД после пересчета
-				if updatedModel, err := s.loadFromDatabaseWithoutRecalculation(gameID); err == nil {
+				if updatedModel, err := s.loadFromDatabase(gameID, true); err == nil {
 					model = *updatedModel
 				}
 			}
@@ -468,219 +460,6 @@ func (s *GameStateService) CreateInitialGameModel(gameID string) (*models.GameMo
 	}
 
 	s.logger.Info("Created empty initial GameModel", "game_id", gameID)
-	return model, nil
-}
-
-// loadFromLegacyTables загружает GameModel из старых таблиц (для миграции)
-// УДАЛЕНО: Старые таблицы больше не используются, GameModel является единственным источником истины
-// Этот метод оставлен только для скрипта миграции данных (cmd/migrate_data/main.go)
-// После завершения миграции этот метод должен быть удален
-func (s *GameStateService) loadFromLegacyTables(gameID string) (*models.GameModel, error) {
-	// Загружаем текущий активный ход из таблицы game_turns
-	// Это источник истины для текущего хода и фазы
-	turnQuery := `
-		SELECT turn_number, current_phase
-		FROM game_turns
-		WHERE game_id = $1 AND status = 'active'
-		ORDER BY turn_number DESC
-		LIMIT 1
-	`
-	var turnNumber int
-	var phaseName string
-	err := s.db.GetConnection().QueryRow(turnQuery, gameID).Scan(&turnNumber, &phaseName)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			// Нет активного хода - игра еще не начата
-			s.logger.Debug("No active turn found, game not started", "game_id", gameID)
-			turnNumber = 0
-			phaseName = string(models.PhaseSetup)
-		} else {
-			s.logger.Error("Failed to get current turn from game_turns", "game_id", gameID, "error", err)
-			return nil, fmt.Errorf("failed to get current turn: %w", err)
-		}
-	}
-
-	s.logger.Info("Current turn loaded from game_turns", "game_id", gameID, "turn", turnNumber, "phase", phaseName)
-
-	// Загружаем юниты
-	navalUnits, err := s.unitService.GetNavalUnitsByGameID(gameID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get naval units: %w", err)
-	}
-	s.logger.Info("Loaded naval units from database", "game_id", gameID, "count", len(navalUnits))
-
-	airUnits, err := s.unitService.GetAirUnitsByGameID(gameID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get air units: %w", err)
-	}
-	s.logger.Info("Loaded air units from database", "game_id", gameID, "count", len(airUnits))
-
-	// Конвертируем юниты в UnitModel
-	units := make(map[string]*models.UnitModel)
-	for i := range navalUnits {
-		unitModel := models.ConvertNavalUnitToUnitModel(&navalUnits[i])
-		units[unitModel.ID] = unitModel
-		s.logger.Debug("Converted naval unit to UnitModel", "unit_id", unitModel.ID, "name", unitModel.Name, "owner", unitModel.Owner)
-	}
-	for i := range airUnits {
-		unitModel := models.ConvertAirUnitToUnitModel(&airUnits[i])
-		units[unitModel.ID] = unitModel
-		s.logger.Debug("Converted air unit to UnitModel", "unit_id", unitModel.ID, "name", unitModel.Name, "owner", unitModel.Owner)
-	}
-	s.logger.Info("Total units in GameModel", "game_id", gameID, "count", len(units))
-
-	// Загружаем Task Forces
-	taskForces, err := s.taskForceService.GetTaskForcesByGameID(gameID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get task forces: %w", err)
-	}
-
-	taskForcesMap := make(map[string]*models.TaskForceModel)
-	for i := range taskForces {
-		tfModel := models.ConvertTaskForceToTaskForceModel(&taskForces[i])
-		taskForcesMap[tfModel.ID] = tfModel
-	}
-
-	// Загружаем события для обеих сторон (последние 100 для каждой)
-	// Это гарантирует, что мы получим все события, включая те, что видны только одной стороне
-	germanEvents, err1 := s.eventService.GetGameEvents(gameID, "german", 100)
-	alliedEvents, err2 := s.eventService.GetGameEvents(gameID, "allied", 100)
-
-	if err1 != nil {
-		s.logger.Warn("Failed to get german events", "error", err1)
-		germanEvents = []models.GameEvent{}
-	}
-	if err2 != nil {
-		s.logger.Warn("Failed to get allied events", "error", err2)
-		alliedEvents = []models.GameEvent{}
-	}
-
-	// Объединяем события и убираем дубликаты (публичные события будут в обоих списках)
-	eventsMap := make(map[string]*models.GameEvent)
-	for i := range germanEvents {
-		eventsMap[germanEvents[i].ID] = &germanEvents[i]
-	}
-	for i := range alliedEvents {
-		eventsMap[alliedEvents[i].ID] = &alliedEvents[i]
-	}
-
-	// Преобразуем map обратно в slice и сортируем по времени создания (DESC)
-	allEvents := make([]*models.GameEvent, 0, len(eventsMap))
-	for _, event := range eventsMap {
-		allEvents = append(allEvents, event)
-	}
-
-	// Сортируем по времени создания (самые свежие первыми)
-	// и ограничиваем до 100 самых свежих
-	sort.Slice(allEvents, func(i, j int) bool {
-		return allEvents[i].CreatedAt.After(allEvents[j].CreatedAt)
-	})
-	if len(allEvents) > 100 {
-		allEvents = allEvents[:100]
-	}
-
-	eventsModel := make([]*models.GameEventModel, 0, len(allEvents))
-	for _, event := range allEvents {
-		eventModel := models.ConvertGameEventToGameEventModel(event)
-		eventsModel = append(eventsModel, eventModel)
-	}
-
-	// Загружаем маркеры (используется только для определения релевантных гексов)
-	// TODO: Пересчет SearchHexData будет реализован отдельно
-	markersMap, err := s.searchService.GetAllMarkersByGameID(gameID)
-	if err != nil {
-		s.logger.Warn("Failed to get markers", "error", err)
-		markersMap = make(map[string]map[string]int)
-	}
-
-	// Загружаем контакты противника
-	// Получаем player1_id и player2_id через GetGamePlayers
-	var player1ID, player2ID string
-	var enemyContacts []*models.EnemyContactModel
-	player1ID, player2ID, err = s.GetGamePlayers(gameID)
-	if err == nil {
-		// Получаем контакты для обеих сторон
-		germanContacts, err1 := s.unitService.GetEnemyContacts(gameID, player1ID)
-		alliedContacts, err2 := s.unitService.GetEnemyContacts(gameID, player2ID)
-
-		if err1 != nil {
-			s.logger.Warn("Failed to get german contacts", "error", err1)
-		}
-		if err2 != nil {
-			s.logger.Warn("Failed to get allied contacts", "error", err2)
-		}
-
-		enemyContacts = make([]*models.EnemyContactModel, 0, len(germanContacts)+len(alliedContacts))
-		for i := range germanContacts {
-			contactModel := models.ConvertEnemyContactToEnemyContactModel(&germanContacts[i])
-			enemyContacts = append(enemyContacts, contactModel)
-		}
-		for i := range alliedContacts {
-			contactModel := models.ConvertEnemyContactToEnemyContactModel(&alliedContacts[i])
-			enemyContacts = append(enemyContacts, contactModel)
-		}
-	} else {
-		s.logger.Warn("Failed to get game players for contacts", "error", err)
-		enemyContacts = []*models.EnemyContactModel{}
-	}
-
-	// Загружаем собственные факторы поиска
-	intrinsicSearchHexes := s.mapStructureService.GetIntrinsicSearchHexes()
-
-	// Собираем все уникальные гексы для расчета факторов поиска
-	relevantHexes := make(map[string]bool)
-
-	// Добавляем гексы из позиций юнитов
-	for _, unit := range units {
-		if unit.Position != "" {
-			relevantHexes[unit.Position] = true
-		}
-	}
-
-	// Добавляем гексы из позиций Task Forces
-	for _, tf := range taskForcesMap {
-		if tf.Position != "" {
-			relevantHexes[tf.Position] = true
-		}
-	}
-
-	// Добавляем гексы с маркерами
-	for hexID := range markersMap {
-		relevantHexes[hexID] = true
-	}
-
-	// Добавляем гексы с собственными факторами поиска
-	for hexID := range intrinsicSearchHexes {
-		relevantHexes[hexID] = true
-	}
-
-	// Инициализируем Search с пустыми map
-	// Создаем GameModel
-	model := &models.GameModel{
-		GameID:      gameID,
-		Version:     1,
-		LastUpdated: time.Now(),
-		History:     []*models.GameModelSnapshot{}, // Пустой массив в этой фазе
-		CurrentTurn: &models.GameTurnModel{
-			Turn:  turnNumber,
-			Phase: models.GamePhase(phaseName),
-		},
-		Units:         units,
-		TaskForces:   taskForcesMap,
-		EnemyContacts: enemyContacts,
-		Search: &models.SearchData{
-			German: make(map[string]models.SearchHexData),
-			Allied: make(map[string]models.SearchHexData),
-		},
-		Events:               eventsModel,
-		IntrinsicSearchHexes: intrinsicSearchHexes,
-	}
-
-	// Пересчитываем факторы поиска для всех релевантных гексов
-	if s.searchService != nil {
-		s.recalculateSearchDataForAllRelevantHexes(gameID, relevantHexes)
-	}
-
 	return model, nil
 }
 
@@ -835,9 +614,9 @@ func (s *GameStateService) InitializeSearchFactorsForGame(gameID string) error {
 	}
 
 	// Загружаем модель из БД (она уже должна содержать все юниты и Task Forces)
-	// Используем loadFromDatabaseWithoutRecalculation, чтобы избежать рекурсии
+	// Используем loadFromDatabase с skipRecalculation=true, чтобы избежать рекурсии
 	// Но если GameModel не найден, он создаст пустую модель - в этом случае нужно загрузить через loadFromLegacyTables
-	model, err := s.loadFromDatabaseWithoutRecalculation(gameID)
+	model, err := s.loadFromDatabase(gameID, true)
 		if err != nil {
 		return fmt.Errorf("failed to load GameModel: %w", err)
 	}
@@ -875,8 +654,8 @@ func (s *GameStateService) loadFromRedisWithoutRecalculation(gameID string) (*mo
 		return nil, fmt.Errorf("failed to unmarshal GameModel: %w", err)
 	}
 
-	// Миграция: если есть старые поля, преобразуем их в новый формат
-	s.migrateOldSearchFields(&model)
+	// Инициализируем Search, если нужно
+	model.EnsureSearchInitialized()
 
 	return &model, nil
 }
@@ -1035,28 +814,11 @@ func (s *GameStateService) LoadGameModelFromDatabase(gameID string) (*models.Gam
 		return nil, fmt.Errorf("failed to unmarshal GameModel: %w", err)
 	}
 
-	// Миграция: если есть старые поля, преобразуем их в новый формат
-	s.migrateOldSearchFields(&model)
+	// Инициализируем Search, если нужно
+	model.EnsureSearchInitialized()
 
 	s.logger.Info("GameModel loaded from database", "game_id", gameID, "version", version)
 	return &model, nil
-}
-
-// migrateOldSearchFields мигрирует старые поля search_factors и hex_markers в новый блок Search
-// Вызывается после десериализации, если Search == nil, инициализирует пустой блок
-func (s *GameStateService) migrateOldSearchFields(model *models.GameModel) {
-	// Если Search уже инициализирован, миграция не нужна
-	if model.Search != nil {
-		return
-	}
-
-	// Инициализируем Search как пустой блок
-	// Старые поля search_factors и hex_markers уже потеряны при десериализации,
-	// так как их нет в структуре GameModel
-	model.Search = &models.SearchData{
-		German: make(map[string]models.SearchHexData),
-		Allied: make(map[string]models.SearchHexData),
-	}
 }
 
 // GetGameModelHistory загружает историю версий GameModel из БД

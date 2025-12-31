@@ -1466,25 +1466,48 @@ func (h *SearchPhaseHandler) hexHasFlightPathMarker(pm *PhaseManager, gameID, he
 }
 
 func (h *SearchPhaseHandler) getEnemyUnitsInHex(pm *PhaseManager, gameID, hexID, opponentPlayerID, opponentSide string) ([]*models.NavalUnit, error) {
-	query := BuildNavalUnitSelectQuery([]string{"category"}, "WHERE game_id = $1 AND position = $2 AND status != 'sunk'")
-	rows, err := pm.db.Query(query, gameID, hexID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query naval units: %w", err)
+	// Загружаем GameModel
+	if pm.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for getEnemyUnitsInHex")
 	}
-	defer rows.Close()
+
+	model, err := pm.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
 
 	var units []*models.NavalUnit
-	for rows.Next() {
-		unit, err := ScanNavalUnitFromRow(rows, true, false)
-		if err != nil {
-			log.Printf("Search phase - failed to scan naval unit in hex %s: %v", hexID, err)
+	for _, unitModel := range model.Units {
+		// Пропускаем, если позиция не совпадает
+		if unitModel.Position != hexID {
 			continue
 		}
 
-		if h.ownerMatches(unit.Owner, opponentPlayerID, opponentSide) {
-			units = append(units, unit)
+		// Пропускаем потопленные юниты
+		if unitModel.Status == string(models.UnitStatusSunk) {
+			continue
 		}
+
+		// Пропускаем, если это не морской юнит
+		if unitModel.Category != models.UnitCategoryNaval {
+			continue
+		}
+
+		// Проверяем, что владелец соответствует противнику
+		if !h.ownerMatches(unitModel.Owner, opponentPlayerID, opponentSide) {
+			continue
+		}
+
+		// Конвертируем UnitModel в NavalUnit
+		navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+		if err != nil {
+			log.Printf("Search phase - failed to convert unit model to naval unit in hex %s: %v", hexID, err)
+			continue
+		}
+
+		units = append(units, navalUnit)
 	}
+
 	return units, nil
 }
 

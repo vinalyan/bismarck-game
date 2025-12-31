@@ -883,43 +883,6 @@ func (s *TaskForceService) UpdateTaskForceDetectionLevel(gameID string, taskForc
 	return nil
 }
 
-// ResetDetectionInFog сбрасывает DetectionLevel у Task Forces в туманных гексах
-func (s *TaskForceService) ResetDetectionInFog(gameID string, fogHexes []string) error {
-	if s.gameStateService == nil {
-		return fmt.Errorf("gameStateService is required for ResetDetectionInFog")
-	}
-
-	if len(fogHexes) == 0 {
-		return nil
-	}
-
-	// Создаем map для быстрой проверки принадлежности гекса к туманным
-	fogHexMap := make(map[string]bool, len(fogHexes))
-	for _, hex := range fogHexes {
-		fogHexMap[hex] = true
-	}
-
-	err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-		for tfID, tfModel := range model.TaskForces {
-			// Проверяем, что позиция входит в туманные гексы и visibility равен Sighted или Shadowed
-			if fogHexMap[tfModel.Position] && (tfModel.Visibility == models.VisibilitySighted || tfModel.Visibility == models.VisibilityShadowed) {
-				tfModel.Visibility = models.VisibilityUnknown
-				tfModel.UpdatedAt = time.Now()
-				model.TaskForces[tfID] = tfModel
-			}
-		}
-		return nil
-	}, 3)
-
-	if err != nil {
-		s.logger.Error("Failed to reset detection in fog for task forces", "game_id", gameID, "error", err)
-		return fmt.Errorf("failed to reset detection in fog for task forces: %w", err)
-	}
-
-	s.logger.Info("Reset detection in fog for task forces", "game_id", gameID)
-	return nil
-}
-
 // ListTaskForcesByDetectionLevel возвращает Task Forces с указанным уровнем обнаружения (опционально по гексам)
 func (s *TaskForceService) ListTaskForcesByDetectionLevel(gameID string, level string, hexes []string) ([]DetectionTarget, error) {
 	if s.gameStateService == nil {
