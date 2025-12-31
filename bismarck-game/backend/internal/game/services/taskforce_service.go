@@ -1,7 +1,6 @@
 package services
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"bismarck-game/backend/pkg/logger"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 )
 
 // TaskForceService предоставляет методы для работы с оперативными соединениями
@@ -559,30 +557,6 @@ func (s *TaskForceService) DeleteTaskForce(taskForceID string) error {
 	return nil
 }
 
-// updateTaskForce обновляет Task Force в базе данных
-// ВНИМАНИЕ: Этот метод работает напрямую с БД. Если все работает через GameModel, этот метод не должен использоваться.
-func (s *TaskForceService) updateTaskForce(taskForce *models.TaskForce) error {
-	query := `
-		UPDATE task_forces SET
-			position = $2, speed = $3, units = $4, is_visible = $5,
-			visibility = $6, last_move_turn = $7, is_activated = $8, is_patrolling = $9,
-			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1`
-
-	unitsJSON, _ := json.Marshal(taskForce.Units)
-
-	_, err := s.db.Exec(query,
-		taskForce.ID, taskForce.Position, taskForce.Speed, unitsJSON,
-		taskForce.IsVisible, string(taskForce.Visibility), taskForce.LastMoveTurn,
-		taskForce.IsActivated, taskForce.IsPatrolling,
-	)
-	if err != nil {
-		s.logger.Error("Failed to update task force", "task_force_id", taskForce.ID, "error", err)
-		return fmt.Errorf("failed to update task force: %w", err)
-	}
-
-	return nil
-}
 
 // calculateTaskForceSpeed вычисляет скорость Task Force (по самому медленному кораблю)
 func (s *TaskForceService) calculateTaskForceSpeed(unitIDs []string, unitMap map[string]models.NavalUnit) int {
@@ -860,16 +834,46 @@ func (s *TaskForceService) HandleUnitSunk(unitID string) error {
 	return nil
 }
 
-// UpdateTaskForceDetectionLevel обновляет уровень обнаружения Task Force
-// ВНИМАНИЕ: Использует строку для обратной совместимости с БД. В будущем заменить на UnitVisibility
-func (s *TaskForceService) UpdateTaskForceDetectionLevel(taskForceID string, level string) error {
-	query := `
-		UPDATE task_forces
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $2
-	`
+// convertVisibilityStringToUnitVisibility конвертирует строку уровня обнаружения в UnitVisibility
+// "none" -> VisibilityUnknown, "sighted" -> VisibilitySighted, "shadowed" -> VisibilityShadowed, "lost" -> VisibilityLost
+func convertVisibilityStringToUnitVisibility(level string) models.UnitVisibility {
+	switch level {
+	case "none":
+		return models.VisibilityUnknown
+	case "sighted":
+		return models.VisibilitySighted
+	case "shadowed":
+		return models.VisibilityShadowed
+	case "lost":
+		return models.VisibilityLost
+	default:
+		return models.VisibilityUnknown
+	}
+}
 
-	_, err := s.db.Exec(query, level, taskForceID)
+// UpdateTaskForceDetectionLevel обновляет уровень обнаружения Task Force через GameModel
+func (s *TaskForceService) UpdateTaskForceDetectionLevel(gameID string, taskForceID string, level string) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for UpdateTaskForceDetectionLevel")
+	}
+
+	// Конвертируем строку в UnitVisibility
+	visibility := convertVisibilityStringToUnitVisibility(level)
+
+	// Обновляем через GameModel
+	err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		tfModel, exists := model.TaskForces[taskForceID]
+		if !exists {
+			return fmt.Errorf("task force %s not found", taskForceID)
+		}
+
+		tfModel.Visibility = visibility
+		tfModel.UpdatedAt = time.Now()
+		model.TaskForces[taskForceID] = tfModel
+
+		return nil
+	}, 3)
+
 	if err != nil {
 		s.logger.Error("Failed to update task force detection level", "task_force_id", taskForceID, "level", level, "error", err)
 		return fmt.Errorf("failed to update task force detection level: %w", err)
@@ -881,18 +885,32 @@ func (s *TaskForceService) UpdateTaskForceDetectionLevel(taskForceID string, lev
 
 // ResetDetectionInFog сбрасывает DetectionLevel у Task Forces в туманных гексах
 func (s *TaskForceService) ResetDetectionInFog(gameID string, fogHexes []string) error {
-	query := `
-		UPDATE task_forces 
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $2 
-		AND detection_level IN ($3, $4)
-		AND position = ANY($5)
-	`
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for ResetDetectionInFog")
+	}
+
 	if len(fogHexes) == 0 {
 		return nil
 	}
 
-	_, err := s.db.Exec(query, "none", gameID, "sighted", "shadowed", pq.Array(fogHexes))
+	// Создаем map для быстрой проверки принадлежности гекса к туманным
+	fogHexMap := make(map[string]bool, len(fogHexes))
+	for _, hex := range fogHexes {
+		fogHexMap[hex] = true
+	}
+
+	err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for tfID, tfModel := range model.TaskForces {
+			// Проверяем, что позиция входит в туманные гексы и visibility равен Sighted или Shadowed
+			if fogHexMap[tfModel.Position] && (tfModel.Visibility == models.VisibilitySighted || tfModel.Visibility == models.VisibilityShadowed) {
+				tfModel.Visibility = models.VisibilityUnknown
+				tfModel.UpdatedAt = time.Now()
+				model.TaskForces[tfID] = tfModel
+			}
+		}
+		return nil
+	}, 3)
+
 	if err != nil {
 		s.logger.Error("Failed to reset detection in fog for task forces", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset detection in fog for task forces: %w", err)
@@ -903,58 +921,87 @@ func (s *TaskForceService) ResetDetectionInFog(gameID string, fogHexes []string)
 }
 
 // ListTaskForcesByDetectionLevel возвращает Task Forces с указанным уровнем обнаружения (опционально по гексам)
-// ВНИМАНИЕ: Использует строку для обратной совместимости с БД. В будущем заменить на UnitVisibility
 func (s *TaskForceService) ListTaskForcesByDetectionLevel(gameID string, level string, hexes []string) ([]DetectionTarget, error) {
-	query := `
-		SELECT tf.id,
-		       tf.name,
-		       CASE
-		         WHEN tf.owner IN ('german', 'allied') THEN tf.owner
-		         WHEN g.player1_id IS NOT NULL AND tf.owner = g.player1_id::text THEN 'german'
-		         WHEN g.player2_id IS NOT NULL AND tf.owner = g.player2_id::text THEN 'allied'
-		         ELSE tf.owner
-		       END AS owner_side,
-		       COALESCE(tf.position, '')
-		FROM task_forces tf
-		JOIN games g ON g.id = tf.game_id
-		WHERE tf.game_id = $1
-		AND tf.detection_level = $2
-	`
-
-	args := []interface{}{gameID, level}
-	if len(hexes) > 0 {
-		query += " AND tf.position = ANY($3)"
-		args = append(args, pq.Array(hexes))
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for ListTaskForcesByDetectionLevel")
 	}
 
-	rows, err := s.db.Query(query, args...)
+	// Конвертируем строку в UnitVisibility
+	targetVisibility := convertVisibilityStringToUnitVisibility(level)
+
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list task forces by detection level: %w", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
 	}
-	defer rows.Close()
+
+	// Получаем информацию об игроках для определения owner_side
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
+	if err != nil {
+		// Если не удалось получить игроков, продолжаем без определения owner_side
+		s.logger.Warn("Failed to get game players for ListTaskForcesByDetectionLevel", "game_id", gameID, "error", err)
+	}
+
+	// Создаем map для быстрой проверки принадлежности гекса к списку (если указан)
+	hexMap := make(map[string]bool, len(hexes))
+	for _, hex := range hexes {
+		hexMap[hex] = true
+	}
 
 	var result []DetectionTarget
-	for rows.Next() {
-		var target DetectionTarget
-		if err := rows.Scan(&target.ID, &target.Name, &target.Owner, &target.Position); err != nil {
-			return nil, fmt.Errorf("failed to scan task force detection target: %w", err)
+	for _, tfModel := range model.TaskForces {
+		// Фильтруем по visibility
+		if tfModel.Visibility != targetVisibility {
+			continue
 		}
-		target.Type = "task_force"
+
+		// Фильтруем по гексам (если указаны)
+		if len(hexes) > 0 && !hexMap[tfModel.Position] {
+			continue
+		}
+
+		// Определяем owner_side
+		ownerSide := tfModel.Owner
+		if player1ID != "" && tfModel.Owner == player1ID {
+			ownerSide = "german"
+		} else if player2ID != "" && tfModel.Owner == player2ID {
+			ownerSide = "allied"
+		} else if tfModel.Owner == "german" || tfModel.Owner == "allied" {
+			// Уже правильный формат
+			ownerSide = tfModel.Owner
+		}
+
+		// Создаем DetectionTarget
+		target := DetectionTarget{
+			ID:       tfModel.ID,
+			Name:     tfModel.Name,
+			Owner:    ownerSide,
+			Position: tfModel.Position,
+			Type:     "task_force",
+		}
 		result = append(result, target)
 	}
 
-	return result, rows.Err()
+	return result, nil
 }
 
 // ResetAllDetection сбрасывает все обнаружения Task Forces при видимости X
 func (s *TaskForceService) ResetAllDetection(gameID string) error {
-	query := `
-		UPDATE task_forces 
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $2 
-		AND detection_level IN ($3, $4)
-	`
-	_, err := s.db.Exec(query, "none", gameID, "sighted", "shadowed")
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for ResetAllDetection")
+	}
+
+	err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for tfID, tfModel := range model.TaskForces {
+			if tfModel.Visibility == models.VisibilitySighted || tfModel.Visibility == models.VisibilityShadowed {
+				tfModel.Visibility = models.VisibilityUnknown
+				tfModel.UpdatedAt = time.Now()
+				model.TaskForces[tfID] = tfModel
+			}
+		}
+		return nil
+	}, 3)
+
 	if err != nil {
 		s.logger.Error("Failed to reset all detection for task forces", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset all detection for task forces: %w", err)
@@ -966,13 +1013,21 @@ func (s *TaskForceService) ResetAllDetection(gameID string) error {
 
 // RemoveRemainingSighted убирает DetectionLevelSighted у Task Forces, которые не стали Shadowed
 func (s *TaskForceService) RemoveRemainingSighted(gameID string) error {
-	query := `
-		UPDATE task_forces 
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $2 
-		AND detection_level = $3
-	`
-	_, err := s.db.Exec(query, "none", gameID, "sighted")
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RemoveRemainingSighted")
+	}
+
+	err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for tfID, tfModel := range model.TaskForces {
+			if tfModel.Visibility == models.VisibilitySighted {
+				tfModel.Visibility = models.VisibilityUnknown
+				tfModel.UpdatedAt = time.Now()
+				model.TaskForces[tfID] = tfModel
+			}
+		}
+		return nil
+	}, 3)
+
 	if err != nil {
 		s.logger.Error("Failed to remove remaining sighted for task forces", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to remove remaining sighted for task forces: %w", err)
@@ -984,13 +1039,21 @@ func (s *TaskForceService) RemoveRemainingSighted(gameID string) error {
 
 // ConvertShadowedToSighted переводит все DetectionLevelShadowed в DetectionLevelSighted для Task Forces
 func (s *TaskForceService) ConvertShadowedToSighted(gameID string) error {
-	query := `
-		UPDATE task_forces 
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $2 
-		AND detection_level = $3
-	`
-	_, err := s.db.Exec(query, "sighted", gameID, "shadowed")
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for ConvertShadowedToSighted")
+	}
+
+	err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for tfID, tfModel := range model.TaskForces {
+			if tfModel.Visibility == models.VisibilityShadowed {
+				tfModel.Visibility = models.VisibilitySighted
+				tfModel.UpdatedAt = time.Now()
+				model.TaskForces[tfID] = tfModel
+			}
+		}
+		return nil
+	}, 3)
+
 	if err != nil {
 		s.logger.Error("Failed to convert shadowed to sighted for task forces", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to convert shadowed to sighted for task forces: %w", err)
@@ -1002,11 +1065,11 @@ func (s *TaskForceService) ConvertShadowedToSighted(gameID string) error {
 
 // ResetDetectionForUnitsInFog сбрасывает обнаружение у shadowed Task Forces в туманных гексах
 func (s *TaskForceService) ResetDetectionForUnitsInFog(gameID string, fogHexes []string) error {
-	// Получаем информацию об игре, чтобы проверить туман
 	if s.gameStateService == nil {
 		return fmt.Errorf("gameStateService is required for ResetDetectionForUnitsInFog")
 	}
 
+	// Получаем информацию об игре, чтобы проверить туман
 	_, isFog, _, err := s.gameStateService.GetGameVisibilityOnly(gameID)
 	if err != nil {
 		s.logger.Error("Failed to get fog status", "game_id", gameID, "error", err)
@@ -1018,14 +1081,24 @@ func (s *TaskForceService) ResetDetectionForUnitsInFog(gameID string, fogHexes [
 		return nil
 	}
 
-	query := `
-		UPDATE task_forces 
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE game_id = $2 
-		AND detection_level = $3
-		AND position = ANY($4)
-	`
-	_, err = s.db.Exec(query, "none", gameID, "shadowed", pq.Array(fogHexes))
+	// Создаем map для быстрой проверки принадлежности гекса к туманным
+	fogHexMap := make(map[string]bool, len(fogHexes))
+	for _, hex := range fogHexes {
+		fogHexMap[hex] = true
+	}
+
+	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		for tfID, tfModel := range model.TaskForces {
+			// Проверяем, что позиция входит в туманные гексы и visibility равен Shadowed
+			if fogHexMap[tfModel.Position] && tfModel.Visibility == models.VisibilityShadowed {
+				tfModel.Visibility = models.VisibilityUnknown
+				tfModel.UpdatedAt = time.Now()
+				model.TaskForces[tfID] = tfModel
+			}
+		}
+		return nil
+	}, 3)
+
 	if err != nil {
 		s.logger.Error("Failed to reset detection for task forces in fog", "game_id", gameID, "error", err)
 		return fmt.Errorf("failed to reset detection for task forces in fog: %w", err)

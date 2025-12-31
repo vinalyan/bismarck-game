@@ -1712,9 +1712,7 @@ func (h *SearchPhaseHandler) applyDetectionToTaskForces(pm *PhaseManager, gameID
 	}
 
 	for _, tf := range taskForces {
-		// ВНИМАНИЕ: TaskForceService все еще использует старый метод с строкой
-		// TODO: Обновить TaskForceService для использования UnitVisibility
-		if err := pm.taskForceService.UpdateTaskForceDetectionLevel(tf.ID, detectionLevel); err != nil {
+		if err := pm.taskForceService.UpdateTaskForceDetectionLevel(gameID, tf.ID, detectionLevel); err != nil {
 			log.Printf("Search phase - failed to update visibility for task force %s: %v", tf.ID, err)
 			continue
 		}
