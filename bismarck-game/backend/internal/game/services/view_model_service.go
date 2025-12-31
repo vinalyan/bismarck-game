@@ -355,7 +355,7 @@ func (s *ViewModelService) filterTaskForces(
 				IsVisible:   true,
 				Position:    position,
 				Units:       tf.Units, // Только IDs, детали не видны
-				// Speed, DetectionLevel, LastMoveTurn, IsActivated, IsPatrolling - не видны
+				// Speed, LastMoveTurn, IsActivated, IsPatrolling - не видны
 			}
 
 		case models.VisibilityLost:
@@ -371,7 +371,7 @@ func (s *ViewModelService) filterTaskForces(
 					Position:    *lastKnownPos, // Показываем в LastKnownPos (из GameModel)
 					// LastKnownPos не устанавливаем - не включаем в JSON для lost TaskForces
 					Units:       tf.Units, // Только IDs
-					// Speed, DetectionLevel, LastMoveTurn, IsActivated, IsPatrolling - не видны
+					// Speed, LastMoveTurn, IsActivated, IsPatrolling - не видны
 				}
 			}
 
