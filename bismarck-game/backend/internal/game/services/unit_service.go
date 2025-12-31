@@ -16,38 +16,6 @@ import (
 	"github.com/lib/pq"
 )
 
-// convertVisibilityToDetectionLevelString конвертирует UnitVisibility в строку для обратной совместимости с NavalUnit
-func convertVisibilityToDetectionLevelString(visibility models.UnitVisibility) string {
-	switch visibility {
-	case models.VisibilitySighted:
-		return "sighted"
-	case models.VisibilityShadowed:
-		return "shadowed"
-	case models.VisibilityLost:
-		return "lost" // lost хранится в БД как "lost"
-	case models.VisibilityUnknown:
-		return "none"
-	default:
-		return "none"
-	}
-}
-
-// convertVisibilityToDetectionLevelStringReverse конвертирует строку (DetectionLevel) в UnitVisibility
-func convertVisibilityToDetectionLevelStringReverse(dl string) models.UnitVisibility {
-	switch dl {
-	case "sighted":
-		return models.VisibilitySighted
-	case "shadowed":
-		return models.VisibilityShadowed
-	case "lost":
-		return models.VisibilityLost
-	case "none":
-		return models.VisibilityUnknown
-	default:
-		return models.VisibilityUnknown
-	}
-}
-
 // UnitSunkHandler это функция для обработки потопления корабля
 type UnitSunkHandler func(unitID string) error
 
@@ -512,26 +480,31 @@ func (s *UnitService) SearchUnit(unitID string, targetHex string, searchType str
 }
 
 // RecordSearch записывает поиск юнита в историю
+// УСТАРЕЛО: Таблица unit_searches удалена. Теперь поиски логируются через logger.
+// История поисков не используется в игровой логике, поэтому достаточно логирования.
 func (s *UnitService) RecordSearch(search *models.UnitSearch) error {
-	query := `
-		INSERT INTO unit_searches (
-			game_id, unit_id, target_hex, search_type, search_factors,
-			result, units_found, turn, phase
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9
-		) RETURNING id, created_at`
-
-	unitsFoundJSON, _ := json.Marshal(search.UnitsFound)
-
-	err := s.db.QueryRow(query,
-		search.GameID, search.UnitID, search.TargetHex, search.SearchType, search.SearchFactors,
-		search.Result, unitsFoundJSON, search.Turn, search.Phase,
-	).Scan(&search.ID, &search.CreatedAt)
-
-	if err != nil {
-		s.logger.Error("Failed to record search", "error", err)
-		return fmt.Errorf("failed to record search: %w", err)
+	// Генерируем ID если не задан
+	if search.ID == "" {
+		search.ID = uuid.New().String()
 	}
+
+	// Устанавливаем CreatedAt если не задано
+	if search.CreatedAt.IsZero() {
+		search.CreatedAt = time.Now()
+	}
+
+	// Логируем поиск (история поисков не используется в игровой логике)
+	s.logger.Info("Search recorded",
+		"search_id", search.ID,
+		"game_id", search.GameID,
+		"unit_id", search.UnitID,
+		"target_hex", search.TargetHex,
+		"search_type", search.SearchType,
+		"search_factors", search.SearchFactors,
+		"result", search.Result,
+		"units_found", search.UnitsFound,
+		"turn", search.Turn,
+		"phase", search.Phase)
 
 	return nil
 }
@@ -1116,6 +1089,8 @@ func (s *UnitService) AwardVPForSunkShip(gameID string, unit *models.NavalUnit) 
 }
 
 // ResetDetectionInFog сбрасывает DetectionLevel у юнитов в туманных гексах
+// УСТАРЕЛО: Используйте ResetDetectionForUnitsInFog вместо этого метода
+// Оставлено для обратной совместимости
 func (s *UnitService) ResetDetectionInFog(gameID string, fogHexes []string) error {
 	// Получаем список туманных гексов (пока используем пустой список, так как нет таблицы туманных гексов)
 	// В будущем это можно получать из конфигурации карты или отдельной таблицы
@@ -1694,6 +1669,8 @@ func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlight
 }
 
 // BuildNavalUnitSelectQuery строит SELECT запрос для получения NavalUnit
+// УСТАРЕЛО: Этот метод больше не используется, так как все данные теперь загружаются из GameModel
+// Оставлено для обратной совместимости и возможной миграции данных
 // additionalFields - дополнительные поля (например, "category") - будут добавлены после поля "type"
 // whereClause - условие WHERE (например, "WHERE game_id = $1 AND status != 'sunk'")
 func BuildNavalUnitSelectQuery(additionalFields []string, whereClause string) string {
@@ -1722,6 +1699,8 @@ func BuildNavalUnitSelectQuery(additionalFields []string, whereClause string) st
 }
 
 // ScanNavalUnitFromRow сканирует NavalUnit из sql.Rows
+// УСТАРЕЛО: Этот метод больше не используется, так как все данные теперь загружаются из GameModel
+// Оставлено для обратной совместимости и возможной миграции данных
 // includeCategory - нужно ли сканировать поле category (должно быть в SELECT запросе)
 // useNullableEmergencyTurn - использовать sql.NullInt32 для emergency_turn (true) или прямое сканирование (false)
 // ВНИМАНИЕ: detection_level больше не сканируется, так как видимость должна храниться только в GameModel
