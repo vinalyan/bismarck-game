@@ -302,6 +302,11 @@ func (s *GameEventService) GetGameEvents(gameID, playerSide string, limit int) (
 	// Загружаем GameModel
 	model, err := s.gameStateService.LoadGameModel(gameID)
 	if err != nil {
+		// Если игра не найдена, возвращаем пустой список (дружелюбное поведение API)
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "game not found") {
+			s.logger.Info("Game not found, returning empty events list", "game_id", gameID)
+			return []models.GameEvent{}, nil
+		}
 		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
 		return nil, fmt.Errorf("failed to load GameModel: %w", err)
 	}
