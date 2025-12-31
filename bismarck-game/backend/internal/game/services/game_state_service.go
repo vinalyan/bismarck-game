@@ -615,7 +615,7 @@ func (s *GameStateService) InitializeSearchFactorsForGame(gameID string) error {
 
 	// Загружаем модель из БД (она уже должна содержать все юниты и Task Forces)
 	// Используем loadFromDatabase с skipRecalculation=true, чтобы избежать рекурсии
-	// Но если GameModel не найден, он создаст пустую модель - в этом случае нужно загрузить через loadFromLegacyTables
+	// Если GameModel не найден, он создаст пустую модель
 	model, err := s.loadFromDatabase(gameID, true)
 		if err != nil {
 		return fmt.Errorf("failed to load GameModel: %w", err)
