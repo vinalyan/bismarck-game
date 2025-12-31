@@ -141,30 +141,68 @@ func TestGetGameEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("get all events for game", func(t *testing.T) {
-		// События теперь сохраняются только в GameModel, а не в таблицу game_events
-		// Проверяем события из GameModel
-		gameModel, err := testServices.GameStateService.LoadGameModel(testGameID)
+		// GetGameEvents теперь читает из GameModel
+		events, err := service.GetGameEvents(testGameID, "german", 10)
 		require.NoError(t, err)
 		
-		// Проверяем, что события сохранены в GameModel
-		assert.GreaterOrEqual(t, len(gameModel.Events), 3, "Должно быть минимум 3 события в GameModel")
+		// Проверяем, что события возвращаются из GameModel
+		assert.GreaterOrEqual(t, len(events), 3, "Должно быть минимум 3 события")
 		
 		// Проверяем типы событий
 		eventTypes := make([]string, 0)
-		for _, event := range gameModel.Events {
+		for _, event := range events {
 			eventTypes = append(eventTypes, string(event.EventType))
 		}
 		assert.Contains(t, eventTypes, "movement", "Должно быть событие движения")
 		assert.Contains(t, eventTypes, "phase_change", "Должно быть событие смены фазы")
 		assert.Contains(t, eventTypes, "combat", "Должно быть событие боя")
 		
-		// GetGameEvents читает из таблицы game_events, которая больше не используется
-		// Поэтому GetGameEvents может вернуть пустой список
-		// Это ожидаемое поведение, так как архитектура изменилась
-		events, err := service.GetGameEvents(testGameID, "german", 10)
-		assert.NoError(t, err)
-		// События могут быть пустыми, так как они сохраняются только в GameModel
-		t.Logf("GetGameEvents returned %d events (may be 0 if events are only in GameModel)", len(events))
+		// Проверяем, что события отсортированы по времени создания (DESC - новые первыми)
+		for i := 1; i < len(events); i++ {
+			assert.True(t, events[i-1].CreatedAt.After(events[i].CreatedAt) || events[i-1].CreatedAt.Equal(events[i].CreatedAt),
+				"События должны быть отсортированы по времени создания (DESC)")
+		}
+	})
+	
+	t.Run("get events filtered by visibility", func(t *testing.T) {
+		// Создаем публичное событие
+		publicEvent := &models.GameEvent{
+			GameID:    testGameID,
+			EventType: "test_public",
+			Turn:      1,
+			Phase:     "movement",
+			Visibility: map[string]interface{}{
+				"is_public": true,
+			},
+		}
+		err = service.saveEvent(publicEvent)
+		require.NoError(t, err)
+		
+		// Создаем событие только для allied
+		alliedEvent := &models.GameEvent{
+			GameID:    testGameID,
+			EventType: "test_allied",
+			Turn:      1,
+			Phase:     "movement",
+			Visibility: map[string]interface{}{
+				"player_side": "allied",
+				"is_public":   false,
+			},
+		}
+		err = service.saveEvent(alliedEvent)
+		require.NoError(t, err)
+		
+		// Получаем события для german стороны
+		germanEvents, err := service.GetGameEvents(testGameID, "german", 0)
+		require.NoError(t, err)
+		
+		// German должен видеть публичные события и свои события, но не allied события
+		eventTypes := make([]string, 0)
+		for _, event := range germanEvents {
+			eventTypes = append(eventTypes, string(event.EventType))
+		}
+		assert.Contains(t, eventTypes, "test_public", "German должен видеть публичные события")
+		assert.NotContains(t, eventTypes, "test_allied", "German не должен видеть allied события")
 	})
 
 	t.Run("get events for non-existing game", func(t *testing.T) {
@@ -278,17 +316,19 @@ func TestGetGameEventsWithPagination(t *testing.T) {
 	}
 
 	t.Run("get events with limit", func(t *testing.T) {
-		// События теперь сохраняются только в GameModel
-		// Проверяем события из GameModel
-		gameModel, err := testServices.GameStateService.LoadGameModel(testGameID1)
+		// GetGameEvents теперь читает из GameModel
+		events, err := service.GetGameEvents(testGameID1, "german", 3)
 		require.NoError(t, err)
-		assert.GreaterOrEqual(t, len(gameModel.Events), 5, "Должно быть минимум 5 событий в GameModel")
 		
-		// GetGameEvents читает из таблицы game_events, которая больше не используется
-		events, err := service.GetGameEvents(testGameID1, "german", 10)
-		assert.NoError(t, err)
-		// События могут быть пустыми, так как они сохраняются только в GameModel
-		t.Logf("GetGameEvents returned %d events (may be 0 if events are only in GameModel)", len(events))
+		// Проверяем, что лимит применяется
+		assert.LessOrEqual(t, len(events), 3, "Должно быть не более 3 событий при лимите 3")
+		assert.GreaterOrEqual(t, len(events), 1, "Должно быть хотя бы 1 событие")
+		
+		// Проверяем, что события отсортированы по времени создания (DESC)
+		for i := 1; i < len(events); i++ {
+			assert.True(t, events[i-1].CreatedAt.After(events[i].CreatedAt) || events[i-1].CreatedAt.Equal(events[i].CreatedAt),
+				"События должны быть отсортированы по времени создания (DESC)")
+		}
 	})
 
 	t.Run("get events for different game", func(t *testing.T) {
@@ -309,21 +349,21 @@ func TestGetGameEventsWithPagination(t *testing.T) {
 		err = service.saveEvent(event)
 		require.NoError(t, err)
 
-		// Проверяем события из GameModel
-		gameModel1, err := testServices.GameStateService.LoadGameModel(testGameID1)
-		require.NoError(t, err)
-		assert.GreaterOrEqual(t, len(gameModel1.Events), 5, "Должно быть минимум 5 событий в GameModel для testGameID1")
-		
-		gameModel2, err := testServices.GameStateService.LoadGameModel(testGameID2)
-		require.NoError(t, err)
-		assert.GreaterOrEqual(t, len(gameModel2.Events), 1, "Должно быть минимум 1 событие в GameModel для testGameID2")
-		
-		// GetGameEvents читает из таблицы game_events, которая больше не используется
+		// GetGameEvents теперь читает из GameModel
 		events1, err := service.GetGameEvents(testGameID1, "german", 10)
-		assert.NoError(t, err)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(events1), 5, "Должно быть минимум 5 событий для testGameID1")
+		
 		events2, err := service.GetGameEvents(testGameID2, "german", 10)
-		assert.NoError(t, err)
-		// События могут быть пустыми, так как они сохраняются только в GameModel
-		t.Logf("GetGameEvents returned %d events for game1, %d events for game2 (may be 0 if events are only in GameModel)", len(events1), len(events2))
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(events2), 1, "Должно быть минимум 1 событие для testGameID2")
+		
+		// Проверяем, что события из разных игр не смешиваются
+		for _, e := range events1 {
+			assert.Equal(t, testGameID1, e.GameID, "События должны принадлежать правильной игре")
+		}
+		for _, e := range events2 {
+			assert.Equal(t, testGameID2, e.GameID, "События должны принадлежать правильной игре")
+		}
 	})
 }

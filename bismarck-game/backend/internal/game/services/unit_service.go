@@ -127,27 +127,35 @@ func (s *UnitService) CreateNavalUnit(unit *models.NavalUnit) error {
 }
 
 // CreateAirUnit создает новый воздушный юнит
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) CreateAirUnit(unit *models.AirUnit) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for CreateAirUnit")
+	}
+
 	// Генерируем имя если не указано
 	if unit.Name == "" {
 		unit.Name = fmt.Sprintf("Air Unit %s", unit.Type)
 	}
 
-	query := `
-		INSERT INTO air_units (
-			game_id, name, type, owner, position, base_position,
-			max_speed, endurance, status
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9
-		) RETURNING id, created_at, updated_at`
+	// Генерируем ID если не задан
+	if unit.ID == "" {
+		unit.ID = uuid.New().String()
+	}
 
-	err := s.db.QueryRow(query,
-		unit.GameID, unit.Name, unit.Type, unit.Owner, unit.Position, unit.BasePosition,
-		unit.MaxSpeed, unit.Endurance, unit.Status,
-	).Scan(&unit.ID, &unit.CreatedAt, &unit.UpdatedAt)
+	// Устанавливаем временные метки
+	now := time.Now()
+	unit.CreatedAt = now
+	unit.UpdatedAt = now
 
-	if err != nil {
-		s.logger.Error("Failed to create air unit", "error", err)
+	// Добавляем юнит в GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(unit.GameID, func(model *models.GameModel) error {
+		// Добавляем новый юнит в модель
+		unitModel := models.ConvertAirUnitToUnitModel(unit)
+		model.Units[unitModel.ID] = unitModel
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to create air unit in GameModel", "error", err)
 		return fmt.Errorf("failed to create air unit: %w", err)
 	}
 
@@ -415,21 +423,51 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 }
 
 // UpdateAirUnit обновляет воздушный юнит
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) UpdateAirUnit(unit *models.AirUnit) error {
-	query := `
-		UPDATE air_units SET
-			position = $2, status = $3, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1`
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for UpdateAirUnit")
+	}
 
-	_, err := s.db.Exec(query,
-		unit.ID, unit.Position, unit.Status,
-	)
-	if err != nil {
-		s.logger.Error("Failed to update air unit", "unit_id", unit.ID, "error", err)
+	// Обновляем UpdatedAt
+	unit.UpdatedAt = time.Now()
+
+	// Обновляем юнит в GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(unit.GameID, func(model *models.GameModel) error {
+		// Получаем текущий юнит из модели
+		unitModel, exists := model.Units[unit.ID]
+		if !exists {
+			return fmt.Errorf("unit not found in GameModel: %s", unit.ID)
+		}
+
+		// Проверяем, что это воздушный юнит
+		if unitModel.Category != models.UnitCategoryAir {
+			return fmt.Errorf("unit is not an air unit: %s", unit.ID)
+		}
+
+		// Обновляем поля юнита
+		unitModel.Position = unit.Position
+		unitModel.Status = string(unit.Status)
+		// ВНИМАНИЕ: Видимость НЕ обновляется из AirUnit, так как она должна храниться только в GameModel
+		// unitModel.Visibility остается без изменений
+
+		// Обновляем AirData если есть
+		if unitModel.AirData != nil {
+			unitModel.AirData.BasePosition = unit.BasePosition
+			unitModel.AirData.MaxSpeed = unit.MaxSpeed
+			unitModel.AirData.Endurance = unit.Endurance
+			unitModel.AirData.FlightPathSearchHexes = unit.FlightPathSearchHexes
+		}
+
+		unitModel.UpdatedAt = unit.UpdatedAt
+
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to update air unit in GameModel", "unit_id", unit.ID, "error", err)
 		return fmt.Errorf("failed to update air unit: %w", err)
 	}
 
-	s.logger.Info("Updated air unit", "unit_id", unit.ID)
+	s.logger.Info("Updated air unit", "unit_id", unit.ID, "position", unit.Position, "status", unit.Status)
 	return nil
 }
 
@@ -631,96 +669,86 @@ func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, playe
 }
 
 // GetVisibleUnits возвращает юниты, видимые для указанного игрока
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *UnitService) GetVisibleUnits(gameID string, playerID string) ([]models.NavalUnit, error) {
-	// Получаем все юниты игры
-	allUnits, err := s.GetNavalUnitsByGameID(gameID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get game units: %w", err)
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetVisibleUnits")
 	}
 
-	// Фильтруем только юниты, видимые для игрока
+	// Определяем сторону игрока
+	player1ID, player2ID, err := s.gameStateService.GetGamePlayers(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get game players: %w", err)
+	}
+
+	var playerSide string
+	if player1ID == playerID {
+		playerSide = "german"
+	} else if player2ID == playerID {
+		playerSide = "allied"
+	} else {
+		return nil, fmt.Errorf("player %s is not part of game %s", playerID, gameID)
+	}
+
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// Фильтруем юниты по видимости
 	var visibleUnits []models.NavalUnit
-	for _, unit := range allUnits {
-		// Игрок видит только свои юниты
-		if unit.Owner == playerID {
-			visibleUnits = append(visibleUnits, unit)
-		}
-		// TODO: Добавить логику для обнаруженных вражеских юнитов
-	}
-
-	if len(visibleUnits) == 0 {
-		return visibleUnits, nil
-	}
-
-	unitIDs := make([]string, 0, len(visibleUnits))
-	for _, unit := range visibleUnits {
-		unitIDs = append(unitIDs, unit.ID)
-	}
-
-	const visibilityQuery = `
-		SELECT unit_id, visibility
-		FROM unit_visibility
-		WHERE game_id = $1
-		  AND unit_id = ANY($2)
-		  AND player_id <> $3
-	`
-
-	rows, err := s.db.Query(visibilityQuery, gameID, pq.Array(unitIDs), playerID)
-	if err != nil {
-		s.logger.Warn("GetVisibleUnits: failed to query unit visibility states", "error", err)
-		return visibleUnits, nil
-	}
-	defer rows.Close()
-
-	type rank int
-	const (
-		rankNone     rank = 0
-		rankSighted  rank = 1
-		rankShadowed rank = 2
-	)
-
-	visibilityRanks := map[models.UnitVisibility]rank{
-		models.VisibilityUnknown:  rankNone,
-		models.VisibilityLost:     rankNone, // lost имеет тот же ранг что и unknown
-		models.VisibilitySighted:  rankSighted,
-		models.VisibilityShadowed: rankShadowed,
-	}
-
-	visibilityMap := make(map[string]models.UnitVisibility)
-
-	for rows.Next() {
-		var (
-			unitID     string
-			visibility string
-		)
-		if err := rows.Scan(&unitID, &visibility); err != nil {
-			s.logger.Warn("GetVisibleUnits: failed to scan visibility row", "error", err)
+	for _, unitModel := range model.Units {
+		// Пропускаем не морские юниты
+		if unitModel.Category != models.UnitCategoryNaval || unitModel.NavalData == nil {
 			continue
 		}
 
-		var vis models.UnitVisibility
-		switch models.UnitVisibility(visibility) {
-		case models.VisibilityShadowed:
-			vis = models.VisibilityShadowed
-		case models.VisibilitySighted:
-			vis = models.VisibilitySighted
+		// Пропускаем потопленные юниты
+		if unitModel.Status == string(models.UnitStatusSunk) {
+			continue
+		}
+
+		// Определяем, является ли юнит своим (сравниваем Nationality со стороной игрока)
+		isOwn := unitModel.Nationality == playerSide
+
+		// Свои юниты всегда видимы
+		if isOwn {
+			navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+			if err != nil {
+				s.logger.Warn("Failed to convert UnitModel to NavalUnit", "unit_id", unitModel.ID, "error", err)
+				continue
+			}
+			visibleUnits = append(visibleUnits, *navalUnit)
+			continue
+		}
+
+		// Чужие юниты - проверяем видимость из GameModel
+		visibility := unitModel.Visibility
+		switch visibility {
+		case models.VisibilitySighted, models.VisibilityShadowed:
+			// Видимые юниты добавляем в список
+			navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+			if err != nil {
+				s.logger.Warn("Failed to convert UnitModel to NavalUnit", "unit_id", unitModel.ID, "error", err)
+				continue
+			}
+			visibleUnits = append(visibleUnits, *navalUnit)
 		case models.VisibilityLost:
-			vis = models.VisibilityLost
-		default:
-			vis = models.VisibilityUnknown
-		}
-
-		if current, exists := visibilityMap[unitID]; !exists || visibilityRanks[vis] > visibilityRanks[current] {
-			visibilityMap[unitID] = vis
+			// Lost юниты видимы только если есть LastKnownPos
+			if unitModel.NavalData.LastKnownPos != nil && *unitModel.NavalData.LastKnownPos != "" {
+				navalUnit, err := models.ConvertUnitModelToNavalUnit(unitModel)
+				if err != nil {
+					s.logger.Warn("Failed to convert UnitModel to NavalUnit", "unit_id", unitModel.ID, "error", err)
+					continue
+				}
+				visibleUnits = append(visibleUnits, *navalUnit)
+			}
+		case models.VisibilityUnknown:
+			// Unknown юниты не видны
+			continue
 		}
 	}
-
-	if err := rows.Err(); err != nil {
-		s.logger.Warn("GetVisibleUnits: iteration error while reading visibility rows", "error", err)
-	}
-
-	// ВНИМАНИЕ: Видимость не устанавливается в NavalUnit, так как она должна храниться только в GameModel
-	// Метод GetVisibleUnits возвращает NavalUnit, но видимость должна проверяться через GameModel или VisibilityService
 
 	return visibleUnits, nil
 }
@@ -760,6 +788,12 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 		return nil, fmt.Errorf("player %s is not part of game %s", playerID, gameID)
 	}
 
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
 	type tfInfo struct {
 		Name           string
 		Units          []string
@@ -769,88 +803,31 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 
 	tfMap := make(map[string]tfInfo)
 
-	const tfQuery = `
-		SELECT id, name, units, position, detection_level
-		FROM task_forces
-		WHERE game_id = $1
-		  AND owner = $2
-	`
-
-	tfRows, err := s.db.Query(tfQuery, gameID, opponentID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query task forces: %w", err)
-	}
-	defer tfRows.Close()
-
-	for tfRows.Next() {
-		var (
-			id        string
-			name      string
-			unitsJSON []byte
-			position  sql.NullString
-			detection sql.NullString
-		)
-
-		if err := tfRows.Scan(&id, &name, &unitsJSON, &position, &detection); err != nil {
-			s.logger.Warn("GetEnemyContacts: failed to scan task force", "error", err)
+	// Получаем TaskForces из GameModel
+	for tfID, tfModel := range model.TaskForces {
+		// Пропускаем TaskForces, которые не принадлежат противнику
+		if tfModel.Owner != opponentID {
 			continue
 		}
 
-		var unitsList []string
-		if len(unitsJSON) > 0 {
-			if err := json.Unmarshal(unitsJSON, &unitsList); err != nil {
-				s.logger.Warn("GetEnemyContacts: failed to unmarshal task force units", "task_force_id", id, "error", err)
-			}
-		}
-
+		// Конвертируем Visibility в строку для обратной совместимости
 		level := "none"
-		if detection.Valid {
-			level = detection.String
+		switch tfModel.Visibility {
+		case models.VisibilityShadowed:
+			level = "shadowed"
+		case models.VisibilitySighted:
+			level = "sighted"
+		case models.VisibilityLost:
+			level = "lost"
 		}
 
-		tfMap[id] = tfInfo{
-			Name:           name,
-			Units:          unitsList,
-			Position:       position.String,
+		tfMap[tfID] = tfInfo{
+			Name:           tfModel.Name,
+			Units:          tfModel.Units,
+			Position:       tfModel.Position,
 			DetectionLevel: level,
 		}
 	}
-
-	if err := tfRows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to iterate task forces: %w", err)
-	}
-
-	const visibilityQuery = `
-		SELECT 
-			uv.unit_id,
-			uv.visibility,
-			NULLIF(COALESCE(uv.last_known_hex, ''), '') AS last_hex,
-			uv.last_seen_at,
-			nu.type,
-			nu.task_force_id,
-			nu.nationality,
-			nu.status,
-			nu.position
-		FROM unit_visibility uv
-		JOIN naval_units nu ON nu.id = uv.unit_id
-		WHERE uv.game_id = $1
-		  AND uv.player_id = $2
-		  AND uv.visibility IN ($3, $4)
-		  AND nu.owner = $5
-	`
-
-	rows, err := s.db.Query(
-		visibilityQuery,
-		gameID,
-		playerID,
-		"sighted",
-		"shadowed",
-		opponentID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query enemy visibility: %w", err)
-	}
-	defer rows.Close()
 
 	type accumulator struct {
 		shipTypes      map[string]int
@@ -863,42 +840,35 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 
 	contactsMap := make(map[string]*accumulator)
 
-	for rows.Next() {
-		var (
-			unitID      string
-			visibility  sql.NullString
-			lastHex     sql.NullString
-			lastSeen    sql.NullTime
-			unitType    sql.NullString
-			taskForceID sql.NullString
-			nationality sql.NullString
-			status      sql.NullString
-			currentPos  sql.NullString
-		)
-
-		if err := rows.Scan(
-			&unitID,
-			&visibility,
-			&lastHex,
-			&lastSeen,
-			&unitType,
-			&taskForceID,
-			&nationality,
-			&status,
-			&currentPos,
-		); err != nil {
-			s.logger.Warn("GetEnemyContacts: failed to scan visibility row", "error", err)
+	// Проходим по всем юнитам в GameModel
+	for _, unitModel := range model.Units {
+		// Пропускаем не морские юниты
+		if unitModel.Category != models.UnitCategoryNaval || unitModel.NavalData == nil {
 			continue
 		}
 
-		if status.Valid && status.String == string(models.UnitStatusSunk) {
+		// Пропускаем потопленные юниты
+		if unitModel.Status == string(models.UnitStatusSunk) {
 			continue
 		}
 
-		hexID := strings.TrimSpace(lastHex.String)
-		if hexID == "" {
-			hexID = strings.TrimSpace(currentPos.String)
+		// Пропускаем юниты, которые не принадлежат противнику
+		if unitModel.Owner != opponentID {
+			continue
 		}
+
+		// Пропускаем юниты, которые не обнаружены (sighted или shadowed)
+		visibility := unitModel.Visibility
+		if visibility != models.VisibilitySighted && visibility != models.VisibilityShadowed {
+			continue
+		}
+
+		// Определяем hexID (используем LastKnownPos если есть, иначе Position)
+		hexID := unitModel.Position
+		if unitModel.NavalData.LastKnownPos != nil && *unitModel.NavalData.LastKnownPos != "" {
+			hexID = *unitModel.NavalData.LastKnownPos
+		}
+		hexID = strings.TrimSpace(hexID)
 		if hexID == "" {
 			continue
 		}
@@ -913,14 +883,16 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 			contactsMap[hexID] = acc
 		}
 
-		if unitType.Valid {
-			acc.shipTypes[unitType.String]++
+		// Добавляем тип корабля
+		if unitModel.Type != "" {
+			acc.shipTypes[string(unitModel.Type)]++
 			acc.shipCount++
 		}
 
+		// Определяем национальность
 		sideValue := opponentSide
-		if nationality.Valid {
-			switch strings.ToLower(nationality.String) {
+		if unitModel.Nationality != "" {
+			switch strings.ToLower(unitModel.Nationality) {
 			case "german":
 				sideValue = "german"
 			case "allied", "british", "royal navy":
@@ -931,23 +903,20 @@ func (s *UnitService) GetEnemyContacts(gameID, playerID string) ([]models.EnemyC
 		}
 		acc.nationality = sideValue
 
-		if taskForceID.Valid && taskForceID.String != "" {
-			acc.taskForceIDs[taskForceID.String] = struct{}{}
+		// Добавляем TaskForce ID если есть
+		if unitModel.NavalData.TaskForceID != nil && *unitModel.NavalData.TaskForceID != "" {
+			acc.taskForceIDs[*unitModel.NavalData.TaskForceID] = struct{}{}
 		}
 
-		if lastSeen.Valid {
-			if acc.lastSeenAt.IsZero() || lastSeen.Time.After(acc.lastSeenAt) {
-				acc.lastSeenAt = lastSeen.Time
-			}
+		// Обновляем lastSeenAt (используем UpdatedAt как приближение)
+		if acc.lastSeenAt.IsZero() || unitModel.UpdatedAt.After(acc.lastSeenAt) {
+			acc.lastSeenAt = unitModel.UpdatedAt
 		}
 
-		if visibility.Valid && visibility.String == "shadowed" {
+		// Обновляем detectionLevel если shadowed
+		if visibility == models.VisibilityShadowed {
 			acc.detectionLevel = "shadowed"
 		}
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to iterate enemy visibility: %w", err)
 	}
 
 	contacts := make([]models.EnemyContact, 0, len(contactsMap))
@@ -1345,16 +1314,27 @@ func (s *UnitService) GetShadowedUnits(gameID, playerID string) ([]*models.Naval
 }
 
 // UpdateUnitVisibility обновляет видимость юнита
-// ВНИМАНИЕ: Этот метод работает напрямую с БД. Если все работает через GameModel, используйте GameModel напрямую.
-func (s *UnitService) UpdateUnitVisibility(unitID string, visibility models.UnitVisibility) error {
-	query := `
-		UPDATE naval_units 
-		SET detection_level = $1, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $2
-	`
-	_, err := s.db.Exec(query, convertVisibilityToDetectionLevelString(visibility), unitID)
-	if err != nil {
-		s.logger.Error("Failed to update unit visibility", "unit_id", unitID, "visibility", visibility, "error", err)
+// Теперь работает только с GameModel (старые таблицы удалены)
+func (s *UnitService) UpdateUnitVisibility(gameID, unitID string, visibility models.UnitVisibility) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for UpdateUnitVisibility")
+	}
+
+	// Обновляем видимость в GameModel
+	if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		// Получаем юнит из модели
+		unitModel, exists := model.Units[unitID]
+		if !exists {
+			return fmt.Errorf("unit not found in GameModel: %s", unitID)
+		}
+
+		// Обновляем видимость
+		unitModel.Visibility = visibility
+		unitModel.UpdatedAt = time.Now()
+
+		return nil
+	}, 3); err != nil {
+		s.logger.Error("Failed to update unit visibility in GameModel", "unit_id", unitID, "visibility", visibility, "error", err)
 		return fmt.Errorf("failed to update unit visibility: %w", err)
 	}
 
@@ -1533,40 +1513,23 @@ func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlight
 		return fmt.Errorf("failed to get game players: %w", err)
 	}
 
-	// Определяем сторону игрока
-	var playerSide string
+	// Определяем сторону игрока и ID противника
+	var opponentID string
 	if player1ID == playerID {
-		playerSide = "german"
+		// Игрок - немец, противник - союзник
+		opponentID = player2ID
 	} else if player2ID == playerID {
-		playerSide = "allied"
+		// Игрок - союзник, противник - немец
+		opponentID = player1ID
 	} else {
 		return fmt.Errorf("player %s is not part of game %s", playerID, gameID)
 	}
 
-	// Определяем сторону противника
-	var opponentSide string
-	if playerSide == "german" {
-		opponentSide = "allied"
-	} else {
-		opponentSide = "german"
-	}
-
-	// Получаем юниты противника в гексе
-	query := `
-		SELECT id, detection_level
-		FROM naval_units
-		WHERE game_id = $1 
-		AND position = $2
-		AND owner = $3
-		AND status != 'sunk'
-	`
-
-	rows, err := s.db.Query(query, gameID, hexID, opponentSide)
+	// Загружаем GameModel для получения юнитов противника
+	model, err := s.gameStateService.LoadGameModel(gameID)
 	if err != nil {
-		s.logger.Error("Failed to get opponent units in hex", "game_id", gameID, "hex_id", hexID, "error", err)
-		return fmt.Errorf("failed to get opponent units in hex: %w", err)
+		return fmt.Errorf("failed to load GameModel: %w", err)
 	}
-	defer rows.Close()
 
 	var detectedUnits []string
 	var newVisibility models.UnitVisibility
@@ -1578,18 +1541,36 @@ func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlight
 		newVisibility = models.VisibilitySighted
 	}
 
-	for rows.Next() {
-		var unitID string
-		var currentDetectionLevel sql.NullString
-
-		err := rows.Scan(&unitID, &currentDetectionLevel)
-		if err != nil {
-			s.logger.Error("Failed to scan unit", "error", err)
+	// Находим юниты противника в гексе
+	for unitID, unitModel := range model.Units {
+		// Пропускаем не морские юниты
+		if unitModel.Category != models.UnitCategoryNaval || unitModel.NavalData == nil {
 			continue
 		}
 
-		// Обновляем Visibility юнита
-		err = s.UpdateUnitVisibility(unitID, newVisibility)
+		// Пропускаем, если позиция не совпадает
+		if unitModel.Position != hexID {
+			continue
+		}
+
+		// Пропускаем, если владелец не противник
+		if unitModel.Owner != opponentID {
+			continue
+		}
+
+		// Пропускаем потопленные юниты
+		if unitModel.Status == string(models.UnitStatusSunk) {
+			continue
+		}
+
+		// Обновляем Visibility юнита в GameModel
+		err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
+			if u, exists := m.Units[unitID]; exists {
+				u.Visibility = newVisibility
+				u.UpdatedAt = time.Now()
+			}
+			return nil
+		}, 3)
 		if err != nil {
 			s.logger.Error("Failed to update unit visibility", "unit_id", unitID, "error", err)
 			continue

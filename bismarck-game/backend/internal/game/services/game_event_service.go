@@ -1,8 +1,6 @@
 package services
 
 import (
-	"database/sql"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -293,84 +291,67 @@ func (s *GameEventService) LogTurnChangeEvent(gameID string, turn int) error {
 }
 
 // GetGameEvents возвращает последние события игры для конкретной стороны
+// Теперь работает только с GameModel (старые таблицы удалены)
 func (s *GameEventService) GetGameEvents(gameID, playerSide string, limit int) ([]models.GameEvent, error) {
 	s.logger.Info("Getting game events", "game_id", gameID, "player_side", playerSide, "limit", limit)
 
-	baseQuery := `
-		SELECT id, game_id, turn, phase, event_type, actor_id, actor_name, 
-		       target_id, target_name, description, data, visibility, created_at
-		FROM game_events 
-		WHERE game_id = $1 
-		AND visibility IS NOT NULL
-		AND (
-			visibility->>'is_public' = 'true' 
-			OR visibility->>'player_side' = $2
-		)
-		ORDER BY created_at DESC
-	`
-
-	args := []interface{}{gameID, playerSide}
-	query := baseQuery
-	if limit > 0 {
-		query = baseQuery + "\n\t\tLIMIT $3"
-		args = append(args, limit)
+	if s.gameStateService == nil {
+		return nil, fmt.Errorf("gameStateService is required for GetGameEvents")
 	}
 
-	rows, err := s.db.Query(query, args...)
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
 	if err != nil {
-		s.logger.Error("Failed to query game events", "error", err, "game_id", gameID, "player_side", playerSide, "limit", limit)
-		return nil, fmt.Errorf("failed to get game events: %w", err)
+		s.logger.Error("Failed to load GameModel", "game_id", gameID, "error", err)
+		return nil, fmt.Errorf("failed to load GameModel: %w", err)
 	}
-	defer rows.Close()
 
-	var events []models.GameEvent
-	for rows.Next() {
-		var event models.GameEvent
-		var dataJSON, visibilityJSON []byte
-		var actorID, actorName, targetID, targetName sql.NullString
-
-		err := rows.Scan(
-			&event.ID, &event.GameID, &event.Turn, &event.Phase,
-			&event.EventType, &actorID, &actorName,
-			&targetID, &targetName, &event.Description,
-			&dataJSON, &visibilityJSON, &event.CreatedAt,
-		)
-		if err != nil {
-			s.logger.Error("Failed to scan game event", "error", err)
-			return nil, fmt.Errorf("failed to scan event: %w", err)
+	// Фильтруем события по видимости (используем ту же логику, что и ViewModelService)
+	var filteredEvents []*models.GameEventModel
+	for _, event := range model.Events {
+		// Событие видимо, если is_public == true ИЛИ player_side == playerSide
+		if event.Visibility == nil {
+			// Если Visibility не установлен, считаем событие публичным
+			filteredEvents = append(filteredEvents, event)
+			continue
 		}
 
-		// Обрабатываем NULL значения
-		if actorID.Valid {
-			event.ActorID = actorID.String
-		}
-		if actorName.Valid {
-			event.ActorName = actorName.String
-		}
-		if targetID.Valid {
-			event.TargetID = targetID.String
-		}
-		if targetName.Valid {
-			event.TargetName = targetName.String
+		// Проверяем is_public
+		if isPublic, ok := event.Visibility["is_public"].(bool); ok && isPublic {
+			filteredEvents = append(filteredEvents, event)
+			continue
 		}
 
-		// Парсим JSON поля
-		if len(dataJSON) > 0 {
-			if err := json.Unmarshal(dataJSON, &event.Data); err != nil {
-				event.Data = make(map[string]interface{})
-			}
-		} else {
-			event.Data = make(map[string]interface{})
+		// Проверяем player_side
+		if eventPlayerSide, ok := event.Visibility["player_side"].(string); ok && eventPlayerSide == playerSide {
+			filteredEvents = append(filteredEvents, event)
+			continue
 		}
+	}
 
-		if len(visibilityJSON) > 0 {
-			if err := json.Unmarshal(visibilityJSON, &event.Visibility); err != nil {
-				event.Visibility = make(map[string]interface{})
-			}
-		} else {
-			event.Visibility = make(map[string]interface{})
+	// Применяем лимит (события уже отсортированы по времени создания DESC в saveEvent)
+	if limit > 0 && limit < len(filteredEvents) {
+		filteredEvents = filteredEvents[:limit]
+	}
+
+	// Конвертируем GameEventModel в GameEvent
+	events := make([]models.GameEvent, 0, len(filteredEvents))
+	for _, eventModel := range filteredEvents {
+		event := models.GameEvent{
+			ID:          eventModel.ID,
+			GameID:      eventModel.GameID,
+			Turn:        eventModel.Turn,
+			Phase:       eventModel.Phase,
+			EventType:   eventModel.EventType,
+			ActorID:     eventModel.ActorID,
+			ActorName:   eventModel.ActorName,
+			TargetID:    eventModel.TargetID,
+			TargetName:  eventModel.TargetName,
+			Description: eventModel.Description,
+			Data:        eventModel.Data,
+			Visibility:  eventModel.Visibility,
+			CreatedAt:   eventModel.CreatedAt,
 		}
-
 		events = append(events, event)
 	}
 
