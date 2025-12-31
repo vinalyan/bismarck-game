@@ -89,7 +89,6 @@ type TaskForceViewModel struct {
 	// Полные данные (только для своих TaskForces)
 	Name           string    `json:"name,omitempty"`
 	Speed          int       `json:"speed,omitempty"`
-	DetectionLevel string    `json:"detection_level,omitempty"`
 	LastMoveTurn   int       `json:"last_move_turn,omitempty"`
 	IsActivated    bool      `json:"is_activated,omitempty"`
 	IsPatrolling   bool      `json:"is_patrolling,omitempty"`
