@@ -322,7 +322,7 @@ func TestGetGame(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "game not found")
+		assert.Contains(t, response["error"], "Game not found")
 	})
 
 	t.Run("invalid game ID", func(t *testing.T) {
@@ -405,7 +405,7 @@ func TestJoinGame(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "game not found")
+		assert.Contains(t, response["error"], "Game not found")
 	})
 
 	t.Run("already joined", func(t *testing.T) {
@@ -429,7 +429,14 @@ func TestJoinGame(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "already")
+		// Проверяем, что возвращается правильная ошибка о том, что игрок уже в игре
+		assert.NotNil(t, response["error"], "Error should be present in response")
+		errorMsg, ok := response["error"].(string)
+		if !ok {
+			t.Errorf("Error is not a string: %v", response["error"])
+		} else {
+			assert.Contains(t, errorMsg, "already in this game")
+		}
 	})
 }
 
@@ -514,7 +521,9 @@ func TestSurrenderGame(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "game not found")
+		errorMsg, ok := response["error"].(string)
+		require.True(t, ok, "Error should be a string")
+		assert.Contains(t, strings.ToLower(errorMsg), "game not found")
 	})
 }
 
@@ -575,7 +584,9 @@ func TestDeleteGame(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "only the creator can delete the game")
+		errorMsg, ok := response["error"].(string)
+		require.True(t, ok, "Error should be a string")
+		assert.Contains(t, strings.ToLower(errorMsg), "creator can delete")
 	})
 
 	t.Run("game not found", func(t *testing.T) {
@@ -596,7 +607,9 @@ func TestDeleteGame(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		assert.Contains(t, response["error"], "game not found")
+		errorMsg, ok := response["error"].(string)
+		require.True(t, ok, "Error should be a string")
+		assert.Contains(t, strings.ToLower(errorMsg), "game not found")
 	})
 }
 

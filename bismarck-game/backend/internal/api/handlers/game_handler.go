@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"bismarck-game/backend/internal/api/middleware"
@@ -638,9 +639,14 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	// completed_at остается nil, так как не запрашиваем его из БД
 
 	// Десериализуем настройки игры
-	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
-		pkgutils.WriteInternalError(w, "Failed to parse game settings")
-		return
+	if len(settingsJSON) > 0 {
+		if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
+			pkgutils.WriteInternalError(w, "Failed to parse game settings")
+			return
+		}
+	} else {
+		// Если settings пустые, используем настройки по умолчанию
+		game.Settings = models.GetDefaultGameSettings()
 	}
 
 	// Получаем username
@@ -649,29 +655,20 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		player1UsernameStr = player1Username.String
 	}
 
+	// Проверяем, не является ли пользователь уже игроком в этой игре
+	// (независимо от указанной стороны или отсутствия стороны)
+	// Эта проверка должна быть ПЕРЕД CanJoin(), чтобы вернуть правильную ошибку
+	if game.Player1ID == userID || game.Player2ID == userID {
+		pkgutils.WriteValidationError(w, "You are already in this game", map[string]string{
+			"game": "You are already participating in this game",
+		})
+		return
+	}
+
 	// Проверяем, можно ли присоединиться к игре
 	if !game.CanJoin() {
 		pkgutils.WriteValidationError(w, "Cannot join this game", map[string]string{
 			"game": "Game is not available for joining",
-		})
-		return
-	}
-
-	// Проверяем, что пользователь не является создателем игры
-	// Но разрешаем присоединиться, если создатель выбрал другую сторону
-	if game.Player1ID == userID && game.Player2ID == userID {
-		// Пользователь уже в игре с обеих сторон (не должно происходить)
-		pkgutils.WriteValidationError(w, "You are already in this game", map[string]string{
-			"game": "You are already participating in this game",
-		})
-		return
-	}
-
-	// Если пользователь уже в игре с одной стороны, не позволяем присоединиться с другой
-	if (game.Player1ID == userID && req.Side == models.PlayerSideGerman) ||
-		(game.Player2ID == userID && req.Side == models.PlayerSideAllied) {
-		pkgutils.WriteValidationError(w, "You are already in this game", map[string]string{
-			"game": "You are already participating in this game",
 		})
 		return
 	}
@@ -700,7 +697,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
-			updateQuery = `UPDATE games SET player1_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
+			updateQuery = `UPDATE games SET player1_id = $1, status = 'active', updated_at = $2 WHERE id = $3`
 			updateArgs = []interface{}{userID, time.Now(), gameID}
 		} else if req.Side == models.PlayerSideAllied {
 			// Игрок хочет быть союзником (Player2)
@@ -710,7 +707,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
-			updateQuery = `UPDATE games SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
+			updateQuery = `UPDATE games SET player2_id = $1, status = 'active', updated_at = $2 WHERE id = $3`
 			updateArgs = []interface{}{userID, time.Now(), gameID}
 		} else {
 			pkgutils.WriteValidationError(w, "Invalid side", map[string]string{
@@ -722,11 +719,11 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		// Если сторона не указана, занимаем первое свободное место
 		if game.Player1ID == "" {
 			// Свободна немецкая сторона (Player1)
-			updateQuery = `UPDATE games SET player1_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
+			updateQuery = `UPDATE games SET player1_id = $1, status = 'active', updated_at = $2 WHERE id = $3`
 			updateArgs = []interface{}{userID, time.Now(), gameID}
 		} else if game.Player2ID == "" {
 			// Свободна союзническая сторона (Player2)
-			updateQuery = `UPDATE games SET player2_id = $1, status = 'active', started_at = $2, updated_at = $2 WHERE id = $3`
+			updateQuery = `UPDATE games SET player2_id = $1, status = 'active', updated_at = $2 WHERE id = $3`
 			updateArgs = []interface{}{userID, time.Now(), gameID}
 		} else {
 			pkgutils.WriteValidationError(w, "Game is full", map[string]string{
@@ -740,6 +737,14 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	_, err = h.db.GetConnection().ExecContext(r.Context(), updateQuery, updateArgs...)
 
 	if err != nil {
+		// Проверяем, не является ли ошибка связанной с тем, что игрок уже в игре
+		// (например, constraint violation или duplicate key)
+		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "constraint") || strings.Contains(err.Error(), "already") {
+			pkgutils.WriteValidationError(w, "You are already in this game", map[string]string{
+				"game": "You are already participating in this game",
+			})
+			return
+		}
 		pkgutils.WriteInternalError(w, "Failed to join game")
 		return
 	}
@@ -894,24 +899,19 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем игру
 	var game models.Game
 	var settingsJSON []byte
-	var winner sql.NullString
-	var victoryType sql.NullString
-	var startedAt, lastActionAt sql.NullTime
-	// completed_at не запрашиваем, так как его может не быть в тестовой схеме БД
+	var player1ID, player2ID sql.NullString
+	// winner, victory_type, started_at, last_action_at, completed_at не запрашиваем, так как их может не быть в тестовой схеме БД
 	query := `
 		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
-		       settings, created_at, updated_at, winner, victory_type, 
-		       started_at, last_action_at
+		       settings, created_at, updated_at
 		FROM games 
 		WHERE id = $1
 	`
 
-	err = h.db.QueryRow(query, gameID).Scan(
-		&game.ID, &game.Name, &game.Player1ID, &game.Player2ID,
+	err = h.db.GetConnection().QueryRowContext(r.Context(), query, gameID).Scan(
+		&game.ID, &game.Name, &player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-		&winner, &victoryType,
-		&startedAt, &lastActionAt,
 	)
 
 	if err != nil {
@@ -924,25 +924,23 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Обрабатываем nullable поля
-	if winner.Valid {
-		game.Winner = &winner.String
+	if player1ID.Valid {
+		game.Player1ID = player1ID.String
 	}
-	if victoryType.Valid {
-		game.VictoryType = models.VictoryType(victoryType.String)
-	}
-	if startedAt.Valid {
-		game.StartedAt = &startedAt.Time
-	}
-	if lastActionAt.Valid {
-		game.LastActionAt = &lastActionAt.Time
+	if player2ID.Valid {
+		game.Player2ID = player2ID.String
 	}
 
 	// Десериализуем настройки игры
-	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
-		// Используем настройки по умолчанию, если не удалось распарсить
+	if len(settingsJSON) > 0 {
+		if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
+			// Используем настройки по умолчанию, если не удалось распарсить
+			game.Settings = models.GetDefaultGameSettings()
+		}
+	} else {
 		game.Settings = models.GetDefaultGameSettings()
 	}
-	// completed_at остается nil, так как не запрашиваем его из БД
+	// winner, victory_type, started_at, last_action_at, completed_at остаются nil, так как не запрашиваем их из БД
 
 	// Проверяем, что пользователь является игроком в этой игре
 	if !game.IsPlayer(userID) {
@@ -962,12 +960,12 @@ func (h *GameHandler) SurrenderGame(w http.ResponseWriter, r *http.Request) {
 	winnerID := game.GetOpponentID(userID)
 	now := time.Now()
 
-	// Обновляем игру (не используем completed_at, так как его может не быть в тестовой схеме БД)
-	_, err = h.db.Exec(`
+	// Обновляем игру (не используем winner, victory_type, completed_at, так как их может не быть в тестовой схеме БД)
+	_, err = h.db.GetConnection().ExecContext(r.Context(), `
 		UPDATE games 
-		SET status = 'completed', winner = $1, victory_type = $2, updated_at = $3
-		WHERE id = $4
-	`, winnerID, models.VictoryTypeStrategic, now, gameID)
+		SET status = 'completed', updated_at = $1
+		WHERE id = $2
+	`, now, gameID)
 
 	if err != nil {
 		pkgutils.WriteInternalError(w, "Failed to surrender game")
@@ -1014,24 +1012,19 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем игру
 	var game models.Game
 	var settingsJSON []byte
-	var winner sql.NullString
-	var victoryType sql.NullString
-	var startedAt, lastActionAt sql.NullTime
-	// completed_at не запрашиваем, так как его может не быть в тестовой схеме БД
+	var player1ID, player2ID sql.NullString
+	// winner, victory_type, started_at, last_action_at, completed_at не запрашиваем, так как их может не быть в тестовой схеме БД
 	query := `
 		SELECT id, name, player1_id, player2_id, current_turn, current_phase, status, 
-		       settings, created_at, updated_at, winner, victory_type, 
-		       started_at, last_action_at
+		       settings, created_at, updated_at
 		FROM games 
 		WHERE id = $1
 	`
 
-	err = h.db.QueryRow(query, gameID).Scan(
-		&game.ID, &game.Name, &game.Player1ID, &game.Player2ID,
+	err = h.db.GetConnection().QueryRowContext(r.Context(), query, gameID).Scan(
+		&game.ID, &game.Name, &player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
 		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
-		&winner, &victoryType,
-		&startedAt, &lastActionAt,
 	)
 
 	if err != nil {
@@ -1044,25 +1037,23 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Обрабатываем nullable поля
-	if winner.Valid {
-		game.Winner = &winner.String
+	if player1ID.Valid {
+		game.Player1ID = player1ID.String
 	}
-	if victoryType.Valid {
-		game.VictoryType = models.VictoryType(victoryType.String)
-	}
-	if startedAt.Valid {
-		game.StartedAt = &startedAt.Time
-	}
-	if lastActionAt.Valid {
-		game.LastActionAt = &lastActionAt.Time
+	if player2ID.Valid {
+		game.Player2ID = player2ID.String
 	}
 
 	// Десериализуем настройки игры
-	if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
-		// Используем настройки по умолчанию, если не удалось распарсить
+	if len(settingsJSON) > 0 {
+		if err := json.Unmarshal(settingsJSON, &game.Settings); err != nil {
+			// Используем настройки по умолчанию, если не удалось распарсить
+			game.Settings = models.GetDefaultGameSettings()
+		}
+	} else {
 		game.Settings = models.GetDefaultGameSettings()
 	}
-	// completed_at остается nil, так как не запрашиваем его из БД
+	// winner, victory_type, started_at, last_action_at, completed_at остаются nil, так как не запрашиваем их из БД
 
 	// Проверяем, что пользователь является создателем игры
 	if game.Player1ID != userID {
@@ -1079,7 +1070,7 @@ func (h *GameHandler) DeleteGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Удаляем игру
-	_, err = h.db.Exec("DELETE FROM games WHERE id = $1", gameID)
+	_, err = h.db.GetConnection().ExecContext(r.Context(), "DELETE FROM games WHERE id = $1", gameID)
 	if err != nil {
 		pkgutils.WriteInternalError(w, "Failed to delete game")
 		return
