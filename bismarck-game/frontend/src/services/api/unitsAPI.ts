@@ -101,6 +101,9 @@ export interface UnitsResponse {
       search_hexes?: { [hexId: string]: SearchHexData };
     };
     version?: number; // Версия модели для проверки изменений
+    visibility_level?: number;
+    is_fog?: boolean;
+    weather_track?: number;
   };
   error?: string;
 }
@@ -149,6 +152,9 @@ interface GameModel {
   };
   events: any[];
   intrinsic_search_hexes?: { [key: string]: number };
+  visibility_level?: number;
+  is_fog?: boolean;
+  weather_track?: number;
 }
 
 interface UnitModel {
@@ -403,6 +409,10 @@ function convertGameModelToUnitsResponse(gameModel: GameModel): UnitsResponse {
       search: gameModel.search,
       // Добавляем версию модели для проверки изменений
       version: gameModel.version,
+      // Добавляем поля видимости и погоды из GameModel
+      visibility_level: gameModel.visibility_level,
+      is_fog: gameModel.is_fog,
+      weather_track: gameModel.weather_track,
     },
   };
 }

@@ -427,7 +427,9 @@ describe('gameDataUtils', () => {
     it('should return empty arrays when data is missing', () => {
       const response: UnitsResponse = {
         success: true,
-        data: {}
+        data: {
+          units: []
+        }
       };
 
       const result = updateGameDataFromModel(response, mockGame, 'german', mockUpdateGame);

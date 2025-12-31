@@ -1,6 +1,6 @@
 // WebSocket клиент для real-time коммуникации
 
-import { WSMessage, WSMessageType, ChatMessage, ChatMessageType, NotificationType } from '../../types/gameTypes';
+import { WSMessage, WSMessageType, ChatMessage, ChatMessageType, NotificationType, GameResponse } from '../../types/gameTypes';
 import { useGameStore } from '../../stores/gameStore';
 
 class WebSocketClient {
@@ -130,8 +130,19 @@ class WebSocketClient {
 
       case WSMessageType.GameUpdate:
         // Обновление игры
+        // Фильтруем undefined значения, чтобы не перезаписывать существующие поля
         if (message.data) {
-          store.updateGame(message.data.id, message.data);
+          const updates: Partial<GameResponse> = {};
+          Object.keys(message.data).forEach(key => {
+            const value = (message.data as any)[key];
+            // Игнорируем undefined значения, чтобы не сбрасывать существующие поля
+            if (value !== undefined) {
+              updates[key as keyof GameResponse] = value;
+            }
+          });
+          if (updates.id) {
+            store.updateGame(updates.id, updates);
+          }
         }
         break;
 

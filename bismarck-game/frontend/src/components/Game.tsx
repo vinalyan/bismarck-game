@@ -837,6 +837,8 @@ const Game: React.FC = () => {
           const newTurn = await phaseAPI.startTurn({ game_id: currentGame.id });
           setCurrentTurn(newTurn);
           
+          // Обновляем данные игры из GameModel (чтобы обновить visibility_level, is_fog и т.д.)
+          await handleGameModelUpdate();
           
           // Уведомляем об обновлении хода
           window.dispatchEvent(new CustomEvent('turnUpdated', { detail: newTurn }));
@@ -858,7 +860,8 @@ const Game: React.FC = () => {
         }
       } else {
         setCurrentTurn(updatedTurn);
-        
+        // Обновляем данные игры из GameModel (чтобы обновить visibility_level, is_fog и т.д.)
+        await handleGameModelUpdate();
       }
       
       // Уведомление о завершении фазы (только если не начался новый ход)

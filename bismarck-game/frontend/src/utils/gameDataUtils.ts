@@ -97,25 +97,61 @@ export function updateGameDataFromModel(
     result.hexMarkers = markersMap;
   }
 
-  // Создаем GameTurn
-  result.currentTurn = createGameTurnFromModel(
-    response.data?.current_turn,
-    currentGame
-  );
-
-  // Обновляем currentGame в store
+  // ВАЖНО: Сначала обновляем currentGame в store, чтобы при создании GameTurn использовались актуальные значения
+  // Собираем обновления, включая только определенные значения (не undefined)
+  const gameUpdates: Partial<GameResponse> = {};
+  
+  // Создаем обновленный объект currentGame для использования при создании GameTurn
+  let updatedCurrentGame: GameResponse | null = currentGame;
+  
   if (currentGame?.id && response.data?.current_turn) {
-    updateGame(currentGame.id, {
-      current_turn: response.data.current_turn.turn,
-      current_phase: response.data.current_turn.phase,
-    });
+    gameUpdates.current_turn = response.data.current_turn.turn;
+    gameUpdates.current_phase = response.data.current_turn.phase;
+    
+    // Включаем visibility_level, is_fog, weather_track только если они определены
+    if (response.data.visibility_level !== undefined) {
+      gameUpdates.visibility_level = response.data.visibility_level;
+    }
+    if (response.data.is_fog !== undefined) {
+      gameUpdates.is_fog = response.data.is_fog;
+    }
+    if (response.data.weather_track !== undefined) {
+      gameUpdates.weather_track = response.data.weather_track;
+    }
+    
+    // Обновляем currentGame в store
+    updateGame(currentGame.id, gameUpdates);
+    
+    // Создаем обновленный объект для использования при создании GameTurn
+    updatedCurrentGame = currentGame ? { ...currentGame, ...gameUpdates } : currentGame;
   } else if (currentGame?.id && !response.data?.current_turn) {
     // Если current_turn отсутствует, обновляем на setup
-    updateGame(currentGame.id, {
-      current_turn: 0,
-      current_phase: 'setup',
-    });
+    gameUpdates.current_turn = 0;
+    gameUpdates.current_phase = 'setup';
+    
+    // Включаем visibility_level, is_fog, weather_track только если они определены
+    if (response.data.visibility_level !== undefined) {
+      gameUpdates.visibility_level = response.data.visibility_level;
+    }
+    if (response.data.is_fog !== undefined) {
+      gameUpdates.is_fog = response.data.is_fog;
+    }
+    if (response.data.weather_track !== undefined) {
+      gameUpdates.weather_track = response.data.weather_track;
+    }
+    
+    // Обновляем currentGame в store
+    updateGame(currentGame.id, gameUpdates);
+    
+    // Создаем обновленный объект для использования при создании GameTurn
+    updatedCurrentGame = currentGame ? { ...currentGame, ...gameUpdates } : currentGame;
   }
+
+  // Создаем GameTurn ПОСЛЕ обновления currentGame, используя обновленные значения
+  result.currentTurn = createGameTurnFromModel(
+    response.data?.current_turn,
+    updatedCurrentGame
+  );
 
   return result;
 }
