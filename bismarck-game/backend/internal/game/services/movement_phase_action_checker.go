@@ -303,26 +303,7 @@ func (c *PatrolActionChecker) CanPerformAction(unit *models.UnitModel, gameModel
 	notRefueling := unit.Status != string(models.UnitStatusRefueling)
 	notShadowed := unit.Visibility != models.VisibilityShadowed
 
-	result := visibilityOK && notInFogHex && notActivated && notRepairing && notRefueling && notShadowed
-
-	// Логирование для отладки
-	if c.logger != nil {
-		c.logger.Debug("PatrolActionChecker",
-			"unit_id", unit.ID,
-			"unit_name", unit.Name,
-			"position", unit.Position,
-			"visibilityOK", visibilityOK,
-			"notInFogHex", notInFogHex,
-			"notActivated", notActivated,
-			"notRepairing", notRepairing,
-			"notRefueling", notRefueling,
-			"notShadowed", notShadowed,
-			"result", result,
-			"visibility_level", gameModel.VisibilityLevel,
-			"is_fog_global", gameModel.IsFog)
-	}
-
-	return result
+	return visibilityOK && notInFogHex && notActivated && notRepairing && notRefueling && notShadowed
 }
 
 func (c *PatrolActionChecker) CanPerformActionForTaskForce(tf *models.TaskForceModel, gameModel *models.GameModel) bool {

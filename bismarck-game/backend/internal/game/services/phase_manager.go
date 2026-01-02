@@ -566,9 +566,6 @@ func (pm *PhaseManager) RecalculateAvailableActionsForUnit(gameID, unitID string
 			availableActions := pm.actionCheckerService.GetAvailableActions(unitModel, m, phase)
 			unitModel.NavalData.AvailableActions = availableActions
 			m.Units[unitID] = unitModel
-			
-			log.Printf("Recalculated actions for unit %s (%s): available_actions=%v, is_activated=%v",
-				unitID, unitModel.Name, availableActions, unitModel.NavalData.IsActivated)
 		}
 		return nil
 	}, 3)
