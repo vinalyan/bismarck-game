@@ -1278,10 +1278,10 @@ describe('Hex', () => {
         expect(unitContainer).toBeInTheDocument();
       });
 
-      it('should return cannot-move for unit that moved this turn', () => {
+      it('should return cannot-activate for unit with no available actions', () => {
         const center = createMockCenter();
         const corners = createMockCorners(center, 20);
-        const unit = createMockUnit({ id: 'unit-1', last_move_turn: 1 });
+        const unit = createMockUnit({ id: 'unit-1', available_actions: [] });
         const hexData = createMockHexData({
           hasUnit: true,
           units: [unit],
@@ -1302,14 +1302,14 @@ describe('Hex', () => {
           />
         );
 
-        const unitContainer = container.querySelector('g.unit-container.cannot-move');
+        const unitContainer = container.querySelector('g.unit-container.cannot-activate');
         expect(unitContainer).toBeInTheDocument();
       });
 
-      it('should return cannot-move for unit with no movement turns left', () => {
+      it('should return cannot-activate for unit with undefined available_actions', () => {
         const center = createMockCenter();
         const corners = createMockCorners(center, 20);
-        const unit = createMockUnit({ id: 'unit-1', no_movement_turns_left: 2 });
+        const unit = createMockUnit({ id: 'unit-1', available_actions: undefined });
         const hexData = createMockHexData({
           hasUnit: true,
           units: [unit],
@@ -1329,14 +1329,14 @@ describe('Hex', () => {
           />
         );
 
-        const unitContainer = container.querySelector('g.unit-container.cannot-move');
+        const unitContainer = container.querySelector('g.unit-container.cannot-activate');
         expect(unitContainer).toBeInTheDocument();
       });
 
-      it('should return cannot-move for unit with no fuel', () => {
+      it('should return cannot-activate for unit with null available_actions', () => {
         const center = createMockCenter();
         const corners = createMockCorners(center, 20);
-        const unit = createMockUnit({ id: 'unit-1', fuel: 0 });
+        const unit = createMockUnit({ id: 'unit-1', available_actions: null });
         const hexData = createMockHexData({
           hasUnit: true,
           units: [unit],
@@ -1356,14 +1356,18 @@ describe('Hex', () => {
           />
         );
 
-        const unitContainer = container.querySelector('g.unit-container.cannot-move');
+        const unitContainer = container.querySelector('g.unit-container.cannot-activate');
         expect(unitContainer).toBeInTheDocument();
       });
 
-      it('should return idle for normal unit', () => {
+      it('should return idle for normal unit with available actions', () => {
         const center = createMockCenter();
         const corners = createMockCorners(center, 20);
-        const unit = createMockUnit({ id: 'unit-1' });
+        const unit = createMockUnit({ 
+          id: 'unit-1', 
+          available_actions: ['movement', 'patrol'],
+          is_activated: false 
+        });
         const hexData = createMockHexData({
           hasUnit: true,
           units: [unit],
@@ -1384,6 +1388,37 @@ describe('Hex', () => {
         );
 
         const unitContainer = container.querySelector('g.unit-container.idle');
+        expect(unitContainer).toBeInTheDocument();
+      });
+
+      it('should return active for activated unit', () => {
+        const center = createMockCenter();
+        const corners = createMockCorners(center, 20);
+        const unit = createMockUnit({ 
+          id: 'unit-1', 
+          is_activated: true,
+          available_actions: ['movement']
+        });
+        const hexData = createMockHexData({
+          hasUnit: true,
+          units: [unit],
+        });
+        const callbacks = createMockCallbacks();
+
+        const { container } = render(
+          <Hex
+            coordinate={createMockCoordinate()}
+            hexData={hexData}
+            center={center}
+            corners={corners}
+            size={20}
+            isSelected={false}
+            onClick={callbacks.onClick}
+            onHover={callbacks.onHover}
+          />
+        );
+
+        const unitContainer = container.querySelector('g.unit-container.active');
         expect(unitContainer).toBeInTheDocument();
       });
     });
