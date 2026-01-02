@@ -90,7 +90,7 @@ type TaskForceViewModel struct {
 	Name            string   `json:"name,omitempty"`
 	Speed           int      `json:"speed,omitempty"`
 	LastMoveTurn    int      `json:"last_move_turn,omitempty"`
-	IsActivated     bool     `json:"is_activated,omitempty"`
+	IsActivated     bool     `json:"is_activated"`
 	IsPatrolling    bool     `json:"is_patrolling,omitempty"`
 	AvailableActions []string `json:"available_actions,omitempty"`
 	CreatedAt       time.Time `json:"created_at,omitempty"`

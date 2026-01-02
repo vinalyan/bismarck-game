@@ -63,19 +63,39 @@ func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Reque
 
 	// Проверяем, является ли переданный ID Task Force
 	if h.isTaskForce(gameID, unitID) {
+		// Получаем Task Force для проверки is_activated
+		taskForce, err := h.taskForceService.GetTaskForceByIDFromGameModel(gameID, unitID)
+		if err != nil {
+			h.logger.Error("Failed to get task force for response", "error", err, "task_force_id", unitID)
+			http.Error(w, "Failed to get task force", http.StatusInternalServerError)
+			return
+		}
+
+		// Проверяем, активирован ли Task Force - если да, возвращаем пустой список доступных ходов
+		if taskForce.IsActivated {
+			h.logger.Info("Task Force is activated, returning empty available moves",
+				"task_force_id", unitID,
+				"task_force_name", taskForce.Name,
+				"is_activated", taskForce.IsActivated)
+			
+			response := models.AvailableMovesResponse{
+				UnitID:         unitID,
+				CurrentHex:     taskForce.Position,
+				AvailableHexes: []string{},
+				MaxDistance:    0,
+				FuelCosts:      make(map[string]int),
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
 		// Обрабатываем как Task Force
 		availableHexes, fuelCosts, err := h.getTaskForceAvailableMoves(unitID, gameID)
 		if err != nil {
 			h.logger.Error("Failed to get task force available moves", "error", err, "task_force_id", unitID)
 			http.Error(w, "Failed to get task force available moves", http.StatusInternalServerError)
-			return
-		}
-
-		// Получаем Task Force для логирования и ответа
-		taskForce, err := h.taskForceService.GetTaskForceByIDFromGameModel(gameID, unitID)
-		if err != nil {
-			h.logger.Error("Failed to get task force for response", "error", err, "task_force_id", unitID)
-			http.Error(w, "Failed to get task force", http.StatusInternalServerError)
 			return
 		}
 

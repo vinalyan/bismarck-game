@@ -20,6 +20,7 @@ type TaskForceService struct {
 	movementService  *MovementService
 	gameStateService *GameStateService // Опционально, для обновления GameModel
 	searchService    *SearchService    // Для пересчета факторов поиска
+	phaseManager     *PhaseManager      // Опционально, для пересчета доступных действий
 }
 
 // NewTaskForceService создает новый сервис Task Forces
@@ -40,6 +41,11 @@ func (s *TaskForceService) SetGameStateService(gameStateService *GameStateServic
 // SetSearchService устанавливает SearchService для пересчета факторов поиска
 func (s *TaskForceService) SetSearchService(searchService *SearchService) {
 	s.searchService = searchService
+}
+
+// SetPhaseManager устанавливает PhaseManager для пересчета доступных действий
+func (s *TaskForceService) SetPhaseManager(phaseManager *PhaseManager) {
+	s.phaseManager = phaseManager
 }
 
 // CreateTaskForce создает новое оперативное соединение
@@ -1127,6 +1133,14 @@ func (s *TaskForceService) SetPatrol(taskForceID string, isPatrolling bool) erro
 			return fmt.Errorf("task force %s not found in GameModel", taskForceID)
 		}
 		tf.IsPatrolling = isPatrolling
+		
+		// Если устанавливаем патруль - помечаем Task Force как активированный
+		// Если снимаем патруль - сбрасываем is_activated (но только если Task Force не был активирован другим действием)
+		if isPatrolling {
+			tf.IsActivated = true
+		}
+		// Примечание: не сбрасываем is_activated при снятии патруля, так как Task Force мог быть активирован другим действием
+		
 		tf.UpdatedAt = time.Now()
 		return nil
 	}, 3)
@@ -1136,10 +1150,42 @@ func (s *TaskForceService) SetPatrol(taskForceID string, isPatrolling bool) erro
 	}
 
 	// Пересчитываем данные поиска для гекса, где находится Task Force
+	// Важно: вызываем после UpdateGameModelWithRetry, чтобы изменения были сохранены
+	// Проверяем, что изменения действительно сохранены, загружая Task Force заново
 	if s.searchService != nil && taskForce.Position != "" {
+		// Проверяем, что изменения сохранены, загружая Task Force заново
+		updatedTF, err := s.GetTaskForceByID(taskForceID)
+		if err == nil && updatedTF != nil {
+			if updatedTF.IsPatrolling != isPatrolling {
+				s.logger.Warn("Task Force patrol status mismatch after update",
+					"task_force_id", taskForceID, "expected", isPatrolling, "actual", updatedTF.IsPatrolling)
+			}
+		}
+		
+		// Пересчитываем данные поиска
 		if err := s.searchService.RecalculateSearchDataForHex(taskForce.GameID, taskForce.Position); err != nil {
 			s.logger.Warn("Failed to recalculate search data for hex after setting patrol",
-				"game_id", taskForce.GameID, "hex_id", taskForce.Position, "error", err)
+				"game_id", taskForce.GameID, "hex_id", taskForce.Position, "is_patrolling", isPatrolling, "error", err)
+		} else {
+			s.logger.Info("Recalculated search data for hex after patrol change",
+				"game_id", taskForce.GameID, "hex_id", taskForce.Position, "is_patrolling", isPatrolling, "task_force_id", taskForceID)
+		}
+	}
+
+	// Пересчитываем доступные действия после установки патруля
+	// После патруля Task Force активирован, поэтому available_actions должен быть пустым
+	if isPatrolling {
+		err = s.gameStateService.UpdateGameModelWithRetry(taskForce.GameID, func(model *models.GameModel) error {
+			tf, exists := model.TaskForces[taskForceID]
+			if !exists {
+				return fmt.Errorf("task force %s not found in GameModel", taskForceID)
+			}
+			// После патруля Task Force активирован, доступных действий нет
+			tf.AvailableActions = []string{}
+			return nil
+		}, 3)
+		if err != nil {
+			s.logger.Warn("Failed to recalculate available actions after setting patrol", "task_force_id", taskForceID, "error", err)
 		}
 	}
 

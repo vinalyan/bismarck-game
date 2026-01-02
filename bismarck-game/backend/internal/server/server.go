@@ -269,6 +269,9 @@ func (s *Server) setupRoutes() {
 	
 	// Устанавливаем PhaseManager в UnitService для пересчета доступных действий
 	unitService.SetPhaseManager(phaseManager)
+	
+	// Устанавливаем PhaseManager в TaskForceService для пересчета доступных действий
+	taskForceService.SetPhaseManager(phaseManager)
 
 	// Устанавливаем GameStateService в SearchService для обновления GameModel при работе с маркерами
 	searchService.SetGameStateService(gameStateService)
