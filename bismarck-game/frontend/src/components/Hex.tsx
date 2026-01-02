@@ -195,9 +195,9 @@ const Hex: React.FC<HexProps> = ({
       return 'sighted';
     }
     
-    // Проверяем активацию: если юнит активирован, показываем как active
+    // Проверяем активацию: если юнит активирован, показываем как cannot-activate (серый)
     if (unit.is_activated === true) {
-      return 'active';
+      return 'cannot-activate';
     }
     
     // Проверяем доступные действия: если нет доступных действий, показываем как cannot-activate
@@ -205,8 +205,7 @@ const Hex: React.FC<HexProps> = ({
       return 'cannot-activate';
     }
     
-    // Здесь можно добавить логику для "active" состояния
-    // Пока возвращаем 'idle'
+    // По умолчанию idle (юнит может быть активирован)
     return 'idle';
   };
 
@@ -264,9 +263,9 @@ const Hex: React.FC<HexProps> = ({
       return 'sighted';
     }
     
-    // Проверяем активацию: если Task Force активирован, показываем как active
+    // Проверяем активацию: если Task Force активирован, показываем как cannot-activate (серый)
     if (taskForce.is_activated === true) {
-      return 'active';
+      return 'cannot-activate';
     }
     
     // Проверяем доступные действия: если нет доступных действий, показываем как cannot-activate
@@ -274,7 +273,7 @@ const Hex: React.FC<HexProps> = ({
       return 'cannot-activate';
     }
     
-    // По умолчанию idle
+    // По умолчанию idle (Task Force может быть активирован)
     return 'idle';
   };
 
