@@ -609,11 +609,33 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 	// API должен проверять DetectionLevel и требовать объявления местоположения противнику
 
 	// Устанавливаем AvailableActions для всех юнитов и Task Forces при старте фазы движения
+	// Также сбрасываем патруль для всех юнитов и Task Forces (маркеры патруля сбрасываются при завершении хода)
 	if pm.gameStateService != nil && pm.actionCheckerService != nil {
+		// Собираем гексы с патрулями ДО сброса для пересчета данных поиска
+		modelBeforeReset, err := pm.gameStateService.LoadGameModel(gameID)
+		hexesWithPatrols := make(map[string]bool)
+		if err == nil {
+			// Собираем гексы с патрулями юнитов
+			for _, unit := range modelBeforeReset.Units {
+				if unit.NavalData != nil && unit.NavalData.IsPatrolling && unit.Position != "" {
+					hexesWithPatrols[unit.Position] = true
+				}
+			}
+			// Собираем гексы с патрулями Task Forces
+			for _, tf := range modelBeforeReset.TaskForces {
+				if tf.IsPatrolling && tf.Position != "" {
+					hexesWithPatrols[tf.Position] = true
+				}
+			}
+		}
+
 		err = pm.gameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
-			// Обновляем AvailableActions для всех юнитов
+			// Обновляем AvailableActions для всех юнитов и сбрасываем патруль
 			for unitID, unit := range m.Units {
 				if unit.NavalData != nil {
+					// Сбрасываем патруль для юнитов
+					unit.NavalData.IsPatrolling = false
+					
 					// Если у юнита есть ограничения движения (no_movement_turns_left > 0),
 					// он не может быть активирован: is_activated = true, available_actions = []
 					if unit.NavalData.NoMovementTurnsLeft > 0 {
@@ -626,12 +648,16 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 						availableActions := pm.actionCheckerService.GetAvailableActions(unit, m, models.PhaseMovement)
 						unit.NavalData.AvailableActions = availableActions
 					}
+					
 					m.Units[unitID] = unit
 				}
 			}
 
-			// Обновляем AvailableActions для всех Task Forces
+			// Обновляем AvailableActions для всех Task Forces и сбрасываем патруль
 			for tfID, tf := range m.TaskForces {
+				// Сбрасываем патруль для Task Forces
+				tf.IsPatrolling = false
+				
 				// Проверяем, есть ли у юнитов в Task Force ограничения движения
 				hasMovementRestrictions := false
 				for _, unitID := range tf.Units {
@@ -653,6 +679,7 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 					availableActions := pm.actionCheckerService.GetAvailableActionsForTaskForce(tf, m, models.PhaseMovement)
 					tf.AvailableActions = availableActions
 				}
+				
 				m.TaskForces[tfID] = tf
 			}
 
@@ -663,6 +690,18 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 			log.Printf("Failed to update available actions in MovementPhaseHandler.Start: %v", err)
 		} else {
 			log.Printf("Successfully updated available actions for all units and task forces")
+		}
+
+		// Пересчитываем данные поиска для всех гексов, где были патрули
+		if pm.searchService != nil {
+			for hexID := range hexesWithPatrols {
+				if err := pm.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
+					log.Printf("Failed to recalculate search data for hex after removing patrol",
+						"game_id", gameID, "hex_id", hexID, "error", err)
+				} else {
+					log.Printf("Recalculated search data for hex after removing patrol", "game_id", gameID, "hex_id", hexID)
+				}
+			}
 		}
 	}
 
