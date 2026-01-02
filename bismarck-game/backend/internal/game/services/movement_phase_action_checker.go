@@ -266,7 +266,7 @@ func NewPatrolActionChecker(logger *logger.Logger, mapStructureService *MapStruc
 func (c *PatrolActionChecker) CanPerformAction(unit *models.UnitModel, gameModel *models.GameModel) bool {
 	// Патрулирование доступно если:
 	// 1. Уровень видимости ≠ X
-	// 2. Не туман
+	// 2. Юнит не находится в туманном гексе (проверяем конкретный гекс, а не глобальный туман)
 	// 3. IsActivated === false
 	// 4. Не в ремонте/заправке
 	// 5. Не преследуется (опционально, по правилам)
@@ -276,28 +276,35 @@ func (c *PatrolActionChecker) CanPerformAction(unit *models.UnitModel, gameModel
 	}
 
 	visibilityOK := gameModel.VisibilityLevel < 10 // X = 10
-	notFog := !gameModel.IsFog
+	
+	// Проверяем, находится ли юнит в туманном гексе (а не глобальный туман)
+	notInFogHex := true
+	if unit.Position != "" && c.mapStructureService != nil {
+		notInFogHex = !c.mapStructureService.IsFogHex(unit.Position)
+	}
+	
 	notActivated := !unit.NavalData.IsActivated
 	notRepairing := unit.Status != string(models.UnitStatusRepairing)
 	notRefueling := unit.Status != string(models.UnitStatusRefueling)
 	notShadowed := unit.Visibility != models.VisibilityShadowed
 
-	result := visibilityOK && notFog && notActivated && notRepairing && notRefueling && notShadowed
+	result := visibilityOK && notInFogHex && notActivated && notRepairing && notRefueling && notShadowed
 	
 	// Логирование для отладки
 	if c.logger != nil {
 		c.logger.Debug("PatrolActionChecker",
 			"unit_id", unit.ID,
 			"unit_name", unit.Name,
+			"position", unit.Position,
 			"visibilityOK", visibilityOK,
-			"notFog", notFog,
+			"notInFogHex", notInFogHex,
 			"notActivated", notActivated,
 			"notRepairing", notRepairing,
 			"notRefueling", notRefueling,
 			"notShadowed", notShadowed,
 			"result", result,
 			"visibility_level", gameModel.VisibilityLevel,
-			"is_fog", gameModel.IsFog)
+			"is_fog_global", gameModel.IsFog)
 	}
 
 	return result
@@ -306,16 +313,22 @@ func (c *PatrolActionChecker) CanPerformAction(unit *models.UnitModel, gameModel
 func (c *PatrolActionChecker) CanPerformActionForTaskForce(tf *models.TaskForceModel, gameModel *models.GameModel) bool {
 	// Патрулирование для TF доступно если:
 	// 1. Уровень видимости ≠ X
-	// 2. Не туман
+	// 2. Task Force не находится в туманном гексе (проверяем конкретный гекс, а не глобальный туман)
 	// 3. IsActivated === false
 	// 4. Не преследуется
 
 	visibilityOK := gameModel.VisibilityLevel < 10
-	notFog := !gameModel.IsFog
+	
+	// Проверяем, находится ли Task Force в туманном гексе (а не глобальный туман)
+	notInFogHex := true
+	if tf.Position != "" && c.mapStructureService != nil {
+		notInFogHex = !c.mapStructureService.IsFogHex(tf.Position)
+	}
+	
 	notActivated := !tf.IsActivated
 	notShadowed := tf.Visibility != models.VisibilityShadowed
 
-	return visibilityOK && notFog && notActivated && notShadowed
+	return visibilityOK && notInFogHex && notActivated && notShadowed
 }
 
 func (c *PatrolActionChecker) GetActionType() string {
