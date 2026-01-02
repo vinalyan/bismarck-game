@@ -110,13 +110,13 @@ func main() {
 		// Если нужна повторная миграция, используйте старую версию кода
 	}
 
-	fmt.Printf("\n" + strings.Repeat("=", 50) + "\n")
-	fmt.Printf("Migration Summary:\n")
+	fmt.Print("\n" + strings.Repeat("=", 50) + "\n")
+	fmt.Print("Migration Summary:\n")
 	fmt.Printf("  ✅ Success: %d\n", successCount)
 	fmt.Printf("  ❌ Errors: %d\n", errorCount)
 	fmt.Printf("  ⏭️  Skipped: %d\n", skippedCount)
 	fmt.Printf("  📊 Total: %d\n", len(games))
-	fmt.Printf("==================================================\n")
+	fmt.Print("==================================================\n")
 
 	if errorCount > 0 {
 		log.Fatalf("Migration completed with %d errors", errorCount)
