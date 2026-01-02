@@ -1827,16 +1827,8 @@ func (s *UnitService) RecalculateAvailableActions(gameID string, phase models.Ga
 		return fmt.Errorf("gameStateService is required for RecalculateAvailableActions")
 	}
 
-	// Получаем PhaseManager через gameStateService (если доступен)
-	// Или используем прямой доступ к ActionCheckerService
-	// Пока используем простой подход - получаем GameModel и пересчитываем через gameStateService
-	
-	model, err := s.gameStateService.LoadGameModel(gameID)
-	if err != nil {
-		return fmt.Errorf("failed to load GameModel: %w", err)
-	}
-
 	// TODO: Нужен доступ к ActionCheckerService для пересчета
 	// Пока возвращаем ошибку, что нужен PhaseManager
-	return fmt.Errorf("RecalculateAvailableActions requires PhaseManager access - not yet implemented")
+	// Используйте PhaseManager.RecalculateAvailableActions напрямую
+	return fmt.Errorf("RecalculateAvailableActions requires PhaseManager access - use PhaseManager.RecalculateAvailableActions instead")
 }
