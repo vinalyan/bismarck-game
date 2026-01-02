@@ -1468,13 +1468,19 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		unitModel.NavalData.IsPatrolling = isPatrolling
 		
 		// Если устанавливаем патруль - помечаем юнит как активированный
+		// Если снимаем патруль - сбрасываем is_activated и пересчитаем доступные действия
 		if isPatrolling {
 			unitModel.NavalData.IsActivated = true
+		} else {
+			// При снятии патруля сбрасываем is_activated
+			// Если юнит должен остаться активированным (из-за другого действия),
+			// это будет учтено при пересчете доступных действий
+			unitModel.NavalData.IsActivated = false
 		}
 		
 		unitModel.UpdatedAt = time.Now()
 		
-		// Пересчитываем доступные действия после установки патруля (будет пересчитано после обновления модели)
+		// Пересчитываем доступные действия после установки/снятия патруля (будет пересчитано после обновления модели)
 		// Используем отдельный вызов RecalculateAvailableActionsForUnit после обновления модели
 
 		// TODO: Добавление/удаление маркера патруля в БД будет реализовано отдельно
@@ -1496,14 +1502,14 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 	}
 
-	// Пересчитываем доступные действия после установки патруля
-	if isPatrolling && s.phaseManager != nil {
+	// Пересчитываем доступные действия после установки/снятия патруля
+	if s.phaseManager != nil {
 		currentPhase := models.PhaseMovement
 		if turn, err := s.phaseManager.GetCurrentPhase(gameID); err == nil && turn != nil {
 			currentPhase = models.GamePhase(turn.CurrentPhase)
 		}
 		if err := s.phaseManager.RecalculateAvailableActionsForUnit(gameID, unitID, currentPhase); err != nil {
-			s.logger.Warn("Failed to recalculate available actions after setting patrol", "unit_id", unitID, "error", err)
+			s.logger.Warn("Failed to recalculate available actions after setting/removing patrol", "unit_id", unitID, "error", err)
 		}
 	}
 
