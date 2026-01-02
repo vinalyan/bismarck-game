@@ -1,6 +1,9 @@
 package services
 
 import (
+	"crypto/md5"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -71,16 +74,36 @@ func setupTestUsersAndGame(t *testing.T, gameStateService *GameStateService, gam
 	// Create users through AuthService (not direct SQL)
 	authService := auth.New(gameStateService.db, nil, "test-secret", 24*time.Hour)
 
+	// Генерируем уникальные имена пользователей для каждого теста, чтобы избежать конфликтов при параллельном выполнении
+	testName := t.Name()
+	testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
+	uniqueID1 := strings.ReplaceAll(uuid.New().String(), "-", "")
+	uniqueID2 := strings.ReplaceAll(uuid.New().String(), "-", "")
+
+	// UUID без дефисов имеет длину 32 символа
+	// "p1_" (3) + hash (8) + "_" (1) + UUID (32) = 44 символа < 50
+	username1 := "p1_" + testNameHash + "_" + uniqueID1
+	if len(username1) > 50 {
+		username1 = username1[:50]
+	}
+	email1 := uniqueID1 + "@test.com"
+
+	username2 := "p2_" + testNameHash + "_" + uniqueID2
+	if len(username2) > 50 {
+		username2 = username2[:50]
+	}
+	email2 := uniqueID2 + "@test.com"
+
 	player1, err := authService.Register(&models.CreateUserRequest{
-		Username: "player1",
-		Email:    "player1@test.com",
+		Username: username1,
+		Email:    email1,
 		Password: "testpass",
 	})
 	require.NoError(t, err)
 
 	player2, err := authService.Register(&models.CreateUserRequest{
-		Username: "player2",
-		Email:    "player2@test.com",
+		Username: username2,
+		Email:    email2,
 		Password: "testpass",
 	})
 	require.NoError(t, err)
@@ -765,19 +788,19 @@ func TestViewModelService_BuildViewModel_Metadata(t *testing.T) {
 
 	// Create GameModel with specific metadata
 	gameModel := &models.GameModel{
-		GameID:      gameID,
-		Version:     4, // UpdateGameModel увеличит версию до 5
-		LastUpdated: expectedLastUpdated,
-		CurrentTurn: &models.GameTurnModel{Turn: 2, Phase: models.PhaseMovement},
-		Units:       make(map[string]*models.UnitModel),
-		TaskForces:  make(map[string]*models.TaskForceModel),
-		EnemyContacts: []*models.EnemyContactModel{},
-		Search:      &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
-		Events:      []*models.GameEventModel{},
+		GameID:               gameID,
+		Version:              4, // UpdateGameModel увеличит версию до 5
+		LastUpdated:          expectedLastUpdated,
+		CurrentTurn:          &models.GameTurnModel{Turn: 2, Phase: models.PhaseMovement},
+		Units:                make(map[string]*models.UnitModel),
+		TaskForces:           make(map[string]*models.TaskForceModel),
+		EnemyContacts:        []*models.EnemyContactModel{},
+		Search:               &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+		Events:               []*models.GameEventModel{},
 		IntrinsicSearchHexes: make(map[string]int),
-		VisibilityLevel: 3,
-		IsFog:       false,
-		WeatherTrack: 2,
+		VisibilityLevel:      3,
+		IsFog:                false,
+		WeatherTrack:         2,
 	}
 
 	err := gameStateService.UpdateGameModel(gameID, gameModel)
@@ -792,7 +815,7 @@ func TestViewModelService_BuildViewModel_Metadata(t *testing.T) {
 	assert.Equal(t, gameID, viewModel.GameID, "GameID should match")
 	expectedVersion := 5 // UpdateGameModel увеличивает версию на 1
 	assert.Equal(t, expectedVersion, viewModel.Version, "Version should match")
-	
+
 	// Проверяем LastUpdated с допустимой погрешностью (1 секунда)
 	timeDiff := viewModel.LastUpdated.Sub(expectedLastUpdated)
 	assert.True(t, timeDiff >= -time.Second && timeDiff <= time.Second,
@@ -849,19 +872,19 @@ func TestViewModelService_BuildViewModel_WeatherConditions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create GameModel with specific weather conditions
 			gameModel := &models.GameModel{
-				GameID:      gameID,
-				Version:     1,
-				LastUpdated: time.Now(),
-				CurrentTurn: &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
-				Units:       make(map[string]*models.UnitModel),
-				TaskForces:  make(map[string]*models.TaskForceModel),
-				EnemyContacts: []*models.EnemyContactModel{},
-				Search:      &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
-				Events:      []*models.GameEventModel{},
+				GameID:               gameID,
+				Version:              1,
+				LastUpdated:          time.Now(),
+				CurrentTurn:          &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
+				Units:                make(map[string]*models.UnitModel),
+				TaskForces:           make(map[string]*models.TaskForceModel),
+				EnemyContacts:        []*models.EnemyContactModel{},
+				Search:               &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+				Events:               []*models.GameEventModel{},
 				IntrinsicSearchHexes: make(map[string]int),
-				VisibilityLevel: tc.visibilityLevel,
-				IsFog:       tc.isFog,
-				WeatherTrack: tc.weatherTrack,
+				VisibilityLevel:      tc.visibilityLevel,
+				IsFog:                tc.isFog,
+				WeatherTrack:         tc.weatherTrack,
 			}
 
 			err := gameStateService.UpdateGameModel(gameID, gameModel)
@@ -933,15 +956,15 @@ func TestViewModelService_BuildViewModel_CurrentTurn(t *testing.T) {
 					Turn:  tc.turn,
 					Phase: tc.phase,
 				},
-				Units:       make(map[string]*models.UnitModel),
-				TaskForces:  make(map[string]*models.TaskForceModel),
-				EnemyContacts: []*models.EnemyContactModel{},
-				Search:      &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
-				Events:      []*models.GameEventModel{},
+				Units:                make(map[string]*models.UnitModel),
+				TaskForces:           make(map[string]*models.TaskForceModel),
+				EnemyContacts:        []*models.EnemyContactModel{},
+				Search:               &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+				Events:               []*models.GameEventModel{},
 				IntrinsicSearchHexes: make(map[string]int),
-				VisibilityLevel: 1,
-				IsFog:       false,
-				WeatherTrack: 0,
+				VisibilityLevel:      1,
+				IsFog:                false,
+				WeatherTrack:         0,
 			}
 
 			err := gameStateService.UpdateGameModel(gameID, gameModel)
@@ -999,19 +1022,19 @@ func TestViewModelService_BuildViewModel_IntrinsicSearchHexes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create GameModel with specific IntrinsicSearchHexes
 			gameModel := &models.GameModel{
-				GameID:      gameID,
-				Version:     1,
-				LastUpdated: time.Now(),
-				CurrentTurn: &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
-				Units:       make(map[string]*models.UnitModel),
-				TaskForces:  make(map[string]*models.TaskForceModel),
-				EnemyContacts: []*models.EnemyContactModel{},
-				Search:      &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
-				Events:      []*models.GameEventModel{},
+				GameID:               gameID,
+				Version:              1,
+				LastUpdated:          time.Now(),
+				CurrentTurn:          &models.GameTurnModel{Turn: 1, Phase: models.PhaseMovement},
+				Units:                make(map[string]*models.UnitModel),
+				TaskForces:           make(map[string]*models.TaskForceModel),
+				EnemyContacts:        []*models.EnemyContactModel{},
+				Search:               &models.SearchData{German: make(map[string]models.SearchHexData), Allied: make(map[string]models.SearchHexData)},
+				Events:               []*models.GameEventModel{},
 				IntrinsicSearchHexes: tc.intrinsicSearchHexes,
-				VisibilityLevel: 1,
-				IsFog:       false,
-				WeatherTrack: 0,
+				VisibilityLevel:      1,
+				IsFog:                false,
+				WeatherTrack:         0,
 			}
 
 			err := gameStateService.UpdateGameModel(gameID, gameModel)
@@ -1251,8 +1274,8 @@ func TestViewModelService_BuildViewModel_OwnNavalUnit_NilPointers(t *testing.T) 
 					Torpedoes:                0,
 					MaxTorpedoes:             0,
 					RadarLevel:               1,
-					LastKnownPos:             nil, // nil pointer
-					TaskForceID:              nil, // nil pointer
+					LastKnownPos:             nil,               // nil pointer
+					TaskForceID:              nil,               // nil pointer
 					Damage:                   []models.Damage{}, // empty slice
 					MovementUsed:             0,
 					PreviousTurnMovedHexes:   0,
@@ -1488,20 +1511,20 @@ func TestViewModelService_BuildViewModel_OwnTaskForce_AllFields(t *testing.T) {
 		Units:       make(map[string]*models.UnitModel),
 		TaskForces: map[string]*models.TaskForceModel{
 			tfID: {
-				ID:             tfID,
-				GameID:         gameID,
-				Name:           "Task Force 1",
-				Owner:          "german",
-				Nationality:    "german",
-				Position:       "A1",
-				Speed:          20,
-				Units:          units, // Пустой список, чтобы избежать ошибки валидации
-				Visibility:     models.VisibilitySighted,
-				LastMoveTurn:   3,
-				IsActivated:    true,
-				IsPatrolling:   false,
-				CreatedAt:      expectedCreatedAt,
-				UpdatedAt:      expectedUpdatedAt,
+				ID:           tfID,
+				GameID:       gameID,
+				Name:         "Task Force 1",
+				Owner:        "german",
+				Nationality:  "german",
+				Position:     "A1",
+				Speed:        20,
+				Units:        units, // Пустой список, чтобы избежать ошибки валидации
+				Visibility:   models.VisibilitySighted,
+				LastMoveTurn: 3,
+				IsActivated:  true,
+				IsPatrolling: false,
+				CreatedAt:    expectedCreatedAt,
+				UpdatedAt:    expectedUpdatedAt,
 			},
 		},
 		EnemyContacts:        []*models.EnemyContactModel{},
@@ -1567,20 +1590,20 @@ func TestViewModelService_BuildViewModel_OwnTaskForce_EmptyUnits(t *testing.T) {
 		Units:       make(map[string]*models.UnitModel),
 		TaskForces: map[string]*models.TaskForceModel{
 			tfID: {
-				ID:             tfID,
-				GameID:         gameID,
-				Name:           "Task Force 2",
-				Owner:          "german",
-				Nationality:    "german",
-				Position:       "B2",
-				Speed:          15,
-				Units:          []string{}, // empty slice
-				Visibility:     models.VisibilityShadowed,
-				LastMoveTurn:   0,
-				IsActivated:    false,
-				IsPatrolling:   true,
-				CreatedAt:      time.Now(),
-				UpdatedAt:      time.Now(),
+				ID:           tfID,
+				GameID:       gameID,
+				Name:         "Task Force 2",
+				Owner:        "german",
+				Nationality:  "german",
+				Position:     "B2",
+				Speed:        15,
+				Units:        []string{}, // empty slice
+				Visibility:   models.VisibilityShadowed,
+				LastMoveTurn: 0,
+				IsActivated:  false,
+				IsPatrolling: true,
+				CreatedAt:    time.Now(),
+				UpdatedAt:    time.Now(),
 			},
 		},
 		EnemyContacts:        []*models.EnemyContactModel{},

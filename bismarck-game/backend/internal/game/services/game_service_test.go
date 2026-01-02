@@ -27,11 +27,20 @@ func TestGameService_GetPlayerSide(t *testing.T) {
 	player2ID := uuid.New().String()
 
 	// Create users first (required by foreign key)
+	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
+	_, err = db.GetConnection().Exec(`
+		DELETE FROM games 
+		WHERE player1_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+		   OR player2_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+	`)
+	require.NoError(t, err)
+	// Delete users by username to ensure they can be created with the specified IDs
+	_, err = db.GetConnection().Exec("DELETE FROM users WHERE username IN ('player1', 'player2')")
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec(`
 		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
 		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
 	`, player1ID, player2ID)
 	require.NoError(t, err)
 
@@ -81,11 +90,20 @@ func TestGameService_GetGamePlayers(t *testing.T) {
 	player2ID := uuid.New().String()
 
 	// Create users first (required by foreign key)
+	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
+	_, err = db.GetConnection().Exec(`
+		DELETE FROM games 
+		WHERE player1_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+		   OR player2_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+	`)
+	require.NoError(t, err)
+	// Delete users by username to ensure they can be created with the specified IDs
+	_, err = db.GetConnection().Exec("DELETE FROM users WHERE username IN ('player1', 'player2')")
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec(`
 		INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
 		VALUES ($1, 'player1', 'player1@test.com', 'hash1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 		       ($2, 'player2', 'player2@test.com', 'hash2', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (id) DO NOTHING
 	`, player1ID, player2ID)
 	require.NoError(t, err)
 
@@ -228,4 +246,3 @@ func TestGameService_GetGameBasicInfo(t *testing.T) {
 		assert.NotNil(t, info.Settings)
 	})
 }
-

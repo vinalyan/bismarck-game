@@ -53,28 +53,36 @@ func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
 	hexID := "A1"
 
 	// Create game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
+	gameModel, err := testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
 	require.NoError(t, err)
 
-	// Update game with players and visibility through GameModel
-	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-		model.VisibilityLevel = 3
-		model.IsFog = false
-		return nil
-	}, 3)
+	// Update game with players and visibility through GameModel (set values directly on created model)
+	gameModel.VisibilityLevel = 3
+	gameModel.IsFog = false
+	err = testServices.GameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Create users through AuthService (not direct SQL)
 	authService := auth.New(testServices.DB, nil, "test-secret", 24*time.Hour)
+	germanUsername := fmt.Sprintf("german_%s", strings.ReplaceAll(germanPlayerID, "-", ""))
+	if len(germanUsername) > 50 {
+		germanUsername = germanUsername[:50]
+	}
+	germanEmail := strings.ReplaceAll(germanPlayerID, "-", "") + "@test.com"
 	germanUser, err := authService.Register(&models.CreateUserRequest{
-		Username: fmt.Sprintf("german_%s", germanPlayerID[:8]),
-		Email:    fmt.Sprintf("german_%s@test.com", germanPlayerID[:8]),
+		Username: germanUsername,
+		Email:    germanEmail,
 		Password: "testpass",
 	})
 	require.NoError(t, err)
+	alliedUsername := fmt.Sprintf("allied_%s", strings.ReplaceAll(alliedPlayerID, "-", ""))
+	if len(alliedUsername) > 50 {
+		alliedUsername = alliedUsername[:50]
+	}
+	alliedEmail := strings.ReplaceAll(alliedPlayerID, "-", "") + "@test.com"
 	alliedUser, err := authService.Register(&models.CreateUserRequest{
-		Username: fmt.Sprintf("allied_%s", alliedPlayerID[:8]),
-		Email:    fmt.Sprintf("allied_%s@test.com", alliedPlayerID[:8]),
+		Username: alliedUsername,
+		Email:    alliedEmail,
 		Password: "testpass",
 	})
 	require.NoError(t, err)
@@ -99,7 +107,7 @@ func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify visibility from GameModel
-	gameModel, err := testServices.GameStateService.LoadGameModel(gameID)
+	gameModel, err = testServices.GameStateService.LoadGameModel(gameID)
 	require.NoError(t, err)
 	enemyUnit, exists := gameModel.Units[enemyUnitID]
 	require.True(t, exists, "Enemy unit should exist in GameModel")
@@ -129,28 +137,36 @@ func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
 	hexID := "B2"
 
 	// Create game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
+	gameModel, err := testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
 	require.NoError(t, err)
 
-	// Update game with players and visibility through GameModel
-	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-		model.VisibilityLevel = 1
-		model.IsFog = false
-		return nil
-	}, 3)
+	// Update game with players and visibility through GameModel (set values directly on created model)
+	gameModel.VisibilityLevel = 1
+	gameModel.IsFog = false
+	err = testServices.GameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Create users through AuthService (not direct SQL)
 	authService := auth.New(testServices.DB, nil, "test-secret", 24*time.Hour)
+	germanUsername := fmt.Sprintf("german_%s", strings.ReplaceAll(germanPlayerID, "-", ""))
+	if len(germanUsername) > 50 {
+		germanUsername = germanUsername[:50]
+	}
+	germanEmail := strings.ReplaceAll(germanPlayerID, "-", "") + "@test.com"
 	germanUser, err := authService.Register(&models.CreateUserRequest{
-		Username: fmt.Sprintf("german_%s", germanPlayerID[:8]),
-		Email:    fmt.Sprintf("german_%s@test.com", germanPlayerID[:8]),
+		Username: germanUsername,
+		Email:    germanEmail,
 		Password: "testpass",
 	})
 	require.NoError(t, err)
+	alliedUsername := fmt.Sprintf("allied_%s", strings.ReplaceAll(alliedPlayerID, "-", ""))
+	if len(alliedUsername) > 50 {
+		alliedUsername = alliedUsername[:50]
+	}
+	alliedEmail := strings.ReplaceAll(alliedPlayerID, "-", "") + "@test.com"
 	alliedUser, err := authService.Register(&models.CreateUserRequest{
-		Username: fmt.Sprintf("allied_%s", alliedPlayerID[:8]),
-		Email:    fmt.Sprintf("allied_%s@test.com", alliedPlayerID[:8]),
+		Username: alliedUsername,
+		Email:    alliedEmail,
 		Password: "testpass",
 	})
 	require.NoError(t, err)
@@ -172,7 +188,7 @@ func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify detection level from GameModel
-	gameModel, err := testServices.GameStateService.LoadGameModel(gameID)
+	gameModel, err = testServices.GameStateService.LoadGameModel(gameID)
 	require.NoError(t, err)
 	enemyUnit, exists := gameModel.Units[enemyUnitID]
 	require.True(t, exists, "Enemy unit should exist in GameModel")
@@ -201,28 +217,36 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 	gameID := "550e8400-e29b-41d4-a716-4466554402cc"
 
 	// Create game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
+	gameModel, err := testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
 	require.NoError(t, err)
 
-	// Update game with players and fog through GameModel
-	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-		model.VisibilityLevel = 2
-		model.IsFog = true
-		return nil
-	}, 3)
+	// Update game with players and fog through GameModel (set values directly on created model)
+	gameModel.VisibilityLevel = 2
+	gameModel.IsFog = true
+	err = testServices.GameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Create users through AuthService (not direct SQL)
 	authService := auth.New(testServices.DB, nil, "test-secret", 24*time.Hour)
+	germanUsername := fmt.Sprintf("german_%s", strings.ReplaceAll(germanPlayerID, "-", ""))
+	if len(germanUsername) > 50 {
+		germanUsername = germanUsername[:50]
+	}
+	germanEmail := strings.ReplaceAll(germanPlayerID, "-", "") + "@test.com"
 	germanUser, err := authService.Register(&models.CreateUserRequest{
-		Username: fmt.Sprintf("german_%s", germanPlayerID[:8]),
-		Email:    fmt.Sprintf("german_%s@test.com", germanPlayerID[:8]),
+		Username: germanUsername,
+		Email:    germanEmail,
 		Password: "testpass",
 	})
 	require.NoError(t, err)
+	alliedUsername := fmt.Sprintf("allied_%s", strings.ReplaceAll(alliedPlayerID, "-", ""))
+	if len(alliedUsername) > 50 {
+		alliedUsername = alliedUsername[:50]
+	}
+	alliedEmail := strings.ReplaceAll(alliedPlayerID, "-", "") + "@test.com"
 	alliedUser, err := authService.Register(&models.CreateUserRequest{
-		Username: fmt.Sprintf("allied_%s", alliedPlayerID[:8]),
-		Email:    fmt.Sprintf("allied_%s@test.com", alliedPlayerID[:8]),
+		Username: alliedUsername,
+		Email:    alliedEmail,
 		Password: "testpass",
 	})
 	require.NoError(t, err)
@@ -248,7 +272,7 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify detection level from GameModel
-	gameModel, err := testServices.GameStateService.LoadGameModel(gameID)
+	gameModel, err = testServices.GameStateService.LoadGameModel(gameID)
 	require.NoError(t, err)
 	enemyUnit, exists := gameModel.Units[enemyUnitID]
 	require.True(t, exists, "Enemy unit should exist in GameModel")
@@ -272,28 +296,36 @@ func TestMovementPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 	hexID := "A5"
 
 	// Create game with GameModel
-	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
+	gameModel, err := testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Update game with players and visibility through GameModel
-	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-		model.VisibilityLevel = 1
-		model.IsFog = false
-		return nil
-	}, 3)
+	// Update game with players and visibility through GameModel (set values directly on created model)
+	gameModel.VisibilityLevel = 1
+	gameModel.IsFog = false
+	err = testServices.GameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	// Create users through AuthService (not direct SQL)
 	authService := auth.New(testServices.DB, nil, "test-secret", 24*time.Hour)
+	germanUsername := fmt.Sprintf("german_%s", strings.ReplaceAll(germanPlayerID, "-", ""))
+	if len(germanUsername) > 50 {
+		germanUsername = germanUsername[:50]
+	}
+	germanEmail := strings.ReplaceAll(germanPlayerID, "-", "") + "@test.com"
 	germanUser, err := authService.Register(&models.CreateUserRequest{
-		Username: fmt.Sprintf("german_%s", germanPlayerID[:8]),
-		Email:    fmt.Sprintf("german_%s@test.com", germanPlayerID[:8]),
+		Username: germanUsername,
+		Email:    germanEmail,
 		Password: "testpass",
 	})
 	require.NoError(t, err)
+	alliedUsername := fmt.Sprintf("allied_%s", strings.ReplaceAll(alliedPlayerID, "-", ""))
+	if len(alliedUsername) > 50 {
+		alliedUsername = alliedUsername[:50]
+	}
+	alliedEmail := strings.ReplaceAll(alliedPlayerID, "-", "") + "@test.com"
 	alliedUser, err := authService.Register(&models.CreateUserRequest{
-		Username: fmt.Sprintf("allied_%s", alliedPlayerID[:8]),
-		Email:    fmt.Sprintf("allied_%s@test.com", alliedPlayerID[:8]),
+		Username: alliedUsername,
+		Email:    alliedEmail,
 		Password: "testpass",
 	})
 	require.NoError(t, err)
@@ -322,14 +354,12 @@ func TestMovementPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 	require.NoError(t, testServices.UnitService.CreateNavalUnit(unit))
 
 	// Set visibility to 'shadowed' in GameModel (not in DB)
-	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
-		unitModel, exists := model.Units[unit.ID]
-		if !exists {
-			return fmt.Errorf("unit %s not found in GameModel", unit.ID)
-		}
-		unitModel.Visibility = models.VisibilityShadowed
-		return nil
-	}, 3)
+	gameModel, err = testServices.GameStateService.LoadGameModel(gameID)
+	require.NoError(t, err)
+	unitModel, exists := gameModel.Units[unit.ID]
+	require.True(t, exists, "unit %s not found in GameModel", unit.ID)
+	unitModel.Visibility = models.VisibilityShadowed
+	err = testServices.GameStateService.UpdateGameModel(gameID, gameModel)
 	require.NoError(t, err)
 
 	handler := &MovementPhaseHandler{}
@@ -339,7 +369,7 @@ func TestMovementPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify visibility from GameModel
-	gameModel, err := testServices.GameStateService.LoadGameModel(gameID)
+	gameModel, err = testServices.GameStateService.LoadGameModel(gameID)
 	require.NoError(t, err)
 	updatedUnit, exists := gameModel.Units[unit.ID]
 	require.True(t, exists, "Unit should exist in GameModel")

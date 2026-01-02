@@ -28,8 +28,18 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
+	_, err = db.GetConnection().Exec(`
+		DELETE FROM games 
+		WHERE player1_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+		   OR player2_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+	`)
+	require.NoError(t, err)
+	// Delete users by username to ensure they can be created with the specified IDs
+	_, err = db.GetConnection().Exec("DELETE FROM users WHERE username IN ('player1', 'player2')")
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec(
-		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2') ON CONFLICT DO NOTHING",
+		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2')",
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
@@ -162,8 +172,18 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
+	_, err = db.GetConnection().Exec(`
+		DELETE FROM games 
+		WHERE player1_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+		   OR player2_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+	`)
+	require.NoError(t, err)
+	// Delete users by username to ensure they can be created with the specified IDs
+	_, err = db.GetConnection().Exec("DELETE FROM users WHERE username IN ('player1', 'player2')")
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec(
-		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2') ON CONFLICT DO NOTHING",
+		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2')",
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
@@ -226,8 +246,18 @@ func TestSearchService_GetHexMarkers(t *testing.T) {
 
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
+	_, err = db.GetConnection().Exec(`
+		DELETE FROM games 
+		WHERE player1_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+		   OR player2_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+	`)
+	require.NoError(t, err)
+	// Delete users by username to ensure they can be created with the specified IDs
+	_, err = db.GetConnection().Exec("DELETE FROM users WHERE username IN ('player1', 'player2')")
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec(
-		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2') ON CONFLICT DO NOTHING",
+		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2')",
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
@@ -294,8 +324,18 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
+	_, err = db.GetConnection().Exec(`
+		DELETE FROM games 
+		WHERE player1_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+		   OR player2_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+	`)
+	require.NoError(t, err)
+	// Delete users by username to ensure they can be created with the specified IDs
+	_, err = db.GetConnection().Exec("DELETE FROM users WHERE username IN ('player1', 'player2')")
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec(
-		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2') ON CONFLICT DO NOTHING",
+		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2')",
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
@@ -359,8 +399,18 @@ func TestSearchService_RemoveAllHexMarkersByType(t *testing.T) {
 
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
+	_, err = db.GetConnection().Exec(`
+		DELETE FROM games 
+		WHERE player1_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+		   OR player2_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+	`)
+	require.NoError(t, err)
+	// Delete users by username to ensure they can be created with the specified IDs
+	_, err = db.GetConnection().Exec("DELETE FROM users WHERE username IN ('player1', 'player2')")
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec(
-		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2') ON CONFLICT DO NOTHING",
+		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2')",
 		playerID, player2ID,
 	)
 	require.NoError(t, err)
@@ -414,8 +464,18 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 
 	// Create test users first
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
+	_, err = db.GetConnection().Exec(`
+		DELETE FROM games 
+		WHERE player1_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+		   OR player2_id IN (SELECT id FROM users WHERE username IN ('player1', 'player2'))
+	`)
+	require.NoError(t, err)
+	// Delete users by username to ensure they can be created with the specified IDs
+	_, err = db.GetConnection().Exec("DELETE FROM users WHERE username IN ('player1', 'player2')")
+	require.NoError(t, err)
 	_, err = db.GetConnection().Exec(
-		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2') ON CONFLICT DO NOTHING",
+		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player1', 'p1@test.com', 'hash1'), ($2, 'player2', 'p2@test.com', 'hash2')",
 		playerID, player2ID,
 	)
 	require.NoError(t, err)

@@ -3,7 +3,9 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,6 +19,7 @@ import (
 	"bismarck-game/backend/internal/websocket"
 	"bismarck-game/backend/pkg/logger"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -194,11 +197,19 @@ func TestMoveUnit(t *testing.T) {
 	})
 
 	t.Run("invalid move - not owner", func(t *testing.T) {
-		// Create another user
+		// Create another user with unique username
 		authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
+		testName := t.Name()
+		testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
+		uniqueID := strings.ReplaceAll(uuid.New().String(), "-", "")
+		username := "tu2_" + testNameHash + "_" + uniqueID
+		if len(username) > 50 {
+			username = username[:50]
+		}
+		email := uniqueID + "@test.example.com"
 		otherUser, err := authService.Register(&models.CreateUserRequest{
-			Username: "testuser2",
-			Email:    "testuser2@example.com",
+			Username: username,
+			Email:    email,
 			Password: "password123",
 		})
 		require.NoError(t, err)
@@ -308,16 +319,24 @@ func TestGetAvailableMoves(t *testing.T) {
 	})
 
 	t.Run("not owner", func(t *testing.T) {
-		// Create another user
+		// Create another user with unique username
 		cfg := &config.Config{
 			JWT: config.JWTConfig{
 				Secret: "test-secret-key-for-testing-only",
 			},
 		}
 		authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
+		testName := t.Name()
+		testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
+		uniqueID := strings.ReplaceAll(uuid.New().String(), "-", "")
+		username := "tu3_" + testNameHash + "_" + uniqueID
+		if len(username) > 50 {
+			username = username[:50]
+		}
+		email := uniqueID + "@test.example.com"
 		otherUser, err := authService.Register(&models.CreateUserRequest{
-			Username: "testuser3",
-			Email:    "testuser3@example.com",
+			Username: username,
+			Email:    email,
 			Password: "password123",
 		})
 		require.NoError(t, err)
@@ -343,6 +362,81 @@ func TestGetAvailableMoves(t *testing.T) {
 		// GetAvailableMoves returns direct JSON, not wrapped in APIResponse
 		assert.NotEmpty(t, response["available_hexes"])
 		assert.NotEmpty(t, response["fuel_costs"])
+	})
+
+	t.Run("activated unit returns empty available moves", func(t *testing.T) {
+		// Create a unit first, then activate it
+		activatedUnitID := createTestUnit(t, testServices, gameID, userID)
+
+		// Activate the unit by updating its status
+		err := testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
+			if unit, exists := m.Units[activatedUnitID]; exists {
+				if unit.NavalData == nil {
+					unit.NavalData = &models.NavalUnitData{}
+				}
+				unit.NavalData.IsActivated = true // Unit is activated
+			}
+			return nil
+		}, 3)
+		require.NoError(t, err)
+
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}/available-moves", handler.GetAvailableMoves).Methods("GET")
+
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units/"+activatedUnitID+"/available-moves", nil)
+		ctx := context.WithValue(req.Context(), "user_id", userID)
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response models.AvailableMovesResponse
+		err = json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, activatedUnitID, response.UnitID)
+		assert.Equal(t, "A1", response.CurrentHex)
+		assert.Empty(t, response.AvailableHexes, "Activated unit should have no available moves")
+		assert.Equal(t, 0, response.MaxDistance)
+		assert.Empty(t, response.FuelCosts)
+	})
+
+	t.Run("activated task force returns empty available moves", func(t *testing.T) {
+		// Create a Task Force first, then activate it
+		activatedTFID := createTestTaskForce(t, testServices, gameID, userID)
+
+		// Activate the Task Force by updating its status
+		err := testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
+			if tf, exists := m.TaskForces[activatedTFID]; exists {
+				tf.IsActivated = true // Task Force is activated
+			}
+			return nil
+		}, 3)
+		require.NoError(t, err)
+
+		// Create a mux router to handle the request properly
+		router := mux.NewRouter()
+		router.HandleFunc("/api/games/{gameId}/units/{unitId}/available-moves", handler.GetAvailableMoves).Methods("GET")
+
+		req := httptest.NewRequest("GET", "/api/games/"+gameID+"/units/"+activatedTFID+"/available-moves", nil)
+		ctx := context.WithValue(req.Context(), "user_id", userID)
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response models.AvailableMovesResponse
+		err = json.Unmarshal(w.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Equal(t, activatedTFID, response.UnitID)
+		assert.Equal(t, "A1", response.CurrentHex)
+		assert.Empty(t, response.AvailableHexes, "Activated Task Force should have no available moves")
+		assert.Equal(t, 0, response.MaxDistance)
+		assert.Empty(t, response.FuelCosts)
 	})
 }
 

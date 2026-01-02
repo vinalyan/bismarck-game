@@ -3,9 +3,12 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -381,11 +384,19 @@ func TestUnitMoveUnit(t *testing.T) {
 	})
 
 	t.Run("not owner", func(t *testing.T) {
-		// Create another user
+		// Create another user with unique username
 		authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
+		testName := t.Name()
+		testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
+		uniqueID := strings.ReplaceAll(uuid.New().String(), "-", "")
+		username := "uh2_" + testNameHash + "_" + uniqueID
+		if len(username) > 50 {
+			username = username[:50]
+		}
+		email := uniqueID + "@test.example.com"
 		otherUser, err := authService.Register(&models.CreateUserRequest{
-			Username: "testuser2",
-			Email:    "testuser2@example.com",
+			Username: username,
+			Email:    email,
 			Password: "password123",
 		})
 		require.NoError(t, err)
@@ -514,10 +525,18 @@ func TestGetUnitsWithFilters(t *testing.T) {
 
 	userID1, gameID1 := createTestUserAndGame(t, testServices, authService)
 
-	// Create second user and game
+	// Create second user and game with unique username
+	testName := t.Name()
+	testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
+	uniqueID := strings.ReplaceAll(uuid.New().String(), "-", "")
+	username2 := "uh2_" + testNameHash + "_" + uniqueID
+	if len(username2) > 50 {
+		username2 = username2[:50]
+	}
+	email2 := uniqueID + "@test.example.com"
 	user2, err := authService.Register(&models.CreateUserRequest{
-		Username: "testuser2",
-		Email:    "testuser2@example.com",
+		Username: username2,
+		Email:    email2,
 		Password: "password123",
 	})
 	require.NoError(t, err)

@@ -3,9 +3,12 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"bismarck-game/backend/internal/auth"
@@ -13,6 +16,7 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,10 +39,18 @@ func setupSearchHandler(t *testing.T) (*SearchHandler, *auth.AuthService, string
 	handler := NewSearchHandler(testServices.SearchService, testServices.Logger)
 	handler.SetGameStateService(testServices.GameStateService)
 
-	// Create test user
+	// Create test user with unique username
+	testName := t.Name()
+	testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
+	uniqueID1 := strings.ReplaceAll(uuid.New().String(), "-", "")
+	username1 := "sh_" + testNameHash + "_" + uniqueID1
+	if len(username1) > 50 {
+		username1 = username1[:50]
+	}
+	email1 := uniqueID1 + "@test.example.com"
 	user, err := authService.Register(&models.CreateUserRequest{
-		Username: "testuser",
-		Email:    "test@example.com",
+		Username: username1,
+		Email:    email1,
 		Password: "testpass123",
 	})
 	require.NoError(t, err)
@@ -47,9 +59,17 @@ func setupSearchHandler(t *testing.T) (*SearchHandler, *auth.AuthService, string
 	gameID := "550e8400-e29b-41d4-a716-446655440020"
 	player2ID := "550e8400-e29b-41d4-a716-446655440099"
 
-	// Create second user
+	// Create second user - delete games and users first to avoid conflicts
+	_, err = testServices.DB.GetConnection().Exec(`
+		DELETE FROM games 
+		WHERE player1_id IN (SELECT id FROM users WHERE username = 'player2')
+		   OR player2_id IN (SELECT id FROM users WHERE username = 'player2')
+	`)
+	require.NoError(t, err)
+	_, err = testServices.DB.GetConnection().Exec("DELETE FROM users WHERE username = 'player2'")
+	require.NoError(t, err)
 	_, err = testServices.DB.GetConnection().Exec(
-		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player2', 'p2@test.com', 'hash2') ON CONFLICT DO NOTHING",
+		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, 'player2', 'p2@test.com', 'hash2')",
 		player2ID,
 	)
 	require.NoError(t, err)

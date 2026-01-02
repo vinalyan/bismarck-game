@@ -5,6 +5,9 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
 	"bismarck-game/backend/pkg/testutil"
+	"crypto/md5"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -13,10 +16,25 @@ import (
 
 // createTestUserAndGame создает тестового пользователя и игру с GameModel
 func createTestUserAndGame(t *testing.T, testServices *services.TestServices, authService *auth.AuthService) (string, string) {
+	// Генерируем уникальное имя пользователя для каждого теста, чтобы избежать конфликтов при параллельном выполнении
+	// Используем хеш от имени теста + UUID для максимальной уникальности, но ограничиваем длину до 50 символов (лимит БД)
+	testName := t.Name()
+	// Создаем короткий хеш от имени теста (8 символов)
+	testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
+	// UUID без дефисов (32 символа)
+	uniqueID := strings.ReplaceAll(uuid.New().String(), "-", "")
+	// Комбинируем: "tu_" (3) + хеш теста (8) + "_" (1) + UUID (32) = 44 символа
+	username := "tu_" + testNameHash + "_" + uniqueID
+	// Ограничиваем длину username до 50 символов (лимит БД) - на всякий случай
+	if len(username) > 50 {
+		username = username[:50]
+	}
+	email := uniqueID + "@test.example.com"
+	
 	// Регистрируем пользователя через authService для корректной работы системы аутентификации
 	user, err := authService.Register(&models.CreateUserRequest{
-		Username: "testuser1",
-		Email:    "testuser1@example.com",
+		Username: username,
+		Email:    email,
 		Password: "password123",
 	})
 	require.NoError(t, err)

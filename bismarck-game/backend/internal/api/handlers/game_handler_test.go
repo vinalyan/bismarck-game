@@ -3,7 +3,9 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +17,7 @@ import (
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/game/services"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -624,7 +627,17 @@ func TestGetGameUnits(t *testing.T) {
 	}
 	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
 
-	userID := createTestUser(t, authService, "testuser12", "testuser12@example.com", "password123")
+	// Генерируем уникальный username для избежания конфликтов при параллельном выполнении
+	testName := t.Name()
+	testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
+	uniqueID := strings.ReplaceAll(uuid.New().String(), "-", "")
+	username := "tu_" + testNameHash + "_" + uniqueID
+	if len(username) > 50 {
+		username = username[:50]
+	}
+	email := uniqueID + "@test.example.com"
+
+	userID := createTestUser(t, authService, username, email, "password123")
 	game := createGameViaHTTP(t, handler, "Test Game", userID)
 
 	t.Run("get units for existing game", func(t *testing.T) {
