@@ -298,6 +298,30 @@ func (c *PatrolActionChecker) CanPerformAction(unit *models.UnitModel, gameModel
 	notShadowed := unit.Visibility != models.VisibilityShadowed
 
 	result := visibilityOK && notInFogHex && notActivated && notRepairing && notRefueling && notShadowed
+
+	// #region agent log
+	logFile, _ := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if logFile != nil {
+		logData, _ := json.Marshal(map[string]interface{}{
+			"sessionId": "debug-session",
+			"runId": "run1",
+			"hypothesisId": "B",
+			"location": "movement_phase_action_checker.go:380",
+			"message": "PatrolActionChecker.CanPerformAction",
+			"data": map[string]interface{}{
+				"unit_id": unit.ID,
+				"is_activated": unit.NavalData.IsActivated,
+				"not_activated": notActivated,
+				"visibility_ok": visibilityOK,
+				"not_in_fog_hex": notInFogHex,
+				"result": result,
+			},
+			"timestamp": time.Now().UnixMilli(),
+		})
+		logFile.WriteString(string(logData) + "\n")
+		logFile.Close()
+	}
+	// #endregion
 	
 	// Логирование для отладки
 	if c.logger != nil {

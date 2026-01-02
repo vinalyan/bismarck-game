@@ -1496,6 +1496,17 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 	}
 
+	// Пересчитываем доступные действия после установки патруля
+	if isPatrolling && s.phaseManager != nil {
+		currentPhase := models.PhaseMovement
+		if turn, err := s.phaseManager.GetCurrentPhase(gameID); err == nil && turn != nil {
+			currentPhase = models.GamePhase(turn.CurrentPhase)
+		}
+		if err := s.phaseManager.RecalculateAvailableActionsForUnit(gameID, unitID, currentPhase); err != nil {
+			s.logger.Warn("Failed to recalculate available actions after setting patrol", "unit_id", unitID, "error", err)
+		}
+	}
+
 	s.logger.Info("Set patrol", "unit_id", unitID, "is_patrolling", isPatrolling)
 	return nil
 }

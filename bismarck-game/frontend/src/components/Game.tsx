@@ -229,13 +229,13 @@ const Game: React.FC = () => {
               updateGame
             );
 
-            // Обновляем все состояния
-            setGameUnits(updatedData.units);
-            setTaskForces(updatedData.taskForces);
-            setEnemyContacts(updatedData.enemyContacts);
-            setSearchFactorHexes(updatedData.searchFactorHexes);
-            setHexMarkers(updatedData.hexMarkers);
-            setCurrentTurn(updatedData.currentTurn);
+      // Обновляем все состояния
+      setGameUnits(updatedData.units);
+      setTaskForces(updatedData.taskForces);
+      setEnemyContacts(updatedData.enemyContacts);
+      setSearchFactorHexes(updatedData.searchFactorHexes);
+      setHexMarkers(updatedData.hexMarkers);
+      setCurrentTurn(updatedData.currentTurn);
           }
         } else {
           console.error('Failed to load game units:', response.error);
