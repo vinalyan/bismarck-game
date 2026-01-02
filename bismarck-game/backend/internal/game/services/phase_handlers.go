@@ -567,30 +567,34 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 	}
 
 	// Получаем информацию об игре для определения игроков через PhaseManager
+	// Это необязательно - если игроки не найдены, просто пропускаем логику преследуемых юнитов
+	var shadowedUnits1, shadowedUnits2 []*models.NavalUnit
 	player1ID, err := pm.getPlayerIDForSide(gameID, "german")
 	if err != nil {
 		log.Printf("Failed to get german player: %v", err)
-		// Не критично, продолжаем
-		return nil
+		// Не критично, продолжаем без преследуемых юнитов для player1
+		shadowedUnits1 = []*models.NavalUnit{}
+	} else {
+		// Получаем преследуемые юниты для player1
+		shadowedUnits1, err = pm.unitService.GetShadowedUnits(gameID, player1ID)
+		if err != nil {
+			log.Printf("Failed to get shadowed units for player1: %v", err)
+			shadowedUnits1 = []*models.NavalUnit{}
+		}
 	}
+
 	player2ID, err := pm.getPlayerIDForSide(gameID, "allied")
 	if err != nil {
 		log.Printf("Failed to get allied player: %v", err)
-		// Не критично, продолжаем
-		return nil
-	}
-
-	// Получаем преследуемые юниты для обоих игроков
-	shadowedUnits1, err := pm.unitService.GetShadowedUnits(gameID, player1ID)
-	if err != nil {
-		log.Printf("Failed to get shadowed units for player1: %v", err)
-		shadowedUnits1 = []*models.NavalUnit{}
-	}
-
-	shadowedUnits2, err := pm.unitService.GetShadowedUnits(gameID, player2ID)
-	if err != nil {
-		log.Printf("Failed to get shadowed units for player2: %v", err)
+		// Не критично, продолжаем без преследуемых юнитов для player2
 		shadowedUnits2 = []*models.NavalUnit{}
+	} else {
+		// Получаем преследуемые юниты для player2
+		shadowedUnits2, err = pm.unitService.GetShadowedUnits(gameID, player2ID)
+		if err != nil {
+			log.Printf("Failed to get shadowed units for player2: %v", err)
+			shadowedUnits2 = []*models.NavalUnit{}
+		}
 	}
 
 	log.Printf("Movement phase - shadowed units: player1=%d, player2=%d", len(shadowedUnits1), len(shadowedUnits2))

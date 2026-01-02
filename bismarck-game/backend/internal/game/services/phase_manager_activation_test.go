@@ -36,7 +36,7 @@ func TestPhaseManager_RecalculateAvailableActions(t *testing.T) {
 				Fuel:                10,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 0,
-				IsActivated:        false,
+				IsActivated:         false,
 			},
 		}
 		return nil
@@ -62,6 +62,7 @@ func TestPhaseManager_RecalculateAvailableActions(t *testing.T) {
 			m.TaskForces[tfID] = &models.TaskForceModel{
 				ID:          tfID,
 				GameID:      gameID,
+				Name:        "Test Task Force",
 				Owner:       "german",
 				Nationality: "german",
 				Position:    "A1",
@@ -112,7 +113,7 @@ func TestPhaseManager_RecalculateAvailableActionsForUnit(t *testing.T) {
 					Fuel:                10,
 					MaxFuel:             10,
 					NoMovementTurnsLeft: 0,
-					IsActivated:        false,
+					IsActivated:         false,
 				},
 			}
 			return nil
@@ -148,7 +149,7 @@ func TestPhaseManager_RecalculateAvailableActionsForUnit(t *testing.T) {
 					Fuel:                10,
 					MaxFuel:             10,
 					NoMovementTurnsLeft: 3,
-					IsActivated:        false,
+					IsActivated:         false,
 				},
 			}
 			return nil
@@ -184,6 +185,7 @@ func TestPhaseManager_RecalculateAvailableActionsForTaskForce(t *testing.T) {
 			m.TaskForces[tfID] = &models.TaskForceModel{
 				ID:          tfID,
 				GameID:      gameID,
+				Name:        "Test Task Force",
 				Owner:       "german",
 				Nationality: "german",
 				Position:    "A1",
@@ -210,7 +212,7 @@ func TestPhaseManager_RecalculateAvailableActionsForTaskForce(t *testing.T) {
 	t.Run("sets task force as activated when unit has no_movement_turns_left > 0", func(t *testing.T) {
 		unitID := uuid.New().String()
 		tfID := uuid.New().String()
-		
+
 		err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
 			m.Units[unitID] = &models.UnitModel{
 				ID:          unitID,
@@ -226,13 +228,14 @@ func TestPhaseManager_RecalculateAvailableActionsForTaskForce(t *testing.T) {
 					Fuel:                10,
 					MaxFuel:             10,
 					NoMovementTurnsLeft: 2,
-					IsActivated:        false,
-					TaskForceID:        &tfID,
+					IsActivated:         false,
+					TaskForceID:         &tfID,
 				},
 			}
 			m.TaskForces[tfID] = &models.TaskForceModel{
 				ID:          tfID,
 				GameID:      gameID,
+				Name:        "Test Task Force",
 				Owner:       "german",
 				Nationality: "german",
 				Position:    "A1",
@@ -293,8 +296,8 @@ func TestMovementPhaseHandler_Start_ActivationLogic(t *testing.T) {
 					Fuel:                10,
 					MaxFuel:             10,
 					NoMovementTurnsLeft: 0,
-					IsActivated:        true, // Был активирован
-					AvailableActions:   []string{},
+					IsActivated:         true, // Был активирован
+					AvailableActions:    []string{},
 				},
 			}
 			return nil
@@ -333,7 +336,7 @@ func TestMovementPhaseHandler_Start_ActivationLogic(t *testing.T) {
 					Fuel:                10,
 					MaxFuel:             10,
 					NoMovementTurnsLeft: 2,
-					IsActivated:        false,
+					IsActivated:         false,
 				},
 			}
 			return nil
@@ -357,7 +360,7 @@ func TestMovementPhaseHandler_Start_ActivationLogic(t *testing.T) {
 	t.Run("resets patrol for all units and task forces", func(t *testing.T) {
 		unitID := uuid.New().String()
 		tfID := uuid.New().String()
-		
+
 		// Создаем юнит и Task Force с патрулем
 		err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
 			m.Units[unitID] = &models.UnitModel{
@@ -374,20 +377,21 @@ func TestMovementPhaseHandler_Start_ActivationLogic(t *testing.T) {
 					Fuel:                10,
 					MaxFuel:             10,
 					NoMovementTurnsLeft: 0,
-					IsActivated:        false,
-					IsPatrolling:       true, // На патруле
+					IsActivated:         false,
+					IsPatrolling:        true, // На патруле
 				},
 			}
 			m.TaskForces[tfID] = &models.TaskForceModel{
-				ID:          tfID,
-				GameID:      gameID,
-				Owner:       "german",
-				Nationality: "german",
-				Position:    "B1",
-				Visibility:  models.VisibilitySighted,
-				IsActivated: false,
+				ID:           tfID,
+				GameID:       gameID,
+				Name:         "Test Task Force",
+				Owner:        "german",
+				Nationality:  "german",
+				Position:     "B1",
+				Visibility:   models.VisibilitySighted,
+				IsActivated:  false,
 				IsPatrolling: true, // На патруле
-				Units:       []string{},
+				Units:        []string{},
 			}
 			return nil
 		}, 3)
@@ -413,7 +417,7 @@ func TestMovementPhaseHandler_Start_ActivationLogic(t *testing.T) {
 	t.Run("sets task force as activated when unit has no_movement_turns_left > 0", func(t *testing.T) {
 		unitID := uuid.New().String()
 		tfID := uuid.New().String()
-		
+
 		err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
 			m.Units[unitID] = &models.UnitModel{
 				ID:          unitID,
@@ -429,13 +433,14 @@ func TestMovementPhaseHandler_Start_ActivationLogic(t *testing.T) {
 					Fuel:                10,
 					MaxFuel:             10,
 					NoMovementTurnsLeft: 3,
-					IsActivated:        false,
-					TaskForceID:        &tfID,
+					IsActivated:         false,
+					TaskForceID:         &tfID,
 				},
 			}
 			m.TaskForces[tfID] = &models.TaskForceModel{
 				ID:          tfID,
 				GameID:      gameID,
+				Name:        "Test Task Force",
 				Owner:       "german",
 				Nationality: "german",
 				Position:    "A1",
@@ -460,4 +465,3 @@ func TestMovementPhaseHandler_Start_ActivationLogic(t *testing.T) {
 		assert.Empty(t, tf.AvailableActions, "Activated Task Force should have no available actions")
 	})
 }
-
