@@ -265,13 +265,19 @@ func NewPatrolActionChecker(logger *logger.Logger, mapStructureService *MapStruc
 
 func (c *PatrolActionChecker) CanPerformAction(unit *models.UnitModel, gameModel *models.GameModel) bool {
 	// Патрулирование доступно если:
-	// 1. Уровень видимости ≠ X
-	// 2. Юнит не находится в туманном гексе (проверяем конкретный гекс, а не глобальный туман)
-	// 3. IsActivated === false
-	// 4. Не в ремонте/заправке
-	// 5. Не преследуется (опционально, по правилам)
+	// 1. Юнит не является танкером (TK) - танкеры не могут патрулировать
+	// 2. Уровень видимости ≠ X
+	// 3. Юнит не находится в туманном гексе (проверяем конкретный гекс, а не глобальный туман)
+	// 4. IsActivated === false
+	// 5. Не в ремонте/заправке
+	// 6. Не преследуется (опционально, по правилам)
 
 	if unit.NavalData == nil {
+		return false
+	}
+
+	// Танкеры (TK) не могут патрулировать
+	if unit.Type == models.UnitTypeTanker {
 		return false
 	}
 
