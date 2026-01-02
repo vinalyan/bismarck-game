@@ -1625,3 +1625,197 @@ func (s *UnitService) DetectUnitsInHex(gameID, hexID, playerID string, hasFlight
 
 	return nil
 }
+
+// RepairAtSea выполняет попытку ремонта в море
+// Согласно правилам игры (раздел 7.3): корабль не должен двигаться/патрулировать в эту Фазу движения
+func (s *UnitService) RepairAtSea(gameID, unitID string) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RepairAtSea")
+	}
+
+	// Получаем юнит из GameModel
+	unit, err := s.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		return fmt.Errorf("unit not found: %w", err)
+	}
+
+	// Проверяем, что юнит не активирован
+	if unit.IsActivated {
+		return fmt.Errorf("unit is already activated")
+	}
+
+	// Проверяем наличие повреждений руля или потерянных факторов уклонения
+	hasRudderDamage := false
+	for _, damage := range unit.Damage {
+		if damage.Type == "rudder" {
+			hasRudderDamage = true
+			break
+		}
+	}
+
+	// TODO: Проверка потерянных факторов уклонения (EvasionEffects)
+	// Пока проверяем только повреждения руля
+	if !hasRudderDamage {
+		return fmt.Errorf("unit has no damage that can be repaired at sea")
+	}
+
+	// Обновляем статус юнита на "ремонт" и устанавливаем IsActivated
+	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		unitModel, exists := model.Units[unitID]
+		if !exists {
+			return fmt.Errorf("unit %s not found in GameModel", unitID)
+		}
+		if unitModel.NavalData == nil {
+			return fmt.Errorf("unit %s is not a naval unit", unitID)
+		}
+
+		// Устанавливаем статус ремонта
+		unitModel.Status = string(models.UnitStatusRepairing)
+		unitModel.NavalData.IsActivated = true
+		unitModel.UpdatedAt = time.Now()
+
+		model.Units[unitID] = unitModel
+		return nil
+	}, 3)
+
+	if err != nil {
+		s.logger.Error("Failed to set repair at sea", "unit_id", unitID, "error", err)
+		return fmt.Errorf("failed to set repair at sea: %w", err)
+	}
+
+	s.logger.Info("Repair at sea started", "unit_id", unitID)
+	return nil
+}
+
+// RefuelAtPort выполняет заправку в порту
+// Согласно правилам игры (раздел 7.4): добавляет 4 FP к текущему состоянию Топлива
+func (s *UnitService) RefuelAtPort(gameID, unitID string) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RefuelAtPort")
+	}
+
+	// Получаем юнит из GameModel
+	unit, err := s.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		return fmt.Errorf("unit not found: %w", err)
+	}
+
+	// Проверяем, что юнит не активирован
+	if unit.IsActivated {
+		return fmt.Errorf("unit is already activated")
+	}
+
+	// Проверяем, что топливо не максимальное
+	if unit.Fuel >= unit.MaxFuel {
+		return fmt.Errorf("unit fuel is already at maximum")
+	}
+
+	// TODO: Проверка, что юнит находится в порту (требует MapStructureService)
+
+	// Обновляем топливо и статус
+	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		unitModel, exists := model.Units[unitID]
+		if !exists {
+			return fmt.Errorf("unit %s not found in GameModel", unitID)
+		}
+		if unitModel.NavalData == nil {
+			return fmt.Errorf("unit %s is not a naval unit", unitID)
+		}
+
+		// Добавляем 4 FP (но не больше MaxFuel)
+		newFuel := unitModel.NavalData.Fuel + 4
+		if newFuel > unitModel.NavalData.MaxFuel {
+			newFuel = unitModel.NavalData.MaxFuel
+		}
+		unitModel.NavalData.Fuel = newFuel
+
+		// Устанавливаем статус заправки и активацию
+		unitModel.Status = string(models.UnitStatusRefueling)
+		unitModel.NavalData.IsActivated = true
+		unitModel.UpdatedAt = time.Now()
+
+		model.Units[unitID] = unitModel
+		return nil
+	}, 3)
+
+	if err != nil {
+		s.logger.Error("Failed to refuel at port", "unit_id", unitID, "error", err)
+		return fmt.Errorf("failed to refuel at port: %w", err)
+	}
+
+	s.logger.Info("Refuel at port completed", "unit_id", unitID)
+	return nil
+}
+
+// RefuelAtSea выполняет заправку в море (только для немецкого игрока)
+// Согласно правилам игры (раздел 7.5): добавляет 4 FP к текущему состоянию Топлива
+// Немецкие эсминцы (DD) могут заправляться только на 2 FP за ход
+func (s *UnitService) RefuelAtSea(gameID, unitID string) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RefuelAtSea")
+	}
+
+	// Получаем юнит из GameModel
+	unit, err := s.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		return fmt.Errorf("unit not found: %w", err)
+	}
+
+	// Проверяем, что игрок немецкий
+	if unit.Nationality != "german" {
+		return fmt.Errorf("only german units can refuel at sea")
+	}
+
+	// Проверяем, что юнит не активирован
+	if unit.IsActivated {
+		return fmt.Errorf("unit is already activated")
+	}
+
+	// Проверяем, что топливо не максимальное
+	if unit.Fuel >= unit.MaxFuel {
+		return fmt.Errorf("unit fuel is already at maximum")
+	}
+
+	// TODO: Проверка наличия танкера в том же гексе
+	// TODO: Проверка, что танкер не занят заправкой другого корабля
+
+	// Определяем количество топлива для заправки
+	fuelToAdd := 4
+	if unit.Type == models.UnitTypeDestroyer {
+		fuelToAdd = 2 // Немецкие эсминцы могут заправляться только на 2 FP
+	}
+
+	// Обновляем топливо и статус
+	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		unitModel, exists := model.Units[unitID]
+		if !exists {
+			return fmt.Errorf("unit %s not found in GameModel", unitID)
+		}
+		if unitModel.NavalData == nil {
+			return fmt.Errorf("unit %s is not a naval unit", unitID)
+		}
+
+		// Добавляем топливо (но не больше MaxFuel)
+		newFuel := unitModel.NavalData.Fuel + fuelToAdd
+		if newFuel > unitModel.NavalData.MaxFuel {
+			newFuel = unitModel.NavalData.MaxFuel
+		}
+		unitModel.NavalData.Fuel = newFuel
+
+		// Устанавливаем статус заправки и активацию
+		unitModel.Status = string(models.UnitStatusRefueling)
+		unitModel.NavalData.IsActivated = true
+		unitModel.UpdatedAt = time.Now()
+
+		model.Units[unitID] = unitModel
+		return nil
+	}, 3)
+
+	if err != nil {
+		s.logger.Error("Failed to refuel at sea", "unit_id", unitID, "error", err)
+		return fmt.Errorf("failed to refuel at sea: %w", err)
+	}
+
+	s.logger.Info("Refuel at sea completed", "unit_id", unitID, "fuel_added", fuelToAdd)
+	return nil
+}

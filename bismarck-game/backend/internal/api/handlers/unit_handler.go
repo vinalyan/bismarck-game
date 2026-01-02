@@ -50,6 +50,14 @@ func (h *UnitHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	// Unit routes
 	unitRouter.HandleFunc("/{gameId}/units/{unitId}", h.GetUnit).Methods("GET")
 	unitRouter.HandleFunc("/{gameId}/units/{unitId}/patrol", h.SetPatrol).Methods("PUT")
+	
+	// Unit action routes
+	unitRouter.HandleFunc("/{gameId}/units/{unitId}/actions/repair", h.RepairAtSea).Methods("POST")
+	unitRouter.HandleFunc("/{gameId}/units/{unitId}/actions/refuel-port", h.RefuelAtPort).Methods("POST")
+	unitRouter.HandleFunc("/{gameId}/units/{unitId}/actions/refuel-sea", h.RefuelAtSea).Methods("POST")
+	
+	// Task Force action routes
+	unitRouter.HandleFunc("/{gameId}/task-forces/{taskForceId}/actions/patrol", h.SetTaskForcePatrol).Methods("PUT")
 }
 
 // MoveUnitRequest представляет запрос на движение юнита
@@ -756,6 +764,132 @@ func (h *UnitHandler) SetPatrol(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"unit":    updatedUnit,
 		"message": "Patrol status updated successfully",
+	}
+
+	utils.WriteSuccessResponse(w, response)
+}
+
+// RepairAtSea выполняет ремонт в море
+func (h *UnitHandler) RepairAtSea(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["gameId"]
+	unitID := vars["unitId"]
+
+	// Получаем юнит для проверки принадлежности игре из GameModel
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
+		return
+	}
+
+	// Проверяем, что юнит принадлежит игре
+	if unit.GameID != gameID {
+		utils.WriteErrorResponse(w, http.StatusForbidden, "Unit does not belong to this game")
+		return
+	}
+
+	// Выполняем ремонт в море
+	err = h.unitService.RepairAtSea(gameID, unitID)
+	if err != nil {
+		h.logger.Error("Failed to repair at sea", "unit_id", unitID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Получаем обновленный юнит из GameModel
+	updatedUnit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get updated unit")
+		return
+	}
+
+	response := map[string]interface{}{
+		"unit":    updatedUnit,
+		"message": "Repair at sea started successfully",
+	}
+
+	utils.WriteSuccessResponse(w, response)
+}
+
+// RefuelAtPort выполняет заправку в порту
+func (h *UnitHandler) RefuelAtPort(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["gameId"]
+	unitID := vars["unitId"]
+
+	// Получаем юнит для проверки принадлежности игре из GameModel
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
+		return
+	}
+
+	// Проверяем, что юнит принадлежит игре
+	if unit.GameID != gameID {
+		utils.WriteErrorResponse(w, http.StatusForbidden, "Unit does not belong to this game")
+		return
+	}
+
+	// Выполняем заправку в порту
+	err = h.unitService.RefuelAtPort(gameID, unitID)
+	if err != nil {
+		h.logger.Error("Failed to refuel at port", "unit_id", unitID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Получаем обновленный юнит из GameModel
+	updatedUnit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get updated unit")
+		return
+	}
+
+	response := map[string]interface{}{
+		"unit":    updatedUnit,
+		"message": "Refuel at port completed successfully",
+	}
+
+	utils.WriteSuccessResponse(w, response)
+}
+
+// RefuelAtSea выполняет заправку в море
+func (h *UnitHandler) RefuelAtSea(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["gameId"]
+	unitID := vars["unitId"]
+
+	// Получаем юнит для проверки принадлежности игре из GameModel
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusNotFound, "Unit not found")
+		return
+	}
+
+	// Проверяем, что юнит принадлежит игре
+	if unit.GameID != gameID {
+		utils.WriteErrorResponse(w, http.StatusForbidden, "Unit does not belong to this game")
+		return
+	}
+
+	// Выполняем заправку в море
+	err = h.unitService.RefuelAtSea(gameID, unitID)
+	if err != nil {
+		h.logger.Error("Failed to refuel at sea", "unit_id", unitID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Получаем обновленный юнит из GameModel
+	updatedUnit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
+	if err != nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get updated unit")
+		return
+	}
+
+	response := map[string]interface{}{
+		"unit":    updatedUnit,
+		"message": "Refuel at sea completed successfully",
 	}
 
 	utils.WriteSuccessResponse(w, response)

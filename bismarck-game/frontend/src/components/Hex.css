@@ -216,15 +216,15 @@
   filter: drop-shadow(0 0 6px #22c55e);
 }
 
-/* Юнит, который не может двигаться */
-.unit-container.cannot-move .unit-background {
+/* Юнит, который не может быть активирован */
+.unit-container.cannot-activate .unit-background {
   stroke: #6b7280 !important;
   stroke-width: 2px !important;
   fill: rgba(107, 114, 128, 0.1);
   opacity: 0.7;
 }
 
-.unit-container.cannot-move .unit-icon {
+.unit-container.cannot-activate .unit-icon {
   filter: grayscale(0.8) drop-shadow(0 0 4px #6b7280);
   opacity: 0.8;
 }
@@ -311,7 +311,7 @@
   filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
 }
 
-.unit-stack-background.cannot-move {
+.unit-stack-background.cannot-activate {
   stroke: #6b7280;
   filter: drop-shadow(0 0 8px rgba(107, 114, 128, 0.6));
   opacity: 0.7;
@@ -444,20 +444,20 @@
   animation: selectedRingRotate 3s linear infinite;
 }
 
-/* Юнит, который не может двигаться в развернутом стеке */
-.stacked-unit.cannot-move .stacked-unit-background {
+/* Юнит, который не может быть активирован в развернутом стеке */
+.stacked-unit.cannot-activate .stacked-unit-background {
   stroke: #6b7280 !important;
   stroke-width: 2px !important;
   fill: rgba(107, 114, 128, 0.1);
   opacity: 0.7;
 }
 
-.stacked-unit.cannot-move .stacked-unit-icon {
+.stacked-unit.cannot-activate .stacked-unit-icon {
   filter: grayscale(0.8) drop-shadow(0 0 4px #6b7280);
   opacity: 0.8;
 }
 
-.stacked-unit.cannot-move .stacked-unit-text {
+.stacked-unit.cannot-activate .stacked-unit-text {
   fill: #6b7280;
   opacity: 0.8;
 }
@@ -700,21 +700,21 @@
   color: #f87171;
 }
 
-/* Task Force, который не может двигаться */
-.task-force-container.cannot-move .task-force-background {
+/* Task Force, который не может быть активирован */
+.task-force-container.cannot-activate .task-force-background {
   stroke: #6b7280 !important;
   stroke-width: 2px !important;
   fill: rgba(107, 114, 128, 0.1);
   opacity: 0.7;
 }
 
-.task-force-container.cannot-move .task-force-icon {
+.task-force-container.cannot-activate .task-force-icon {
   filter: grayscale(0.8) drop-shadow(0 0 4px #6b7280);
   opacity: 0.8;
 }
 
-.task-force-container.cannot-move .task-force-name,
-.task-force-container.cannot-move .task-force-count {
+.task-force-container.cannot-activate .task-force-name,
+.task-force-container.cannot-activate .task-force-count {
   fill: #6b7280 !important;
   opacity: 0.8;
 }

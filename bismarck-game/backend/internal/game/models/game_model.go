@@ -113,6 +113,7 @@ type NavalUnitData struct {
 	IsEmergencyFuel          bool           `json:"is_emergency_fuel"`
 	EmergencyTurn            int            `json:"emergency_turn"`
 	IsPatrolling             bool           `json:"is_patrolling"`
+	AvailableActions         []string       `json:"available_actions,omitempty"` // Доступные действия в текущей фазе
 }
 
 // AirUnitData представляет данные воздушного юнита
@@ -138,6 +139,7 @@ type TaskForceModel struct {
 	LastMoveTurn   int            `json:"last_move_turn"`
 	IsActivated    bool           `json:"is_activated"`
 	IsPatrolling   bool           `json:"is_patrolling"`
+	AvailableActions []string     `json:"available_actions,omitempty"` // Доступные действия в текущей фазе
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 }

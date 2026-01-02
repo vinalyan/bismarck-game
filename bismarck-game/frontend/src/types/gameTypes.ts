@@ -415,6 +415,10 @@ export interface NavalUnit {
   isEmergencyFuel: boolean; // Флаг аварийного топлива - корабль может двигаться только на 1 гекс
   emergencyTurn: number;    // Ход, когда закончится аварийное топливо (текущий ход + 10)
   
+  // Поля для активации и доступных действий
+  isActivated: boolean;      // Флаг активации юнита в текущем ходу
+  availableActions?: string[]; // Доступные действия в текущей фазе
+  
   createdAt: string;
   updatedAt: string;
 }
@@ -449,6 +453,7 @@ export interface TaskForce {
   visibility: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   lastMoveTurn: number;
   isActivated: boolean;
+  availableActions?: string[]; // Доступные действия в текущей фазе
   createdAt: string;
   updatedAt: string;
 }

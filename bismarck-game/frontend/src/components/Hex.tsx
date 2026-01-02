@@ -173,8 +173,8 @@ const Hex: React.FC<HexProps> = ({
     return `${sideFlag} ${sideName} ${typeName}\n${unitId}\nПозиция: ${coordinates}`;
   };
 
-  type UnitVisualState = 'idle' | 'selected' | 'active' | 'cannot-move' | 'emergency-fuel' | 'sighted' | 'shadowed';
-  type TaskForceVisualState = 'idle' | 'selected' | 'active' | 'cannot-move' | 'sighted' | 'shadowed';
+  type UnitVisualState = 'idle' | 'selected' | 'active' | 'cannot-activate' | 'emergency-fuel' | 'sighted' | 'shadowed';
+  type TaskForceVisualState = 'idle' | 'selected' | 'active' | 'cannot-activate' | 'sighted' | 'shadowed';
 
   // Функция для определения состояния юнита
   const getUnitState = (unit: any): UnitVisualState => {
@@ -195,11 +195,14 @@ const Hex: React.FC<HexProps> = ({
       return 'sighted';
     }
     
-    // Проверяем условия "не может двигаться"
-    if (unit.last_move_turn === currentTurn || 
-        unit.no_movement_turns_left > 0 || 
-        unit.fuel <= 0) {
-      return 'cannot-move';
+    // Проверяем активацию: если юнит активирован, показываем как active
+    if (unit.is_activated === true) {
+      return 'active';
+    }
+    
+    // Проверяем доступные действия: если нет доступных действий, показываем как cannot-activate
+    if (!unit.available_actions || unit.available_actions.length === 0) {
+      return 'cannot-activate';
     }
     
     // Здесь можно добавить логику для "active" состояния
@@ -232,43 +235,48 @@ const Hex: React.FC<HexProps> = ({
       return 'sighted';
     }
     
-    // Если все юниты не могут двигаться
+    // Если все юниты не могут быть активированы
     if (units.every(unit => 
-      unit.last_move_turn === currentTurn || 
-      unit.no_movement_turns_left > 0 || 
-      unit.fuel <= 0
+      unit.is_activated === true || 
+      !unit.available_actions || 
+      unit.available_actions.length === 0
     )) {
-      return 'cannot-move';
+      return 'cannot-activate';
     }
     
   // По умолчанию idle
   return 'idle';
 };
 
-// Функция для определения состояния Task Force
-const getTaskForceState = (taskForce: any): TaskForceVisualState => {
-  // Если Task Force выбран
-  if (selectedUnit === taskForce.id) {
-    return 'selected';
-  }
+  // Функция для определения состояния Task Force
+  const getTaskForceState = (taskForce: any): TaskForceVisualState => {
+    // Если Task Force выбран
+    if (selectedUnit === taskForce.id) {
+      return 'selected';
+    }
 
-  // Проверяем visibility в первую очередь (это важнее, чем движение)
-  const visibility = typeof taskForce.visibility === 'string' ? taskForce.visibility.toLowerCase() : '';
-  if (visibility === 'shadowed') {
-    return 'shadowed';
-  }
-  if (visibility === 'sighted') {
-    return 'sighted';
-  }
-  
-  // Проверяем, может ли двигаться (только если visibility не shadowed/sighted)
-  if (taskForce.last_move_turn === currentTurn) {
-    return 'cannot-move';
-  }
-  
-  // По умолчанию idle
-  return 'idle';
-};
+    // Проверяем visibility в первую очередь (это важнее, чем движение)
+    const visibility = typeof taskForce.visibility === 'string' ? taskForce.visibility.toLowerCase() : '';
+    if (visibility === 'shadowed') {
+      return 'shadowed';
+    }
+    if (visibility === 'sighted') {
+      return 'sighted';
+    }
+    
+    // Проверяем активацию: если Task Force активирован, показываем как active
+    if (taskForce.is_activated === true) {
+      return 'active';
+    }
+    
+    // Проверяем доступные действия: если нет доступных действий, показываем как cannot-activate
+    if (!taskForce.available_actions || taskForce.available_actions.length === 0) {
+      return 'cannot-activate';
+    }
+    
+    // По умолчанию idle
+    return 'idle';
+  };
 
   // Функция рендеринга Task Force маркера
   const renderTaskForce = (taskForce: any) => {

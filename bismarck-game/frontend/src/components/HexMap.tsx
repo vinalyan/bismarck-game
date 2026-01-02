@@ -808,6 +808,75 @@ const HexMap: React.FC<HexMapProps> = ({
           ↓
         </button>
         
+        {/* Кнопки действий для выбранного юнита */}
+        {selectedUnit && currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (() => {
+          const unit = gameUnits.find(u => u.id === selectedUnit);
+          if (!unit || !unit.available_actions || unit.available_actions.length === 0) {
+            return null;
+          }
+          
+          const getActionLabel = (action: string) => {
+            const labels: { [key: string]: string } = {
+              'repair': '🔧 Ремонт',
+              'refuel-port': '⛽ Заправка в порту',
+              'refuel-sea': '⛽ Заправка в море',
+              'patrol': '🛡️ Патруль'
+            };
+            return labels[action] || action;
+          };
+
+          const handleAction = async (action: string) => {
+            if (!gameId || !authToken || !selectedUnit) return;
+            
+            try {
+              let result;
+              switch (action) {
+                case 'repair':
+                  result = await unitsAPI.repairAtSea(gameId, selectedUnit, authToken);
+                  break;
+                case 'refuel-port':
+                  result = await unitsAPI.refuelAtPort(gameId, selectedUnit, authToken);
+                  break;
+                case 'refuel-sea':
+                  result = await unitsAPI.refuelAtSea(gameId, selectedUnit, authToken);
+                  break;
+                case 'patrol':
+                  result = await unitsAPI.setPatrol(gameId, selectedUnit, true, authToken);
+                  break;
+                default:
+                  return;
+              }
+              
+              if (result.success) {
+                if (onRefreshData) {
+                  await onRefreshData();
+                }
+              } else {
+                console.error('Action failed:', result.error);
+              }
+            } catch (error) {
+              console.error('Error executing action:', error);
+            }
+          };
+
+          return (
+            <div className="unit-actions" style={{ display: 'flex', gap: '5px', marginLeft: '10px' }}>
+              {unit.available_actions
+                .filter(action => action !== 'movement') // Движение обрабатывается отдельно
+                .map(action => (
+                  <button
+                    key={action}
+                    onClick={() => handleAction(action)}
+                    className="action-button"
+                    title={getActionLabel(action)}
+                  >
+                    {getActionLabel(action)}
+                  </button>
+                ))}
+            </div>
+          );
+        })()}
+        
         {/* Кнопки Task Force, Патруль и Воздушная разведка */}
         {currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (
           <>

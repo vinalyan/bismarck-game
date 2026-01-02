@@ -11,6 +11,7 @@ import (
 
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/internal/websocket"
+	"bismarck-game/backend/pkg/logger"
 )
 
 type PhaseManager struct {
@@ -25,11 +26,17 @@ type PhaseManager struct {
 	httpClient          *http.Client
 	apiBaseURL          string
 	gameStateService    *GameStateService // Опционально, для обновления GameModel
+	actionCheckerService *ActionCheckerService // Сервис проверки доступных действий
 }
 
 // SetMapStructureService регистрирует сервис структур карты
 func (pm *PhaseManager) SetMapStructureService(service *MapStructureService) {
 	pm.mapStructureService = service
+	// Создаем ActionCheckerService после установки MapStructureService
+	if pm.actionCheckerService == nil {
+		logger, _ := logger.New(logger.INFO, "action-checker", "stdout")
+		pm.actionCheckerService = NewActionCheckerService(logger, service)
+	}
 }
 
 // SetGameStateService устанавливает GameStateService для обновления GameModel

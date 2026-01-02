@@ -608,6 +608,36 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 	// Примечание: Реальное движение преследуемых обрабатывается через movement API
 	// API должен проверять DetectionLevel и требовать объявления местоположения противнику
 
+	// Устанавливаем AvailableActions для всех юнитов и Task Forces при старте фазы движения
+	if pm.gameStateService != nil && pm.actionCheckerService != nil {
+		err = pm.gameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
+			// Обновляем AvailableActions для всех юнитов
+			for unitID, unit := range m.Units {
+				if unit.NavalData != nil {
+					// Проверяем доступные действия для юнита
+					availableActions := pm.actionCheckerService.GetAvailableActions(unit, m, models.PhaseMovement)
+					unit.NavalData.AvailableActions = availableActions
+					m.Units[unitID] = unit
+				}
+			}
+
+			// Обновляем AvailableActions для всех Task Forces
+			for tfID, tf := range m.TaskForces {
+				availableActions := pm.actionCheckerService.GetAvailableActionsForTaskForce(tf, m, models.PhaseMovement)
+				tf.AvailableActions = availableActions
+				m.TaskForces[tfID] = tf
+			}
+
+			return nil
+		}, 3)
+
+		if err != nil {
+			log.Printf("Failed to update available actions in MovementPhaseHandler.Start: %v", err)
+		} else {
+			log.Printf("Successfully updated available actions for all units and task forces")
+		}
+	}
+
 	return nil
 }
 

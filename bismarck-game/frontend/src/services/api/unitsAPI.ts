@@ -66,6 +66,7 @@ export interface TaskForce {
   last_move_turn: number;
   is_activated: boolean;
   is_patrolling: boolean;
+  available_actions?: string[];
   visibility?: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   created_at: string;
   updated_at: string;
@@ -198,6 +199,7 @@ interface UnitModel {
     is_emergency_fuel: boolean;
     emergency_turn: number;
     is_patrolling: boolean;
+    available_actions?: string[];
   };
   air_data?: {
     base_position: string;
@@ -224,6 +226,7 @@ interface TaskForceModel {
   last_move_turn: number;
   is_activated: boolean;
   is_patrolling: boolean;
+  available_actions?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -293,6 +296,8 @@ function convertUnitModelToGameUnit(unitModel: UnitModel): GameUnit {
       is_emergency_fuel: false,
       emergency_turn: 0,
       is_patrolling: false,
+      is_activated: navalData.is_activated || false,
+      available_actions: navalData.available_actions || [],
       visibility: unitModel.visibility,
       created_at: unitModel.created_at,
       updated_at: unitModel.updated_at,
@@ -345,6 +350,8 @@ function convertUnitModelToGameUnit(unitModel: UnitModel): GameUnit {
     is_emergency_fuel: navalData.is_emergency_fuel,
     emergency_turn: navalData.emergency_turn,
     is_patrolling: navalData.is_patrolling,
+    is_activated: navalData.is_activated || false,
+    available_actions: navalData.available_actions || [],
     visibility: unitModel.visibility,
     created_at: unitModel.created_at,
     updated_at: unitModel.updated_at,
@@ -364,6 +371,7 @@ function convertTaskForceModelToTaskForce(tfModel: TaskForceModel): TaskForce {
     last_move_turn: tfModel.last_move_turn,
     is_activated: tfModel.is_activated,
     is_patrolling: tfModel.is_patrolling,
+    available_actions: tfModel.available_actions || [],
     visibility: tfModel.visibility,
     created_at: tfModel.created_at,
     updated_at: tfModel.updated_at,
@@ -495,6 +503,75 @@ export const unitsAPI = {
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to set task force patrol'
+      };
+    }
+  },
+
+  // Выполнить ремонт в море
+  repairAtSea: async (gameId: string, unitId: string, token: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/games/${gameId}/units/${unitId}/actions/repair`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error repairing at sea:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to repair at sea'
+      };
+    }
+  },
+
+  // Заправить в порту
+  refuelAtPort: async (gameId: string, unitId: string, token: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/games/${gameId}/units/${unitId}/actions/refuel-port`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error refueling at port:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to refuel at port'
+      };
+    }
+  },
+
+  // Заправить в море
+  refuelAtSea: async (gameId: string, unitId: string, token: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/games/${gameId}/units/${unitId}/actions/refuel-sea`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('Error refueling at sea:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to refuel at sea'
       };
     }
   },
