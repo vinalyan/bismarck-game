@@ -877,7 +877,7 @@ const HexMap: React.FC<HexMapProps> = ({
           );
         })()}
         
-        {/* Кнопки Task Force, Патруль и Воздушная разведка */}
+        {/* Кнопки Task Force и Воздушная разведка */}
         {currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (
           <>
             <button 
@@ -885,12 +885,6 @@ const HexMap: React.FC<HexMapProps> = ({
               title="Создать Task Force"
             >
               🚢 Создать TF
-            </button>
-            <button 
-              onClick={handlePatrolClick}
-              title="Установить патруль"
-            >
-              🛡️ Патруль
             </button>
             <button 
               onClick={handleFlightPathSearchClick}
