@@ -52,6 +52,7 @@ interface HexMapProps {
   visibilityLevel?: number;
   hexMarkers?: Record<string, HexMarkers>;
   isFog?: boolean;
+  onUnitDeselect?: () => void; // Callback для сброса выбора юнита
 }
 
 const HexMap: React.FC<HexMapProps> = ({
@@ -87,7 +88,8 @@ const HexMap: React.FC<HexMapProps> = ({
   searchFactorHexes = new Map<string, number>(),
   visibilityLevel = 1,
   hexMarkers = {},
-  isFog = false
+  isFog = false,
+  onUnitDeselect
 }) => {
   const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
   const [hexRadius] = useState(MAP_CONSTANTS.DEFAULT_HEX_RADIUS); // Стандартный радиус гекса
@@ -864,6 +866,10 @@ const HexMap: React.FC<HexMapProps> = ({
               if (result.success) {
                 if (onRefreshData) {
                   await onRefreshData();
+                }
+                // Сбрасываем выбор юнита после успешного выполнения действия
+                if (onUnitDeselect) {
+                  onUnitDeselect();
                 }
               } else {
                 console.error('Action failed:', result.error);

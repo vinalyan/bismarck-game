@@ -695,6 +695,10 @@ const Game: React.FC = () => {
         // Очищаем активные гексы
         clearActiveHexes();
         setAvailableMovementHexes([]);
+        
+        // Сбрасываем выбор юнита после успешного движения
+        setSelectedUnit(null);
+        setSelectedUnitData(null);
 
         addNotification({
           type: NotificationType.Success,
@@ -1672,6 +1676,12 @@ const Game: React.FC = () => {
             hexMarkers={hexMarkers}
             isFog={getTurnData(currentTurn)?.is_fog ?? currentGame?.is_fog ?? false}
             mapStructures={mapStructures}
+            onUnitDeselect={() => {
+              setSelectedUnit(null);
+              setSelectedUnitData(null);
+              setAvailableMovementHexes([]);
+              clearActiveHexes();
+            }}
           />
         </div>
 
