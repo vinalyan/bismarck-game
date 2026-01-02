@@ -1819,3 +1819,24 @@ func (s *UnitService) RefuelAtSea(gameID, unitID string) error {
 	s.logger.Info("Refuel at sea completed", "unit_id", unitID, "fuel_added", fuelToAdd)
 	return nil
 }
+
+// RecalculateAvailableActions пересчитывает доступные действия для всех юнитов и Task Forces
+// Используется для обновления действий после изменений в игре
+func (s *UnitService) RecalculateAvailableActions(gameID string, phase models.GamePhase) error {
+	if s.gameStateService == nil {
+		return fmt.Errorf("gameStateService is required for RecalculateAvailableActions")
+	}
+
+	// Получаем PhaseManager через gameStateService (если доступен)
+	// Или используем прямой доступ к ActionCheckerService
+	// Пока используем простой подход - получаем GameModel и пересчитываем через gameStateService
+	
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return fmt.Errorf("failed to load GameModel: %w", err)
+	}
+
+	// TODO: Нужен доступ к ActionCheckerService для пересчета
+	// Пока возвращаем ошибку, что нужен PhaseManager
+	return fmt.Errorf("RecalculateAvailableActions requires PhaseManager access - not yet implemented")
+}

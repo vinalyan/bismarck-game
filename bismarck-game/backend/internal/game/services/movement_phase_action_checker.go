@@ -279,8 +279,17 @@ func (c *PatrolActionChecker) CanPerformAction(unit *models.UnitModel, gameModel
 	
 	// Проверяем, находится ли юнит в туманном гексе (а не глобальный туман)
 	notInFogHex := true
-	if unit.Position != "" && c.mapStructureService != nil {
-		notInFogHex = !c.mapStructureService.IsFogHex(unit.Position)
+	if unit.Position != "" {
+		if c.mapStructureService == nil {
+			// Если mapStructureService не установлен, используем глобальный флаг как fallback
+			notInFogHex = !gameModel.IsFog
+			if c.logger != nil {
+				c.logger.Warn("PatrolActionChecker: mapStructureService is nil, using global is_fog flag",
+					"unit_id", unit.ID, "position", unit.Position)
+			}
+		} else {
+			notInFogHex = !c.mapStructureService.IsFogHex(unit.Position)
+		}
 	}
 	
 	notActivated := !unit.NavalData.IsActivated

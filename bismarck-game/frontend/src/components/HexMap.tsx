@@ -956,13 +956,6 @@ const HexMap: React.FC<HexMapProps> = ({
           >
             Заправить (+4 топлива всем кораблям)
           </button>
-          <button 
-            className="action-button"
-            onClick={onCompletePhase}
-            disabled={isCompletePhaseDisabled}
-          >
-            Завершить ход
-          </button>
         </div>
       </div>
 

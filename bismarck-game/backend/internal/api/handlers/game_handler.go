@@ -1288,6 +1288,7 @@ func (h *GameHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	gameRouter.HandleFunc("/{id}/initialize-units", h.InitializeGameUnits).Methods("POST")
 	gameRouter.HandleFunc("/{id}/join", h.JoinGame).Methods("POST")
 	gameRouter.HandleFunc("/{id}/surrender", h.SurrenderGame).Methods("POST")
+	gameRouter.HandleFunc("/{id}/recalculate-actions", h.RecalculateAvailableActions).Methods("POST")
 	gameRouter.HandleFunc("/{id}", h.GetGame).Methods("GET")
 	gameRouter.HandleFunc("/{id}", h.DeleteGame).Methods("DELETE")
 }

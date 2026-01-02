@@ -56,6 +56,9 @@ func (h *UnitHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	unitRouter.HandleFunc("/{gameId}/units/{unitId}/actions/refuel-port", h.RefuelAtPort).Methods("POST")
 	unitRouter.HandleFunc("/{gameId}/units/{unitId}/actions/refuel-sea", h.RefuelAtSea).Methods("POST")
 	
+	// Recalculate available actions
+	unitRouter.HandleFunc("/{gameId}/units/recalculate-actions", h.RecalculateAvailableActions).Methods("POST")
+	
 	// Task Force action routes
 	unitRouter.HandleFunc("/{gameId}/task-forces/{taskForceId}/actions/patrol", h.SetTaskForcePatrol).Methods("PUT")
 }

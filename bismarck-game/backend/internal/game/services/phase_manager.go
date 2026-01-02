@@ -510,6 +510,46 @@ func (pm *PhaseManager) NextPhase(gameID string) error {
 	return nil
 }
 
+// RecalculateAvailableActions пересчитывает доступные действия для всех юнитов и Task Forces
+func (pm *PhaseManager) RecalculateAvailableActions(gameID string, phase models.GamePhase) error {
+	if pm.gameStateService == nil || pm.actionCheckerService == nil {
+		return fmt.Errorf("gameStateService and actionCheckerService are required for RecalculateAvailableActions")
+	}
+
+	err := pm.gameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
+		// Обновляем AvailableActions для всех юнитов
+		for unitID, unit := range m.Units {
+			if unit.NavalData != nil {
+				// Проверяем доступные действия для юнита
+				availableActions := pm.actionCheckerService.GetAvailableActions(unit, m, phase)
+				unit.NavalData.AvailableActions = availableActions
+				m.Units[unitID] = unit
+				
+				// Логируем для отладки
+				log.Printf("Recalculate actions - Unit %s (%s): available_actions=%v, position=%v",
+					unitID, unit.Name, availableActions, unit.Position)
+			}
+		}
+
+		// Обновляем AvailableActions для всех Task Forces
+		for tfID, tf := range m.TaskForces {
+			availableActions := pm.actionCheckerService.GetAvailableActionsForTaskForce(tf, m, phase)
+			tf.AvailableActions = availableActions
+			m.TaskForces[tfID] = tf
+		}
+
+		return nil
+	}, 3)
+
+	if err != nil {
+		log.Printf("Failed to recalculate available actions: %v", err)
+		return fmt.Errorf("failed to recalculate available actions: %w", err)
+	}
+
+	log.Printf("Successfully recalculated available actions for all units and task forces")
+	return nil
+}
+
 // CompleteTurn завершает ход
 // Теперь работает только с GameModel (старые таблицы удалены)
 func (pm *PhaseManager) CompleteTurn(gameID string, turnNumber int) error {
