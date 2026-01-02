@@ -811,7 +811,21 @@ const HexMap: React.FC<HexMapProps> = ({
         {/* Кнопки действий для выбранного юнита */}
         {selectedUnit && currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (() => {
           const unit = gameUnits.find(u => u.id === selectedUnit);
+          
+          // Отладочное логирование
+          if (unit) {
+            console.log('Selected unit:', {
+              id: unit.id,
+              name: unit.name,
+              available_actions: unit.available_actions,
+              is_activated: unit.is_activated,
+              status: unit.status,
+              visibility: unit.visibility
+            });
+          }
+          
           if (!unit || !unit.available_actions || unit.available_actions.length === 0) {
+            console.log('No actions available for unit:', unit?.id, 'available_actions:', unit?.available_actions);
             return null;
           }
           

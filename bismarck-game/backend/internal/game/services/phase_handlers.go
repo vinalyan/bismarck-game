@@ -618,6 +618,10 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 					availableActions := pm.actionCheckerService.GetAvailableActions(unit, m, models.PhaseMovement)
 					unit.NavalData.AvailableActions = availableActions
 					m.Units[unitID] = unit
+					
+					// Логируем для отладки (все юниты)
+					log.Printf("Movement phase - Unit %s (%s): available_actions=%v, is_activated=%v, visibility=%v, status=%v, fuel=%v, visibility_level=%v, is_fog=%v",
+						unitID, unit.Name, availableActions, unit.NavalData.IsActivated, unit.Visibility, unit.Status, unit.NavalData.Fuel, m.VisibilityLevel, m.IsFog)
 				}
 			}
 
