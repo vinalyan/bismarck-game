@@ -7,6 +7,7 @@ import (
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/testutil"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +31,7 @@ func TestCreateNavalUnit(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	gameID := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -93,7 +94,7 @@ func TestCreateAirUnit(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	gameID := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -168,7 +169,7 @@ func TestGetNavalUnitsByGameID(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	gameID := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -246,7 +247,7 @@ func TestGetNavalUnitByID(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	gameID := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -299,7 +300,7 @@ func TestGetAirUnitsByGameID(t *testing.T) {
 	db := testServices.DB
 	service := testServices.UnitService
 
-	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	gameID := uuid.New().String()
 
 	// Create GameModel for the test game
 	_, err = CreateTestGameModel(db, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -332,21 +333,23 @@ func TestUpdateNavalUnit(t *testing.T) {
 	db := testServices.DB
 	service := testServices.UnitService
 
+	gameID := uuid.New().String()
+
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
+	_, err = db.GetConnection().Exec("DELETE FROM naval_units WHERE game_id = $1", gameID)
 	require.NoError(t, err)
 
 	// Create test game first
-	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", gameID)
 	require.NoError(t, err)
 
 	// Create GameModel for the test game
-	_, err = CreateTestGameModel(db, testServices.GameStateService, "550e8400-e29b-41d4-a716-446655440001", 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(db, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Create test unit
-	unit := &models.NavalUnit{
-		GameID:      "550e8400-e29b-41d4-a716-446655440001",
+		// Create test unit
+		unit := &models.NavalUnit{
+			GameID:      gameID,
 		Name:        "Test Ship",
 		Type:        models.UnitTypeBattleship,
 		Class:       "Bismarck",
@@ -385,11 +388,13 @@ func TestUpdateNavalUnit(t *testing.T) {
 
 	t.Run("update non-existing unit", func(t *testing.T) {
 		nonExistingUnit := &models.NavalUnit{
-			ID: "non-existing-id",
+			ID:     "non-existing-id",
+			GameID: gameID, // Need GameID for UpdateNavalUnit
 		}
 
 		err := service.UpdateNavalUnit(nonExistingUnit)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not found", "Error should indicate unit not found")
 	})
 }
 
@@ -401,21 +406,23 @@ func TestUpdateAirUnit(t *testing.T) {
 	db := testServices.DB
 	service := testServices.UnitService
 
+	gameID := uuid.New().String()
+
 	// Clean up any existing test data
-	_, err = db.GetConnection().Exec("DELETE FROM air_units WHERE game_id = '550e8400-e29b-41d4-a716-446655440001'")
+	_, err = db.GetConnection().Exec("DELETE FROM air_units WHERE game_id = $1", gameID)
 	require.NoError(t, err)
 
 	// Create test game first
-	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ('550e8400-e29b-41d4-a716-446655440001', 'Test Game', 'active')")
+	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", gameID)
 	require.NoError(t, err)
 
 	// Create GameModel for the test game
-	_, err = CreateTestGameModel(db, testServices.GameStateService, "550e8400-e29b-41d4-a716-446655440001", 1, models.PhaseMovement)
+	_, err = CreateTestGameModel(db, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-	// Create test unit
-	unit := &models.AirUnit{
-		GameID:       "550e8400-e29b-41d4-a716-446655440001",
+		// Create test unit
+		unit := &models.AirUnit{
+			GameID:       gameID,
 		Type:         models.UnitTypeCombatAircraft,
 		Owner:        "testuser1",
 		Position:     "A1",
@@ -454,11 +461,13 @@ func TestUpdateAirUnit(t *testing.T) {
 
 	t.Run("update non-existing unit", func(t *testing.T) {
 		nonExistingUnit := &models.AirUnit{
-			ID: "non-existing-id",
+			ID:     "non-existing-id",
+			GameID: gameID, // Need GameID for UpdateAirUnit
 		}
 
 		err := service.UpdateAirUnit(nonExistingUnit)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not found", "Error should indicate unit not found")
 	})
 }
 
@@ -467,7 +476,7 @@ func TestSearchUnit(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	gameID := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
@@ -568,7 +577,7 @@ func TestGetUnitsByPosition(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	gameID := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -611,6 +620,8 @@ func TestGetUnitsByPosition(t *testing.T) {
 	}
 	err = service.CreateAirUnit(airUnit)
 	require.NoError(t, err)
+	// ID is generated inside CreateAirUnit, so we need to verify it's set
+	require.NotEmpty(t, airUnit.ID, "AirUnit ID should be set after CreateAirUnit")
 
 	t.Run("get units at position", func(t *testing.T) {
 		// GetUnitsByPosition now reads from GameModel
@@ -636,7 +647,7 @@ func TestDeleteNavalUnit(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	gameID := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -694,7 +705,7 @@ func TestAwardVPForSunkShip(t *testing.T) {
 
 	service := testServices.UnitService
 
-	gameID := "550e8400-e29b-41d4-a716-446655440001"
+	gameID := uuid.New().String()
 
 	// NOTE: AwardVPForSunkShip still uses direct SQL queries to database (games.victory_points)
 	// instead of GameModel. This test just verifies the method doesn't crash.

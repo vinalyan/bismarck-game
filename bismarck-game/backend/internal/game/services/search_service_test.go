@@ -5,6 +5,7 @@ import (
 
 	"bismarck-game/backend/internal/game/models"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,8 +19,8 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 	searchService := testServices.SearchService
 
 	// Create test game
-	gameID := "550e8400-e29b-41d4-a716-446655440010"
-	playerID := "550e8400-e29b-41d4-a716-446655440001"
+	gameID := uuid.New().String()
+	playerID := uuid.New().String()
 	hexID := "F26"
 
 	// Clean up before test
@@ -27,7 +28,7 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create test users first
-	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	player2ID := uuid.New().String()
 	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
 	_, err = db.GetConnection().Exec(`
 		DELETE FROM games 
@@ -162,8 +163,8 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 	db := testServices.DB
 	searchService := testServices.SearchService
 
-	gameID := "550e8400-e29b-41d4-a716-446655440011"
-	playerID := "550e8400-e29b-41d4-a716-446655440002"
+	gameID := uuid.New().String()
+	playerID := uuid.New().String()
 	hexID := "F26"
 
 	// Clean up before test
@@ -171,7 +172,7 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create test users first
-	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	player2ID := uuid.New().String()
 	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
 	_, err = db.GetConnection().Exec(`
 		DELETE FROM games 
@@ -237,15 +238,15 @@ func TestSearchService_GetHexMarkers(t *testing.T) {
 	db := testServices.DB
 	searchService := testServices.SearchService
 
-	gameID := "550e8400-e29b-41d4-a716-446655440012"
-	playerID := "550e8400-e29b-41d4-a716-446655440003"
+	gameID := uuid.New().String()
+	playerID := uuid.New().String()
 
 	// Clean up before test
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
 
 	// Create test users first
-	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	player2ID := uuid.New().String()
 	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
 	_, err = db.GetConnection().Exec(`
 		DELETE FROM games 
@@ -314,8 +315,8 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 	db := testServices.DB
 	searchService := testServices.SearchService
 
-	gameID := "550e8400-e29b-41d4-a716-446655440013"
-	playerID := "550e8400-e29b-41d4-a716-446655440004"
+	gameID := uuid.New().String()
+	playerID := uuid.New().String()
 	hexID := "F26"
 
 	// Clean up before test
@@ -323,7 +324,7 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create test users first
-	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	player2ID := uuid.New().String()
 	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
 	_, err = db.GetConnection().Exec(`
 		DELETE FROM games 
@@ -391,14 +392,14 @@ func TestSearchService_RemoveAllHexMarkersByType(t *testing.T) {
 	db := testServices.DB
 	searchService := testServices.SearchService
 
-	gameID := "550e8400-e29b-41d4-a716-446655440014"
-	playerID := "550e8400-e29b-41d4-a716-446655440005"
+	gameID := uuid.New().String()
+	playerID := uuid.New().String()
 
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)
 
 	// Create test users first
-	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	player2ID := uuid.New().String()
 	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
 	_, err = db.GetConnection().Exec(`
 		DELETE FROM games 
@@ -454,8 +455,8 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 	db := testServices.DB
 	searchService := testServices.SearchService
 
-	gameID := "550e8400-e29b-41d4-a716-446655440015"
-	playerID := "550e8400-e29b-41d4-a716-446655440006"
+	gameID := uuid.New().String()
+	playerID := uuid.New().String()
 	hexID := "F26"
 
 	// Clean up before test
@@ -463,7 +464,7 @@ func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create test users first
-	player2ID := "550e8400-e29b-41d4-a716-446655440099"
+	player2ID := uuid.New().String()
 	// Delete games that reference users with these usernames first to avoid foreign key constraint violation
 	_, err = db.GetConnection().Exec(`
 		DELETE FROM games 

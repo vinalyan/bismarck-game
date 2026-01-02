@@ -478,11 +478,22 @@ func TestViewModelService_PlayerNotInGame(t *testing.T) {
 	gameID := uuid.New().String()
 	_, _ = setupTestUsersAndGame(t, gameStateService, gameID)
 
-	// Create player3 (not in game) through AuthService
+	// Create player3 (not in game) through AuthService with unique username
 	authService := auth.New(gameStateService.db, nil, "test-secret", 24*time.Hour)
+
+	// Генерируем уникальный username для player3, чтобы избежать конфликтов при параллельном выполнении
+	testName := t.Name()
+	testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
+	uniqueID3 := strings.ReplaceAll(uuid.New().String(), "-", "")
+	username3 := "p3_" + testNameHash + "_" + uniqueID3
+	if len(username3) > 50 {
+		username3 = username3[:50]
+	}
+	email3 := uniqueID3 + "@test.com"
+
 	player3, err := authService.Register(&models.CreateUserRequest{
-		Username: "player3",
-		Email:    "player3@test.com",
+		Username: username3,
+		Email:    email3,
 		Password: "testpass",
 	})
 	require.NoError(t, err)

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -47,9 +48,9 @@ func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	germanPlayerID := "550e8400-e29b-41d4-a716-4466554400aa"
-	alliedPlayerID := "550e8400-e29b-41d4-a716-4466554400bb"
-	gameID := "550e8400-e29b-41d4-a716-4466554400cc"
+	germanPlayerID := uuid.New().String()
+	alliedPlayerID := uuid.New().String()
+	gameID := uuid.New().String()
 	hexID := "A1"
 
 	// Create game with GameModel
@@ -131,9 +132,9 @@ func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	germanPlayerID := "550e8400-e29b-41d4-a716-4466554401aa"
-	alliedPlayerID := "550e8400-e29b-41d4-a716-4466554401bb"
-	gameID := "550e8400-e29b-41d4-a716-4466554401cc"
+	germanPlayerID := uuid.New().String()
+	alliedPlayerID := uuid.New().String()
+	gameID := uuid.New().String()
 	hexID := "B2"
 
 	// Create game with GameModel
@@ -212,9 +213,9 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 	}
 	testServices.PhaseManager.SetMapStructureService(testServices.MapStructureService)
 
-	germanPlayerID := "550e8400-e29b-41d4-a716-4466554402aa"
-	alliedPlayerID := "550e8400-e29b-41d4-a716-4466554402bb"
-	gameID := "550e8400-e29b-41d4-a716-4466554402cc"
+	germanPlayerID := uuid.New().String()
+	alliedPlayerID := uuid.New().String()
+	gameID := uuid.New().String()
 
 	// Create game with GameModel
 	gameModel, err := testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseSearch)
@@ -290,9 +291,9 @@ func TestMovementPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	germanPlayerID := "550e8400-e29b-41d4-a716-4466554430aa"
-	alliedPlayerID := "550e8400-e29b-41d4-a716-4466554430bb"
-	gameID := "550e8400-e29b-41d4-a716-4466554430cc"
+	germanPlayerID := uuid.New().String()
+	alliedPlayerID := uuid.New().String()
+	gameID := uuid.New().String()
 	hexID := "A5"
 
 	// Create game with GameModel

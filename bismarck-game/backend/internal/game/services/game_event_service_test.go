@@ -31,8 +31,8 @@ func TestLogMovementEvent(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	testGameID := "550e8400-e29b-41d4-a716-446655440001"
-	testUnitID := "550e8400-e29b-41d4-a716-446655440002"
+	testGameID := uuid.New().String()
+	testUnitID := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
@@ -48,6 +48,7 @@ func TestLogMovementEvent(t *testing.T) {
 	t.Run("database error", func(t *testing.T) {
 		err := service.LogMovementEvent("", testUnitID, "Test Unit", "A1", "B1", 1, "movement", 5, 1, "german")
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "gameID is required", "Error should indicate gameID is required")
 	})
 }
 
@@ -56,7 +57,7 @@ func TestLogPhaseChangeEvent(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	testGameID := "550e8400-e29b-41d4-a716-446655440001"
+	testGameID := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
@@ -72,6 +73,7 @@ func TestLogPhaseChangeEvent(t *testing.T) {
 	t.Run("database error", func(t *testing.T) {
 		err := service.LogPhaseChangeEvent("", 1, "movement", "search")
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "gameID is required", "Error should indicate gameID is required")
 	})
 }
 
@@ -80,7 +82,7 @@ func TestLogTurnChangeEvent(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	testGameID := "550e8400-e29b-41d4-a716-446655440001"
+	testGameID := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
@@ -96,6 +98,7 @@ func TestLogTurnChangeEvent(t *testing.T) {
 	t.Run("database error", func(t *testing.T) {
 		err := service.LogTurnChangeEvent("", 2)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "gameID is required", "Error should indicate gameID is required")
 	})
 }
 
@@ -104,9 +107,9 @@ func TestGetGameEvents(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	testGameID := "550e8400-e29b-41d4-a716-446655440001"
-	testUnitID1 := "550e8400-e29b-41d4-a716-446655440002"
-	testUnitID2 := "550e8400-e29b-41d4-a716-446655440003"
+	testGameID := uuid.New().String()
+	testUnitID1 := uuid.New().String()
+	testUnitID2 := uuid.New().String()
 
 	// Create test game with GameModel
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
@@ -218,7 +221,7 @@ func TestSaveEvent(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	testGameID := "550e8400-e29b-41d4-a716-446655440001"
+	testGameID := uuid.New().String()
 
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM game_events WHERE game_id = $1", testGameID)
@@ -274,8 +277,8 @@ func TestGetGameEventsWithPagination(t *testing.T) {
 	require.NoError(t, err)
 	defer cleanup()
 
-	testGameID1 := "550e8400-e29b-41d4-a716-446655440001"
-	testGameID2 := "550e8400-e29b-41d4-a716-446655440004"
+	testGameID1 := uuid.New().String()
+	testGameID2 := uuid.New().String()
 	db := testServices.DB
 
 	// Clean up any existing test data

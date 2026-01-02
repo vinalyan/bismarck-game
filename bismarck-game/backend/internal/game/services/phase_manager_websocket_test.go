@@ -8,6 +8,8 @@ import (
 
 	"bismarck-game/backend/internal/game/models"
 	"bismarck-game/backend/pkg/testutil"
+
+	"github.com/google/uuid"
 )
 
 // TestPhaseManager_StartPhase_SendsWebSocketNotification проверяет отправку WebSocket уведомления при начале фазы
@@ -49,7 +51,7 @@ func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 	testServices.PhaseManager.SetGameStateService(testServices.GameStateService)
 
 	// Создаем тестовую игру с GameModel
-	gameID := "550e8400-e29b-41d4-a716-446655440002"
+	gameID := uuid.New().String()
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
@@ -102,7 +104,7 @@ func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 	testServices.PhaseManager.SetGameStateService(testServices.GameStateService)
 
 	// Создаем тестовую игру с GameModel
-	gameID := "550e8400-e29b-41d4-a716-446655440003"
+	gameID := uuid.New().String()
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)
@@ -170,7 +172,7 @@ func TestPhaseManager_StartPhase_CallsCurrentPhaseAPI(t *testing.T) {
 	testServices.PhaseManager.SetGameStateService(testServices.GameStateService)
 
 	// Создаем тестовую игру с GameModel
-	gameID := "550e8400-e29b-41d4-a716-446655440004"
+	gameID := uuid.New().String()
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	if err != nil {
 		t.Fatalf("Failed to create test game: %v", err)

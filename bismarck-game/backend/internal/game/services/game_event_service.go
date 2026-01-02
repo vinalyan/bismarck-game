@@ -370,6 +370,16 @@ func (s *GameEventService) saveEvent(event *models.GameEvent) error {
 		return fmt.Errorf("gameStateService is required for saveEvent")
 	}
 
+	// Валидируем gameID перед попыткой сохранения
+	if event.GameID == "" {
+		return fmt.Errorf("gameID is required for saveEvent")
+	}
+
+	// Проверяем, что gameID является валидным UUID
+	if _, err := uuid.Parse(event.GameID); err != nil {
+		return fmt.Errorf("invalid gameID format: %w", err)
+	}
+
 	// Генерируем ID если он не установлен
 	if event.ID == "" {
 		event.ID = uuid.New().String()
