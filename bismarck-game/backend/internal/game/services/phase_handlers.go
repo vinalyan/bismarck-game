@@ -614,14 +614,19 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 			// Обновляем AvailableActions для всех юнитов
 			for unitID, unit := range m.Units {
 				if unit.NavalData != nil {
-					// Проверяем доступные действия для юнита
-					availableActions := pm.actionCheckerService.GetAvailableActions(unit, m, models.PhaseMovement)
-					unit.NavalData.AvailableActions = availableActions
+					// Если у юнита есть ограничения движения (no_movement_turns_left > 0),
+					// он не может быть активирован: is_activated = true, available_actions = []
+					if unit.NavalData.NoMovementTurnsLeft > 0 {
+						unit.NavalData.IsActivated = true
+						unit.NavalData.AvailableActions = []string{}
+					} else {
+						// Сбрасываем is_activated для юнитов без ограничений движения
+						unit.NavalData.IsActivated = false
+						// Проверяем доступные действия для юнита
+						availableActions := pm.actionCheckerService.GetAvailableActions(unit, m, models.PhaseMovement)
+						unit.NavalData.AvailableActions = availableActions
+					}
 					m.Units[unitID] = unit
-					
-					// Логируем для отладки (все юниты)
-					log.Printf("Movement phase - Unit %s (%s): available_actions=%v, is_activated=%v, visibility=%v, status=%v, fuel=%v, visibility_level=%v, is_fog=%v",
-						unitID, unit.Name, availableActions, unit.NavalData.IsActivated, unit.Visibility, unit.Status, unit.NavalData.Fuel, m.VisibilityLevel, m.IsFog)
 				}
 			}
 

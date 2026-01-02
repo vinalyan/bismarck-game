@@ -562,9 +562,16 @@ func (pm *PhaseManager) RecalculateAvailableActionsForUnit(gameID, unitID string
 			return fmt.Errorf("unit %s not found in GameModel", unitID)
 		}
 		if unitModel.NavalData != nil {
-			// Пересчитываем доступные действия
-			availableActions := pm.actionCheckerService.GetAvailableActions(unitModel, m, phase)
-			unitModel.NavalData.AvailableActions = availableActions
+			// Если у юнита есть ограничения движения (no_movement_turns_left > 0),
+			// он не может быть активирован: is_activated = true, available_actions = []
+			if unitModel.NavalData.NoMovementTurnsLeft > 0 {
+				unitModel.NavalData.IsActivated = true
+				unitModel.NavalData.AvailableActions = []string{}
+			} else {
+				// Пересчитываем доступные действия
+				availableActions := pm.actionCheckerService.GetAvailableActions(unitModel, m, phase)
+				unitModel.NavalData.AvailableActions = availableActions
+			}
 			m.Units[unitID] = unitModel
 		}
 		return nil
