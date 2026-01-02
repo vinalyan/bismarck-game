@@ -1292,3 +1292,41 @@ func (h *GameHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 	gameRouter.HandleFunc("/{id}", h.GetGame).Methods("GET")
 	gameRouter.HandleFunc("/{id}", h.DeleteGame).Methods("DELETE")
 }
+
+// RecalculateAvailableActions пересчитывает доступные действия для всех юнитов и Task Forces
+func (h *GameHandler) RecalculateAvailableActions(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["id"]
+
+	if gameID == "" {
+		http.Error(w, "Game ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Получаем текущую фазу из GameModel
+	model, err := h.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		http.Error(w, "Failed to load game model", http.StatusInternalServerError)
+		return
+	}
+
+	// Определяем текущую фазу
+	currentPhase := models.GamePhase(model.CurrentTurn.Phase)
+	if currentPhase == "" {
+		currentPhase = models.PhaseMovement // По умолчанию
+	}
+
+	// Пересчитываем действия
+	err = h.phaseManager.RecalculateAvailableActions(gameID, currentPhase)
+	if err != nil {
+		log.Printf("Failed to recalculate available actions: %v", err)
+		http.Error(w, "Failed to recalculate available actions", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Available actions recalculated successfully",
+	})
+}
