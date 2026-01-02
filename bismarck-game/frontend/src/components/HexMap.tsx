@@ -157,7 +157,6 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Функция для определения гексов-кандидатов для создания TF
   const findTFCandidateHexes = (): string[] => {
-    console.log('🔍 findTFCandidateHexes called with playerSide:', playerSide, 'gameUnits:', gameUnits.length, 'taskForces:', taskForces.length);
     const hexUnitsMap = new Map<string, any[]>();
     
     // Собираем юниты по гексам
@@ -358,38 +357,24 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Обработчик добавления юнита к существующему TF
   const handleAddToExistingTF = async (taskForceId: string, unitId: string) => {
-    console.log('🚢 handleAddToExistingTF called with:', { taskForceId, unitId, gameId: !!gameId, authToken: !!authToken });
-    
     if (!gameId || !authToken) {
-      console.error('❌ Missing gameId or authToken');
       return;
     }
     
     try {
-      console.log('📡 Calling gameAPI.addUnitToTaskForce...');
       const response = await gameAPI.addUnitToTaskForce(gameId, {
         taskForceId: taskForceId,
         unitId: unitId,
       });
       
-      console.log('📡 addUnitToTaskForce response:', response);
-      
       if (response.success) {
-        console.log('✅ Юнит добавлен к Task Force успешно');
         // Обновить данные
         if (onRefreshData) {
           onRefreshData();
         }
-      } else {
-        console.error('❌ Add unit to Task Force failed:', response);
       }
     } catch (error: any) {
-      console.error('❌ Ошибка добавления юнита к Task Force:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
+      // Ошибка добавления юнита к Task Force - игнорируем
     } finally {
       setShowTFDialog(false);
       setSelectedTFHex(null);
@@ -399,31 +384,19 @@ const HexMap: React.FC<HexMapProps> = ({
 
   // Обработчик удаления юнита из существующего TF
   const handleRemoveFromExistingTF = async (taskForceId: string, unitId: string) => {
-    console.log('🚢 handleRemoveFromExistingTF called with:', { taskForceId, unitId, gameId: !!gameId, authToken: !!authToken });
     if (!gameId || !authToken) {
-      console.error('❌ Missing gameId or authToken');
       return;
     }
     try {
-      console.log('📡 Calling gameAPI.removeUnitFromTaskForce...');
       const response = await gameAPI.removeUnitFromTaskForce(gameId, {
         taskForceId,
         unitId,
       });
-      console.log('📡 removeUnitFromTaskForce response:', response);
       if (response.success) {
-        console.log('✅ Юнит удален из Task Force успешно');
         if (onRefreshData) onRefreshData();
-      } else {
-        console.error('❌ Remove unit from Task Force failed:', response);
       }
     } catch (error: any) {
-      console.error('❌ Ошибка удаления юнита из Task Force:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
+      // Ошибка удаления юнита из Task Force - игнорируем
     }
   };
 
@@ -814,20 +787,7 @@ const HexMap: React.FC<HexMapProps> = ({
         {selectedUnit && currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (() => {
           const unit = gameUnits.find(u => u.id === selectedUnit);
           
-          // Отладочное логирование
-          if (unit) {
-            console.log('Selected unit:', {
-              id: unit.id,
-              name: unit.name,
-              available_actions: unit.available_actions,
-              is_activated: unit.is_activated,
-              status: unit.status,
-              visibility: unit.visibility
-            });
-          }
-          
           if (!unit || !unit.available_actions || unit.available_actions.length === 0) {
-            console.log('No actions available for unit:', unit?.id, 'available_actions:', unit?.available_actions);
             return null;
           }
           
@@ -924,10 +884,7 @@ const HexMap: React.FC<HexMapProps> = ({
         )}
         {isPatrolMode && (
           <button 
-            onClick={() => {
-              console.log('❌ Cancel Patrol button clicked');
-              handleCancelPatrol();
-            }} 
+            onClick={handleCancelPatrol}
             title="Отменить установку патруля"
           >
             ❌ Отмена
@@ -1074,7 +1031,6 @@ const HexMap: React.FC<HexMapProps> = ({
           onAddToExisting={handleAddToExistingTF}
           onRemoveFromTF={handleRemoveFromExistingTF}
           onCancel={() => {
-            console.log('❌ Dialog cancelled');
             setShowTFDialog(false);
             setSelectedTFHex(null);
           }}
