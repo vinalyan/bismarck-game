@@ -328,6 +328,23 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 		return nil, fmt.Errorf("failed to update unit position: %w", err)
 	}
 
+	// Помечаем юнит как активированный после успешного движения
+	if s.gameStateService != nil {
+		if err := s.gameStateService.UpdateGameModelWithRetry(unit.GameID, func(model *models.GameModel) error {
+			unitModel, exists := model.Units[unit.ID]
+			if !exists {
+				return fmt.Errorf("unit not found in GameModel: %s", unit.ID)
+			}
+			if unitModel.NavalData != nil {
+				unitModel.NavalData.IsActivated = true
+			}
+			return nil
+		}, 3); err != nil {
+			s.logger.Warn("Failed to set is_activated after movement", "unit_id", unit.ID, "error", err)
+			// Не возвращаем ошибку, так как движение уже выполнено
+		}
+	}
+
 	// Пересчитываем факторы поиска для старого и нового гекса
 	if s.searchService != nil {
 		// Старый гекс
@@ -644,6 +661,27 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 	err = s.updateTaskForcePosition(gameID, taskForceID, toHex)
 	if err != nil {
 		return fmt.Errorf("failed to update task force position: %w", err)
+	}
+
+	// Помечаем Task Force и все юниты в нем как активированные после успешного движения
+	if s.gameStateService != nil {
+		if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			// Помечаем Task Force как активированный
+			if tfModel, exists := model.TaskForces[taskForceID]; exists {
+				tfModel.IsActivated = true
+			}
+			
+			// Помечаем все юниты в Task Force как активированные
+			for _, unitID := range taskForce.Units {
+				if unitModel, exists := model.Units[unitID]; exists && unitModel.NavalData != nil {
+					unitModel.NavalData.IsActivated = true
+				}
+			}
+			return nil
+		}, 3); err != nil {
+			s.logger.Warn("Failed to set is_activated after task force movement", "task_force_id", taskForceID, "error", err)
+			// Не возвращаем ошибку, так как движение уже выполнено
+		}
 	}
 
 	// Пересчитываем факторы поиска для старого и нового гекса Task Force

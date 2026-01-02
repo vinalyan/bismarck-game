@@ -365,6 +365,8 @@ func (s *UnitService) UpdateNavalUnit(unit *models.NavalUnit) error {
 			unitModel.NavalData.IsPatrolling = unit.IsPatrolling
 			unitModel.NavalData.MovementUsed = unit.MovementUsed
 			unitModel.NavalData.PreviousTurnMovedHexes = unit.PreviousTurnMovedHexes
+			// IsActivated обновляется отдельно при выполнении действий (movement, patrol и т.д.)
+			// Здесь не обновляем, чтобы не перезаписывать значение, установленное при действиях
 		}
 		unitModel.UpdatedAt = unit.UpdatedAt
 
@@ -1458,6 +1460,12 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 
 		// Обновляем статус патруля
 		unitModel.NavalData.IsPatrolling = isPatrolling
+		
+		// Если устанавливаем патруль - помечаем юнит как активированный
+		if isPatrolling {
+			unitModel.NavalData.IsActivated = true
+		}
+		
 		unitModel.UpdatedAt = time.Now()
 
 		// TODO: Добавление/удаление маркера патруля в БД будет реализовано отдельно
