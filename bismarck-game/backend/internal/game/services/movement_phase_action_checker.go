@@ -297,6 +297,8 @@ func (c *PatrolActionChecker) CanPerformAction(unit *models.UnitModel, gameModel
 	notRefueling := unit.Status != string(models.UnitStatusRefueling)
 	notShadowed := unit.Visibility != models.VisibilityShadowed
 
+	result := visibilityOK && notInFogHex && notActivated && notRepairing && notRefueling && notShadowed
+
 	// Логирование для отладки
 	if c.logger != nil {
 		c.logger.Debug("PatrolActionChecker",
