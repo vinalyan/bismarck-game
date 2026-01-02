@@ -632,8 +632,28 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 
 			// Обновляем AvailableActions для всех Task Forces
 			for tfID, tf := range m.TaskForces {
-				availableActions := pm.actionCheckerService.GetAvailableActionsForTaskForce(tf, m, models.PhaseMovement)
-				tf.AvailableActions = availableActions
+				// Проверяем, есть ли у юнитов в Task Force ограничения движения
+				hasMovementRestrictions := false
+				for _, unitID := range tf.Units {
+					if unit, exists := m.Units[unitID]; exists && unit.NavalData != nil {
+						if unit.NavalData.NoMovementTurnsLeft > 0 {
+							hasMovementRestrictions = true
+							break
+						}
+					}
+				}
+				
+				// Если есть ограничения движения, Task Force не может быть активирован
+				if hasMovementRestrictions {
+					tf.IsActivated = true
+					tf.AvailableActions = []string{}
+				} else {
+					// Сбрасываем is_activated для Task Forces без ограничений движения
+					tf.IsActivated = false
+					// Проверяем доступные действия для Task Force
+					availableActions := pm.actionCheckerService.GetAvailableActionsForTaskForce(tf, m, models.PhaseMovement)
+					tf.AvailableActions = availableActions
+				}
 				m.TaskForces[tfID] = tf
 			}
 
