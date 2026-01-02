@@ -87,13 +87,14 @@ type TaskForceViewModel struct {
 	Units []string `json:"units,omitempty"`
 
 	// Полные данные (только для своих TaskForces)
-	Name           string    `json:"name,omitempty"`
-	Speed          int       `json:"speed,omitempty"`
-	LastMoveTurn   int       `json:"last_move_turn,omitempty"`
-	IsActivated    bool      `json:"is_activated,omitempty"`
-	IsPatrolling   bool      `json:"is_patrolling,omitempty"`
-	CreatedAt      time.Time `json:"created_at,omitempty"`
-	UpdatedAt      time.Time `json:"updated_at,omitempty"`
+	Name            string   `json:"name,omitempty"`
+	Speed           int      `json:"speed,omitempty"`
+	LastMoveTurn    int      `json:"last_move_turn,omitempty"`
+	IsActivated     bool     `json:"is_activated,omitempty"`
+	IsPatrolling    bool     `json:"is_patrolling,omitempty"`
+	AvailableActions []string `json:"available_actions,omitempty"`
+	CreatedAt       time.Time `json:"created_at,omitempty"`
+	UpdatedAt       time.Time `json:"updated_at,omitempty"`
 }
 
 // SearchDataViewModel представляет фильтрованные данные поиска (только для стороны игрока)

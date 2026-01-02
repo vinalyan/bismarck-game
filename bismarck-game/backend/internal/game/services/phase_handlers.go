@@ -642,7 +642,6 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 						}
 					}
 				}
-				
 				// Если есть ограничения движения, Task Force не может быть активирован
 				if hasMovementRestrictions {
 					tf.IsActivated = true

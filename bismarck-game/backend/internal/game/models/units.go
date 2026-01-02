@@ -242,21 +242,22 @@ type Damage struct {
 
 // TaskForce представляет оперативное соединение
 type TaskForce struct {
-	ID           string         `json:"id" db:"id"`
-	GameID       string         `json:"game_id" db:"game_id"`
-	Name         string         `json:"name" db:"name"`
-	Owner        string         `json:"owner" db:"owner"`
-	Nationality  string         `json:"nationality" db:"nationality"` // 'german' or 'allied'
-	Position     string         `json:"position" db:"position"`       // Hex coordinate
-	Speed        int            `json:"speed" db:"speed"`
-	Units        []string       `json:"units" db:"units"` // IDs юнитов
-	IsVisible    bool           `json:"is_visible" db:"is_visible"`
-	Visibility   UnitVisibility `json:"visibility" db:"visibility"` // Единое поле видимости
-	LastMoveTurn int            `json:"last_move_turn" db:"last_move_turn"`
-	IsActivated  bool           `json:"is_activated" db:"is_activated"`
-	IsPatrolling bool           `json:"is_patrolling" db:"is_patrolling"` // Флаг патрулирования (+3 фактора поиска)
-	CreatedAt    time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at" db:"updated_at"`
+	ID              string         `json:"id" db:"id"`
+	GameID          string         `json:"game_id" db:"game_id"`
+	Name            string         `json:"name" db:"name"`
+	Owner           string         `json:"owner" db:"owner"`
+	Nationality     string         `json:"nationality" db:"nationality"` // 'german' or 'allied'
+	Position        string         `json:"position" db:"position"`       // Hex coordinate
+	Speed           int            `json:"speed" db:"speed"`
+	Units           []string       `json:"units" db:"units"` // IDs юнитов
+	IsVisible       bool           `json:"is_visible" db:"is_visible"`
+	Visibility      UnitVisibility `json:"visibility" db:"visibility"` // Единое поле видимости
+	LastMoveTurn    int            `json:"last_move_turn" db:"last_move_turn"`
+	IsActivated     bool           `json:"is_activated" db:"is_activated"`
+	IsPatrolling    bool           `json:"is_patrolling" db:"is_patrolling"` // Флаг патрулирования (+3 фактора поиска)
+	AvailableActions []string      `json:"available_actions,omitempty" db:"available_actions"` // Доступные действия в текущей фазе
+	CreatedAt       time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at" db:"updated_at"`
 }
 
 // UnitSearch представляет поиск юнита

@@ -69,7 +69,8 @@ func (s *ActionCheckerService) GetAvailableActionsForTaskForce(tf *models.TaskFo
 	if phase == models.PhaseMovement {
 		// Проверяем патрулирование для TF
 		patrolChecker := NewPatrolActionChecker(s.logger, s.mapStructureService)
-		if patrolChecker.CanPerformActionForTaskForce(tf, gameModel) {
+		canPatrol := patrolChecker.CanPerformActionForTaskForce(tf, gameModel)
+		if canPatrol {
 			availableActions = append(availableActions, "patrol")
 		}
 	}

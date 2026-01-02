@@ -486,11 +486,11 @@ export const unitsAPI = {
     }
   },
 
-  // Установить патруль на Task Force
-  setTaskForcePatrol: async (gameId: string, taskForceId: string, isPatrolling: boolean, token: string) => {
+  // Установить патруль для Task Force
+  setTaskForcePatrol: async (gameId: string, taskForceId: string, isPatrolling: boolean, token: string): Promise<{ success: boolean; data?: any; error?: string }> => {
     try {
       const response = await axios.put(
-        `${API_BASE_URL}/api/games/${gameId}/task-forces/${taskForceId}/patrol`,
+        `${API_BASE_URL}/api/games/${gameId}/task-forces/${taskForceId}/actions/patrol`,
         { is_patrolling: isPatrolling },
         {
           headers: {

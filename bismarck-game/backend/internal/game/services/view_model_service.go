@@ -321,20 +321,21 @@ func (s *ViewModelService) filterTaskForces(
 		// Используем Visibility из GameModel напрямую
 		if isOwn {
 			result[tfID] = &models.TaskForceViewModel{
-				ID:          tf.ID,
-				Owner:       tf.Owner,
-				Nationality: tf.Nationality,
-				Visibility:  tf.Visibility, // Используем Visibility из GameModel напрямую
-				IsVisible:   true,
-				Position:    tf.Position,
-				Units:       tf.Units,
-				Name:        tf.Name,
-				Speed:       tf.Speed,
-				LastMoveTurn: tf.LastMoveTurn,
-				IsActivated: tf.IsActivated,
-				IsPatrolling: tf.IsPatrolling,
-				CreatedAt:   tf.CreatedAt,
-				UpdatedAt:   tf.UpdatedAt,
+				ID:              tf.ID,
+				Owner:           tf.Owner,
+				Nationality:     tf.Nationality,
+				Visibility:      tf.Visibility, // Используем Visibility из GameModel напрямую
+				IsVisible:       true,
+				Position:        tf.Position,
+				Units:           tf.Units,
+				Name:            tf.Name,
+				Speed:           tf.Speed,
+				LastMoveTurn:    tf.LastMoveTurn,
+				IsActivated:     tf.IsActivated,
+				IsPatrolling:    tf.IsPatrolling,
+				AvailableActions: tf.AvailableActions,
+				CreatedAt:       tf.CreatedAt,
+				UpdatedAt:       tf.UpdatedAt,
 			}
 			continue
 		}

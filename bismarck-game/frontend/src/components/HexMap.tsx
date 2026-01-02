@@ -783,9 +783,29 @@ const HexMap: React.FC<HexMapProps> = ({
           ↓
         </button>
         
-        {/* Кнопки действий для выбранного юнита */}
+        {/* Кнопки действий для выбранного юнита или Task Force */}
         {selectedUnit && currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (() => {
-          const unit = gameUnits.find(u => u.id === selectedUnit);
+          // Сначала проверяем, является ли выбранный элемент юнитом
+          let unit = gameUnits.find(u => u.id === selectedUnit);
+          let isTaskForce = false;
+          
+          // Если не найден в gameUnits, проверяем, является ли это Task Force
+          if (!unit) {
+            const taskForce = taskForces.find(tf => tf.id === selectedUnit);
+            if (taskForce) {
+              isTaskForce = true;
+              // Преобразуем Task Force в формат, совместимый с unit для отображения действий
+              unit = {
+                id: taskForce.id,
+                available_actions: taskForce.available_actions || [],
+                is_activated: taskForce.is_activated || false
+              } as any;
+            }
+          }
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HexMap.tsx:790',message:'Checking unit/taskforce actions display',data:{selectedUnit,unitFound:!!unit,isTaskForce,hasAvailableActions:!!(unit?.available_actions),availableActionsCount:unit?.available_actions?.length||0,availableActions:unit?.available_actions},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
           
           if (!unit || !unit.available_actions || unit.available_actions.length === 0) {
             return null;
@@ -806,21 +826,33 @@ const HexMap: React.FC<HexMapProps> = ({
             
             try {
               let result;
-              switch (action) {
-                case 'repair':
-                  result = await unitsAPI.repairAtSea(gameId, selectedUnit, authToken);
-                  break;
-                case 'refuel-port':
-                  result = await unitsAPI.refuelAtPort(gameId, selectedUnit, authToken);
-                  break;
-                case 'refuel-sea':
-                  result = await unitsAPI.refuelAtSea(gameId, selectedUnit, authToken);
-                  break;
-                case 'patrol':
-                  result = await unitsAPI.setPatrol(gameId, selectedUnit, true, authToken);
-                  break;
-                default:
-                  return;
+              if (isTaskForce) {
+                // Обработка действий для Task Force
+                switch (action) {
+                  case 'patrol':
+                    result = await unitsAPI.setTaskForcePatrol(gameId, selectedUnit, true, authToken);
+                    break;
+                  default:
+                    return;
+                }
+              } else {
+                // Обработка действий для обычного юнита
+                switch (action) {
+                  case 'repair':
+                    result = await unitsAPI.repairAtSea(gameId, selectedUnit, authToken);
+                    break;
+                  case 'refuel-port':
+                    result = await unitsAPI.refuelAtPort(gameId, selectedUnit, authToken);
+                    break;
+                  case 'refuel-sea':
+                    result = await unitsAPI.refuelAtSea(gameId, selectedUnit, authToken);
+                    break;
+                  case 'patrol':
+                    result = await unitsAPI.setPatrol(gameId, selectedUnit, true, authToken);
+                    break;
+                  default:
+                    return;
+                }
               }
               
               if (result.success) {
