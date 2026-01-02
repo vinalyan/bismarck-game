@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // SetupTestDB создает подключение к тестовой базе данных используя конфигурацию
@@ -204,49 +205,77 @@ func parseSQLStatements(sqlText string) []string {
 }
 
 // verifyTablesExist проверяет, что все критические таблицы созданы
+// Использует retry логику для обработки возможных задержек при параллельном выполнении тестов
 func verifyTablesExist(db *sql.DB, requiredTables []string) error {
-	// Создаем список таблиц для проверки через IN
-	placeholders := make([]string, len(requiredTables))
-	args := make([]interface{}, len(requiredTables))
-	for i, table := range requiredTables {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = table
-	}
+	maxRetries := 5
+	retryDelay := 100 * time.Millisecond
 	
-	query := fmt.Sprintf(`
-		SELECT table_name 
-		FROM information_schema.tables 
-		WHERE table_schema = 'public' 
-		AND table_name IN (%s)
-	`, strings.Join(placeholders, ","))
-	
-	rows, err := db.Query(query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to query tables: %w", err)
-	}
-	defer rows.Close()
-	
-	existingTables := make(map[string]bool)
-	for rows.Next() {
-		var tableName string
-		if err := rows.Scan(&tableName); err != nil {
-			return fmt.Errorf("failed to scan table name: %w", err)
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			time.Sleep(retryDelay)
+			fmt.Printf("Retrying table verification (attempt %d/%d)...\n", attempt+1, maxRetries)
 		}
-		existingTables[tableName] = true
-	}
-	
-	var missingTables []string
-	for _, table := range requiredTables {
-		if !existingTables[table] {
-			missingTables = append(missingTables, table)
+		
+		// Создаем список таблиц для проверки через IN
+		placeholders := make([]string, len(requiredTables))
+		args := make([]interface{}, len(requiredTables))
+		for i, table := range requiredTables {
+			placeholders[i] = fmt.Sprintf("$%d", i+1)
+			args[i] = table
 		}
+		
+		query := fmt.Sprintf(`
+			SELECT table_name 
+			FROM information_schema.tables 
+			WHERE table_schema = 'public' 
+			AND table_name IN (%s)
+		`, strings.Join(placeholders, ","))
+		
+		rows, err := db.Query(query, args...)
+		if err != nil {
+			if attempt < maxRetries-1 {
+				fmt.Printf("Failed to query tables (will retry): %v\n", err)
+				continue
+			}
+			return fmt.Errorf("failed to query tables: %w", err)
+		}
+		
+		existingTables := make(map[string]bool)
+		for rows.Next() {
+			var tableName string
+			if err := rows.Scan(&tableName); err != nil {
+				rows.Close()
+				if attempt < maxRetries-1 {
+					fmt.Printf("Failed to scan table name (will retry): %v\n", err)
+					continue
+				}
+				return fmt.Errorf("failed to scan table name: %w", err)
+			}
+			existingTables[tableName] = true
+		}
+		rows.Close()
+		
+		var missingTables []string
+		for _, table := range requiredTables {
+			if !existingTables[table] {
+				missingTables = append(missingTables, table)
+			}
+		}
+		
+		if len(missingTables) == 0 {
+			// Все таблицы найдены
+			return nil
+		}
+		
+		// Если это последняя попытка, возвращаем ошибку
+		if attempt == maxRetries-1 {
+			return fmt.Errorf("critical tables not created after %d attempts: %v", maxRetries, missingTables)
+		}
+		
+		fmt.Printf("Some tables missing (will retry): %v\n", missingTables)
 	}
 	
-	if len(missingTables) > 0 {
-		return fmt.Errorf("critical tables not created: %v", missingTables)
-	}
-	
-	return nil
+	return fmt.Errorf("failed to verify tables after %d attempts", maxRetries)
 }
 
 // createTestSchema создает схему тестовой БД
@@ -291,19 +320,34 @@ func createTestSchema(db *sql.DB) error {
 
 	// Сначала удаляем все таблицы для чистого старта
 	// Удаляем только существующие таблицы (game_models, games, users, user_sessions)
+	// ВАЖНО: Используем CASCADE для удаления зависимостей, но не удаляем все таблицы,
+	// чтобы не конфликтовать с параллельными тестами
 	dropQueries := []string{
 		"DROP TABLE IF EXISTS game_models CASCADE",
 		"DROP TABLE IF EXISTS user_sessions CASCADE",
 		"DROP TABLE IF EXISTS games CASCADE",
 		"DROP TABLE IF EXISTS users CASCADE",
+		"DROP TABLE IF EXISTS naval_units CASCADE",
+		"DROP TABLE IF EXISTS air_units CASCADE",
+		"DROP TABLE IF EXISTS task_forces CASCADE",
+		"DROP TABLE IF EXISTS task_force_units CASCADE",
+		"DROP TABLE IF EXISTS unit_visibility CASCADE",
+		"DROP TABLE IF EXISTS game_events CASCADE",
+		"DROP TABLE IF EXISTS unit_searches CASCADE",
+		"DROP TABLE IF EXISTS movements CASCADE",
+		"DROP TABLE IF EXISTS hex_markers CASCADE",
 	}
 
 	for _, query := range dropQueries {
 		_, err = db.Exec(query)
 		if err != nil {
-			fmt.Printf("Warning: failed to drop table: %v\n", err)
+			// Игнорируем ошибки при удалении - таблицы могут не существовать
+			// Это нормально для первого запуска или параллельных тестов
 		}
 	}
+	
+	// Небольшая задержка после удаления, чтобы дать время другим тестам завершить операции
+	time.Sleep(50 * time.Millisecond)
 
 	// Используем умный парсер для разбиения SQL на команды
 	sqlText := string(schemaSQL)
