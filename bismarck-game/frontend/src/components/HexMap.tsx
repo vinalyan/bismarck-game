@@ -862,8 +862,8 @@ const HexMap: React.FC<HexMapProps> = ({
           return (
             <div className="unit-actions" style={{ display: 'flex', gap: '5px', marginLeft: '10px' }}>
               {unit.available_actions
-                .filter(action => action !== 'movement') // Движение обрабатывается отдельно
-                .map(action => (
+                .filter((action: string) => action !== 'movement') // Движение обрабатывается отдельно
+                .map((action: string) => (
                   <button
                     key={action}
                     onClick={() => handleAction(action)}

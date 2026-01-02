@@ -49,6 +49,8 @@ export interface GameUnit {
   is_emergency_fuel: boolean;
   emergency_turn: number;
   is_patrolling: boolean;
+  is_activated?: boolean;
+  available_actions?: string[];
   visibility?: 'unknown' | 'lost' | 'sighted' | 'shadowed';
   created_at: string;
   updated_at: string;
@@ -296,8 +298,8 @@ function convertUnitModelToGameUnit(unitModel: UnitModel): GameUnit {
       is_emergency_fuel: false,
       emergency_turn: 0,
       is_patrolling: false,
-      is_activated: navalData.is_activated || false,
-      available_actions: navalData.available_actions || [],
+      is_activated: false,
+      available_actions: [],
       visibility: unitModel.visibility,
       created_at: unitModel.created_at,
       updated_at: unitModel.updated_at,

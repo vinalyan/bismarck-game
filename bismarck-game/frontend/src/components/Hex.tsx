@@ -451,7 +451,7 @@ const Hex: React.FC<HexProps> = ({
                item.fuel <= 0;
       }
     })) {
-      return 'cannot-move';
+      return 'cannot-activate';
     }
 
     // По умолчанию idle
