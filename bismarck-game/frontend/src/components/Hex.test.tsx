@@ -1391,13 +1391,13 @@ describe('Hex', () => {
         expect(unitContainer).toBeInTheDocument();
       });
 
-      it('should return active for activated unit', () => {
+      it('should return cannot-activate for activated unit', () => {
         const center = createMockCenter();
         const corners = createMockCorners(center, 20);
         const unit = createMockUnit({ 
           id: 'unit-1', 
           is_activated: true,
-          available_actions: ['movement']
+          available_actions: [] // Активированные юниты не имеют доступных действий
         });
         const hexData = createMockHexData({
           hasUnit: true,
@@ -1418,7 +1418,7 @@ describe('Hex', () => {
           />
         );
 
-        const unitContainer = container.querySelector('g.unit-container.active');
+        const unitContainer = container.querySelector('g.unit-container.cannot-activate');
         expect(unitContainer).toBeInTheDocument();
       });
     });

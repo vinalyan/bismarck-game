@@ -210,7 +210,7 @@ describe('unitsAPI', () => {
       const result = await unitsAPI.setTaskForcePatrol(gameId, taskForceId, isPatrolling, token);
 
       expect(mockedAxios.put).toHaveBeenCalledWith(
-        `http://localhost:8080/api/games/${gameId}/task-forces/${taskForceId}/patrol`,
+        `http://localhost:8080/api/games/${gameId}/task-forces/${taskForceId}/actions/patrol`,
         { is_patrolling: isPatrolling },
         {
           headers: {

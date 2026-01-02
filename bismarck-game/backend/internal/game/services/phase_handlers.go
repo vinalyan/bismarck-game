@@ -696,10 +696,11 @@ func (h *MovementPhaseHandler) Start(gameID string, turn int) error {
 		if pm.searchService != nil {
 			for hexID := range hexesWithPatrols {
 				if err := pm.searchService.RecalculateSearchDataForHex(gameID, hexID); err != nil {
-					log.Printf("Failed to recalculate search data for hex after removing patrol",
-						"game_id", gameID, "hex_id", hexID, "error", err)
+					log.Printf("Failed to recalculate search data for hex after removing patrol: game_id=%s, hex_id=%s, error=%v",
+						gameID, hexID, err)
 				} else {
-					log.Printf("Recalculated search data for hex after removing patrol", "game_id", gameID, "hex_id", hexID)
+					log.Printf("Recalculated search data for hex after removing patrol: game_id=%s, hex_id=%s",
+						gameID, hexID)
 				}
 			}
 		}
@@ -1293,7 +1294,7 @@ func (h *SearchPhaseHandler) logSearchWarning(pm *PhaseManager, gameID string, t
 	var tfDescriptions []string
 	for _, tf := range enemyTaskForces {
 		units := tfUnits[tf.ID]
-		if len(units) == 0 && pm != nil && pm.taskForceService != nil {
+		if len(units) == 0 && pm.taskForceService != nil {
 			if fetched, err := pm.taskForceService.GetTaskForceUnits(tf.ID); err == nil {
 				units = fetched
 			}

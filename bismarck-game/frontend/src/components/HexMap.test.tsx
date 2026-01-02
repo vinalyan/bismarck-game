@@ -125,8 +125,31 @@ describe('HexMap', () => {
       expect(createTFButton).toBeInTheDocument();
     });
 
-    it('should render patrol button in movement phase', () => {
-      render(<HexMap {...defaultProps} currentPhase="movement" width={5} height={5} />);
+    it('should render patrol button when unit with patrol action is selected', () => {
+      const mockUnitWithPatrol = {
+        id: 'unit-1',
+        name: 'Test Unit',
+        available_actions: ['patrol', 'movement'],
+        is_activated: false,
+        position: 'A1',
+        type: 'DD',
+        category: 'naval',
+        owner: 'german',
+        nationality: 'german',
+        status: 'active',
+        visibility: 'sighted'
+      };
+      
+      render(
+        <HexMap 
+          {...defaultProps} 
+          currentPhase="movement" 
+          width={5} 
+          height={5}
+          selectedUnit="unit-1"
+          gameUnits={[mockUnitWithPatrol]}
+        />
+      );
       
       const patrolButton = screen.getByRole('button', { name: /Патруль|Patrol/i });
       expect(patrolButton).toBeInTheDocument();
