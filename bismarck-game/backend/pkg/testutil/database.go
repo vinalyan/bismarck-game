@@ -318,36 +318,63 @@ func createTestSchema(db *sql.DB) error {
 
 	fmt.Printf("Using schema file: %s\n", schemaPath)
 
-	// Сначала удаляем все таблицы для чистого старта
-	// Удаляем только существующие таблицы (game_models, games, users, user_sessions)
-	// ВАЖНО: Используем CASCADE для удаления зависимостей, но не удаляем все таблицы,
-	// чтобы не конфликтовать с параллельными тестами
-	dropQueries := []string{
-		"DROP TABLE IF EXISTS game_models CASCADE",
-		"DROP TABLE IF EXISTS user_sessions CASCADE",
-		"DROP TABLE IF EXISTS games CASCADE",
-		"DROP TABLE IF EXISTS users CASCADE",
-		"DROP TABLE IF EXISTS naval_units CASCADE",
-		"DROP TABLE IF EXISTS air_units CASCADE",
-		"DROP TABLE IF EXISTS task_forces CASCADE",
-		"DROP TABLE IF EXISTS task_force_units CASCADE",
-		"DROP TABLE IF EXISTS unit_visibility CASCADE",
-		"DROP TABLE IF EXISTS game_events CASCADE",
-		"DROP TABLE IF EXISTS unit_searches CASCADE",
-		"DROP TABLE IF EXISTS movements CASCADE",
-		"DROP TABLE IF EXISTS hex_markers CASCADE",
-	}
-
-	for _, query := range dropQueries {
-		_, err = db.Exec(query)
-		if err != nil {
-			// Игнорируем ошибки при удалении - таблицы могут не существовать
-			// Это нормально для первого запуска или параллельных тестов
-		}
+	// Проверяем, существуют ли уже критические таблицы
+	// Если да, то не удаляем их (это может быть параллельный тест)
+	// Это предотвращает конфликты при параллельном выполнении тестов
+	requiredTables := []string{
+		"users",
+		"games",
+		"game_models",
+		"naval_units",
+		"air_units",
+		"task_forces",
 	}
 	
-	// Небольшая задержка после удаления, чтобы дать время другим тестам завершить операции
-	time.Sleep(50 * time.Millisecond)
+	// Быстрая проверка существования критических таблиц
+	tablesExist := false
+	checkQuerySimple := fmt.Sprintf(`
+		SELECT COUNT(*) 
+		FROM information_schema.tables 
+		WHERE table_schema = 'public' 
+		AND table_name IN ('%s')
+	`, strings.Join(requiredTables, "','"))
+	
+	var count int
+	err = db.QueryRow(checkQuerySimple).Scan(&count)
+	if err == nil && count == len(requiredTables) {
+		tablesExist = true
+		fmt.Printf("Critical tables already exist, skipping drop (parallel test detected)\n")
+	}
+	
+	// Удаляем таблицы только если они не существуют
+	// Это предотвращает конфликты при параллельном выполнении тестов
+	if !tablesExist {
+		dropQueries := []string{
+			"DROP TABLE IF EXISTS game_models CASCADE",
+			"DROP TABLE IF EXISTS user_sessions CASCADE",
+			"DROP TABLE IF EXISTS games CASCADE",
+			"DROP TABLE IF EXISTS users CASCADE",
+			"DROP TABLE IF EXISTS naval_units CASCADE",
+			"DROP TABLE IF EXISTS air_units CASCADE",
+			"DROP TABLE IF EXISTS task_forces CASCADE",
+			"DROP TABLE IF EXISTS task_force_units CASCADE",
+			"DROP TABLE IF EXISTS unit_visibility CASCADE",
+			"DROP TABLE IF EXISTS game_events CASCADE",
+			"DROP TABLE IF EXISTS unit_searches CASCADE",
+			"DROP TABLE IF EXISTS movements CASCADE",
+			"DROP TABLE IF EXISTS hex_markers CASCADE",
+		}
+
+		for _, query := range dropQueries {
+			_, err = db.Exec(query)
+			if err != nil {
+				// Игнорируем ошибки при удалении - таблицы могут не существовать
+			}
+		}
+		
+		// Небольшая задержка после удаления
+		time.Sleep(50 * time.Millisecond)
+	}
 
 	// Используем умный парсер для разбиения SQL на команды
 	sqlText := string(schemaSQL)
@@ -403,15 +430,7 @@ func createTestSchema(db *sql.DB) error {
 		}
 	}
 	
-	// Проверяем, что критические таблицы созданы
-	requiredTables := []string{
-		"users",
-		"games",
-		"game_models",
-		"naval_units",
-		"air_units",
-		"task_forces",
-	}
+	// Проверяем, что критические таблицы созданы (используем тот же список)
 	
 	fmt.Printf("Verifying critical tables exist...\n")
 	if err := verifyTablesExist(db, requiredTables); err != nil {
