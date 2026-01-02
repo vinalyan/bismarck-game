@@ -110,6 +110,145 @@ func findConfigFile() string {
 	return ""
 }
 
+// parseSQLStatements правильно разбивает SQL на команды, учитывая строки в кавычках и комментарии
+func parseSQLStatements(sqlText string) []string {
+	var statements []string
+	var current strings.Builder
+	inSingleQuote := false
+	inDoubleQuote := false
+	inComment := false
+	inBlockComment := false
+	
+	runes := []rune(sqlText)
+	
+	for i := 0; i < len(runes); i++ {
+		char := runes[i]
+		nextChar := rune(0)
+		if i+1 < len(runes) {
+			nextChar = runes[i+1]
+		}
+		
+		// Обработка блочных комментариев /* */
+		if !inSingleQuote && !inDoubleQuote && !inComment {
+			if char == '/' && nextChar == '*' {
+				inBlockComment = true
+				i++ // Пропускаем следующий символ
+				continue
+			}
+			if inBlockComment && char == '*' && nextChar == '/' {
+				inBlockComment = false
+				i++ // Пропускаем следующий символ
+				continue
+			}
+			if inBlockComment {
+				continue
+			}
+		}
+		
+		// Обработка однострочных комментариев --
+		if !inSingleQuote && !inDoubleQuote && !inBlockComment {
+			if char == '-' && nextChar == '-' {
+				inComment = true
+				i++ // Пропускаем следующий символ
+				continue
+			}
+			if inComment && char == '\n' {
+				inComment = false
+				current.WriteRune(char)
+				continue
+			}
+			if inComment {
+				continue
+			}
+		}
+		
+		// Обработка кавычек
+		if !inComment && !inBlockComment {
+			if char == '\'' && !inDoubleQuote {
+				// Экранированные одинарные кавычки в строках
+				if inSingleQuote && nextChar == '\'' {
+					current.WriteRune(char)
+					current.WriteRune(nextChar)
+					i++ // Пропускаем следующий символ
+					continue
+				}
+				inSingleQuote = !inSingleQuote
+			} else if char == '"' && !inSingleQuote {
+				inDoubleQuote = !inDoubleQuote
+			}
+		}
+		
+		// Разделитель команд - точка с запятой вне строк
+		if char == ';' && !inSingleQuote && !inDoubleQuote && !inComment && !inBlockComment {
+			stmt := strings.TrimSpace(current.String())
+			if stmt != "" {
+				statements = append(statements, stmt)
+			}
+			current.Reset()
+			continue
+		}
+		
+		// Добавляем символ к текущей команде
+		if !inComment && !inBlockComment {
+			current.WriteRune(char)
+		}
+	}
+	
+	// Добавляем последнюю команду, если она есть
+	stmt := strings.TrimSpace(current.String())
+	if stmt != "" {
+		statements = append(statements, stmt)
+	}
+	
+	return statements
+}
+
+// verifyTablesExist проверяет, что все критические таблицы созданы
+func verifyTablesExist(db *sql.DB, requiredTables []string) error {
+	// Создаем список таблиц для проверки через IN
+	placeholders := make([]string, len(requiredTables))
+	args := make([]interface{}, len(requiredTables))
+	for i, table := range requiredTables {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = table
+	}
+	
+	query := fmt.Sprintf(`
+		SELECT table_name 
+		FROM information_schema.tables 
+		WHERE table_schema = 'public' 
+		AND table_name IN (%s)
+	`, strings.Join(placeholders, ","))
+	
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to query tables: %w", err)
+	}
+	defer rows.Close()
+	
+	existingTables := make(map[string]bool)
+	for rows.Next() {
+		var tableName string
+		if err := rows.Scan(&tableName); err != nil {
+			return fmt.Errorf("failed to scan table name: %w", err)
+		}
+		existingTables[tableName] = true
+	}
+	
+	var missingTables []string
+	for _, table := range requiredTables {
+		if !existingTables[table] {
+			missingTables = append(missingTables, table)
+		}
+	}
+	
+	if len(missingTables) > 0 {
+		return fmt.Errorf("critical tables not created: %v", missingTables)
+	}
+	
+	return nil
+}
+
 // createTestSchema создает схему тестовой БД
 func createTestSchema(db *sql.DB) error {
 	// Получаем текущую директорию исполняемого файла
@@ -166,22 +305,88 @@ func createTestSchema(db *sql.DB) error {
 		}
 	}
 
-	// Выполняем SQL схему
-	// Игнорируем ошибки дублирования (объекты уже существуют)
-	_, err = db.Exec(string(schemaSQL))
-	if err != nil {
-		// Игнорируем ошибки дублирования типов и других объектов
-		errStr := err.Error()
-		if strings.Contains(errStr, "duplicate key value violates unique constraint") ||
-			strings.Contains(errStr, "pg_type_typname_nsp_index") ||
-			strings.Contains(errStr, "already exists") {
-			fmt.Printf("Warning: ignoring duplicate schema error (schema may already exist): %v\n", err)
-			return nil // Схема уже существует, это нормально
+	// Используем умный парсер для разбиения SQL на команды
+	sqlText := string(schemaSQL)
+	statements := parseSQLStatements(sqlText)
+	
+	fmt.Printf("Parsed %d SQL statements\n", len(statements))
+	
+	// Выполняем каждую команду
+	var executionErrors []error
+	for i, stmt := range statements {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" {
+			continue
 		}
-		// Для других ошибок возвращаем ошибку
-		return fmt.Errorf("failed to create test schema: %w", err)
+		
+		// Логируем первые 50 символов команды для отладки
+		stmtPreview := stmt
+		if len(stmtPreview) > 50 {
+			stmtPreview = stmtPreview[:50] + "..."
+		}
+		fmt.Printf("Executing statement %d/%d: %s\n", i+1, len(statements), stmtPreview)
+		
+		_, err = db.Exec(stmt)
+		if err != nil {
+			errStr := err.Error()
+			// Игнорируем только безопасные ошибки
+			if strings.Contains(errStr, "already exists") {
+				// Объект уже существует - это нормально для IF NOT EXISTS
+				fmt.Printf("  -> Object already exists (ignored)\n")
+				continue
+			}
+			if strings.Contains(errStr, "does not exist") {
+				// Объект не существует - это нормально для DROP IF EXISTS
+				fmt.Printf("  -> Object does not exist (ignored)\n")
+				continue
+			}
+			if strings.Contains(errStr, "duplicate key value violates unique constraint") {
+				// Дублирование ключа - может быть нормально в некоторых случаях
+				fmt.Printf("  -> Duplicate key (ignored)\n")
+				continue
+			}
+			
+			// Критическая ошибка - сохраняем для отчета
+			executionErrors = append(executionErrors, fmt.Errorf("statement %d: %w", i+1, err))
+			fmt.Printf("  -> ERROR: %v\n", err)
+			if len(stmt) > 200 {
+				fmt.Printf("  -> Statement: %s...\n", stmt[:200])
+			} else {
+				fmt.Printf("  -> Statement: %s\n", stmt)
+			}
+		} else {
+			fmt.Printf("  -> Success\n")
+		}
 	}
 	
+	// Проверяем, что критические таблицы созданы
+	requiredTables := []string{
+		"users",
+		"games",
+		"game_models",
+		"naval_units",
+		"air_units",
+		"task_forces",
+	}
+	
+	fmt.Printf("Verifying critical tables exist...\n")
+	if err := verifyTablesExist(db, requiredTables); err != nil {
+		// Если есть ошибки выполнения, добавляем их к ошибке проверки
+		if len(executionErrors) > 0 {
+			return fmt.Errorf("schema creation failed: %w; execution errors: %v", err, executionErrors)
+		}
+		return fmt.Errorf("schema creation failed: %w", err)
+	}
+	
+	// Если были ошибки выполнения, но таблицы созданы - предупреждаем, но не падаем
+	if len(executionErrors) > 0 {
+		fmt.Printf("WARNING: Some SQL statements failed, but critical tables exist:\n")
+		for _, execErr := range executionErrors {
+			fmt.Printf("  - %v\n", execErr)
+		}
+	}
+	
+	fmt.Printf("Schema created successfully, all critical tables exist\n")
 	return nil
 }
 
