@@ -37,7 +37,15 @@ const MovementPanel: React.FC<MovementPanelProps> = ({
   // Загружаем доступные ходы при выборе юнита
   useEffect(() => {
     if (selectedUnit) {
-      loadAvailableMoves();
+      // Проверяем, не активирован ли юнит - если активирован, не загружаем доступные ходы
+      if (selectedUnit.is_activated) {
+        setAvailableMoves([]);
+        setFuelCosts({});
+        setSelectedHex(null);
+        setShowConfirmation(false);
+      } else {
+        loadAvailableMoves();
+      }
     } else {
       setAvailableMoves([]);
       setFuelCosts({});

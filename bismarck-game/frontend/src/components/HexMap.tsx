@@ -824,28 +824,6 @@ const HexMap: React.FC<HexMapProps> = ({
               status: unit.status,
               visibility: unit.visibility
             });
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'E',
-                location: 'HexMap.tsx:817',
-                message: 'Frontend: Selected unit data',
-                data: {
-                  unit_id: unit.id,
-                  unit_name: unit.name,
-                  available_actions: unit.available_actions,
-                  is_activated: unit.is_activated,
-                  status: unit.status,
-                },
-                timestamp: Date.now(),
-              })
-            }).catch(() => {});
-            // #endregion
           }
           
           if (!unit || !unit.available_actions || unit.available_actions.length === 0) {

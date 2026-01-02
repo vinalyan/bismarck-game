@@ -966,7 +966,8 @@ const Game: React.FC = () => {
     setSelectedUnitData(updatedUnitData);
 
     // Получаем доступные гексы для движения с сервера
-    if (currentPosition && currentGame?.id && authToken) {
+    // Проверяем, не активирован ли юнит - если активирован, не запрашиваем доступные ходы
+    if (currentPosition && currentGame?.id && authToken && !unit.is_activated) {
       try {
         const availableMovesResponse = await movementAPI.getAvailableMoves(currentGame.id, unit.id, authToken);
         

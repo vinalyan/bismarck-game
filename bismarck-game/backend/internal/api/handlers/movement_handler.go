@@ -102,10 +102,30 @@ func (h *MovementHandler) GetAvailableMoves(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Обрабатываем как NavalUnit (существующая логика)
-	unit, err := h.getUnit(gameID, unitID)
+	unit, err := h.unitService.GetNavalUnitByIDFromGameModel(gameID, unitID)
 	if err != nil {
 		h.logger.Error("Failed to get unit", "error", err, "game_id", gameID, "unit_id", unitID)
 		http.Error(w, "Unit not found", http.StatusNotFound)
+		return
+	}
+
+	// Проверяем, активирован ли юнит - если да, возвращаем пустой список доступных ходов
+	if unit.IsActivated {
+		h.logger.Info("Unit is activated, returning empty available moves",
+			"unit_id", unitID,
+			"unit_name", unit.Name,
+			"is_activated", unit.IsActivated)
+		
+		response := models.AvailableMovesResponse{
+			UnitID:         unitID,
+			CurrentHex:     unit.Position,
+			AvailableHexes: []string{},
+			MaxDistance:    0,
+			FuelCosts:      make(map[string]int),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
