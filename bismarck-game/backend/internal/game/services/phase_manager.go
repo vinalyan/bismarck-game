@@ -550,6 +550,37 @@ func (pm *PhaseManager) RecalculateAvailableActions(gameID string, phase models.
 	return nil
 }
 
+// RecalculateAvailableActionsForUnit пересчитывает доступные действия для одного юнита
+func (pm *PhaseManager) RecalculateAvailableActionsForUnit(gameID, unitID string, phase models.GamePhase) error {
+	if pm.gameStateService == nil || pm.actionCheckerService == nil {
+		return fmt.Errorf("gameStateService and actionCheckerService are required for RecalculateAvailableActionsForUnit")
+	}
+
+	err := pm.gameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
+		unitModel, exists := m.Units[unitID]
+		if !exists {
+			return fmt.Errorf("unit %s not found in GameModel", unitID)
+		}
+		if unitModel.NavalData != nil {
+			// Пересчитываем доступные действия
+			availableActions := pm.actionCheckerService.GetAvailableActions(unitModel, m, phase)
+			unitModel.NavalData.AvailableActions = availableActions
+			m.Units[unitID] = unitModel
+			
+			log.Printf("Recalculated actions for unit %s (%s): available_actions=%v, is_activated=%v",
+				unitID, unitModel.Name, availableActions, unitModel.NavalData.IsActivated)
+		}
+		return nil
+	}, 3)
+
+	if err != nil {
+		log.Printf("Failed to recalculate available actions for unit: %v", err)
+		return fmt.Errorf("failed to recalculate available actions for unit: %w", err)
+	}
+
+	return nil
+}
+
 // CompleteTurn завершает ход
 // Теперь работает только с GameModel (старые таблицы удалены)
 func (pm *PhaseManager) CompleteTurn(gameID string, turnNumber int) error {

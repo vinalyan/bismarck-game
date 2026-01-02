@@ -35,6 +35,7 @@ type UnitService struct {
 	emergencyFuelService *EmergencyFuelService
 	gameStateService     *GameStateService // Опционально, для обновления GameModel
 	searchService        *SearchService    // Опционально, для пересчета факторов поиска
+	phaseManager         *PhaseManager      // Опционально, для пересчета доступных действий
 }
 
 // NewUnitService создает новый сервис юнитов
@@ -63,6 +64,11 @@ func (s *UnitService) SetEmergencyFuelService(service *EmergencyFuelService) {
 // SetSearchService устанавливает SearchService для пересчета факторов поиска
 func (s *UnitService) SetSearchService(service *SearchService) {
 	s.searchService = service
+}
+
+// SetPhaseManager устанавливает PhaseManager для пересчета доступных действий
+func (s *UnitService) SetPhaseManager(phaseManager *PhaseManager) {
+	s.phaseManager = phaseManager
 }
 
 // SetUnitSunkHandler устанавливает обработчик для потопления корабля
@@ -1467,6 +1473,9 @@ func (s *UnitService) SetPatrol(gameID, unitID string, isPatrolling bool) error 
 		}
 		
 		unitModel.UpdatedAt = time.Now()
+		
+		// Пересчитываем доступные действия после установки патруля (будет пересчитано после обновления модели)
+		// Используем отдельный вызов RecalculateAvailableActionsForUnit после обновления модели
 
 		// TODO: Добавление/удаление маркера патруля в БД будет реализовано отдельно
 		// Маркеры теперь хранятся в БД (таблица hex_markers), а не в GameModel
@@ -1681,7 +1690,7 @@ func (s *UnitService) RepairAtSea(gameID, unitID string) error {
 		unitModel.Status = string(models.UnitStatusRepairing)
 		unitModel.NavalData.IsActivated = true
 		unitModel.UpdatedAt = time.Now()
-
+		
 		model.Units[unitID] = unitModel
 		return nil
 	}, 3)
@@ -1689,6 +1698,17 @@ func (s *UnitService) RepairAtSea(gameID, unitID string) error {
 	if err != nil {
 		s.logger.Error("Failed to set repair at sea", "unit_id", unitID, "error", err)
 		return fmt.Errorf("failed to set repair at sea: %w", err)
+	}
+
+	// Пересчитываем доступные действия после ремонта
+	if s.phaseManager != nil {
+		currentPhase := models.PhaseMovement
+		if turn, err := s.phaseManager.GetCurrentPhase(gameID); err == nil && turn != nil {
+			currentPhase = models.GamePhase(turn.CurrentPhase)
+		}
+		if err := s.phaseManager.RecalculateAvailableActionsForUnit(gameID, unitID, currentPhase); err != nil {
+			s.logger.Warn("Failed to recalculate available actions after repair", "unit_id", unitID, "error", err)
+		}
 	}
 
 	s.logger.Info("Repair at sea started", "unit_id", unitID)
@@ -1741,7 +1761,7 @@ func (s *UnitService) RefuelAtPort(gameID, unitID string) error {
 		unitModel.Status = string(models.UnitStatusRefueling)
 		unitModel.NavalData.IsActivated = true
 		unitModel.UpdatedAt = time.Now()
-
+		
 		model.Units[unitID] = unitModel
 		return nil
 	}, 3)
@@ -1749,6 +1769,17 @@ func (s *UnitService) RefuelAtPort(gameID, unitID string) error {
 	if err != nil {
 		s.logger.Error("Failed to refuel at port", "unit_id", unitID, "error", err)
 		return fmt.Errorf("failed to refuel at port: %w", err)
+	}
+
+	// Пересчитываем доступные действия после заправки
+	if s.phaseManager != nil {
+		currentPhase := models.PhaseMovement
+		if turn, err := s.phaseManager.GetCurrentPhase(gameID); err == nil && turn != nil {
+			currentPhase = models.GamePhase(turn.CurrentPhase)
+		}
+		if err := s.phaseManager.RecalculateAvailableActionsForUnit(gameID, unitID, currentPhase); err != nil {
+			s.logger.Warn("Failed to recalculate available actions after refuel at port", "unit_id", unitID, "error", err)
+		}
 	}
 
 	s.logger.Info("Refuel at port completed", "unit_id", unitID)
@@ -1814,7 +1845,7 @@ func (s *UnitService) RefuelAtSea(gameID, unitID string) error {
 		unitModel.Status = string(models.UnitStatusRefueling)
 		unitModel.NavalData.IsActivated = true
 		unitModel.UpdatedAt = time.Now()
-
+		
 		model.Units[unitID] = unitModel
 		return nil
 	}, 3)
@@ -1822,6 +1853,17 @@ func (s *UnitService) RefuelAtSea(gameID, unitID string) error {
 	if err != nil {
 		s.logger.Error("Failed to refuel at sea", "unit_id", unitID, "error", err)
 		return fmt.Errorf("failed to refuel at sea: %w", err)
+	}
+
+	// Пересчитываем доступные действия после заправки
+	if s.phaseManager != nil {
+		currentPhase := models.PhaseMovement
+		if turn, err := s.phaseManager.GetCurrentPhase(gameID); err == nil && turn != nil {
+			currentPhase = models.GamePhase(turn.CurrentPhase)
+		}
+		if err := s.phaseManager.RecalculateAvailableActionsForUnit(gameID, unitID, currentPhase); err != nil {
+			s.logger.Warn("Failed to recalculate available actions after refuel at sea", "unit_id", unitID, "error", err)
+		}
 	}
 
 	s.logger.Info("Refuel at sea completed", "unit_id", unitID, "fuel_added", fuelToAdd)

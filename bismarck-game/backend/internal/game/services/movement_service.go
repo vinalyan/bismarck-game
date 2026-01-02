@@ -328,8 +328,16 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 		return nil, fmt.Errorf("failed to update unit position: %w", err)
 	}
 
-	// Помечаем юнит как активированный после успешного движения
+	// Помечаем юнит как активированный после успешного движения и пересчитываем доступные действия
 	if s.gameStateService != nil {
+		// Получаем текущую фазу
+		currentPhase := models.PhaseMovement
+		if s.phaseManager != nil {
+			if turn, err := s.phaseManager.GetCurrentPhase(unit.GameID); err == nil && turn != nil {
+				currentPhase = models.GamePhase(turn.CurrentPhase)
+			}
+		}
+		
 		if err := s.gameStateService.UpdateGameModelWithRetry(unit.GameID, func(model *models.GameModel) error {
 			unitModel, exists := model.Units[unit.ID]
 			if !exists {
@@ -342,6 +350,13 @@ func (s *MovementService) executeMovementInternal(unit *models.NavalUnit, toHex 
 		}, 3); err != nil {
 			s.logger.Warn("Failed to set is_activated after movement", "unit_id", unit.ID, "error", err)
 			// Не возвращаем ошибку, так как движение уже выполнено
+		} else {
+			// Пересчитываем доступные действия после активации
+			if s.phaseManager != nil {
+				if err := s.phaseManager.RecalculateAvailableActionsForUnit(unit.GameID, unit.ID, currentPhase); err != nil {
+					s.logger.Warn("Failed to recalculate available actions after movement", "unit_id", unit.ID, "error", err)
+				}
+			}
 		}
 	}
 
@@ -665,6 +680,14 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 
 	// Помечаем Task Force и все юниты в нем как активированные после успешного движения
 	if s.gameStateService != nil {
+		// Получаем текущую фазу
+		currentPhase := models.PhaseMovement
+		if s.phaseManager != nil {
+			if turn, err := s.phaseManager.GetCurrentPhase(gameID); err == nil && turn != nil {
+				currentPhase = models.GamePhase(turn.CurrentPhase)
+			}
+		}
+		
 		if err := s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
 			// Помечаем Task Force как активированный
 			if tfModel, exists := model.TaskForces[taskForceID]; exists {
@@ -681,6 +704,15 @@ func (s *MovementService) ExecuteTaskForceMovement(taskForceID, toHex string) er
 		}, 3); err != nil {
 			s.logger.Warn("Failed to set is_activated after task force movement", "task_force_id", taskForceID, "error", err)
 			// Не возвращаем ошибку, так как движение уже выполнено
+		} else {
+			// Пересчитываем доступные действия для всех юнитов в Task Force
+			if s.phaseManager != nil {
+				for _, unitID := range taskForce.Units {
+					if err := s.phaseManager.RecalculateAvailableActionsForUnit(gameID, unitID, currentPhase); err != nil {
+						s.logger.Warn("Failed to recalculate available actions for TF unit after movement", "unit_id", unitID, "error", err)
+					}
+				}
+			}
 		}
 	}
 
