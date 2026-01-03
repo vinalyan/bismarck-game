@@ -2092,5 +2092,444 @@ describe('Game', () => {
       }, { timeout: 3000 });
     });
   });
+
+  describe('Data Display and Updates', () => {
+    it('should display enemy contacts when present', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      const mockEnemyContact = {
+        hex_id: 'K15',
+        ship_count: 2,
+        class_summary: 'BB, CA',
+        task_force: 'TF-1',
+        turn: 1,
+        phase: 'movement',
+        visibility: 'sighted',
+        last_seen_at: '2023-01-01T00:00:00Z'
+      };
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [mockEnemyContact],
+          search: {
+            search_hexes: {}
+          },
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Обнаруженные контакты/i)).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Hex K15/i)).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Обнаружено 2 корабль/i)).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+
+    it('should display task forces when present', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      const mockTaskForce = {
+        id: 'tf-1',
+        name: 'Task Force 1',
+        nationality: 'german',
+        position: 'K15',
+        units: [],
+        speed: 2,
+        detection_level: 'low',
+        last_move_turn: 0,
+        is_activated: false,
+        is_patrolling: false,
+        created_at: '2023-01-01T00:00:00Z',
+        updated_at: '2023-01-01T00:00:00Z'
+      };
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [mockTaskForce],
+          enemy_contacts: [],
+          search: {
+            search_hexes: {}
+          },
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Проверяем, что taskForces передаются в HexMap
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.taskForces).toHaveLength(1);
+        expect(latestProps.taskForces[0].id).toBe('tf-1');
+      }, { timeout: 3000 });
+    });
+
+    it('should update searchFactorHexes from GameModel', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      // searchFactorHexes создается из search.search_hexes в extractSearchDataFromModel
+      const mockSearchData = {
+        search: {
+          search_hexes: {
+            'K15': { factor: 3, air_search: 0 },
+            'K16': { factor: 2, air_search: 0 },
+            'K17': { factor: 1, air_search: 0 }
+          }
+        }
+      };
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          ...mockSearchData,
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Проверяем, что searchFactorHexes передаются в HexMap
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.searchFactorHexes).toBeInstanceOf(Map);
+        expect(latestProps.searchFactorHexes.get('K15')).toBe(3);
+        expect(latestProps.searchFactorHexes.get('K16')).toBe(2);
+      }, { timeout: 3000 });
+    });
+
+    it('should update hexMarkers from GameModel', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      // hexMarkers создается из search.search_hexes.air_search в extractSearchDataFromModel
+      const mockSearchData = {
+        search: {
+          search_hexes: {
+            'K15': { factor: 2, air_search: 1 }, // air_search > 0 создает маркер
+            'K16': { factor: 1, air_search: 0 }
+          }
+        }
+      };
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          ...mockSearchData,
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Проверяем, что hexMarkers передаются в HexMap
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.hexMarkers).toBeDefined();
+        expect(latestProps.hexMarkers['K15']).toBeDefined();
+        expect(latestProps.hexMarkers['K15'].flight_path_search).toBe(1);
+      }, { timeout: 3000 });
+    });
+
+    it('should display visibility level from currentTurn', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      mockUseGameStore.mockReturnValue({
+        ...mockStoreState,
+        currentGame: {
+          ...mockCurrentGame,
+          visibility_level: 3,
+        },
+      });
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          search: {
+            search_hexes: {}
+          },
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+          visibility_level: 3,
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Уровень видимости:/i)).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        expect(screen.getByText(/3/i)).toBeInTheDocument();
+      }, { timeout: 3000 });
+    });
+
+    it('should display fog status from currentTurn', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      mockUseGameStore.mockReturnValue({
+        ...mockStoreState,
+        currentGame: {
+          ...mockCurrentGame,
+          is_fog: true,
+        },
+      });
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          search: {
+            search_hexes: {}
+          },
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+          is_fog: true,
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Туман:/i)).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Да/i)).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Проверяем, что isFog передается в HexMap
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.isFog).toBe(true);
+      }, { timeout: 5000 });
+    });
+
+    it('should pass visibilityLevel and isFog to HexMap', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      // visibility_level и is_fog должны быть в data, а не в current_turn
+      // createGameTurnFromModel берет их из currentGame, который обновляется через updateGame
+      mockUseGameStore.mockReturnValue({
+        ...mockStoreState,
+        currentGame: {
+          ...mockCurrentGame,
+          visibility_level: 4,
+          is_fog: false,
+        },
+      });
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          search: {
+            search_hexes: {}
+          },
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+          visibility_level: 4,
+          is_fog: false,
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Проверяем, что visibilityLevel и isFog передаются в HexMap
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.visibilityLevel).toBe(4);
+        expect(latestProps.isFog).toBe(false);
+      }, { timeout: 5000 });
+    });
+
+    it('should use game visibility_level and is_fog as fallback when currentTurn is null', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      mockUseGameStore.mockReturnValue({
+        ...mockStoreState,
+        currentGame: {
+          ...mockCurrentGame,
+          visibility_level: 5,
+          is_fog: true,
+        },
+      });
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          search: {
+            search_hexes: {}
+          },
+          current_turn: null,
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Проверяем, что используются значения из currentGame
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.visibilityLevel).toBe(5);
+        expect(latestProps.isFog).toBe(true);
+      }, { timeout: 3000 });
+    });
+
+    it('should update all data when GameModel is updated', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      const mockTaskForce = {
+        id: 'tf-1',
+        name: 'Task Force 1',
+        nationality: 'german',
+        position: 'K15',
+        units: [],
+        speed: 2,
+        detection_level: 'low',
+        last_move_turn: 0,
+        is_activated: false,
+        is_patrolling: false,
+        created_at: '2023-01-01T00:00:00Z',
+        updated_at: '2023-01-01T00:00:00Z'
+      };
+
+      const mockEnemyContact = {
+        hex_id: 'K16',
+        ship_count: 1,
+        class_summary: 'DD',
+        task_force: 'нет',
+        turn: 1,
+        phase: 'movement',
+        visibility: 'shadowed',
+        last_seen_at: '2023-01-01T00:00:00Z'
+      };
+
+      unitsAPI.getGameUnits = jest.fn()
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            units: [],
+            task_forces: [],
+            enemy_contacts: [],
+            search: {
+              search_hexes: {}
+            },
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+            version: 1,
+          },
+        })
+        .mockResolvedValue({
+          success: true,
+          data: {
+            units: [],
+            task_forces: [mockTaskForce],
+            enemy_contacts: [mockEnemyContact],
+            search: {
+              search_hexes: {
+                'K15': { factor: 2, air_search: 1 }
+              }
+            },
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+            version: 2,
+          },
+        });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Симулируем обновление через handleGameModelUpdate
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      if (hexMapProps.onRefreshData) {
+        await act(async () => {
+          await hexMapProps.onRefreshData();
+        });
+      }
+
+      // Проверяем, что все данные обновились
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.taskForces).toHaveLength(1);
+        expect(latestProps.enemyContacts).toHaveLength(1);
+        expect(latestProps.searchFactorHexes.get('K15')).toBe(2);
+        expect(latestProps.hexMarkers['K15']).toBeDefined();
+        expect(latestProps.hexMarkers['K15'].flight_path_search).toBe(1);
+      }, { timeout: 5000 });
+    });
+  });
 });
 
