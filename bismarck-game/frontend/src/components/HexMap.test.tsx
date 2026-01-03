@@ -1658,7 +1658,7 @@ describe('HexMap', () => {
       const mapStructures = {
         landAreas: [],
         nonGameHexes: [],
-        restrictedDD: null,
+        restrictedDD: undefined,
         fogAreas: []
       };
 
