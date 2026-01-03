@@ -1212,18 +1212,24 @@ describe('HexMap', () => {
       );
 
       const createTFButton = screen.getByRole('button', { name: /Создать TF|Create TF/i });
-      userEvent.click(createTFButton);
+      await act(async () => {
+        await userEvent.click(createTFButton);
+      });
 
       // После клика должна появиться кнопка отмены
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Отмена|Cancel/i })).toBeInTheDocument();
       });
 
-      // Проверяем, что гексы-кандидаты помечены как isTFCandidate
-      const hexA1 = mockHexProps.find(
-        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
-      );
-      expect(hexA1?.isTFCandidate).toBe(true);
+      // Ждем, пока компонент перерендерится с обновленными пропсами
+      // Ищем последний элемент в массиве для данного гекса (последний рендер)
+      await waitFor(() => {
+        const hexA1Props = mockHexProps.filter(
+          props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+        );
+        const hexA1 = hexA1Props[hexA1Props.length - 1]; // Берем последний элемент
+        expect(hexA1?.isTFCandidate).toBe(true);
+      }, { timeout: 2000 });
     });
 
     it('should exit TF creation mode when Cancel button is clicked', async () => {
@@ -1260,7 +1266,9 @@ describe('HexMap', () => {
 
       // Входим в режим создания TF
       const createTFButton = screen.getByRole('button', { name: /Создать TF|Create TF/i });
-      userEvent.click(createTFButton);
+      await act(async () => {
+        await userEvent.click(createTFButton);
+      });
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Отмена|Cancel/i })).toBeInTheDocument();
@@ -1268,7 +1276,9 @@ describe('HexMap', () => {
 
       // Выходим из режима
       const cancelButton = screen.getByRole('button', { name: /Отмена|Cancel/i });
-      userEvent.click(cancelButton);
+      await act(async () => {
+        await userEvent.click(cancelButton);
+      });
 
       // Кнопка отмены должна исчезнуть
       await waitFor(() => {
@@ -1315,19 +1325,24 @@ describe('HexMap', () => {
       );
 
       const createTFButton = screen.getByRole('button', { name: /Создать TF|Create TF/i });
-      userEvent.click(createTFButton);
+      await act(async () => {
+        await userEvent.click(createTFButton);
+      });
 
       await waitFor(() => {
         // A1 должен быть кандидатом (2 юнита), B2 не должен (1 юнит)
-        const hexA1 = mockHexProps.find(
+        // Ищем последние элементы в массиве для каждого гекса (последний рендер)
+        const hexA1Props = mockHexProps.filter(
           props => props.coordinate.letter === 'A' && props.coordinate.number === 1
         );
-        const hexB2 = mockHexProps.find(
+        const hexB2Props = mockHexProps.filter(
           props => props.coordinate.letter === 'B' && props.coordinate.number === 2
         );
+        const hexA1 = hexA1Props[hexA1Props.length - 1];
+        const hexB2 = hexB2Props[hexB2Props.length - 1];
         expect(hexA1?.isTFCandidate).toBe(true);
         expect(hexB2?.isTFCandidate).toBe(false);
-      });
+      }, { timeout: 2000 });
     });
 
     it('should handle hex click in TF mode', async () => {
@@ -1362,29 +1377,28 @@ describe('HexMap', () => {
 
       // Входим в режим создания TF
       const createTFButton = screen.getByRole('button', { name: /Создать TF|Create TF/i });
-      userEvent.click(createTFButton);
-
-      await waitFor(() => {
-        const hexA1 = mockHexProps.find(
-          props => props.coordinate.letter === 'A' && props.coordinate.number === 1
-        );
-        expect(hexA1?.isTFCandidate).toBe(true);
+      await act(async () => {
+        await userEvent.click(createTFButton);
       });
 
-      // Ждем, пока режим активируется
+      // Ждем, пока режим активируется и компонент перерендерится
       await waitFor(() => {
-        const hexA1 = mockHexProps.find(
+        // Ищем последний элемент в массиве для данного гекса (последний рендер)
+        const hexA1Props = mockHexProps.filter(
           props => props.coordinate.letter === 'A' && props.coordinate.number === 1
         );
+        const hexA1 = hexA1Props[hexA1Props.length - 1];
         expect(hexA1?.isTFCandidate).toBe(true);
-      });
+      }, { timeout: 2000 });
 
       // Кликаем по гексу-кандидату
-      const hexA1Props = mockHexProps.find(
+      // Ищем последний элемент в массиве для данного гекса (последний рендер)
+      const hexA1PropsArray = mockHexProps.filter(
         props => props.coordinate.letter === 'A' && props.coordinate.number === 1
       );
+      const hexA1Props = hexA1PropsArray[hexA1PropsArray.length - 1];
       if (hexA1Props?.onClick) {
-        act(() => {
+        await act(async () => {
           hexA1Props.onClick();
         });
       }
