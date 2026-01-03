@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HexMap from './HexMap';
 import { HexCoordinate } from '../types/mapTypes';
@@ -9,6 +9,7 @@ import { ActiveHex } from '../utils/activeHexesUtils';
 jest.mock('../services/api/unitsAPI');
 jest.mock('../services/api/phaseAPI');
 jest.mock('../services/api/searchAPI');
+jest.mock('../services/api/gameAPI');
 
 // Мокируем тяжелые дочерние компоненты
 const mockHexProps: any[] = [];
@@ -40,17 +41,19 @@ jest.mock('./Tooltip', () => {
   };
 });
 
-jest.mock('./CreateTaskForceDialog', () => {
-  return function MockCreateTaskForceDialog() {
-    return null;
-  };
-});
+jest.mock('./CreateTaskForceDialog', () => ({
+  __esModule: true,
+  default: function MockCreateTaskForceDialog({ hexId, onClose, onConfirm, units }: any) {
+    return (
+      <div data-testid="create-tf-dialog">
+        <div>TF Dialog for {hexId}</div>
+        <button onClick={onClose}>Close TF</button>
+        <button onClick={() => onConfirm && onConfirm(units?.map((u: any) => u.id) || [])}>Confirm TF</button>
+      </div>
+    );
+  }
+}));
 
-jest.mock('./PatrolDialog', () => {
-  return function MockPatrolDialog() {
-    return null;
-  };
-});
 
 describe('HexMap', () => {
   const mockGameId = 'game-1';
@@ -962,7 +965,7 @@ describe('HexMap', () => {
       const mapStructures = {
         landAreas: [],
         nonGameHexes: [],
-        restrictedDD: null,
+        restrictedDD: undefined,
         fogAreas: []
       };
 
@@ -1172,6 +1175,979 @@ describe('HexMap', () => {
       expect(hexA1?.isSelected).toBe(true);
       expect(hexA1?.activeHex).toBeDefined();
       expect(hexA1?.isAvailableForMovement).toBe(true);
+    });
+  });
+
+  describe('Task Force Creation Mode', () => {
+    it('should enter TF creation mode when Create TF button is clicked', async () => {
+      const mockUnits = [
+        {
+          id: 'unit-1',
+          name: 'Unit 1',
+          position: 'A1',
+          nationality: 'german',
+          task_force_id: null,
+          type: 'DD',
+          status: 'active'
+        },
+        {
+          id: 'unit-2',
+          name: 'Unit 2',
+          position: 'A1',
+          nationality: 'german',
+          task_force_id: null,
+          type: 'DD',
+          status: 'active'
+        }
+      ];
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={mockUnits}
+          currentPhase="movement"
+          width={5} 
+          height={5} 
+        />
+      );
+
+      const createTFButton = screen.getByRole('button', { name: /Создать TF|Create TF/i });
+      userEvent.click(createTFButton);
+
+      // После клика должна появиться кнопка отмены
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Отмена|Cancel/i })).toBeInTheDocument();
+      });
+
+      // Проверяем, что гексы-кандидаты помечены как isTFCandidate
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+      expect(hexA1?.isTFCandidate).toBe(true);
+    });
+
+    it('should exit TF creation mode when Cancel button is clicked', async () => {
+      const mockUnits = [
+        {
+          id: 'unit-1',
+          name: 'Unit 1',
+          position: 'A1',
+          nationality: 'german',
+          task_force_id: null,
+          type: 'DD',
+          status: 'active'
+        },
+        {
+          id: 'unit-2',
+          name: 'Unit 2',
+          position: 'A1',
+          nationality: 'german',
+          task_force_id: null,
+          type: 'DD',
+          status: 'active'
+        }
+      ];
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={mockUnits}
+          currentPhase="movement"
+          width={5} 
+          height={5} 
+        />
+      );
+
+      // Входим в режим создания TF
+      const createTFButton = screen.getByRole('button', { name: /Создать TF|Create TF/i });
+      userEvent.click(createTFButton);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Отмена|Cancel/i })).toBeInTheDocument();
+      });
+
+      // Выходим из режима
+      const cancelButton = screen.getByRole('button', { name: /Отмена|Cancel/i });
+      userEvent.click(cancelButton);
+
+      // Кнопка отмены должна исчезнуть
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /Отмена|Cancel/i })).not.toBeInTheDocument();
+      });
+    });
+
+    it('should find TF candidate hexes correctly', async () => {
+      const mockUnits = [
+        {
+          id: 'unit-1',
+          position: 'A1',
+          nationality: 'german',
+          task_force_id: null,
+          type: 'DD',
+          status: 'active'
+        },
+        {
+          id: 'unit-2',
+          position: 'A1',
+          nationality: 'german',
+          task_force_id: null,
+          type: 'DD',
+          status: 'active'
+        },
+        {
+          id: 'unit-3',
+          position: 'B2',
+          nationality: 'german',
+          task_force_id: null,
+          type: 'DD',
+          status: 'active'
+        }
+      ];
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={mockUnits}
+          currentPhase="movement"
+          width={5} 
+          height={5} 
+        />
+      );
+
+      const createTFButton = screen.getByRole('button', { name: /Создать TF|Create TF/i });
+      userEvent.click(createTFButton);
+
+      await waitFor(() => {
+        // A1 должен быть кандидатом (2 юнита), B2 не должен (1 юнит)
+        const hexA1 = mockHexProps.find(
+          props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+        );
+        const hexB2 = mockHexProps.find(
+          props => props.coordinate.letter === 'B' && props.coordinate.number === 2
+        );
+        expect(hexA1?.isTFCandidate).toBe(true);
+        expect(hexB2?.isTFCandidate).toBe(false);
+      });
+    });
+
+    it('should handle hex click in TF mode', async () => {
+      const mockUnits = [
+        {
+          id: 'unit-1',
+          position: 'A1',
+          nationality: 'german',
+          task_force_id: null,
+          type: 'DD',
+          status: 'active'
+        },
+        {
+          id: 'unit-2',
+          position: 'A1',
+          nationality: 'german',
+          task_force_id: null,
+          type: 'DD',
+          status: 'active'
+        }
+      ];
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={mockUnits}
+          currentPhase="movement"
+          width={5} 
+          height={5} 
+        />
+      );
+
+      // Входим в режим создания TF
+      const createTFButton = screen.getByRole('button', { name: /Создать TF|Create TF/i });
+      userEvent.click(createTFButton);
+
+      await waitFor(() => {
+        const hexA1 = mockHexProps.find(
+          props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+        );
+        expect(hexA1?.isTFCandidate).toBe(true);
+      });
+
+      // Ждем, пока режим активируется
+      await waitFor(() => {
+        const hexA1 = mockHexProps.find(
+          props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+        );
+        expect(hexA1?.isTFCandidate).toBe(true);
+      });
+
+      // Кликаем по гексу-кандидату
+      const hexA1Props = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+      if (hexA1Props?.onClick) {
+        act(() => {
+          hexA1Props.onClick();
+        });
+      }
+
+      // Должен открыться диалог создания TF
+      await waitFor(() => {
+        expect(screen.getByTestId('create-tf-dialog')).toBeInTheDocument();
+      }, { timeout: 2000 });
+    });
+  });
+
+
+  describe('Flight Path Search Mode', () => {
+    it('should enter flight path search mode when button is clicked', async () => {
+      render(
+        <HexMap 
+          {...defaultProps} 
+          currentPhase="movement"
+          width={5} 
+          height={5} 
+        />
+      );
+
+      const flightPathButton = screen.getByRole('button', { name: /Воздушная разведка|Flight Path/i });
+      userEvent.click(flightPathButton);
+
+      // После клика должна появиться кнопка отмены
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Отмена разведки|Cancel Search/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should exit flight path search mode when Cancel button is clicked', async () => {
+      render(
+        <HexMap 
+          {...defaultProps} 
+          currentPhase="movement"
+          width={5} 
+          height={5} 
+        />
+      );
+
+      // Входим в режим
+      const flightPathButton = screen.getByRole('button', { name: /Воздушная разведка|Flight Path/i });
+      userEvent.click(flightPathButton);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Отмена разведки|Cancel Search/i })).toBeInTheDocument();
+      });
+
+      // Выходим из режима
+      const cancelButton = screen.getByRole('button', { name: /Отмена разведки|Cancel Search/i });
+      userEvent.click(cancelButton);
+
+      // Кнопка отмены должна исчезнуть
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /Отмена разведки|Cancel Search/i })).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Map Controls', () => {
+    it('should handle refresh button click', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({ success: true });
+
+      render(<HexMap {...defaultProps} width={5} height={5} />);
+
+      const refreshButton = screen.getByTitle(/Обновить данные игры/i);
+      userEvent.click(refreshButton);
+
+      await waitFor(() => {
+        expect(unitsAPI.getGameUnits).toHaveBeenCalled();
+      });
+    });
+
+    it('should handle map offset buttons', () => {
+      render(<HexMap {...defaultProps} width={5} height={5} />);
+
+      const rightButton = screen.getByRole('button', { name: /→/ });
+      const upButton = screen.getByRole('button', { name: /↑/ });
+
+      // Клики не должны вызывать ошибок
+      userEvent.click(rightButton);
+      userEvent.click(upButton);
+
+      expect(rightButton).toBeInTheDocument();
+      expect(upButton).toBeInTheDocument();
+    });
+  });
+
+  describe('Tooltip Handling', () => {
+    it('should handle unit hover', () => {
+      render(<HexMap {...defaultProps} width={5} height={5} />);
+
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+
+      // Симулируем hover с координатами
+      if (hexA1?.onUnitHover) {
+        hexA1.onUnitHover('unit-1', 'BB', 'german', 100, 200);
+      }
+
+      // Tooltip должен обрабатываться без ошибок
+      expect(hexA1?.onUnitHover).toBeDefined();
+    });
+
+    it('should handle unit leave', () => {
+      render(<HexMap {...defaultProps} width={5} height={5} />);
+
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+
+      if (hexA1?.onUnitLeave) {
+        hexA1.onUnitLeave();
+      }
+
+      expect(hexA1?.onUnitLeave).toBeDefined();
+    });
+
+    it('should handle hex tooltip show', () => {
+      render(<HexMap {...defaultProps} width={5} height={5} />);
+
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+
+      if (hexA1?.onTooltipShow) {
+        hexA1.onTooltipShow(100, 200, {
+          hexId: 'A1',
+          hexType: 'water',
+          features: []
+        });
+      }
+
+      expect(hexA1?.onTooltipShow).toBeDefined();
+    });
+
+    it('should handle hex tooltip hide', () => {
+      render(<HexMap {...defaultProps} width={5} height={5} />);
+
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+
+      if (hexA1?.onTooltipHide) {
+        hexA1.onTooltipHide();
+      }
+
+      expect(hexA1?.onTooltipHide).toBeDefined();
+    });
+  });
+
+  describe('Active Hexes Types', () => {
+    it('should handle movement type active hexes', () => {
+      const activeHexes: ActiveHex[] = [
+        createActiveHex('A', 1, 'movement', 1)
+      ];
+
+      render(<HexMap {...defaultProps} activeHexes={activeHexes} width={5} height={5} />);
+
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+
+      expect(hexA1?.activeHex).toBeDefined();
+      expect(hexA1?.activeHex.type).toBe('movement');
+    });
+
+    it('should handle search type active hexes', () => {
+      const activeHexes: ActiveHex[] = [
+        createActiveHex('B', 2, 'search', 7)
+      ];
+
+      render(<HexMap {...defaultProps} activeHexes={activeHexes} width={5} height={5} />);
+
+      const hexB2 = mockHexProps.find(
+        props => props.coordinate.letter === 'B' && props.coordinate.number === 2
+      );
+
+      expect(hexB2?.activeHex).toBeDefined();
+      expect(hexB2?.activeHex.type).toBe('search');
+    });
+
+    it('should handle refuel type active hexes', () => {
+      const activeHexes: ActiveHex[] = [
+        createActiveHex('C', 3, 'refuel', 2)
+      ];
+
+      render(<HexMap {...defaultProps} activeHexes={activeHexes} width={5} height={5} />);
+
+      const hexC3 = mockHexProps.find(
+        props => props.coordinate.letter === 'C' && props.coordinate.number === 3
+      );
+
+      expect(hexC3?.activeHex).toBeDefined();
+      expect(hexC3?.activeHex.type).toBe('refuel');
+    });
+
+    it('should handle repair type active hexes', () => {
+      const activeHexes: ActiveHex[] = [
+        createActiveHex('D', 4, 'repair', 3)
+      ];
+
+      render(<HexMap {...defaultProps} activeHexes={activeHexes} width={5} height={5} />);
+
+      const hexD4 = mockHexProps.find(
+        props => props.coordinate.letter === 'D' && props.coordinate.number === 4
+      );
+
+      expect(hexD4?.activeHex).toBeDefined();
+      expect(hexD4?.activeHex.type).toBe('repair');
+    });
+
+    it('should handle patrol type active hexes', () => {
+      const activeHexes: ActiveHex[] = [
+        createActiveHex('E', 5, 'patrol', 4)
+      ];
+
+      render(<HexMap {...defaultProps} activeHexes={activeHexes} width={5} height={5} />);
+
+      const hexE5 = mockHexProps.find(
+        props => props.coordinate.letter === 'E' && props.coordinate.number === 5
+      );
+
+      expect(hexE5?.activeHex).toBeDefined();
+      expect(hexE5?.activeHex.type).toBe('patrol');
+    });
+
+    it('should handle multiple active hex types with priority', () => {
+      const activeHexes: ActiveHex[] = [
+        createActiveHex('A', 1, 'movement', 1),
+        createActiveHex('A', 1, 'refuel', 2),
+        createActiveHex('B', 2, 'search', 7)
+      ];
+
+      render(<HexMap {...defaultProps} activeHexes={activeHexes} width={5} height={5} />);
+
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+      const hexB2 = mockHexProps.find(
+        props => props.coordinate.letter === 'B' && props.coordinate.number === 2
+      );
+
+      expect(hexA1?.activeHex).toBeDefined();
+      expect(hexB2?.activeHex).toBeDefined();
+      // При одинаковых координатах find() вернет первый найденный
+      expect(['movement', 'refuel']).toContain(hexA1?.activeHex.type);
+    });
+  });
+
+  describe('Map Structures', () => {
+    it('should pass mapStructures to Hex component', () => {
+      const mapStructures = {
+        landAreas: [],
+        nonGameHexes: [],
+        restrictedDD: null,
+        fogAreas: []
+      };
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          mapStructures={mapStructures}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+
+      expect(hexA1?.mapStructures).toBe(mapStructures);
+    });
+
+    it('should handle null mapStructures', () => {
+      render(
+        <HexMap 
+          {...defaultProps} 
+          mapStructures={null}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+
+      expect(hexA1?.mapStructures).toBe(null);
+    });
+  });
+
+  describe('Fog of War', () => {
+    it('should pass isFog prop to Hex', () => {
+      render(
+        <HexMap 
+          {...defaultProps} 
+          isFog={true}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+
+      expect(hexA1?.isFog).toBe(true);
+    });
+
+    it('should pass isFog=false when fog is disabled', () => {
+      render(
+        <HexMap 
+          {...defaultProps} 
+          isFog={false}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      const hexA1 = mockHexProps.find(
+        props => props.coordinate.letter === 'A' && props.coordinate.number === 1
+      );
+
+      expect(hexA1?.isFog).toBe(false);
+    });
+  });
+
+  describe('Enemy Contacts', () => {
+    it('should pass enemyContacts to Hex component', () => {
+      const mockEnemyContacts = [
+        {
+          hex_id: 'A1',
+          visibility: 'sighted' as const,
+          ship_count: 2,
+          class_summary: 'BB, CA',
+          task_force: 'TF-1',
+          task_force_list: ['TF-1'],
+          enemy_nationality: 'allied' as const,
+          searching_side: 'german' as const,
+          turn: 1,
+          phase: 'movement',
+          last_seen_at: '2023-01-01T00:00:00Z'
+        }
+      ];
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          enemyContacts={mockEnemyContacts}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      // EnemyContacts обрабатываются внутри компонента и передаются через hexData
+      // Проверяем, что компонент рендерится без ошибок
+      const svg = document.querySelector('svg.hex-map');
+      expect(svg).toBeInTheDocument();
+    });
+  });
+
+  describe('Unit Actions', () => {
+    it('should display action buttons for unit with available actions', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockOnUnitDeselect = jest.fn();
+      const mockOnRefreshData = jest.fn();
+
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Unit 1',
+        position: 'A1',
+        nationality: 'german',
+        task_force_id: null,
+        type: 'DD',
+        status: 'active',
+        available_actions: ['repair', 'refuel-port', 'patrol']
+      };
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={[mockUnit]}
+          currentPhase="movement"
+          selectedUnit="unit-1"
+          onUnitDeselect={mockOnUnitDeselect}
+          onRefreshData={mockOnRefreshData}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      // Должны появиться кнопки действий
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Ремонт|Repair/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Заправка|Refuel/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Патруль|Patrol/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should handle repair action', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockOnUnitDeselect = jest.fn();
+      const mockOnRefreshData = jest.fn().mockResolvedValue(undefined);
+
+      unitsAPI.repairAtSea = jest.fn().mockResolvedValue({
+        success: true
+      });
+
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Unit 1',
+        position: 'A1',
+        nationality: 'german',
+        task_force_id: null,
+        type: 'DD',
+        status: 'active',
+        available_actions: ['repair']
+      };
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={[mockUnit]}
+          currentPhase="movement"
+          selectedUnit="unit-1"
+          onUnitDeselect={mockOnUnitDeselect}
+          onRefreshData={mockOnRefreshData}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Ремонт|Repair/i })).toBeInTheDocument();
+      });
+
+      const repairButton = screen.getByRole('button', { name: /Ремонт|Repair/i });
+      userEvent.click(repairButton);
+
+      await waitFor(() => {
+        expect(unitsAPI.repairAtSea).toHaveBeenCalledWith(
+          mockGameId,
+          'unit-1',
+          mockAuthToken
+        );
+        expect(mockOnRefreshData).toHaveBeenCalled();
+        expect(mockOnUnitDeselect).toHaveBeenCalled();
+      });
+    });
+
+    it('should handle refuel-port action', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockOnUnitDeselect = jest.fn();
+      const mockOnRefreshData = jest.fn().mockResolvedValue(undefined);
+
+      unitsAPI.refuelAtPort = jest.fn().mockResolvedValue({
+        success: true
+      });
+
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Unit 1',
+        position: 'A1',
+        nationality: 'german',
+        task_force_id: null,
+        type: 'DD',
+        status: 'active',
+        available_actions: ['refuel-port']
+      };
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={[mockUnit]}
+          currentPhase="movement"
+          selectedUnit="unit-1"
+          onUnitDeselect={mockOnUnitDeselect}
+          onRefreshData={mockOnRefreshData}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Заправка/i })).toBeInTheDocument();
+      });
+
+      const refuelButton = screen.getByRole('button', { name: /Заправка/i });
+      userEvent.click(refuelButton);
+
+      await waitFor(() => {
+        expect(unitsAPI.refuelAtPort).toHaveBeenCalledWith(
+          mockGameId,
+          'unit-1',
+          mockAuthToken
+        );
+      });
+    });
+
+    it('should handle refuel-sea action', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockOnUnitDeselect = jest.fn();
+      const mockOnRefreshData = jest.fn().mockResolvedValue(undefined);
+
+      unitsAPI.refuelAtSea = jest.fn().mockResolvedValue({
+        success: true
+      });
+
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Unit 1',
+        position: 'A1',
+        nationality: 'german',
+        task_force_id: null,
+        type: 'DD',
+        status: 'active',
+        available_actions: ['refuel-sea']
+      };
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={[mockUnit]}
+          currentPhase="movement"
+          selectedUnit="unit-1"
+          onUnitDeselect={mockOnUnitDeselect}
+          onRefreshData={mockOnRefreshData}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Заправка/i })).toBeInTheDocument();
+      });
+
+      const refuelButton = screen.getByRole('button', { name: /Заправка/i });
+      userEvent.click(refuelButton);
+
+      await waitFor(() => {
+        expect(unitsAPI.refuelAtSea).toHaveBeenCalledWith(
+          mockGameId,
+          'unit-1',
+          mockAuthToken
+        );
+      });
+    });
+
+    it('should handle patrol action for regular unit', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockOnUnitDeselect = jest.fn();
+      const mockOnRefreshData = jest.fn().mockResolvedValue(undefined);
+
+      unitsAPI.setPatrol = jest.fn().mockResolvedValue({
+        success: true
+      });
+
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Unit 1',
+        position: 'A1',
+        nationality: 'german',
+        task_force_id: null,
+        type: 'DD',
+        status: 'active',
+        available_actions: ['patrol']
+      };
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={[mockUnit]}
+          currentPhase="movement"
+          selectedUnit="unit-1"
+          onUnitDeselect={mockOnUnitDeselect}
+          onRefreshData={mockOnRefreshData}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Патруль|Patrol/i })).toBeInTheDocument();
+      });
+
+      const patrolButton = screen.getByRole('button', { name: /Патруль|Patrol/i });
+      await act(async () => {
+        await userEvent.click(patrolButton);
+      });
+
+      // Кнопка патруля должна вызвать API
+      await waitFor(() => {
+        expect(unitsAPI.setPatrol).toHaveBeenCalledWith(
+          mockGameId,
+          'unit-1',
+          true,
+          mockAuthToken
+        );
+      });
+    });
+
+    it('should handle patrol action for Task Force', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockOnUnitDeselect = jest.fn();
+      const mockOnRefreshData = jest.fn().mockResolvedValue(undefined);
+
+      unitsAPI.setTaskForcePatrol = jest.fn().mockResolvedValue({
+        success: true
+      });
+
+      const mockTaskForce = {
+        id: 'tf-1',
+        name: 'Task Force 1',
+        position: 'A1',
+        nationality: 'german',
+        units: ['unit-1'],
+        available_actions: ['patrol']
+      };
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          taskForces={[mockTaskForce]}
+          currentPhase="movement"
+          selectedUnit="tf-1"
+          onUnitDeselect={mockOnUnitDeselect}
+          onRefreshData={mockOnRefreshData}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Патруль|Patrol/i })).toBeInTheDocument();
+      });
+
+      const patrolButton = screen.getByRole('button', { name: /Патруль|Patrol/i });
+      await act(async () => {
+        await userEvent.click(patrolButton);
+      });
+
+      // Кнопка патруля должна вызвать API для Task Force
+      await waitFor(() => {
+        expect(unitsAPI.setTaskForcePatrol).toHaveBeenCalledWith(
+          mockGameId,
+          'tf-1',
+          true,
+          mockAuthToken
+        );
+      });
+    });
+
+    it('should not display action buttons when unit has no available actions', () => {
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Unit 1',
+        position: 'A1',
+        nationality: 'german',
+        task_force_id: null,
+        type: 'DD',
+        status: 'active',
+        available_actions: []
+      };
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={[mockUnit]}
+          currentPhase="movement"
+          selectedUnit="unit-1"
+          width={5} 
+          height={5} 
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: /Ремонт|Repair/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Заправка|Refuel/i })).not.toBeInTheDocument();
+    });
+
+    it('should filter out movement action from action buttons', () => {
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Unit 1',
+        position: 'A1',
+        nationality: 'german',
+        task_force_id: null,
+        type: 'DD',
+        status: 'active',
+        available_actions: ['movement', 'repair', 'patrol']
+      };
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={[mockUnit]}
+          currentPhase="movement"
+          selectedUnit="unit-1"
+          width={5} 
+          height={5} 
+        />
+      );
+
+      // movement не должно быть в кнопках действий
+      expect(screen.queryByRole('button', { name: /movement/i })).not.toBeInTheDocument();
+      // но repair и patrol должны быть
+      expect(screen.getByRole('button', { name: /Ремонт|Repair/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Патруль|Patrol/i })).toBeInTheDocument();
+    });
+
+    it('should handle action failure gracefully', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockOnUnitDeselect = jest.fn();
+      const mockOnRefreshData = jest.fn();
+
+      unitsAPI.repairAtSea = jest.fn().mockResolvedValue({
+        success: false,
+        error: 'Cannot repair'
+      });
+
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Unit 1',
+        position: 'A1',
+        nationality: 'german',
+        task_force_id: null,
+        type: 'DD',
+        status: 'active',
+        available_actions: ['repair']
+      };
+
+      render(
+        <HexMap 
+          {...defaultProps} 
+          gameUnits={[mockUnit]}
+          currentPhase="movement"
+          selectedUnit="unit-1"
+          onUnitDeselect={mockOnUnitDeselect}
+          onRefreshData={mockOnRefreshData}
+          width={5} 
+          height={5} 
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Ремонт|Repair/i })).toBeInTheDocument();
+      });
+
+      const repairButton = screen.getByRole('button', { name: /Ремонт|Repair/i });
+      userEvent.click(repairButton);
+
+      await waitFor(() => {
+        expect(unitsAPI.repairAtSea).toHaveBeenCalled();
+      });
+
+      // При ошибке не должно быть вызовов обновления и деселекции
+      expect(mockOnRefreshData).not.toHaveBeenCalled();
+      expect(mockOnUnitDeselect).not.toHaveBeenCalled();
     });
   });
 });

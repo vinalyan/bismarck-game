@@ -5,7 +5,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Hex } from './Hex';
 import Tooltip from './Tooltip';
 import CreateTaskForceDialog from './CreateTaskForceDialog';
-import PatrolDialog from './PatrolDialog';
 import { HexCoordinate, HexData, coordinateToOffset, offsetToCoordinate, MapStructure, EnemyContactSummary } from '../types/mapTypes';
 import { MovementHex } from '../utils/movementUtils';
 import { ActiveHex } from '../utils/activeHexesUtils';
@@ -97,9 +96,6 @@ const HexMap: React.FC<HexMapProps> = ({
   const [tfCandidateHexes, setTfCandidateHexes] = useState<string[]>([]);
   const [showTFDialog, setShowTFDialog] = useState(false);
   const [selectedTFHex, setSelectedTFHex] = useState<string | null>(null);
-  const [isPatrolMode, setIsPatrolMode] = useState(false);
-  const [showPatrolDialog, setShowPatrolDialog] = useState(false);
-  const [selectedPatrolHex, setSelectedPatrolHex] = useState<string | null>(null);
   const [isFlightPathSearchMode, setIsFlightPathSearchMode] = useState(false);
   
   const [tooltip, setTooltip] = useState<{
@@ -214,18 +210,6 @@ const HexMap: React.FC<HexMapProps> = ({
     setTfCandidateHexes([]);
   };
 
-  // Обработчик кнопки патруля
-  const handlePatrolClick = () => {
-    setIsPatrolMode(true);
-  };
-
-  // Выход из режима патруля
-  const handleCancelPatrol = () => {
-    setIsPatrolMode(false);
-    setSelectedPatrolHex(null);
-    setShowPatrolDialog(false);
-  };
-
   // Обработчик кнопки воздушной разведки
   const handleFlightPathSearchClick = () => {
     setIsFlightPathSearchMode(true);
@@ -254,36 +238,6 @@ const HexMap: React.FC<HexMapProps> = ({
       }
     } catch (error: any) {
       console.error('Error adding hex marker:', error);
-    }
-  };
-
-  // Обработчик клика по гексу в режиме патруля
-  const handleHexClickInPatrolMode = (hexId: string) => {
-    if (!isPatrolMode) {
-      return;
-    }
-
-    // Найти морские юниты в гексе (своей стороны, не в ТФ)
-    const unitsInHex = gameUnits.filter(
-      (unit) =>
-        unit.position === hexId &&
-        unit.nationality === playerSide &&
-        !unit.task_force_id &&
-        unit.status !== 'repairing' &&
-        unit.status !== 'refueling' &&
-        unit.status !== 'sunk'
-    );
-
-    // Найти Task Forces в гексе (своей стороны)
-    const taskForcesInHex = taskForces.filter(
-      (tf) =>
-        tf.position === hexId &&
-        tf.nationality === playerSide
-    );
-
-    if (unitsInHex.length > 0 || taskForcesInHex.length > 0) {
-      setSelectedPatrolHex(hexId);
-      setShowPatrolDialog(true);
     }
   };
 
@@ -321,37 +275,6 @@ const HexMap: React.FC<HexMapProps> = ({
       setShowTFDialog(false);
       setSelectedTFHex(null);
       handleCancelCreateTF();
-    }
-  };
-
-  // Обработчик установки/снятия патруля
-  const handlePatrolConfirm = async (unitId: string, isPatrolling: boolean, isTaskForce: boolean = false) => {
-    if (!gameId || !authToken) {
-      return;
-    }
-    
-    try {
-      let response;
-      if (isTaskForce) {
-        response = await unitsAPI.setTaskForcePatrol(gameId, unitId, isPatrolling, authToken);
-      } else {
-        response = await unitsAPI.setPatrol(gameId, unitId, isPatrolling, authToken);
-      }
-      
-      if (response.success) {
-        // Обновить данные
-        if (onRefreshData) {
-          onRefreshData();
-        }
-      } else {
-        alert(`Ошибка: ${response.error || 'Не удалось установить патруль'}`);
-      }
-    } catch (error: any) {
-      alert(`Ошибка: ${error.message || 'Не удалось установить патруль'}`);
-    } finally {
-      setShowPatrolDialog(false);
-      setSelectedPatrolHex(null);
-      handleCancelPatrol();
     }
   };
 
@@ -574,12 +497,6 @@ const HexMap: React.FC<HexMapProps> = ({
       return;
     }
     
-    // Если в режиме патруля, обрабатываем клик
-    if (isPatrolMode) {
-      handleHexClickInPatrolMode(hexId);
-      return;
-    }
-    
     // Если в режиме создания TF, проверяем клик по кандидату
     if (isCreateTFMode) {
       handleHexClickInTFMode(hexId);
@@ -739,8 +656,6 @@ const HexMap: React.FC<HexMapProps> = ({
             // Проверяем режимы в порядке приоритета
             if (isFlightPathSearchMode) {
               handleHexClickInFlightPathSearchMode(hexId);
-            } else if (isPatrolMode) {
-              handleHexClickInPatrolMode(hexId);
             } else if (isCreateTFMode) {
               handleHexClickInTFMode(hexId);
             } else if (onHexClick) {
@@ -760,7 +675,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, isPatrolMode, handleHexClickInFlightPathSearchMode, handleHexClickInPatrolMode, handleHexClickInTFMode]);
+  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, handleHexClickInFlightPathSearchMode, handleHexClickInTFMode]);
 
   return (
     <div className="hex-map-container">
@@ -784,7 +699,7 @@ const HexMap: React.FC<HexMapProps> = ({
         </button>
         
         {/* Кнопки действий для выбранного юнита или Task Force */}
-        {selectedUnit && currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (() => {
+        {selectedUnit && currentPhase === 'movement' && !isCreateTFMode && !isFlightPathSearchMode && (() => {
           // Сначала проверяем, является ли выбранный элемент юнитом
           let unit = gameUnits.find(u => u.id === selectedUnit);
           let isTaskForce = false;
@@ -890,7 +805,7 @@ const HexMap: React.FC<HexMapProps> = ({
         })()}
         
         {/* Кнопки Task Force и Воздушная разведка */}
-        {currentPhase === 'movement' && !isCreateTFMode && !isPatrolMode && !isFlightPathSearchMode && (
+        {currentPhase === 'movement' && !isCreateTFMode && !isFlightPathSearchMode && (
           <>
             <button 
               onClick={handleCreateTFClick}
@@ -910,14 +825,6 @@ const HexMap: React.FC<HexMapProps> = ({
           <button 
             onClick={handleCancelCreateTF}
             title="Отменить создание TF"
-          >
-            ❌ Отмена
-          </button>
-        )}
-        {isPatrolMode && (
-          <button 
-            onClick={handleCancelPatrol}
-            title="Отменить установку патруля"
           >
             ❌ Отмена
           </button>
@@ -1065,33 +972,6 @@ const HexMap: React.FC<HexMapProps> = ({
           onCancel={() => {
             setShowTFDialog(false);
             setSelectedTFHex(null);
-          }}
-        />
-      )}
-      
-      {/* Диалог установки патруля */}
-      {showPatrolDialog && selectedPatrolHex && (
-        <PatrolDialog
-          hexId={selectedPatrolHex}
-          units={gameUnits.filter(
-            (u) =>
-              u.position === selectedPatrolHex &&
-              u.nationality === playerSide &&
-              !u.task_force_id &&
-              u.status !== 'repairing' &&
-              u.status !== 'refueling' &&
-              u.status !== 'sunk'
-          )}
-          taskForces={taskForces.filter(
-            (tf) =>
-              tf.position === selectedPatrolHex &&
-              tf.nationality === playerSide
-          )}
-          onConfirm={handlePatrolConfirm}
-          onCancel={() => {
-            console.log('❌ Patrol dialog cancelled');
-            setShowPatrolDialog(false);
-            setSelectedPatrolHex(null);
           }}
         />
       )}
