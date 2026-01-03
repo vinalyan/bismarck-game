@@ -1,11 +1,13 @@
 import {
   activeHexesUtils,
   getMovementActiveHexes,
+  useActiveHexes,
   ActiveHex,
   ActiveHexType,
   ACTIVE_HEX_CONFIGS
 } from './activeHexesUtils';
 import { HexCoordinate, MapStructure } from '../types/mapTypes';
+import { renderHook, act } from '@testing-library/react';
 
 describe('activeHexesUtils', () => {
   describe('getMovementActiveHexes()', () => {
@@ -490,6 +492,419 @@ describe('activeHexesUtils', () => {
         expect(ACTIVE_HEX_CONFIGS[type].color).toBeDefined();
         expect(ACTIVE_HEX_CONFIGS[type].opacity).toBeGreaterThan(0);
       });
+    });
+  });
+});
+
+describe('useActiveHexes hook', () => {
+  // Вспомогательная функция для создания тестового ActiveHex
+  const createTestHex = (
+    letter: string,
+    number: number,
+    type: ActiveHexType = 'movement',
+    priority: number = 1
+  ): ActiveHex => {
+    return {
+      coordinate: {
+        col: letter.charCodeAt(0) - 65,
+        row: number - 1,
+        letter,
+        number
+      },
+      type,
+      priority
+    };
+  };
+
+  describe('Initialization', () => {
+    it('should initialize with empty active hexes array', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      expect(result.current.activeHexes).toEqual([]);
+    });
+
+    it('should initialize with enabledTypes containing movement by default', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      expect(result.current.enabledTypes.has('movement')).toBe(true);
+      expect(result.current.enabledTypes.size).toBe(1);
+    });
+
+    it('should initialize enabledTypes as a Set', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      expect(result.current.enabledTypes).toBeInstanceOf(Set);
+    });
+  });
+
+  describe('addActiveHexes', () => {
+    it('should add active hexes', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const hex1 = createTestHex('A', 1, 'movement');
+      
+      act(() => {
+        result.current.addActiveHexes([hex1]);
+      });
+      
+      expect(result.current.activeHexes.length).toBe(1);
+      expect(result.current.activeHexes[0].coordinate.letter).toBe('A');
+      expect(result.current.activeHexes[0].coordinate.number).toBe(1);
+    });
+
+    it('should combine new hexes with existing ones using combineActiveHexes', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const hex1 = createTestHex('A', 1, 'movement');
+      const hex2 = createTestHex('B', 2, 'movement');
+      
+      act(() => {
+        result.current.addActiveHexes([hex1]);
+      });
+      
+      act(() => {
+        result.current.addActiveHexes([hex2]);
+      });
+      
+      expect(result.current.activeHexes.length).toBe(2);
+      expect(result.current.activeHexes.map(h => h.coordinate.letter)).toEqual(['A', 'B']);
+    });
+
+    it('should handle duplicates correctly (keep higher priority)', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const hex1 = createTestHex('A', 1, 'movement', 1);
+      const hex2 = createTestHex('A', 1, 'refuel', 2);
+      
+      // Enable refuel type to see the hex
+      act(() => {
+        result.current.toggleType('refuel');
+      });
+      
+      act(() => {
+        result.current.addActiveHexes([hex1]);
+      });
+      
+      act(() => {
+        result.current.addActiveHexes([hex2]);
+      });
+      
+      expect(result.current.activeHexes.length).toBe(1);
+      expect(result.current.activeHexes[0].type).toBe('refuel');
+      expect(result.current.activeHexes[0].priority).toBe(2);
+    });
+
+    it('should work with empty array', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      act(() => {
+        result.current.addActiveHexes([]);
+      });
+      
+      expect(result.current.activeHexes).toEqual([]);
+    });
+  });
+
+  describe('removeActiveHexesByType', () => {
+    it('should remove hexes of specified type', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const movementHex = createTestHex('A', 1, 'movement');
+      const refuelHex = createTestHex('B', 2, 'refuel');
+      
+      // Enable refuel type to see the hex
+      act(() => {
+        result.current.toggleType('refuel');
+      });
+      
+      act(() => {
+        result.current.addActiveHexes([movementHex, refuelHex]);
+      });
+      
+      act(() => {
+        result.current.removeActiveHexesByType('movement');
+      });
+      
+      expect(result.current.activeHexes.length).toBe(1);
+      expect(result.current.activeHexes[0].type).toBe('refuel');
+    });
+
+    it('should not remove hexes of other types', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const movementHex1 = createTestHex('A', 1, 'movement');
+      const movementHex2 = createTestHex('B', 2, 'movement');
+      const refuelHex = createTestHex('C', 3, 'refuel');
+      
+      // Enable refuel type to see the hex
+      act(() => {
+        result.current.toggleType('refuel');
+      });
+      
+      act(() => {
+        result.current.addActiveHexes([movementHex1, movementHex2, refuelHex]);
+      });
+      
+      act(() => {
+        result.current.removeActiveHexesByType('refuel');
+      });
+      
+      expect(result.current.activeHexes.length).toBe(2);
+      expect(result.current.activeHexes.every(h => h.type === 'movement')).toBe(true);
+    });
+
+    it('should handle case when no hexes of specified type exist', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const movementHex = createTestHex('A', 1, 'movement');
+      
+      act(() => {
+        result.current.addActiveHexes([movementHex]);
+      });
+      
+      act(() => {
+        result.current.removeActiveHexesByType('refuel');
+      });
+      
+      expect(result.current.activeHexes.length).toBe(1);
+      expect(result.current.activeHexes[0].type).toBe('movement');
+    });
+
+    it('should handle empty array correctly', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      act(() => {
+        result.current.removeActiveHexesByType('movement');
+      });
+      
+      expect(result.current.activeHexes).toEqual([]);
+    });
+  });
+
+  describe('clearActiveHexes', () => {
+    it('should clear all active hexes', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const hex1 = createTestHex('A', 1, 'movement');
+      const hex2 = createTestHex('B', 2, 'refuel');
+      
+      // Enable refuel type to see the hex
+      act(() => {
+        result.current.toggleType('refuel');
+      });
+      
+      act(() => {
+        result.current.addActiveHexes([hex1, hex2]);
+      });
+      
+      expect(result.current.activeHexes.length).toBe(2);
+      
+      act(() => {
+        result.current.clearActiveHexes();
+      });
+      
+      expect(result.current.activeHexes).toEqual([]);
+    });
+
+    it('should preserve enabledTypes when clearing', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const hex1 = createTestHex('A', 1, 'movement');
+      
+      act(() => {
+        result.current.addActiveHexes([hex1]);
+        result.current.toggleType('refuel');
+      });
+      
+      expect(result.current.enabledTypes.has('movement')).toBe(true);
+      expect(result.current.enabledTypes.has('refuel')).toBe(true);
+      
+      act(() => {
+        result.current.clearActiveHexes();
+      });
+      
+      expect(result.current.activeHexes).toEqual([]);
+      expect(result.current.enabledTypes.has('movement')).toBe(true);
+      expect(result.current.enabledTypes.has('refuel')).toBe(true);
+    });
+  });
+
+  describe('toggleType', () => {
+    it('should add type to enabledTypes if it does not exist', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      expect(result.current.enabledTypes.has('refuel')).toBe(false);
+      
+      act(() => {
+        result.current.toggleType('refuel');
+      });
+      
+      expect(result.current.enabledTypes.has('refuel')).toBe(true);
+    });
+
+    it('should remove type from enabledTypes if it exists', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      expect(result.current.enabledTypes.has('movement')).toBe(true);
+      
+      act(() => {
+        result.current.toggleType('movement');
+      });
+      
+      expect(result.current.enabledTypes.has('movement')).toBe(false);
+    });
+
+    it('should remove hexes of type when disabling type', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const movementHex1 = createTestHex('A', 1, 'movement');
+      const movementHex2 = createTestHex('B', 2, 'movement');
+      const refuelHex = createTestHex('C', 3, 'refuel');
+      
+      act(() => {
+        result.current.addActiveHexes([movementHex1, movementHex2, refuelHex]);
+        result.current.toggleType('refuel');
+      });
+      
+      expect(result.current.activeHexes.length).toBe(3);
+      
+      act(() => {
+        result.current.toggleType('movement');
+      });
+      
+      // movement hexes should be removed
+      expect(result.current.activeHexes.length).toBe(1);
+      expect(result.current.activeHexes[0].type).toBe('refuel');
+    });
+
+    it('should work with different active hex types', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const types: ActiveHexType[] = ['refuel', 'repair', 'patrol', 'taskforce', 'combat', 'search', 'visibility'];
+      
+      types.forEach(type => {
+        act(() => {
+          result.current.toggleType(type);
+        });
+        expect(result.current.enabledTypes.has(type)).toBe(true);
+      });
+      
+      types.forEach(type => {
+        act(() => {
+          result.current.toggleType(type);
+        });
+        expect(result.current.enabledTypes.has(type)).toBe(false);
+      });
+    });
+  });
+
+  describe('setEnabledTypes', () => {
+    it('should set new enabledTypes', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const newTypes = new Set<ActiveHexType>(['refuel', 'repair']);
+      
+      act(() => {
+        result.current.setEnabledTypes(newTypes);
+      });
+      
+      expect(result.current.enabledTypes.size).toBe(2);
+      expect(result.current.enabledTypes.has('refuel')).toBe(true);
+      expect(result.current.enabledTypes.has('repair')).toBe(true);
+      expect(result.current.enabledTypes.has('movement')).toBe(false);
+    });
+
+    it('should update filtered activeHexes when enabledTypes change', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const movementHex = createTestHex('A', 1, 'movement');
+      const refuelHex = createTestHex('B', 2, 'refuel');
+      
+      act(() => {
+        result.current.addActiveHexes([movementHex, refuelHex]);
+        result.current.toggleType('refuel');
+      });
+      
+      // Both should be visible (movement and refuel are enabled)
+      expect(result.current.activeHexes.length).toBe(2);
+      
+      // Disable movement
+      act(() => {
+        result.current.setEnabledTypes(new Set<ActiveHexType>(['refuel']));
+      });
+      
+      // Only refuel should be visible
+      expect(result.current.activeHexes.length).toBe(1);
+      expect(result.current.activeHexes[0].type).toBe('refuel');
+    });
+  });
+
+  describe('Filtered active hexes', () => {
+    it('should return only hexes with enabled types', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const movementHex = createTestHex('A', 1, 'movement');
+      const refuelHex = createTestHex('B', 2, 'refuel');
+      const repairHex = createTestHex('C', 3, 'repair');
+      
+      act(() => {
+        result.current.addActiveHexes([movementHex, refuelHex, repairHex]);
+        result.current.toggleType('refuel');
+        result.current.toggleType('repair');
+      });
+      
+      // All types are enabled, all hexes should be visible
+      expect(result.current.activeHexes.length).toBe(3);
+      
+      // Disable repair
+      act(() => {
+        result.current.toggleType('repair');
+      });
+      
+      // Only movement and refuel should be visible
+      expect(result.current.activeHexes.length).toBe(2);
+      expect(result.current.activeHexes.every(h => h.type === 'movement' || h.type === 'refuel')).toBe(true);
+    });
+
+    it('should exclude hexes with disabled types', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const movementHex1 = createTestHex('A', 1, 'movement');
+      const movementHex2 = createTestHex('B', 2, 'movement');
+      const refuelHex = createTestHex('C', 3, 'refuel');
+      
+      act(() => {
+        result.current.addActiveHexes([movementHex1, movementHex2, refuelHex]);
+        result.current.toggleType('refuel');
+      });
+      
+      // Disable movement
+      act(() => {
+        result.current.toggleType('movement');
+      });
+      
+      // Only refuel should be visible (movement hexes are removed when type is disabled)
+      expect(result.current.activeHexes.length).toBe(1);
+      expect(result.current.activeHexes[0].type).toBe('refuel');
+    });
+
+    it('should return empty array when all types are disabled', () => {
+      const { result } = renderHook(() => useActiveHexes());
+      
+      const movementHex = createTestHex('A', 1, 'movement');
+      
+      act(() => {
+        result.current.addActiveHexes([movementHex]);
+      });
+      
+      expect(result.current.activeHexes.length).toBe(1);
+      
+      // Disable movement (the only enabled type)
+      act(() => {
+        result.current.toggleType('movement');
+      });
+      
+      expect(result.current.activeHexes).toEqual([]);
     });
   });
 });
