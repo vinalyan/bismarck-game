@@ -1400,5 +1400,697 @@ describe('Game', () => {
       }, { timeout: 3000 });
     });
   });
+
+  describe('Refuel All Ships', () => {
+    it('should handle successful refueling of all ships', async () => {
+      const { refuelAPI } = require('../services/api/refuelAPI');
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockAddNotification = mockStoreState.addNotification;
+
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Bismarck',
+        type: 'BB',
+        position: 'K15',
+        fuel: 50,
+        max_fuel: 100,
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      unitsAPI.getGameUnits = jest.fn()
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            units: [mockUnit],
+            task_forces: [],
+            enemy_contacts: [],
+            search_factor_hexes: {},
+            hex_markers: {},
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+          },
+        })
+        .mockResolvedValue({
+          success: true,
+          data: {
+            units: [{ ...mockUnit, fuel: 54 }],
+            task_forces: [],
+            enemy_contacts: [],
+            search_factor_hexes: {},
+            hex_markers: {},
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+          },
+        });
+
+      refuelAPI.refuelAll = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          refueled_count: 1,
+          total_units: 1,
+          fuel_amount: 4
+        }
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      if (hexMapProps.onRefuelAllShips) {
+        await act(async () => {
+          await hexMapProps.onRefuelAllShips();
+        });
+      }
+
+      await waitFor(() => {
+        expect(refuelAPI.refuelAll).toHaveBeenCalledWith({
+          game_id: 'game-1',
+          fuel_amount: 4
+        });
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        expect(unitsAPI.getGameUnits).toHaveBeenCalledTimes(2);
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        expect(mockAddNotification).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: NotificationType.Success,
+            title: 'Заправка выполнена',
+            message: expect.stringContaining('Заправлено 1 из 1 кораблей')
+          })
+        );
+      }, { timeout: 3000 });
+    });
+
+    it('should handle error when refueling fails', async () => {
+      const { refuelAPI } = require('../services/api/refuelAPI');
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockAddNotification = mockStoreState.addNotification;
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      refuelAPI.refuelAll = jest.fn().mockRejectedValue(new Error('Network error'));
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      if (hexMapProps.onRefuelAllShips) {
+        await act(async () => {
+          await hexMapProps.onRefuelAllShips();
+        });
+      }
+
+      await waitFor(() => {
+        expect(mockAddNotification).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: NotificationType.Error,
+            title: 'Ошибка',
+            message: 'Не удалось заправить корабли'
+          })
+        );
+      }, { timeout: 3000 });
+    });
+
+    it('should show error when game is not selected', async () => {
+      mockUseGameStore.mockReturnValue({
+        ...mockStoreState,
+        currentGame: null,
+      });
+
+      render(<Game />);
+
+      // Когда currentGame null, компонент рендерит ошибку, а не HexMap
+      await waitFor(() => {
+        expect(screen.getByText(/Игра не найдена или пользователь не авторизован/i)).toBeInTheDocument();
+      });
+
+      // onRefuelAllShips не будет доступен, так как HexMap не рендерится
+      // Функция handleRefuelAllShips проверяет currentGame?.id в начале и показывает ошибку,
+      // но она не может быть вызвана, так как HexMap не рендерится
+      // Это нормальное поведение - компонент показывает ошибку вместо игрового интерфейса
+      expect(screen.queryByTestId('hex-map')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Start First Turn', () => {
+    it('should handle successful start of first turn', async () => {
+      const { phaseAPI } = require('../services/api/phaseAPI');
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockAddNotification = mockStoreState.addNotification;
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      const mockNewTurn = {
+        turn_number: 1,
+        current_phase: 'movement',
+        status: 'active',
+        started_at: '2023-01-01',
+        completed_at: null,
+      };
+
+      phaseAPI.startTurn = jest.fn().mockResolvedValue(mockNewTurn);
+      phaseAPI.getCurrentPhase = jest.fn().mockResolvedValue(mockNewTurn);
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      if (hexMapProps.onStartFirstTurn) {
+        await act(async () => {
+          await hexMapProps.onStartFirstTurn();
+        });
+      }
+
+      await waitFor(() => {
+        expect(phaseAPI.startTurn).toHaveBeenCalledWith({ game_id: 'game-1' });
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        expect(phaseAPI.getCurrentPhase).toHaveBeenCalledWith('game-1');
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        expect(mockAddNotification).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: NotificationType.Success,
+            title: 'Ход начат',
+            message: 'Первый ход успешно начат'
+          })
+        );
+      }, { timeout: 3000 });
+    });
+
+    it('should handle error when starting first turn fails', async () => {
+      const { phaseAPI } = require('../services/api/phaseAPI');
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockAddNotification = mockStoreState.addNotification;
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      phaseAPI.startTurn = jest.fn().mockRejectedValue(new Error('Failed to start turn'));
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      if (hexMapProps.onStartFirstTurn) {
+        await act(async () => {
+          await hexMapProps.onStartFirstTurn();
+        });
+      }
+
+      await waitFor(() => {
+        expect(mockAddNotification).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: NotificationType.Error,
+            title: 'Ошибка',
+            message: 'Не удалось начать ход'
+          })
+        );
+      }, { timeout: 3000 });
+    });
+
+    it('should not start turn when game is not selected', async () => {
+      mockUseGameStore.mockReturnValue({
+        ...mockStoreState,
+        currentGame: null,
+      });
+
+      const { phaseAPI } = require('../services/api/phaseAPI');
+
+      render(<Game />);
+
+      // Когда currentGame null, компонент рендерит ошибку, а не HexMap
+      await waitFor(() => {
+        expect(screen.getByText(/Игра не найдена или пользователь не авторизован/i)).toBeInTheDocument();
+      });
+
+      // onStartFirstTurn не будет доступен, так как HexMap не рендерится
+      // Функция handleStartFirstTurn проверяет currentGame?.id в начале и возвращается,
+      // но она не может быть вызвана, так как HexMap не рендерится
+      // Это нормальное поведение - компонент показывает ошибку вместо игрового интерфейса
+      expect(screen.queryByTestId('hex-map')).not.toBeInTheDocument();
+      expect(phaseAPI.startTurn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Unit Stack Handling', () => {
+    it('should handle unit stack click and expand stack', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      const mockUnits = [
+        {
+          id: 'unit-1',
+          name: 'Bismarck',
+          type: 'BB',
+          position: 'K15',
+          fuel: 100,
+          max_fuel: 100,
+          is_activated: false,
+          last_move_turn: 0
+        },
+        {
+          id: 'unit-2',
+          name: 'Prinz Eugen',
+          type: 'CA',
+          position: 'K15',
+          fuel: 100,
+          max_fuel: 100,
+          is_activated: false,
+          last_move_turn: 0
+        }
+      ];
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: mockUnits,
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      if (hexMapProps.onUnitStackClick) {
+        await act(async () => {
+          hexMapProps.onUnitStackClick('K15', mockUnits);
+        });
+      }
+
+      // Проверяем, что expandedStackHex был установлен через props
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.expandedStackHex).toBe('K15');
+      }, { timeout: 3000 });
+    });
+
+    it('should handle stacked unit selection and load available moves', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const { movementAPI } = require('../services/api/movementAPI');
+
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Bismarck',
+        type: 'BB',
+        position: 'K15',
+        fuel: 100,
+        max_fuel: 100,
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      // Настраиваем мок так, чтобы он возвращал правильные данные при каждом вызове
+      // Первый вызов - при монтировании компонента
+      // Второй вызов - внутри handleStackedUnitSelect для получения свежих данных
+      unitsAPI.getGameUnits = jest.fn()
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            units: [mockUnit],
+            task_forces: [],
+            enemy_contacts: [],
+            search_factor_hexes: {},
+            hex_markers: {},
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            units: [mockUnit],
+            task_forces: [],
+            enemy_contacts: [],
+            search_factor_hexes: {},
+            hex_markers: {},
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+          },
+        })
+        .mockResolvedValue({
+          success: true,
+          data: {
+            units: [mockUnit],
+            task_forces: [],
+            enemy_contacts: [],
+            search_factor_hexes: {},
+            hex_markers: {},
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+          },
+        });
+
+      movementAPI.getAvailableMoves = jest.fn().mockResolvedValue({
+        available_hexes: ['K16', 'K14'],
+        fuel_costs: { 'K16': 2, 'K14': 2 }
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      // Ждем, пока компонент полностью загрузится и currentTurn установится
+      await waitFor(() => {
+        expect(screen.getByText(/Текущая фаза:/i)).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Ждем еще немного, чтобы убедиться, что все состояние установлено
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      // Проверяем, что onStackedUnitSelect доступен
+      expect(hexMapProps.onStackedUnitSelect).toBeDefined();
+      
+      if (hexMapProps.onStackedUnitSelect) {
+        await act(async () => {
+          await hexMapProps.onStackedUnitSelect(mockUnit);
+        });
+      }
+
+      // Ждем вызова getAvailableMoves
+      // handleStackedUnitSelect вызывает unitsAPI.getGameUnits внутри себя,
+      // затем вызывает movementAPI.getAvailableMoves
+      await waitFor(() => {
+        expect(movementAPI.getAvailableMoves).toHaveBeenCalled();
+      }, { timeout: 10000 });
+
+      // Проверяем правильные параметры
+      expect(movementAPI.getAvailableMoves).toHaveBeenCalledWith('game-1', 'unit-1', 'test-token');
+
+      // Проверяем, что expandedStackHex был сброшен
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.expandedStackHex).toBeNull();
+      }, { timeout: 3000 });
+    });
+
+    it('should deselect unit when clicking on already selected stacked unit', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const { movementAPI } = require('../services/api/movementAPI');
+
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Bismarck',
+        type: 'BB',
+        position: 'K15',
+        fuel: 100,
+        max_fuel: 100,
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      unitsAPI.getGameUnits = jest.fn()
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            units: [mockUnit],
+            task_forces: [],
+            enemy_contacts: [],
+            search_factor_hexes: {},
+            hex_markers: {},
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+          },
+        })
+        .mockResolvedValue({
+          success: true,
+          data: {
+            units: [mockUnit],
+            task_forces: [],
+            enemy_contacts: [],
+            search_factor_hexes: {},
+            hex_markers: {},
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+          },
+        });
+
+      movementAPI.getAvailableMoves = jest.fn().mockResolvedValue({
+        available_hexes: ['K16', 'K14'],
+        fuel_costs: { 'K16': 2, 'K14': 2 }
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      // Ждем, пока компонент полностью загрузится
+      await waitFor(() => {
+        expect(screen.getByText(/Текущая фаза:/i)).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      // Сначала выбираем юнит
+      if (hexMapProps.onStackedUnitSelect) {
+        await act(async () => {
+          await hexMapProps.onStackedUnitSelect(mockUnit);
+        });
+      }
+
+      // Ждем, пока selectedUnit установится
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.selectedUnit).toBe('unit-1');
+      }, { timeout: 3000 });
+
+      // Затем кликаем на уже выбранный юнит
+      const updatedHexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      if (updatedHexMapProps.onStackedUnitSelect) {
+        await act(async () => {
+          await updatedHexMapProps.onStackedUnitSelect(mockUnit);
+        });
+      }
+
+      // Проверяем, что selectedUnit был сброшен
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.selectedUnit).toBeNull();
+      }, { timeout: 3000 });
+    });
+
+    it('should not load available moves if not in movement phase when selecting stacked unit', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const { movementAPI } = require('../services/api/movementAPI');
+
+      const mockUnit = {
+        id: 'unit-1',
+        name: 'Bismarck',
+        type: 'BB',
+        position: 'K15',
+        fuel: 100,
+        max_fuel: 100,
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [mockUnit],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'search',
+          },
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      if (hexMapProps.onStackedUnitSelect) {
+        await act(async () => {
+          await hexMapProps.onStackedUnitSelect(mockUnit);
+        });
+      }
+
+      await waitFor(() => {
+        expect(movementAPI.getAvailableMoves).not.toHaveBeenCalled();
+      }, { timeout: 3000 });
+    });
+  });
+
+  describe('Map Structures Loading', () => {
+    it('should load map structures on mount', async () => {
+      const { mapService } = require('../services/api/mapService');
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      const mockStructures = {
+        landAreas: [
+          { id: 'land-1', hexIds: ['A1', 'A2'] }
+        ],
+        nonGameHexes: [
+          { id: 'non-game-1', hexIds: ['Z35'] }
+        ],
+        restrictedDD: null,
+        fogAreas: []
+      };
+
+      mapService.getMapStructures = jest.fn().mockResolvedValue(mockStructures);
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(mapService.getMapStructures).toHaveBeenCalled();
+      }, { timeout: 3000 });
+
+      await waitFor(() => {
+        const latestProps = mockHexMapProps[mockHexMapProps.length - 1];
+        expect(latestProps.mapStructures).toEqual(mockStructures);
+      }, { timeout: 3000 });
+    });
+
+    it('should handle error when loading map structures fails', async () => {
+      const { mapService } = require('../services/api/mapService');
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const mockAddNotification = mockStoreState.addNotification;
+
+      mapService.getMapStructures = jest.fn().mockRejectedValue(new Error('Failed to load structures'));
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(mockAddNotification).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: NotificationType.Error,
+            title: 'Ошибка загрузки структур карты',
+            message: 'Не удалось загрузить структуры карты с сервера'
+          })
+        );
+      }, { timeout: 3000 });
+    });
+  });
 });
 
