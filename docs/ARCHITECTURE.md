@@ -78,6 +78,7 @@ backend/
 - `GameEventService` - события игры
 - `EmergencyFuelService` - аварийное топливо
 - `MapStructureService` - структуры карты
+- `ActionCheckerService` - проверка доступных действий (создается внутри PhaseManager)
 
 #### 2. GameModel (`internal/game/models/game_model.go`)
 
@@ -113,6 +114,9 @@ type GameModel struct {
 - GameModel версионируется (поле `Version`)
 - История версий для отката действий (пока не реализована)
 - Видимость юнитов хранится в поле `Visibility` каждого юнита
+- Доступные действия для юнитов хранятся в `NavalUnitData.AvailableActions`
+- Доступные действия для Task Forces хранятся в `TaskForceModel.AvailableActions`
+- Доступные действия пересчитываются при смене фаз через ActionCheckerService
 
 #### 3. GameStateService (`internal/game/services/game_state_service.go`)
 
@@ -149,10 +153,15 @@ type GameModel struct {
 
 **Фильтруемые данные:**
 - Units (юниты)
-- TaskForces (оперативные соединения)
+- TaskForces (оперативные соединения) - включая AvailableActions для своих TaskForces
 - Events (события)
 - Search (данные поиска)
 - EnemyContacts (контакты противника)
+
+**Особенности:**
+- AvailableActions передаются в ViewModel только для своих юнитов и TaskForces
+- Чужие юниты и TaskForces не получают информацию о доступных действиях
+- AvailableActions берутся напрямую из GameModel (TaskForceModel.AvailableActions)
 
 #### 5. PhaseManager (`internal/game/services/phase_manager.go`)
 
@@ -181,6 +190,12 @@ type GameModel struct {
 - `CanStart(gameID, turnNumber)` - проверка возможности начала
 - `Start(gameID, turnNumber)` - запуск фазы
 - `Complete(gameID, turnNumber)` - завершение фазы
+
+**Интеграция с ActionCheckerService:**
+- PhaseManager создает и управляет ActionCheckerService
+- ActionCheckerService создается при установке MapStructureService
+- Используется для пересчета доступных действий при смене фаз
+- Доступные действия хранятся в GameModel (NavalUnitData.AvailableActions, TaskForceModel.AvailableActions)
 
 #### 6. Основные сервисы
 
@@ -222,6 +237,20 @@ type GameModel struct {
 - Загрузка конфигурации карты
 - Собственные факторы поиска гексов
 - Информация о гексах
+
+**ActionCheckerService** - проверка доступных действий для юнитов и Task Forces
+- Проверка доступности действий в зависимости от фазы игры
+- Регистрация чекеров для разных фаз (Movement, Search, etc.)
+- Проверка условий для каждого типа действия (movement, repair, refuel-port, refuel-sea, patrol)
+- Интеграция с MapStructureService для проверки ограничений карты
+- Работа с GameModel для получения текущего состояния игры
+- Используется PhaseManager для пересчета доступных действий при смене фаз
+
+**Особенности:**
+- Паттерн Strategy для разных фаз (PhaseActionChecker)
+- Отдельные чекеры для каждого типа действия (ActionChecker)
+- Проверка условий на основе GameModel (топливо, статус, видимость, позиция)
+- Поддержка проверки действий для Task Forces
 
 #### 7. API Handlers (`internal/api/handlers/`)
 
