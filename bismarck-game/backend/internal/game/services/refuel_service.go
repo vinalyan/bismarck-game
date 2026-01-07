@@ -261,6 +261,15 @@ func (s *RefuelService) RefuelAtSea(req RefuelAtSeaRequest) (*RefuelResult, erro
 		tanker.NavalData.TankerUsedThisTurn = true
 		tanker.NavalData.IsActivated = true
 		tanker.UpdatedAt = time.Now()
+		
+		// Явно сохраняем изменения танкера обратно в map (для надежности)
+		model.Units[req.TankerID] = tanker
+		
+		s.logger.Info("Танкер обновлен для заправки",
+			"tanker_id", req.TankerID,
+			"tanker_status", tanker.Status,
+			"tanker_position", tanker.Position,
+			"tanker_used_this_turn", tanker.NavalData.TankerUsedThisTurn)
 
 		// Перезаряжаем торпеды (танкер может перезарядить торпеды в море)
 		unit.NavalData.Torpedoes = unit.NavalData.MaxTorpedoes
@@ -275,7 +284,9 @@ func (s *RefuelService) RefuelAtSea(req RefuelAtSeaRequest) (*RefuelResult, erro
 
 		s.logger.Info("Заправка в море успешна",
 			"unit_id", req.UnitID,
+			"unit_status", unit.Status,
 			"tanker_id", req.TankerID,
+			"tanker_status", tanker.Status,
 			"fuel_added", fuelToAdd,
 			"new_fuel", newFuel)
 

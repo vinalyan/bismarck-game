@@ -350,6 +350,10 @@ func (h *RefuelHandler) RefuelAtSeaByPath(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	h.logger.Info("RefuelAtSeaByPath called",
+		"game_id", gameID,
+		"unit_id", unitID)
+
 	// Автоматически находим танкер в том же гексе
 	tankerID, hexID, err := h.refuelService.FindTankerForUnit(gameID, unitID)
 	if err != nil {
@@ -357,6 +361,12 @@ func (h *RefuelHandler) RefuelAtSeaByPath(w http.ResponseWriter, r *http.Request
 		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	h.logger.Info("Tanker found for refueling",
+		"game_id", gameID,
+		"unit_id", unitID,
+		"tanker_id", tankerID,
+		"hex_id", hexID)
 
 	result, err := h.refuelService.RefuelAtSea(services.RefuelAtSeaRequest{
 		GameID:   gameID,
@@ -370,7 +380,7 @@ func (h *RefuelHandler) RefuelAtSeaByPath(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	h.logger.Info("Refueled at sea",
+	h.logger.Info("Refueled at sea (by path)",
 		"game_id", gameID,
 		"unit_id", unitID,
 		"tanker_id", tankerID,
