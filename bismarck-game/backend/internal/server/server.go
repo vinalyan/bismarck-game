@@ -312,6 +312,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/refuel/sea", refuelHandler.RefuelAtSea).Methods("POST")
 	s.router.HandleFunc("/api/refuel/available-hexes/{game_id}/{unit_id}", refuelHandler.GetAvailableRefuelHexes).Methods("GET")
 	s.router.HandleFunc("/api/refuel/tankers/{game_id}/{hex_id}", refuelHandler.GetTankersInHex).Methods("GET")
+	// Альтернативные маршруты для заправки (через path параметры, совместимы с фронтендом)
+	s.router.HandleFunc("/api/games/{game_id}/units/{unit_id}/actions/refuel-port", refuelHandler.RefuelAtPortByPath).Methods("POST")
+	s.router.HandleFunc("/api/games/{game_id}/units/{unit_id}/actions/refuel-sea", refuelHandler.RefuelAtSeaByPath).Methods("POST")
 
 	// Маршруты для карты
 	s.router.HandleFunc("/api/map/structures", mapHandler.GetMapStructures).Methods("GET")

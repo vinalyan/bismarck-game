@@ -266,6 +266,120 @@ func (h *RefuelHandler) GetAvailableRefuelHexes(w http.ResponseWriter, r *http.R
 	})
 }
 
+// RefuelAtPortByPath заправляет корабль в порту (через URL path параметры)
+// @Summary Заправка корабля в порту (по пути)
+// @Description Заправляет корабль в порту своей стороны (+4 FP). Доступно только в фазе движения.
+// @Tags Refuel
+// @Accept json
+// @Produce json
+// @Param game_id path string true "ID игры"
+// @Param unit_id path string true "ID юнита"
+// @Success 200 {object} services.RefuelResult
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /games/{game_id}/units/{unit_id}/actions/refuel-port [post]
+func (h *RefuelHandler) RefuelAtPortByPath(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["game_id"]
+	unitID := vars["unit_id"]
+
+	if gameID == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "GameID is required")
+		return
+	}
+
+	if unitID == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "UnitID is required")
+		return
+	}
+
+	if h.refuelService == nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "RefuelService not initialized")
+		return
+	}
+
+	result, err := h.refuelService.RefuelAtPort(services.RefuelAtPortRequest{
+		GameID: gameID,
+		UnitID: unitID,
+	})
+
+	if err != nil {
+		h.logger.Error("Failed to refuel at port", "game_id", gameID, "unit_id", unitID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	h.logger.Info("Refueled at port",
+		"game_id", gameID,
+		"unit_id", unitID,
+		"fuel_added", result.FuelAdded)
+
+	utils.WriteSuccessResponse(w, result)
+}
+
+// RefuelAtSeaByPath заправляет корабль в море от танкера (через URL path параметры)
+// Автоматически находит доступный танкер в том же гексе
+// @Summary Заправка корабля в море (по пути)
+// @Description Заправляет немецкий корабль в море от танкера (+4 FP, DD +2 FP). Автоматически находит танкер в том же гексе.
+// @Tags Refuel
+// @Accept json
+// @Produce json
+// @Param game_id path string true "ID игры"
+// @Param unit_id path string true "ID юнита"
+// @Success 200 {object} services.RefuelResult
+// @Failure 400 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /games/{game_id}/units/{unit_id}/actions/refuel-sea [post]
+func (h *RefuelHandler) RefuelAtSeaByPath(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gameID := vars["game_id"]
+	unitID := vars["unit_id"]
+
+	if gameID == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "GameID is required")
+		return
+	}
+
+	if unitID == "" {
+		utils.WriteErrorResponse(w, http.StatusBadRequest, "UnitID is required")
+		return
+	}
+
+	if h.refuelService == nil {
+		utils.WriteErrorResponse(w, http.StatusInternalServerError, "RefuelService not initialized")
+		return
+	}
+
+	// Автоматически находим танкер в том же гексе
+	tankerID, hexID, err := h.refuelService.FindTankerForUnit(gameID, unitID)
+	if err != nil {
+		h.logger.Error("Failed to find tanker for unit", "game_id", gameID, "unit_id", unitID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	result, err := h.refuelService.RefuelAtSea(services.RefuelAtSeaRequest{
+		GameID:   gameID,
+		UnitID:   unitID,
+		TankerID: tankerID,
+	})
+
+	if err != nil {
+		h.logger.Error("Failed to refuel at sea", "game_id", gameID, "unit_id", unitID, "tanker_id", tankerID, "error", err)
+		utils.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	h.logger.Info("Refueled at sea",
+		"game_id", gameID,
+		"unit_id", unitID,
+		"tanker_id", tankerID,
+		"hex_id", hexID,
+		"fuel_added", result.FuelAdded)
+
+	utils.WriteSuccessResponse(w, result)
+}
+
 // GetTankersInHex возвращает список доступных танкеров в указанном гексе
 // @Summary Получение доступных танкеров в гексе
 // @Description Возвращает список немецких танкеров в указанном гексе, которые могут заправить корабль

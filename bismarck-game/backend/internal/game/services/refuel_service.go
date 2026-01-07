@@ -419,6 +419,39 @@ func (s *RefuelService) CanRefuelAtPort(unit *models.UnitModel, model *models.Ga
 	return notActivated && needsFuel && notRepairing && notRefueling
 }
 
+// FindTankerForUnit находит доступный танкер в том же гексе, что и юнит
+// Возвращает ID танкера и ID гекса
+func (s *RefuelService) FindTankerForUnit(gameID, unitID string) (tankerID string, hexID string, err error) {
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return "", "", fmt.Errorf("не удалось загрузить состояние игры: %w", err)
+	}
+
+	unit, exists := model.Units[unitID]
+	if !exists {
+		return "", "", fmt.Errorf("юнит не найден: %s", unitID)
+	}
+
+	if unit.NavalData == nil {
+		return "", "", fmt.Errorf("юнит не является морским юнитом")
+	}
+
+	// Ищем танкер в том же гексе
+	for _, otherUnit := range model.Units {
+		if otherUnit.Type == models.UnitTypeTanker &&
+			otherUnit.Position == unit.Position &&
+			otherUnit.Nationality == "german" &&
+			otherUnit.ID != unit.ID &&
+			otherUnit.NavalData != nil &&
+			otherUnit.NavalData.NoMovementTurnsLeft == 0 &&
+			!otherUnit.NavalData.TankerUsedThisTurn {
+			return otherUnit.ID, unit.Position, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("нет доступного танкера в гексе %s", unit.Position)
+}
+
 // CanRefuelAtSea проверяет, может ли юнит заправиться в море
 func (s *RefuelService) CanRefuelAtSea(unit *models.UnitModel, model *models.GameModel) bool {
 	if unit.NavalData == nil {
