@@ -191,3 +191,102 @@ func (s *MapStructureService) GetIntrinsicSearchHexes() map[string]int {
 	// Пока возвращаем пустую карту
 	return make(map[string]int)
 }
+
+// IsPortHex проверяет, является ли гекс портом
+func (s *MapStructureService) IsPortHex(hexId string) bool {
+	if s.mapStructures == nil {
+		return false
+	}
+
+	for _, port := range s.mapStructures.Ports {
+		for _, id := range port.HexIds {
+			if id == hexId {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// GetPortOwner возвращает владельца порта (allied/german) или пустую строку, если гекс не порт
+func (s *MapStructureService) GetPortOwner(hexId string) string {
+	if s.mapStructures == nil {
+		return ""
+	}
+
+	for _, port := range s.mapStructures.Ports {
+		for _, id := range port.HexIds {
+			if id == hexId {
+				return port.PortType
+			}
+		}
+	}
+	return ""
+}
+
+// GetPortHexesForSide возвращает список гексов портов для указанной стороны (allied/german)
+func (s *MapStructureService) GetPortHexesForSide(side string) []string {
+	if s.mapStructures == nil {
+		return nil
+	}
+
+	result := make([]string, 0)
+	for _, port := range s.mapStructures.Ports {
+		if port.PortType == side {
+			result = append(result, port.HexIds...)
+		}
+	}
+	return result
+}
+
+// CanRefuelInPort проверяет, можно ли заправляться в указанном порту
+func (s *MapStructureService) CanRefuelInPort(hexId string) bool {
+	if s.mapStructures == nil {
+		return false
+	}
+
+	for _, port := range s.mapStructures.Ports {
+		for _, id := range port.HexIds {
+			if id == hexId {
+				return port.CanRefuel
+			}
+		}
+	}
+	return false
+}
+
+// CanReloadTorpedoesInPort проверяет, можно ли перезаряжать торпеды в указанном порту
+func (s *MapStructureService) CanReloadTorpedoesInPort(hexId string) bool {
+	if s.mapStructures == nil {
+		return false
+	}
+
+	for _, port := range s.mapStructures.Ports {
+		for _, id := range port.HexIds {
+			if id == hexId {
+				return port.CanReloadTorpedoes
+			}
+		}
+	}
+	return false
+}
+
+// GetAllPorts возвращает все порты
+func (s *MapStructureService) GetAllPorts() []models.Port {
+	if s.mapStructures == nil {
+		return nil
+	}
+	return s.mapStructures.Ports
+}
+
+// IsUnitInOwnPort проверяет, находится ли юнит в своем порту (по nationality)
+func (s *MapStructureService) IsUnitInOwnPort(hexId string, nationality string) bool {
+	portOwner := s.GetPortOwner(hexId)
+	if portOwner == "" {
+		return false
+	}
+	
+	// Преобразуем nationality в формат portType
+	// nationality может быть "german" или "allied"
+	return portOwner == nationality
+}

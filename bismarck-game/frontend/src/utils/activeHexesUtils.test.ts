@@ -195,16 +195,31 @@ describe('activeHexesUtils', () => {
   });
 
   describe('getRefuelActiveHexes()', () => {
-    it('should return empty array (not implemented)', () => {
-      const position: HexCoordinate = {
-        col: 10,
-        row: 10,
-        letter: 'K',
-        number: 11
-      };
-
-      const result = activeHexesUtils.getRefuelActiveHexes(position);
+    it('should return empty array for empty input', () => {
+      const result = activeHexesUtils.getRefuelActiveHexes([]);
       expect(result).toEqual([]);
+    });
+
+    it('should parse hex strings correctly', () => {
+      const refuelHexes = ['K15', 'J30'];
+      const result = activeHexesUtils.getRefuelActiveHexes(refuelHexes);
+      
+      expect(result.length).toBe(2);
+      expect(result[0].coordinate.letter).toBe('K');
+      expect(result[0].coordinate.number).toBe(15);
+      expect(result[0].type).toBe('refuel');
+      expect(result[1].coordinate.letter).toBe('J');
+      expect(result[1].coordinate.number).toBe(30);
+    });
+
+    it('should handle double letter hexes (AA, AB, etc.)', () => {
+      const refuelHexes = ['AA15'];
+      const result = activeHexesUtils.getRefuelActiveHexes(refuelHexes);
+      
+      expect(result.length).toBe(1);
+      expect(result[0].coordinate.letter).toBe('AA');
+      expect(result[0].coordinate.number).toBe(15);
+      expect(result[0].coordinate.row).toBe(26); // AA = row 26
     });
   });
 

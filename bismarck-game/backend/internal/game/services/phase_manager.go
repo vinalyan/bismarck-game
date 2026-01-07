@@ -27,6 +27,7 @@ type PhaseManager struct {
 	apiBaseURL          string
 	gameStateService    *GameStateService // Опционально, для обновления GameModel
 	actionCheckerService *ActionCheckerService // Сервис проверки доступных действий
+	refuelService       *RefuelService // Сервис заправки для очистки статуса в Admin фазе
 }
 
 // SetMapStructureService регистрирует сервис структур карты
@@ -45,6 +46,15 @@ func (pm *PhaseManager) SetGameStateService(gameStateService *GameStateService) 
 	// Устанавливаем gameStateService в AdminPhaseHandler
 	if adminHandler, ok := pm.phaseHandlers[models.PhaseAdmin].(*AdminPhaseHandler); ok {
 		adminHandler.SetGameStateService(gameStateService)
+	}
+}
+
+// SetRefuelService устанавливает RefuelService для очистки статуса заправки в Admin фазе
+func (pm *PhaseManager) SetRefuelService(refuelService *RefuelService) {
+	pm.refuelService = refuelService
+	// Устанавливаем refuelService в AdminPhaseHandler
+	if adminHandler, ok := pm.phaseHandlers[models.PhaseAdmin].(*AdminPhaseHandler); ok {
+		adminHandler.SetRefuelService(refuelService)
 	}
 }
 

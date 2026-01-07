@@ -188,7 +188,11 @@ func (s *Server) setupRoutes() {
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService, unitService, shipConfigLogger)
 	movementHandler := handlers.NewMovementHandler(movementService, unitService, taskForceService, movementLogger)
 	emergencyFuelHandler := handlers.NewEmergencyFuelHandler(s.db, movementLogger, movementService, unitService)
-	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService)
+	
+	// Создаем RefuelService (будет настроен после создания GameStateService)
+	refuelLogger, _ := logger.New(logger.INFO, "refuel-service", "stdout")
+	var refuelService *services.RefuelService // Будет инициализирован позже
+	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService, nil) // RefuelService добавим позже
 	mapHandler := handlers.NewMapHandler(mapStructureService)
 	gameEventHandler := handlers.NewGameEventHandler(eventService)
 	unitHandlerLogger, _ := logger.New(logger.INFO, "unit-handler", "stdout")
@@ -280,6 +284,15 @@ func (s *Server) setupRoutes() {
 	movementService.SetGameStateService(gameStateService)
 	movementService.SetTaskForceService(taskForceService)
 
+	// Создаем и настраиваем RefuelService
+	refuelService = services.NewRefuelService(gameStateService, mapStructureService, eventService, refuelLogger)
+	
+	// Устанавливаем RefuelService в RefuelHandler
+	refuelHandler.SetRefuelService(refuelService)
+	
+	// Устанавливаем RefuelService в PhaseManager для очистки статуса заправки
+	phaseManager.SetRefuelService(refuelService)
+
 	// Регистрируем маршруты
 	authHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	gameHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
@@ -295,6 +308,10 @@ func (s *Server) setupRoutes() {
 
 	// Маршруты для заправки
 	s.router.HandleFunc("/api/refuel/all", refuelHandler.RefuelAll).Methods("POST")
+	s.router.HandleFunc("/api/refuel/port", refuelHandler.RefuelAtPort).Methods("POST")
+	s.router.HandleFunc("/api/refuel/sea", refuelHandler.RefuelAtSea).Methods("POST")
+	s.router.HandleFunc("/api/refuel/available-hexes/{game_id}/{unit_id}", refuelHandler.GetAvailableRefuelHexes).Methods("GET")
+	s.router.HandleFunc("/api/refuel/tankers/{game_id}/{hex_id}", refuelHandler.GetTankersInHex).Methods("GET")
 
 	// Маршруты для карты
 	s.router.HandleFunc("/api/map/structures", mapHandler.GetMapStructures).Methods("GET")

@@ -17,6 +17,7 @@ interface HexProps {
   isSelected: boolean;
   isAvailableForMovement?: boolean;
   isSearchAvailable?: boolean;
+  isRefuelAvailable?: boolean; // Подсветка гексов для заправки (оранжевый)
   activeHex?: ActiveHex | null;
   mapStructures?: MapStructure | null;
   selectedUnit?: string | null;
@@ -45,6 +46,7 @@ const Hex: React.FC<HexProps> = ({
   isSelected,
   isAvailableForMovement = false,
   isSearchAvailable = false,
+  isRefuelAvailable = false,
   activeHex = null,
   mapStructures = null,
   selectedUnit = null,
@@ -770,6 +772,12 @@ const Hex: React.FC<HexProps> = ({
       stroke = '#22C55E'; // Зеленый для доступных гексов
       strokeWidth = 2;
       fillOpacity = 0.2; // Легкая подсветка
+    } else if (isRefuelAvailable) {
+      // Подсветка гексов для заправки (оранжевый) - согласно ACTIVE_HEX_CONFIGS.refuel
+      stroke = '#D97706'; // Оранжевый для гексов заправки
+      strokeWidth = 2;
+      fillOpacity = 0.4; // Более заметная подсветка
+      fill = '#F59E0B'; // Оранжевый фон
     } else if (isSearchAvailable) {
       // Подсветка гексов с достаточными факторами поиска (желтый)
       stroke = '#FBBF24'; // Желтый для гексов с достаточными факторами поиска
@@ -825,7 +833,7 @@ const Hex: React.FC<HexProps> = ({
   return (
     <>
       <g
-        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isAvailableForMovement ? 'available-for-movement' : ''} ${isTFCandidate ? 'tf-candidate' : ''} ${isSearchAvailable ? 'search-available' : ''}`}
+        className={`hex ${hexData.type} ${isSelected ? 'selected' : ''} ${isAvailableForMovement ? 'available-for-movement' : ''} ${isRefuelAvailable ? 'refuel-available' : ''} ${isTFCandidate ? 'tf-candidate' : ''} ${isSearchAvailable ? 'search-available' : ''}`}
         onClick={onClick}
         onMouseEnter={(e) => {
           onHover();

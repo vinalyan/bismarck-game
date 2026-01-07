@@ -26,6 +26,7 @@ interface HexMapProps {
   selectedHex?: HexCoordinate | null;
   playerSide?: 'german' | 'allied';
   availableMovementHexes?: MovementHex[];
+  availableRefuelHexes?: string[]; // Гексы доступные для заправки
   activeHexes?: ActiveHex[];
   gameUnits?: any[]; // Единый источник данных юнитов
   taskForces?: any[]; // Данные Task Forces  
@@ -63,6 +64,7 @@ const HexMap: React.FC<HexMapProps> = ({
   selectedHex,
   playerSide = 'allied',
   availableMovementHexes = [],
+  availableRefuelHexes = [],
   activeHexes = [],
   gameUnits = [],
   taskForces = [],
@@ -618,6 +620,9 @@ const HexMap: React.FC<HexMapProps> = ({
       const hexSearchFactors = searchFactorHexes.get(hexId) || 0;
       const isSearchAvailable = hexSearchFactors > 0 && hexSearchFactors >= visibilityLevel;
       
+      // Проверяем, является ли этот гекс доступным для заправки
+      const isRefuelAvailable = availableRefuelHexes.includes(hexId);
+      
       // Проверяем, является ли этот гекс активным
       const activeHex = activeHexes.find(
         hex => 
@@ -643,6 +648,7 @@ const HexMap: React.FC<HexMapProps> = ({
           isSelected={!!isSelected}
           isAvailableForMovement={isAvailableForMovement}
           isSearchAvailable={isSearchAvailable}
+          isRefuelAvailable={isRefuelAvailable}
           activeHex={activeHex}
           mapStructures={mapStructures}
           selectedUnit={selectedUnit}
@@ -675,7 +681,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, searchFactorHexes, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, handleHexClickInFlightPathSearchMode, handleHexClickInTFMode]);
+  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, availableRefuelHexes, searchFactorHexes, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, handleHexClickInFlightPathSearchMode, handleHexClickInTFMode]);
 
   return (
     <div className="hex-map-container">

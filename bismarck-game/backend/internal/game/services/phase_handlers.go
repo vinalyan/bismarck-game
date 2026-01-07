@@ -2075,6 +2075,7 @@ type AdminPhaseHandler struct {
 	taskForceService *TaskForceService
 	searchService    *SearchService
 	gameStateService *GameStateService
+	refuelService    *RefuelService
 }
 
 // NewAdminPhaseHandler создает новый обработчик админской фазы
@@ -2089,6 +2090,11 @@ func NewAdminPhaseHandler(unitService *UnitService, taskForceService *TaskForceS
 // SetGameStateService устанавливает GameStateService для обновления GameModel
 func (h *AdminPhaseHandler) SetGameStateService(gameStateService *GameStateService) {
 	h.gameStateService = gameStateService
+}
+
+// SetRefuelService устанавливает RefuelService для очистки статуса заправки
+func (h *AdminPhaseHandler) SetRefuelService(refuelService *RefuelService) {
+	h.refuelService = refuelService
 }
 
 func (h *AdminPhaseHandler) CanStart(gameID string, turn int) (bool, error) {
@@ -2111,6 +2117,15 @@ func (h *AdminPhaseHandler) Start(gameID string, turn int) error {
 		err := h.taskForceService.RemoveAllPatrolMarkers(gameID)
 		if err != nil {
 			log.Printf("Failed to remove task force patrol markers: %v", err)
+		}
+	}
+
+	// Очищаем статус заправки согласно правилам игры (12. Фаза администрирования)
+	// "C. Перевернуть или убрать маркеры Патруля, Ремонта в море, Заправки в море, В порту и Нет движения"
+	if h.refuelService != nil {
+		err := h.refuelService.ClearRefuelingStatus(gameID)
+		if err != nil {
+			log.Printf("Failed to clear refueling status: %v", err)
 		}
 	}
 

@@ -18,6 +18,7 @@ const (
 	EventTypeDamage      EventType = "damage"
 	EventTypeSinking     EventType = "sinking"
 	EventTypeVictory     EventType = "victory"
+	EventTypeRefuel      EventType = "refuel"
 )
 
 // GameEvent представляет событие в игре

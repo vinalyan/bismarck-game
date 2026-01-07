@@ -173,14 +173,46 @@ export const activeHexesUtils = {
     });
   },
 
-  // Получить активные гексы для заправки
+  // Получить активные гексы для заправки (из данных сервера)
   getRefuelActiveHexes: (
-    currentPosition: HexCoordinate,
-    searchRadius: number = 2
+    refuelHexes: string[]
   ): ActiveHex[] => {
-    // Логика поиска гексов для заправки
-    // Пока возвращаем пустой массив, логика будет добавлена позже
-    return [];
+    return refuelHexes.map(hex => {
+      // Парсим гекс (например, "J30" или "AA15")
+      const match = hex.match(/^([A-Z]+)(\d+)$/);
+      if (!match) {
+        return null;
+      }
+      
+      const letter = match[1];
+      const number = parseInt(match[2]);
+      
+      // Определяем row на основе буквы
+      let row: number;
+      if (letter.length === 1) {
+        row = letter.charCodeAt(0) - 65; // A=0, B=1, etc.
+      } else if (letter.length === 2 && letter.startsWith('A')) {
+        row = 26 + (letter.charCodeAt(1) - 65); // AA=26, AB=27, etc.
+      } else {
+        return null;
+      }
+      
+      const col = number - 1;
+      
+      return {
+        coordinate: {
+          col,
+          row,
+          letter,
+          number
+        },
+        type: 'refuel' as ActiveHexType,
+        priority: ACTIVE_HEX_CONFIGS.refuel.priority,
+        metadata: {
+          isRefuelable: true
+        }
+      };
+    }).filter(Boolean) as ActiveHex[];
   },
 
   // Получить активные гексы для ремонта

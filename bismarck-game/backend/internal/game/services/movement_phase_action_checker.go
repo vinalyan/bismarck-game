@@ -135,9 +135,10 @@ func (c *RepairActionChecker) CanPerformAction(unit *models.UnitModel, gameModel
 
 // isInPort проверяет, находится ли юнит в порту
 func (c *RepairActionChecker) isInPort(hexID string) bool {
-	// TODO: Реализовать проверку портов через MapStructureService
-	// Пока возвращаем false, так как структура портов не определена
-	return false
+	if c.mapStructureService == nil {
+		return false
+	}
+	return c.mapStructureService.IsPortHex(hexID)
 }
 
 func (c *RepairActionChecker) GetActionType() string {
@@ -159,29 +160,51 @@ func NewRefuelPortActionChecker(logger *logger.Logger, mapStructureService *MapS
 
 func (c *RefuelPortActionChecker) CanPerformAction(unit *models.UnitModel, gameModel *models.GameModel) bool {
 	// Заправка в порту доступна если:
-	// 1. Юнит в гексе с портом
-	// 2. IsActivated === false
-	// 3. Топливо < MaxFuel
-	// 4. Не в ремонте
+	// 1. Юнит в гексе с портом своей стороны
+	// 2. Порт позволяет заправку
+	// 3. IsActivated === false
+	// 4. Топливо < MaxFuel
+	// 5. Не в ремонте
+	// 6. Не заправляется
 
 	if unit.NavalData == nil {
 		return false
 	}
 
-	isInPort := c.isInPort(unit.Position)
+	// Проверяем, что юнит в своем порту
+	isInOwnPort := c.isInOwnPort(unit.Position, unit.Nationality)
+	if !isInOwnPort {
+		return false
+	}
+
+	// Проверяем, что порт позволяет заправку
+	canRefuel := c.canRefuelInPort(unit.Position)
+	if !canRefuel {
+		return false
+	}
 
 	notActivated := !unit.NavalData.IsActivated
 	needsFuel := unit.NavalData.Fuel < unit.NavalData.MaxFuel
 	notRepairing := unit.Status != string(models.UnitStatusRepairing)
+	notRefueling := unit.Status != string(models.UnitStatusRefueling)
 
-	return isInPort && notActivated && needsFuel && notRepairing
+	return notActivated && needsFuel && notRepairing && notRefueling
 }
 
-// isInPort проверяет, находится ли юнит в порту
-func (c *RefuelPortActionChecker) isInPort(hexID string) bool {
-	// TODO: Реализовать проверку портов через MapStructureService
-	// Пока возвращаем false, так как структура портов не определена
-	return false
+// isInOwnPort проверяет, находится ли юнит в своем порту
+func (c *RefuelPortActionChecker) isInOwnPort(hexID string, nationality string) bool {
+	if c.mapStructureService == nil {
+		return false
+	}
+	return c.mapStructureService.IsUnitInOwnPort(hexID, nationality)
+}
+
+// canRefuelInPort проверяет, можно ли заправляться в порту
+func (c *RefuelPortActionChecker) canRefuelInPort(hexID string) bool {
+	if c.mapStructureService == nil {
+		return false
+	}
+	return c.mapStructureService.CanRefuelInPort(hexID)
 }
 
 func (c *RefuelPortActionChecker) GetActionType() string {
@@ -206,9 +229,12 @@ func (c *RefuelSeaActionChecker) CanPerformAction(unit *models.UnitModel, gameMo
 	// 1. Игрок — немецкий (nationality == "german")
 	// 2. В гексе есть танкер (TK)
 	// 3. Танкер не занят заправкой другого корабля
-	// 4. IsActivated === false
-	// 5. Топливо < MaxFuel
-	// 6. Не в ремонте
+	// 4. Танкер может двигаться (NoMovementTurnsLeft == 0) - правило 7.5
+	// 5. Танкер не использовался в этом ходу
+	// 6. IsActivated === false
+	// 7. Топливо < MaxFuel
+	// 8. Не в ремонте
+	// 9. Не заправляется
 
 	if unit.NavalData == nil {
 		return false
@@ -219,9 +245,8 @@ func (c *RefuelSeaActionChecker) CanPerformAction(unit *models.UnitModel, gameMo
 		return false
 	}
 
-	// Проверяем наличие танкера в том же гексе
+	// Проверяем наличие доступного танкера в том же гексе
 	hasTanker := false
-	tankerNotBusy := false
 
 	if unit.Position != "" {
 		// Ищем танкер в том же гексе
@@ -231,19 +256,31 @@ func (c *RefuelSeaActionChecker) CanPerformAction(unit *models.UnitModel, gameMo
 				otherUnit.Nationality == "german" &&
 				otherUnit.ID != unit.ID &&
 				otherUnit.NavalData != nil {
-				hasTanker = true
-				// Танкер не занят, если он не в статусе заправки
-				tankerNotBusy = otherUnit.Status != string(models.UnitStatusRefueling)
-				break
+				// Проверяем, что танкер может заправлять:
+				// 1. Не в статусе заправки
+				// 2. NoMovementTurnsLeft == 0 (правило 7.5)
+				// 3. Не использовался в этом ходу
+				tankerCanRefuel := otherUnit.Status != string(models.UnitStatusRefueling) &&
+					otherUnit.NavalData.NoMovementTurnsLeft == 0 &&
+					!otherUnit.NavalData.TankerUsedThisTurn
+				if tankerCanRefuel {
+					hasTanker = true
+					break
+				}
 			}
 		}
+	}
+
+	if !hasTanker {
+		return false
 	}
 
 	notActivated := !unit.NavalData.IsActivated
 	needsFuel := unit.NavalData.Fuel < unit.NavalData.MaxFuel
 	notRepairing := unit.Status != string(models.UnitStatusRepairing)
+	notRefueling := unit.Status != string(models.UnitStatusRefueling)
 
-	return hasTanker && tankerNotBusy && notActivated && needsFuel && notRepairing
+	return notActivated && needsFuel && notRepairing && notRefueling
 }
 
 func (c *RefuelSeaActionChecker) GetActionType() string {

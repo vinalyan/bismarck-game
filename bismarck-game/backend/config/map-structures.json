@@ -480,5 +480,23 @@
       ],
       "name": "fog"
     }
+  ],
+  "ports": [
+    {
+      "type": "port",
+      "hexIds": ["K27", "N26", "S26", "AF25"],
+      "portType": "allied",
+      "name": "Allied Ports",
+      "canRefuel": true,
+      "canReloadTorpedoes": true
+    },
+    {
+      "type": "port",
+      "hexIds": ["J30", "G31", "U26", "V27"],
+      "portType": "german",
+      "name": "German Ports",
+      "canRefuel": true,
+      "canReloadTorpedoes": true
+    }
   ]
 }

@@ -114,6 +114,11 @@ type NavalUnitData struct {
 	EmergencyTurn            int            `json:"emergency_turn"`
 	IsPatrolling             bool           `json:"is_patrolling"`
 	AvailableActions         []string       `json:"available_actions,omitempty"` // Доступные действия в текущей фазе
+	
+	// Поля для заправки (согласно правилам 7.4, 7.5)
+	RefuelingType      RefuelingType `json:"refueling_type,omitempty"`       // Тип заправки: "port" или "sea"
+	RefuelingTankerID  string        `json:"refueling_tanker_id,omitempty"`  // ID танкера (для заправки в море)
+	TankerUsedThisTurn bool          `json:"tanker_used_this_turn,omitempty"` // Флаг: танкер уже заправлял в этот ход (только для TK)
 }
 
 // AirUnitData представляет данные воздушного юнита

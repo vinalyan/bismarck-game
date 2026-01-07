@@ -163,6 +163,7 @@ const Game: React.FC = () => {
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [searchFactorHexes, setSearchFactorHexes] = useState<Map<string, number>>(new Map());
   const [hexMarkers, setHexMarkers] = useState<Record<string, HexMarkers>>({});
+  const [availableRefuelHexes, setAvailableRefuelHexes] = useState<string[]>([]); // Гексы для заправки
   
   // Ref для хранения последней версии модели (для предотвращения повторных запросов)
   const lastModelVersionRef = useRef<number | null>(null);
@@ -1029,6 +1030,7 @@ const Game: React.FC = () => {
       setSelectedUnit(null);
       setSelectedUnitData(null);
       setAvailableMovementHexes([]);
+      setAvailableRefuelHexes([]);
       clearActiveHexes();
       return;
     }
@@ -1147,8 +1149,31 @@ const Game: React.FC = () => {
         });
         setAvailableMovementHexes([]);
       }
+      
+      // Загружаем доступные гексы для заправки, если у юнита есть действие refuel
+      const hasRefuelAction = updatedUnitData?.available_actions?.some(
+        (action: string) => action === 'refuel-port' || action === 'refuel-sea'
+      );
+      
+      if (hasRefuelAction) {
+        try {
+          const refuelResponse = await refuelAPI.getAvailableRefuelHexes(currentGame.id, unitId, authToken);
+          if (refuelResponse.success && refuelResponse.data?.hexes) {
+            console.log('⛽ Available refuel hexes:', refuelResponse.data.hexes);
+            setAvailableRefuelHexes(refuelResponse.data.hexes);
+          } else {
+            setAvailableRefuelHexes([]);
+          }
+        } catch (error) {
+          console.error('Error fetching available refuel hexes:', error);
+          setAvailableRefuelHexes([]);
+        }
+      } else {
+        setAvailableRefuelHexes([]);
+      }
     } else {
       setAvailableMovementHexes([]);
+      setAvailableRefuelHexes([]);
     }
   };
 
@@ -1166,6 +1191,7 @@ const Game: React.FC = () => {
       setSelectedUnit(null);
       setSelectedUnitData(null);
       setAvailableMovementHexes([]);
+      setAvailableRefuelHexes([]);
       clearActiveHexes();
     }
 
@@ -1650,6 +1676,7 @@ const Game: React.FC = () => {
             onUnitClick={handleUnitClick}
             selectedHex={selectedHex}
             availableMovementHexes={availableMovementHexes}
+            availableRefuelHexes={availableRefuelHexes}
             activeHexes={activeHexes}
             gameUnits={gameUnits}
             taskForces={taskForces}
