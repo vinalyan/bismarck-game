@@ -723,11 +723,6 @@ const HexMap: React.FC<HexMapProps> = ({
               } as any;
             }
           }
-          
-          // #region agent log
-          fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'HexMap.tsx:790',message:'Checking unit/taskforce actions display',data:{selectedUnit,unitFound:!!unit,isTaskForce,hasAvailableActions:!!(unit?.available_actions),availableActionsCount:unit?.available_actions?.length||0,availableActions:unit?.available_actions},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
-          
           if (!unit || !unit.available_actions || unit.available_actions.length === 0) {
             return null;
           }
