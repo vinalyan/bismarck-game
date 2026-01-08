@@ -78,6 +78,7 @@ backend/
 - `GameEventService` - события игры
 - `EmergencyFuelService` - аварийное топливо
 - `MapStructureService` - структуры карты
+- `RefuelService` - заправка кораблей
 - `ActionCheckerService` - проверка доступных действий (создается внутри PhaseManager)
 
 #### 2. GameModel (`internal/game/models/game_model.go`)
@@ -117,6 +118,12 @@ type GameModel struct {
 - Доступные действия для юнитов хранятся в `NavalUnitData.AvailableActions`
 - Доступные действия для Task Forces хранятся в `TaskForceModel.AvailableActions`
 - Доступные действия пересчитываются при смене фаз через ActionCheckerService
+
+**Поля заправки в NavalUnitData:**
+- `RefuelingType` - тип заправки ("port" или "sea")
+- `RefuelingTankerID` - ID танкера (для заправки в море)
+- `TankerUsedThisTurn` - флаг использования танкера в этот ход (только для TK)
+- Статус заправки хранится в `UnitModel.Status` (значение `UnitStatusRefueling`)
 
 #### 3. GameStateService (`internal/game/services/game_state_service.go`)
 
@@ -197,6 +204,11 @@ type GameModel struct {
 - Используется для пересчета доступных действий при смене фаз
 - Доступные действия хранятся в GameModel (NavalUnitData.AvailableActions, TaskForceModel.AvailableActions)
 
+**Интеграция с RefuelService:**
+- PhaseManager использует RefuelService для очистки статуса заправки в фазе администрирования
+- AdminPhaseHandler вызывает `RefuelService.ClearRefuelingStatus()` при старте фазы администрирования
+- Очищаются статусы заправки, флаги использования танкеров и поля RefuelingType
+
 #### 6. Основные сервисы
 
 **UnitService** - управление юнитами (морские и воздушные)
@@ -222,6 +234,7 @@ type GameModel struct {
 - Расчет факторов поиска
 - Обработка обнаружения противника
 - Создание контактов противника
+- Исключение кораблей на заправке из факторов поиска (статус `UnitStatusRefueling`)
 
 **GameEventService** - события игры
 - Логирование событий
@@ -237,6 +250,17 @@ type GameModel struct {
 - Загрузка конфигурации карты
 - Собственные факторы поиска гексов
 - Информация о гексах
+
+**RefuelService** - управление заправкой кораблей
+- Заправка в порту (+4 FP для всех кораблей)
+- Заправка в море (+4 FP, немецкие DD +2 FP, только для немецкого игрока)
+- Проверка доступности заправки (порты своей стороны, танкеры в море)
+- Ограничения: танкер может заправить только один корабль за ход
+- Ограничения: танкер не может заправлять, если `NoMovementTurnsLeft != 0`
+- Очистка статуса заправки в фазе администрирования
+- Интеграция с SearchService для исключения кораблей на заправке из факторов поиска
+- Интеграция с ActionCheckerService для проверки доступности заправки
+- Интеграция с PhaseManager для очистки статуса в фазе администрирования
 
 **ActionCheckerService** - проверка доступных действий для юнитов и Task Forces
 - Проверка доступности действий в зависимости от фазы игры
