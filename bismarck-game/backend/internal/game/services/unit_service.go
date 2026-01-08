@@ -594,7 +594,7 @@ func (s *UnitService) InitializeGameUnits(gameID string, player1ID string, playe
 			Evasion:                  shipConfig.BaseEvasion,
 			BaseEvasion:              shipConfig.BaseEvasion,
 			SpeedRating:              models.SpeedType(shipConfig.SpeedType),
-			Fuel:                     shipConfig.MaxFuel,
+			Fuel:                     shipConfig.Fuel,
 			MaxFuel:                  shipConfig.MaxFuel,
 			HullBoxes:                shipConfig.HullBoxes,
 			CurrentHull:              shipConfig.HullBoxes, // Начинаем с полным корпусом
