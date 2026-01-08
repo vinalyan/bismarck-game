@@ -484,7 +484,7 @@
   "ports": [
     {
       "type": "port",
-      "hexIds": ["K27", "N26", "S26", "AF25"],
+      "hexIds": ["K27", "N26", "S26", "AF25", "E21"],
       "portType": "allied",
       "name": "Allied Ports",
       "canRefuel": true,

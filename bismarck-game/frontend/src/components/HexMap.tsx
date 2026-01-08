@@ -15,7 +15,6 @@ import { phaseAPI } from '../services/api/phaseAPI';
 import { unitsAPI, EnemyContact } from '../services/api/unitsAPI';
 import { gameAPI } from '../services/api/gameAPI';
 import { searchAPI, HexMarkers } from '../services/api/searchAPI';
-import { refuelAPI } from '../services/api/refuelAPI';
 import './HexMap.css';
 
 interface HexMapProps {
@@ -155,53 +154,45 @@ const HexMap: React.FC<HexMapProps> = ({
   };
 
   // Функция переключения показа гексов заправки
-  const handleToggleRefuelHexes = async () => {
+  const handleToggleRefuelHexes = () => {
     if (showRefuelHexes) {
       // Выключаем показ - просто скрываем
       setShowRefuelHexes(false);
     } else {
-      // Включаем показ - загружаем все гексы заправки для всех юнитов
-      if (!gameId || !authToken) {
-        return;
+      // Включаем показ - вычисляем гексы заправки на фронтенде
+      const allHexes = new Set<string>();
+
+      // 1. Добавляем порты для стороны игрока
+      if (mapStructures?.ports) {
+        for (const port of mapStructures.ports) {
+          // Проверяем, что порт принадлежит стороне игрока и позволяет заправку
+          if (port.portType === playerSide && port.canRefuel) {
+            port.hexIds.forEach((hex: string) => allHexes.add(hex));
+          }
+        }
       }
 
-      try {
-        const allHexes = new Set<string>();
-
-        // Загружаем гексы для всех юнитов
+      // 2. Добавляем гексы с активными танкерами (только для немцев)
+      if (playerSide === 'german') {
         for (const unit of gameUnits) {
-          if (unit.position && unit.position.trim() !== '') {
-            try {
-              const refuelResponse = await refuelAPI.getAvailableRefuelHexes(gameId, unit.id, authToken);
-              if (refuelResponse.success && refuelResponse.data?.hexes) {
-                refuelResponse.data.hexes.forEach(hex => allHexes.add(hex));
-              }
-            } catch (error) {
-              // Игнорируем ошибки для отдельных юнитов
-            }
+          // Проверяем, что это танкер (TK)
+          if (unit.type === 'TK' && 
+              unit.nationality === 'german' &&
+              unit.position && 
+              unit.position.trim() !== '' &&
+              // Проверяем базовые условия активности танкера
+              (!unit.no_movement_turns_left || unit.no_movement_turns_left === 0) &&
+              !unit.is_activated) {
+            // Добавляем позицию танкера как гекс для заправки
+            // Детальная проверка (tanker_used_this_turn) будет на бэкенде при попытке заправки
+            allHexes.add(unit.position);
           }
         }
-
-        // Загружаем гексы для всех Task Forces
-        for (const tf of taskForces) {
-          if (tf.position && tf.position.trim() !== '') {
-            try {
-              const refuelResponse = await refuelAPI.getAvailableRefuelHexes(gameId, tf.id, authToken);
-              if (refuelResponse.success && refuelResponse.data?.hexes) {
-                refuelResponse.data.hexes.forEach(hex => allHexes.add(hex));
-              }
-            } catch (error) {
-              // Игнорируем ошибки для отдельных Task Forces
-            }
-          }
-        }
-
-        const hexesArray = Array.from(allHexes);
-        setAllRefuelHexes(hexesArray);
-        setShowRefuelHexes(true);
-      } catch (error) {
-        // Игнорируем общие ошибки
       }
+
+      const hexesArray = Array.from(allHexes);
+      setAllRefuelHexes(hexesArray);
+      setShowRefuelHexes(true);
     }
   };
 

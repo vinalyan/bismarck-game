@@ -46,12 +46,23 @@ export function hexToCoordinate(hex: Hex, letter: string, number: number): HexCo
 // Типы гексов
 export type HexType = 'water' | 'land' | 'port' | 'ice' | 'fog' | 'non_game';
 
+// Порт на карте
+export interface Port {
+  type: string;
+  hexIds: string[];
+  portType: 'allied' | 'german';
+  name: string;
+  canRefuel: boolean;
+  canReloadTorpedoes: boolean;
+}
+
 // Структуры карты
 export interface MapStructure {
   landAreas: LandArea[];
   nonGameHexes: NonGameHex[];
   restrictedDD?: RestrictedDD;
   fogAreas?: FogArea[];
+  ports?: Port[];
 }
 
 export interface LandArea {
