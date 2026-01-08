@@ -51,15 +51,6 @@ func (scs *ShipConfigService) LoadConfig(configPath string) error {
 	return nil
 }
 
-// getStartingFuel возвращает начальное топливо из конфигурации
-// Если StartingFuel указано (не nil), использует его, иначе использует MaxFuel
-func getStartingFuel(shipConfig *config.ShipConfig) int {
-	if shipConfig.StartingFuel != nil {
-		return *shipConfig.StartingFuel
-	}
-	return shipConfig.MaxFuel
-}
-
 // CreateNavalUnitFromConfig создает морской юнит из конфигурации
 func (scs *ShipConfigService) CreateNavalUnitFromConfig(shipID, gameID, owner string, position string) (*models.NavalUnit, error) {
 	shipConfig, err := scs.configManager.GetShipConfig(shipID)
@@ -79,7 +70,7 @@ func (scs *ShipConfigService) CreateNavalUnitFromConfig(shipID, gameID, owner st
 		Owner:                    owner,
 		Position:                 position,
 		MaxFuel:                  shipConfig.MaxFuel,
-		Fuel:                     getStartingFuel(shipConfig), // Используем StartingFuel если указано, иначе MaxFuel
+		Fuel:                     shipConfig.Fuel, // Используем fuel из конфига
 		BaseEvasion:              shipConfig.BaseEvasion,
 		Evasion:                  shipConfig.BaseEvasion,
 		SpeedRating:              models.SpeedType(shipConfig.SpeedType), // Добавляем SpeedRating

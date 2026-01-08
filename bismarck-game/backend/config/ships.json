@@ -5,8 +5,8 @@
       "name": "BISMARCK",
       "type": "BB",
       "side": "german",
-      "maxFuel": 18,
-      "startingFuel": 1,
+      "fuel": 1,
+      "max_fuel": 18,
       "baseEvasion": 30,
       "radarLevel": 2,
       "hullBoxes": 12,
@@ -25,14 +25,12 @@
         }
       ]
     },
- 
- 
     {
       "id": "prinz_eugen",
       "name": "PRINZ EUGEN",
       "type": "CA",
       "side": "german",
-      "maxFuel": 9,
+      "max_fuel": 9,
       "baseEvasion": 32,
       "radarLevel": 2,
       "hullBoxes": 5,
@@ -42,16 +40,16 @@
       "maxTorpedos": 0,
       "speedType": "F",
       "setupHex": "J30",
-      "startingTaskForce": "KG-1"
+      "startingTaskForce": "KG-1",
+      "fuel": 9
     },
-
     {
       "id": "5_zerstorerfl",
       "name": "5. ZERSTÖRERFL.",
       "type": "DD",
       "side": "german",
-      "maxFuel": 4,
-      "startingFuel": 1,
+      "fuel": 1,
+      "max_fuel": 4,
       "baseEvasion": 35,
       "radarLevel": 2,
       "hullBoxes": 8,
@@ -67,7 +65,7 @@
       "name": "6. ZERSTÖRERFL",
       "type": "DD",
       "side": "german",
-      "maxFuel": 4,
+      "max_fuel": 4,
       "baseEvasion": 35,
       "radarLevel": 2,
       "hullBoxes": 8,
@@ -77,14 +75,15 @@
       "maxTorpedos": 0,
       "speedType": "F",
       "setupHex": "J30",
-      "startingTaskForce": "KG-1"
+      "startingTaskForce": "KG-1",
+      "fuel": 4
     },
     {
       "id": "prince_of_wales",
       "name": "P. OF WALES",
       "type": "BB",
       "side": "allied",
-      "maxFuel": 12,
+      "max_fuel": 12,
       "baseEvasion": 27,
       "radarLevel": 2,
       "hullBoxes": 9,
@@ -101,14 +100,15 @@
           "description": "Ненадежное главное вооружение - особенности работы отражены в правилах игры",
           "isActive": true
         }
-      ]
+      ],
+      "fuel": 12
     },
     {
       "id": "king_george_v",
       "name": "KING GEORGE V",
       "type": "BB",
       "side": "allied",
-      "maxFuel": 12,
+      "max_fuel": 12,
       "baseEvasion": 28,
       "radarLevel": 2,
       "hullBoxes": 9,
@@ -125,14 +125,15 @@
           "description": "Ненадежное главное вооружение - особенности работы отражены в правилах игры",
           "isActive": true
         }
-      ]
+      ],
+      "fuel": 12
     },
     {
       "id": "rodney",
       "name": "RODNEY",
       "type": "BB",
       "side": "allied",
-      "maxFuel": 18,
+      "max_fuel": 18,
       "baseEvasion": 22,
       "radarLevel": 1,
       "hullBoxes": 9,
@@ -149,14 +150,15 @@
           "description": "Главный калибр в корме может стрелять только в начальной фазе боя",
           "isActive": true
         }
-      ]
+      ],
+      "fuel": 18
     },
     {
       "id": "nelson",
       "name": "NELSON",
       "type": "BB",
       "side": "allied",
-      "maxFuel": 18,
+      "max_fuel": 18,
       "baseEvasion": 22,
       "radarLevel": 2,
       "hullBoxes": 9,
@@ -173,14 +175,15 @@
           "description": "Главный калибр в корме может стрелять только в начальной фазе боя",
           "isActive": true
         }
-      ]
+      ],
+      "fuel": 18
     },
     {
       "id": "ramillies",
       "name": "RAMILLIES",
       "type": "BB",
       "side": "allied",
-      "maxFuel": 7,
+      "max_fuel": 7,
       "baseEvasion": 20,
       "radarLevel": 0,
       "hullBoxes": 7,
@@ -189,14 +192,15 @@
       "baseSecondaryArmament": 2,
       "maxTorpedos": 0,
       "speedType": "VS",
-      "setupHex": "A11"
+      "setupHex": "A11",
+      "fuel": 7
     },
     {
       "id": "revenge",
       "name": "REVENGE",
       "type": "BB",
       "side": "allied",
-      "maxFuel": 7,
+      "max_fuel": 7,
       "baseEvasion": 21,
       "radarLevel": 1,
       "hullBoxes": 7,
@@ -205,14 +209,15 @@
       "baseSecondaryArmament": 2,
       "maxTorpedos": 0,
       "speedType": "VS",
-      "setupHex": "A10"
+      "setupHex": "A10",
+      "fuel": 7
     },
     {
       "id": "ark_royal",
       "name": "ARK ROYAL",
       "type": "CV",
       "side": "allied",
-      "maxFuel": 17,
+      "max_fuel": 17,
       "baseEvasion": 31,
       "radarLevel": 0,
       "hullBoxes": 5,
@@ -221,14 +226,15 @@
       "baseSecondaryArmament": 5,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A9"
+      "setupHex": "A9",
+      "fuel": 17
     },
     {
       "id": "victorious",
       "name": "VICTORIOUS",
       "type": "CV",
       "side": "allied",
-      "maxFuel": 15,
+      "max_fuel": 15,
       "baseEvasion": 30,
       "radarLevel": 2,
       "hullBoxes": 6,
@@ -237,14 +243,15 @@
       "baseSecondaryArmament": 6,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A8"
+      "setupHex": "A8",
+      "fuel": 15
     },
     {
       "id": "repulse",
       "name": "REPULSE",
       "type": "BC",
       "side": "allied",
-      "maxFuel": 8,
+      "max_fuel": 8,
       "baseEvasion": 30,
       "radarLevel": 0,
       "hullBoxes": 6,
@@ -253,14 +260,15 @@
       "baseSecondaryArmament": 1,
       "maxTorpedos": 4,
       "speedType": "F",
-      "setupHex": "A7"
+      "setupHex": "A7",
+      "fuel": 8
     },
     {
       "id": "hood",
       "name": "HOOD",
       "type": "BC",
       "side": "allied",
-      "maxFuel": 20,
+      "max_fuel": 20,
       "baseEvasion": 28,
       "radarLevel": 2,
       "hullBoxes": 8,
@@ -269,14 +277,15 @@
       "baseSecondaryArmament": 1,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A6"
+      "setupHex": "A6",
+      "fuel": 20
     },
     {
       "id": "renown",
       "name": "RENOWN",
       "type": "BC",
       "side": "allied",
-      "maxFuel": 8,
+      "max_fuel": 8,
       "baseEvasion": 30,
       "radarLevel": 2,
       "hullBoxes": 6,
@@ -285,14 +294,15 @@
       "baseSecondaryArmament": 2,
       "maxTorpedos": 4,
       "speedType": "F",
-      "setupHex": "A19"
+      "setupHex": "A19",
+      "fuel": 8
     },
     {
       "id": "suffolk",
       "name": "SUFFOLK",
       "type": "CA",
       "side": "allied",
-      "maxFuel": 10,
+      "max_fuel": 10,
       "baseEvasion": 31,
       "radarLevel": 2,
       "hullBoxes": 4,
@@ -301,14 +311,15 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A20"
+      "setupHex": "A20",
+      "fuel": 10
     },
     {
       "id": "london",
       "name": "LONDON",
       "type": "CA",
       "side": "allied",
-      "maxFuel": 10,
+      "max_fuel": 10,
       "baseEvasion": 31,
       "radarLevel": 2,
       "hullBoxes": 4,
@@ -317,14 +328,15 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A21"
+      "setupHex": "A21",
+      "fuel": 10
     },
     {
       "id": "norfolk",
       "name": "NORFOLK",
       "type": "CA",
       "side": "allied",
-      "maxFuel": 10,
+      "max_fuel": 10,
       "baseEvasion": 31,
       "radarLevel": 1,
       "hullBoxes": 4,
@@ -333,14 +345,15 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A22"
+      "setupHex": "A22",
+      "fuel": 10
     },
     {
       "id": "dorsetshire",
       "name": "DORSETSHIRE",
       "type": "CA",
       "side": "allied",
-      "maxFuel": 10,
+      "max_fuel": 10,
       "baseEvasion": 31,
       "radarLevel": 0,
       "hullBoxes": 4,
@@ -349,14 +362,15 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A23"
+      "setupHex": "A23",
+      "fuel": 10
     },
     {
       "id": "exeter",
       "name": "EXETER",
       "type": "CA",
       "side": "allied",
-      "maxFuel": 13,
+      "max_fuel": 13,
       "baseEvasion": 32,
       "radarLevel": 1,
       "hullBoxes": 3,
@@ -365,14 +379,15 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B1"
+      "setupHex": "B1",
+      "fuel": 13
     },
     {
       "id": "arethusa",
       "name": "ARETHUSA",
       "type": "CL",
       "side": "allied",
-      "maxFuel": 7,
+      "max_fuel": 7,
       "baseEvasion": 32,
       "radarLevel": 0,
       "hullBoxes": 3,
@@ -381,14 +396,15 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A24"
+      "setupHex": "A24",
+      "fuel": 7
     },
     {
       "id": "galatea",
       "name": "GALATEA",
       "type": "CL",
       "side": "allied",
-      "maxFuel": 7,
+      "max_fuel": 7,
       "baseEvasion": 32,
       "radarLevel": 1,
       "hullBoxes": 3,
@@ -397,14 +413,15 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A25"
+      "setupHex": "A25",
+      "fuel": 7
     },
     {
       "id": "aurora",
       "name": "AURORA",
       "type": "CL",
       "side": "allied",
-      "maxFuel": 7,
+      "max_fuel": 7,
       "baseEvasion": 32,
       "radarLevel": 2,
       "hullBoxes": 3,
@@ -413,14 +430,15 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A26"
+      "setupHex": "A26",
+      "fuel": 7
     },
     {
       "id": "cairo",
       "name": "CAIRO",
       "type": "CL",
       "side": "allied",
-      "maxFuel": 6,
+      "max_fuel": 6,
       "baseEvasion": 28,
       "radarLevel": 2,
       "hullBoxes": 0,
@@ -429,14 +447,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A27"
+      "setupHex": "A27",
+      "fuel": 6
     },
     {
       "id": "hermione",
       "name": "HERMIONE",
       "type": "CL",
       "side": "allied",
-      "maxFuel": 7,
+      "max_fuel": 7,
       "baseEvasion": 32,
       "radarLevel": 2,
       "hullBoxes": 3,
@@ -445,14 +464,15 @@
       "baseSecondaryArmament": 3,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B6"
+      "setupHex": "B6",
+      "fuel": 7
     },
     {
       "id": "kenya",
       "name": "KENYA",
       "type": "CL",
       "side": "allied",
-      "maxFuel": 8,
+      "max_fuel": 8,
       "baseEvasion": 31,
       "radarLevel": 2,
       "hullBoxes": 4,
@@ -461,14 +481,15 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B7"
+      "setupHex": "B7",
+      "fuel": 8
     },
     {
       "id": "edinburgh",
       "name": "EDINBURGH",
       "type": "CL",
       "side": "allied",
-      "maxFuel": 8,
+      "max_fuel": 8,
       "baseEvasion": 32,
       "radarLevel": 1,
       "hullBoxes": 4,
@@ -477,14 +498,15 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B8"
+      "setupHex": "B8",
+      "fuel": 8
     },
     {
       "id": "manchester",
       "name": "MANCHESTER",
       "type": "CL",
       "side": "allied",
-      "maxFuel": 8,
+      "max_fuel": 8,
       "baseEvasion": 32,
       "radarLevel": 2,
       "hullBoxes": 4,
@@ -493,14 +515,15 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B9"
+      "setupHex": "B9",
+      "fuel": 8
     },
     {
       "id": "birmingham",
       "name": "BIRMINGHAM",
       "type": "CL",
       "side": "allied",
-      "maxFuel": 8,
+      "max_fuel": 8,
       "baseEvasion": 32,
       "radarLevel": 1,
       "hullBoxes": 4,
@@ -509,14 +532,15 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B10"
+      "setupHex": "B10",
+      "fuel": 8
     },
     {
       "id": "sheffield",
       "name": "SHEFFIELD",
       "type": "CL",
       "side": "allied",
-      "maxFuel": 8,
+      "max_fuel": 8,
       "baseEvasion": 32,
       "radarLevel": 2,
       "hullBoxes": 4,
@@ -525,14 +549,15 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B11"
+      "setupHex": "B11",
+      "fuel": 8
     },
     {
       "id": "pow_hood_fl",
       "name": "POW/HOOD FL.",
       "type": "DD",
       "side": "allied",
-      "maxFuel": 6,
+      "max_fuel": 6,
       "baseEvasion": 35,
       "radarLevel": 1,
       "hullBoxes": 8,
@@ -541,14 +566,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B12"
+      "setupHex": "B12",
+      "fuel": 6
     },
     {
       "id": "kgv_flotilla",
       "name": "KGV FLOTILLA",
       "type": "DD",
       "side": "allied",
-      "maxFuel": 6,
+      "max_fuel": 6,
       "baseEvasion": 35,
       "radarLevel": 1,
       "hullBoxes": 8,
@@ -557,14 +583,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A28"
+      "setupHex": "A28",
+      "fuel": 6
     },
     {
       "id": "troop_co_fl_1",
       "name": "TROOP CO. FL. 1",
       "type": "DD",
       "side": "allied",
-      "maxFuel": 6,
+      "max_fuel": 6,
       "baseEvasion": 35,
       "radarLevel": 0,
       "hullBoxes": 8,
@@ -573,14 +600,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "A29"
+      "setupHex": "A29",
+      "fuel": 6
     },
     {
       "id": "troop_co_fl_2",
       "name": "TROOP CO. FL. 2",
       "type": "DD",
       "side": "allied",
-      "maxFuel": 6,
+      "max_fuel": 6,
       "baseEvasion": 35,
       "radarLevel": 0,
       "hullBoxes": 8,
@@ -589,14 +617,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B16"
+      "setupHex": "B16",
+      "fuel": 6
     },
     {
       "id": "ark_royal_fl",
       "name": "ARK ROYAL FL",
       "type": "DD",
       "side": "allied",
-      "maxFuel": 6,
+      "max_fuel": 6,
       "baseEvasion": 35,
       "radarLevel": 0,
       "hullBoxes": 8,
@@ -605,14 +634,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B17"
+      "setupHex": "B17",
+      "fuel": 6
     },
     {
       "id": "channel_fl",
       "name": "CHANNEL FL.",
       "type": "DD",
       "side": "allied",
-      "maxFuel": 6,
+      "max_fuel": 6,
       "baseEvasion": 35,
       "radarLevel": 0,
       "hullBoxes": 4,
@@ -621,14 +651,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B18"
+      "setupHex": "B18",
+      "fuel": 6
     },
     {
       "id": "new_york",
       "name": "NEW YORK",
       "type": "BB",
       "side": "allied",
-      "maxFuel": 6,
+      "max_fuel": 6,
       "baseEvasion": 21,
       "radarLevel": 1,
       "hullBoxes": 7,
@@ -645,14 +676,15 @@
           "description": "Не может стрелять из главного калибра на экстремальной дистанции",
           "isActive": true
         }
-      ]
+      ],
+      "fuel": 6
     },
     {
       "id": "augusta",
       "name": "AUGUSTA",
       "type": "CA",
       "side": "allied",
-      "maxFuel": 16,
+      "max_fuel": 16,
       "baseEvasion": 32,
       "radarLevel": 1,
       "hullBoxes": 4,
@@ -661,14 +693,15 @@
       "baseSecondaryArmament": 1,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B20"
+      "setupHex": "B20",
+      "fuel": 16
     },
     {
       "id": "modoc",
       "name": "MODOC",
       "type": "CG",
       "side": "allied",
-      "maxFuel": 1,
+      "max_fuel": 1,
       "baseEvasion": 15,
       "radarLevel": 0,
       "hullBoxes": 0,
@@ -677,14 +710,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "VS",
-      "setupHex": "B21"
+      "setupHex": "B21",
+      "fuel": 1
     },
     {
       "id": "destroyers_1",
       "name": "DESTROYERS 1",
       "type": "DD",
       "side": "allied",
-      "maxFuel": 5,
+      "max_fuel": 5,
       "baseEvasion": 35,
       "radarLevel": 0,
       "hullBoxes": 8,
@@ -693,14 +727,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B22"
+      "setupHex": "B22",
+      "fuel": 5
     },
     {
       "id": "destroyers_2",
       "name": "DESTROYERS 2",
       "type": "DD",
       "side": "allied",
-      "maxFuel": 7,
+      "max_fuel": 7,
       "baseEvasion": 35,
       "radarLevel": 0,
       "hullBoxes": 8,
@@ -709,14 +744,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "B23"
+      "setupHex": "B23",
+      "fuel": 7
     },
     {
       "id": "weissenburg",
       "name": "WEISSENBURG",
       "type": "TK",
       "side": "german",
-      "maxFuel": 15,
+      "max_fuel": 15,
       "baseEvasion": 12,
       "radarLevel": 0,
       "hullBoxes": 6,
@@ -725,14 +761,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "VS",
-      "setupHex": "H29"
+      "setupHex": "H29",
+      "fuel": 15
     },
     {
       "id": "belchen",
       "name": "BELCHEN",
       "type": "TK",
       "side": "german",
-      "maxFuel": 15,
+      "max_fuel": 15,
       "baseEvasion": 12,
       "radarLevel": 0,
       "hullBoxes": 6,
@@ -741,14 +778,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "VS",
-      "setupHex": "J25"
+      "setupHex": "J25",
+      "fuel": 15
     },
     {
       "id": "lotheringen",
       "name": "LOTHERINGEN",
       "type": "TK",
       "side": "german",
-      "maxFuel": 15,
+      "max_fuel": 15,
       "baseEvasion": 12,
       "radarLevel": 0,
       "hullBoxes": 6,
@@ -757,14 +795,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "VS",
-      "setupHex": "J24"
+      "setupHex": "J24",
+      "fuel": 15
     },
     {
       "id": "gonzenheim",
       "name": "GONZENHEIM",
       "type": "TK",
       "side": "german",
-      "maxFuel": 15,
+      "max_fuel": 15,
       "baseEvasion": 9,
       "radarLevel": 0,
       "hullBoxes": 6,
@@ -773,14 +812,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "VS",
-      "setupHex": "J23"
+      "setupHex": "J23",
+      "fuel": 15
     },
     {
       "id": "kota_pinang",
       "name": "KOTA PINANG",
       "type": "TK",
       "side": "german",
-      "maxFuel": 15,
+      "max_fuel": 15,
       "baseEvasion": 14,
       "radarLevel": 0,
       "hullBoxes": 6,
@@ -789,14 +829,15 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "VS",
-      "setupHex": "J22"
+      "setupHex": "J22",
+      "fuel": 15
     },
     {
       "id": "test_cruiser_m",
       "name": "TEST CRUISER M",
       "type": "CA",
       "side": "allied",
-      "maxFuel": 8,
+      "max_fuel": 8,
       "baseEvasion": 20,
       "radarLevel": 1,
       "hullBoxes": 6,
@@ -806,14 +847,15 @@
       "baseSecondaryArmament": 6,
       "maxTorpedos": 0,
       "speedType": "M",
-      "notes": "Тестовый крейсер класса M"
+      "notes": "Тестовый крейсер класса M",
+      "fuel": 8
     },
     {
       "id": "test_destroyer_m",
-      "name": "TEST DESTROYER M", 
+      "name": "TEST DESTROYER M",
       "type": "DD",
       "side": "german",
-      "maxFuel": 6,
+      "max_fuel": 6,
       "baseEvasion": 15,
       "radarLevel": 0,
       "hullBoxes": 3,
@@ -823,14 +865,15 @@
       "baseSecondaryArmament": 4,
       "maxTorpedos": 8,
       "speedType": "M",
-      "notes": "Тестовый эсминец класса M"
+      "notes": "Тестовый эсминец класса M",
+      "fuel": 6
     },
     {
       "id": "test_cruiser_s",
       "name": "TEST CRUISER S",
       "type": "CA",
       "side": "allied",
-      "maxFuel": 10,
+      "max_fuel": 10,
       "baseEvasion": 18,
       "radarLevel": 1,
       "hullBoxes": 8,
@@ -840,14 +883,15 @@
       "baseSecondaryArmament": 8,
       "maxTorpedos": 0,
       "speedType": "S",
-      "notes": "Тестовый крейсер класса S (медленный)"
+      "notes": "Тестовый крейсер класса S (медленный)",
+      "fuel": 10
     },
     {
       "id": "test_tanker_vs",
       "name": "TEST TANKER VS",
       "type": "TK",
       "side": "german",
-      "maxFuel": 25,
+      "max_fuel": 25,
       "baseEvasion": 5,
       "radarLevel": 0,
       "hullBoxes": 12,
@@ -857,7 +901,8 @@
       "baseSecondaryArmament": 2,
       "maxTorpedos": 0,
       "speedType": "VS",
-      "notes": "Тестовый танкер класса VS (очень медленный)"
+      "notes": "Тестовый танкер класса VS (очень медленный)",
+      "fuel": 25
     }
   ]
 }
