@@ -13,6 +13,7 @@ type ShipConfig struct {
 	Type                     string              `json:"type"`
 	Side                     string              `json:"side"`
 	MaxFuel                  int                 `json:"maxFuel"`
+	StartingFuel             int                 `json:"startingFuel,omitempty"`     // Начальное топливо (если не указано, используется MaxFuel)
 	BaseEvasion              int                 `json:"baseEvasion"`
 	RadarLevel               int                 `json:"radarLevel"`
 	HullBoxes                int                 `json:"hullBoxes"`

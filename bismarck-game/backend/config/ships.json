@@ -6,6 +6,7 @@
       "type": "BB",
       "side": "german",
       "maxFuel": 18,
+      "startingFuel": 1,
       "baseEvasion": 30,
       "radarLevel": 2,
       "hullBoxes": 12,
@@ -14,8 +15,7 @@
       "baseSecondaryArmament": 8,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "J30",
-      "startingTaskForce": "KG-1",
+      "setupHex": "J23",
       "notes": "После первого раунда боя считается кораблем без радара",
       "specialRules": [
         {
@@ -51,6 +51,7 @@
       "type": "DD",
       "side": "german",
       "maxFuel": 4,
+      "startingFuel": 1,
       "baseEvasion": 35,
       "radarLevel": 2,
       "hullBoxes": 8,
@@ -59,7 +60,7 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "F",
-      "setupHex": "J28"
+      "setupHex": "H29"
     },
     {
       "id": "6_zerstorerfl",
@@ -724,7 +725,7 @@
       "baseSecondaryArmament": 0,
       "maxTorpedos": 0,
       "speedType": "VS",
-      "setupHex": "J26"
+      "setupHex": "H29"
     },
     {
       "id": "belchen",
