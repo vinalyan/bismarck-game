@@ -52,10 +52,10 @@ func (scs *ShipConfigService) LoadConfig(configPath string) error {
 }
 
 // getStartingFuel возвращает начальное топливо из конфигурации
-// Если StartingFuel указано (не равно 0), использует его, иначе использует MaxFuel
+// Если StartingFuel указано (не nil), использует его, иначе использует MaxFuel
 func getStartingFuel(shipConfig *config.ShipConfig) int {
-	if shipConfig.StartingFuel > 0 {
-		return shipConfig.StartingFuel
+	if shipConfig.StartingFuel != nil {
+		return *shipConfig.StartingFuel
 	}
 	return shipConfig.MaxFuel
 }
