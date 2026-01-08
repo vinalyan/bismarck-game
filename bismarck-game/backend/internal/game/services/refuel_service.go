@@ -339,53 +339,6 @@ func (s *RefuelService) RefuelAtSea(req RefuelAtSeaRequest) (*RefuelResult, erro
 	return result, nil
 }
 
-// GetAvailableRefuelHexes возвращает список гексов, где юнит может заправиться
-func (s *RefuelService) GetAvailableRefuelHexes(gameID, unitID string) ([]string, error) {
-	model, err := s.gameStateService.LoadGameModel(gameID)
-	if err != nil {
-		return nil, fmt.Errorf("не удалось загрузить состояние игры: %w", err)
-	}
-
-	unit, exists := model.Units[unitID]
-	if !exists {
-		return nil, fmt.Errorf("юнит не найден: %s", unitID)
-	}
-
-	if unit.NavalData == nil {
-		return nil, fmt.Errorf("юнит не является морским юнитом")
-	}
-
-	var hexes []string
-
-	// Получаем порты для стороны юнита
-	portHexes := s.mapStructureService.GetPortHexesForSide(unit.Nationality)
-	hexes = append(hexes, portHexes...)
-
-	// Для немецких юнитов добавляем гексы с танкерами
-	if unit.Nationality == "german" {
-		for _, otherUnit := range model.Units {
-			if otherUnit.Type == models.UnitTypeTanker &&
-				otherUnit.Nationality == "german" &&
-				otherUnit.NavalData != nil &&
-				otherUnit.NavalData.NoMovementTurnsLeft == 0 &&
-				!otherUnit.NavalData.TankerUsedThisTurn {
-				// Добавляем позицию танкера, если она еще не добавлена
-				found := false
-				for _, h := range hexes {
-					if h == otherUnit.Position {
-						found = true
-						break
-					}
-				}
-				if !found {
-					hexes = append(hexes, otherUnit.Position)
-				}
-			}
-		}
-	}
-
-	return hexes, nil
-}
 
 // GetTankersInHex возвращает список доступных танкеров в указанном гексе
 func (s *RefuelService) GetTankersInHex(gameID, hexID string) ([]*models.UnitModel, error) {
@@ -545,3 +498,73 @@ func (s *RefuelService) CanRefuelAtSea(unit *models.UnitModel, model *models.Gam
 	return notActivated && needsFuel && notRepairing && notRefueling
 }
 
+// GetAvailableRefuelHexes возвращает список гексов, где указанный юнит может заправиться
+// Возвращает:
+// - Порты своей стороны (для всех юнитов)
+// - Гексы с танкерами (только для немецких юнитов)
+func (s *RefuelService) GetAvailableRefuelHexes(gameID, unitID string) ([]string, error) {
+	s.logger.Info("Получаем доступные гексы для заправки",
+		"game_id", gameID,
+		"unit_id", unitID)
+
+	// Загружаем GameModel
+	model, err := s.gameStateService.LoadGameModel(gameID)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось загрузить состояние игры: %w", err)
+	}
+
+	// Получаем юнит
+	unit, exists := model.Units[unitID]
+	if !exists {
+		return nil, fmt.Errorf("юнит не найден: %s", unitID)
+	}
+
+	if unit.NavalData == nil {
+		return nil, fmt.Errorf("юнит не является морским юнитом")
+	}
+
+	// Проверяем фазу
+	if model.CurrentTurn == nil || model.CurrentTurn.Phase != models.PhaseMovement {
+		return []string{}, nil // Не в фазе движения - нет доступных гексов
+	}
+
+	availableHexes := make([]string, 0)
+
+	// 1. Добавляем порты своей стороны
+	portHexes := s.mapStructureService.GetPortHexesForSide(unit.Nationality)
+	for _, hexID := range portHexes {
+		// Проверяем, можно ли заправляться в этом порту
+		if s.mapStructureService.CanRefuelInPort(hexID) {
+			availableHexes = append(availableHexes, hexID)
+		}
+	}
+
+	// 2. Для немецких юнитов добавляем гексы с танкерами
+	if unit.Nationality == "german" {
+		// Собираем уникальные гексы, где есть доступные танкеры
+		tankerHexes := make(map[string]bool)
+		for _, otherUnit := range model.Units {
+			if otherUnit.Type == models.UnitTypeTanker &&
+				otherUnit.Nationality == "german" &&
+				otherUnit.ID != unitID &&
+				otherUnit.NavalData != nil &&
+				otherUnit.NavalData.NoMovementTurnsLeft == 0 &&
+				!otherUnit.NavalData.TankerUsedThisTurn {
+				tankerHexes[otherUnit.Position] = true
+			}
+		}
+
+		// Добавляем гексы с танкерами в список доступных
+		for hexID := range tankerHexes {
+			availableHexes = append(availableHexes, hexID)
+		}
+	}
+
+	s.logger.Info("Доступные гексы для заправки найдены",
+		"game_id", gameID,
+		"unit_id", unitID,
+		"hexes_count", len(availableHexes),
+		"hexes", availableHexes)
+
+	return availableHexes, nil
+}

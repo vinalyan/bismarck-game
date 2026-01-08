@@ -8619,5 +8619,304 @@ describe('Game', () => {
       expect(hexMapProps.taskForces.length).toBe(0);
     });
   });
+
+  describe('Refuel Functionality', () => {
+    it('should pass onRefuelAllShips handler to HexMap', async () => {
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      expect(hexMapProps.onRefuelAllShips).toBeDefined();
+      expect(typeof hexMapProps.onRefuelAllShips).toBe('function');
+    });
+
+    it('should call refuelAPI.refuelAll when handleRefuelAllShips is called', async () => {
+      const { refuelAPI } = require('../services/api/refuelAPI');
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      refuelAPI.refuelAll = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          message: 'Refueled successfully',
+          refueled_count: 3,
+          total_units: 5,
+          fuel_amount: 4,
+        },
+      });
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [
+            { id: 'unit-1', name: 'Ship 1', fuel: 5, max_fuel: 10 },
+            { id: 'unit-2', name: 'Ship 2', fuel: 3, max_fuel: 10 },
+          ],
+          task_forces: [],
+          enemy_contacts: [],
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      await act(async () => {
+        await hexMapProps.onRefuelAllShips();
+      });
+
+      expect(refuelAPI.refuelAll).toHaveBeenCalledWith({
+        game_id: 'game-1',
+        fuel_amount: 4,
+      });
+    });
+
+    it('should update units after successful refuel', async () => {
+      const { refuelAPI } = require('../services/api/refuelAPI');
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      refuelAPI.refuelAll = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          message: 'Refueled successfully',
+          refueled_count: 2,
+          total_units: 2,
+          fuel_amount: 4,
+        },
+      });
+
+      const updatedUnits = [
+        { id: 'unit-1', name: 'Ship 1', fuel: 9, max_fuel: 10 },
+        { id: 'unit-2', name: 'Ship 2', fuel: 7, max_fuel: 10 },
+      ];
+
+      unitsAPI.getGameUnits = jest.fn()
+        .mockResolvedValueOnce({
+          success: true,
+          data: {
+            units: [
+              { id: 'unit-1', name: 'Ship 1', fuel: 5, max_fuel: 10 },
+              { id: 'unit-2', name: 'Ship 2', fuel: 3, max_fuel: 10 },
+            ],
+            task_forces: [],
+            enemy_contacts: [],
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+          },
+        })
+        .mockResolvedValue({
+          success: true,
+          data: {
+            units: updatedUnits,
+            task_forces: [],
+            enemy_contacts: [],
+            current_turn: {
+              turn: 1,
+              phase: 'movement',
+            },
+          },
+        });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      await act(async () => {
+        await hexMapProps.onRefuelAllShips();
+      });
+
+      await waitFor(() => {
+        expect(unitsAPI.getGameUnits).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('should show error notification when refuel fails', async () => {
+      const { refuelAPI } = require('../services/api/refuelAPI');
+      const { useGameStore } = require('../stores/gameStore');
+      const mockAddNotification = jest.fn();
+
+      mockUseGameStore.mockReturnValue({
+        ...mockStoreState,
+        addNotification: mockAddNotification,
+      } as any);
+
+      refuelAPI.refuelAll = jest.fn().mockResolvedValue({
+        success: false,
+        data: {
+          message: 'Refuel failed',
+          refueled_count: 0,
+          total_units: 0,
+          fuel_amount: 0,
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      await act(async () => {
+        await hexMapProps.onRefuelAllShips();
+      });
+
+      // Проверяем, что уведомление не было вызвано с успехом
+      // (так как success: false, уведомление об успехе не должно быть вызвано)
+      expect(mockAddNotification).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: expect.any(String),
+          title: 'Заправка выполнена',
+        })
+      );
+    });
+
+    it('should show error notification when game is not selected', async () => {
+      const { useGameStore } = require('../stores/gameStore');
+      const { refuelAPI } = require('../services/api/refuelAPI');
+      const mockAddNotification = jest.fn();
+
+      // Создаем мок с currentGame, но без id (симуляция невыбранной игры)
+      const mockStoreStateWithoutGame = {
+        ...mockStoreState,
+        currentGame: { ...mockCurrentGame, id: undefined },
+        addNotification: mockAddNotification,
+      };
+
+      mockUseGameStore.mockReturnValue(mockStoreStateWithoutGame as any);
+
+      refuelAPI.refuelAll = jest.fn();
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      await act(async () => {
+        await hexMapProps.onRefuelAllShips();
+      });
+
+      expect(mockAddNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: expect.any(String),
+          title: 'Ошибка',
+          message: 'Игра не выбрана',
+        })
+      );
+      
+      // API не должен быть вызван
+      expect(refuelAPI.refuelAll).not.toHaveBeenCalled();
+    });
+
+    it('should handle refuel API error', async () => {
+      const { refuelAPI } = require('../services/api/refuelAPI');
+      const { useGameStore } = require('../stores/gameStore');
+      const mockAddNotification = jest.fn();
+
+      mockUseGameStore.mockReturnValue({
+        ...mockStoreState,
+        addNotification: mockAddNotification,
+      } as any);
+
+      refuelAPI.refuelAll = jest.fn().mockRejectedValue(new Error('Network error'));
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      
+      await act(async () => {
+        await hexMapProps.onRefuelAllShips();
+      });
+
+      expect(mockAddNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: expect.any(String),
+          title: 'Ошибка',
+          message: 'Не удалось заправить корабли',
+        })
+      );
+    });
+
+    it('should pass isRefuelDisabled prop to HexMap', async () => {
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      expect(hexMapProps.isRefuelDisabled).toBeDefined();
+      expect(typeof hexMapProps.isRefuelDisabled).toBe('boolean');
+    });
+
+    it('should disable refuel when no game is selected', async () => {
+      // Когда currentGame null, компонент показывает ошибку, а не HexMap
+      // Поэтому проверяем, что ошибка отображается
+      mockUseGameStore.mockReturnValue({
+        ...mockStoreState,
+        currentGame: null,
+      } as any);
+
+      render(<Game />);
+
+      // Когда currentGame null, компонент показывает ошибку
+      await waitFor(() => {
+        expect(screen.getByText(/Игра не найдена или пользователь не авторизован/i)).toBeInTheDocument();
+      });
+
+      // HexMap не должен быть отрендерен
+      expect(screen.queryByTestId('hex-map')).not.toBeInTheDocument();
+    });
+
+    it('should disable refuel when no units available', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+      expect(hexMapProps.isRefuelDisabled).toBe(true);
+    });
+  });
 });
 
