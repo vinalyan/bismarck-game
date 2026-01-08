@@ -48,9 +48,9 @@ export const ACTIVE_HEX_CONFIGS: Record<ActiveHexType, ActiveHexConfig> = {
     type: 'refuel',
     enabled: true,
     priority: 2,
-    color: '#F59E0B', // Оранжевый
+    color: '#9b59b6', // Фиолетовый
     opacity: 0.4,
-    strokeColor: '#D97706',
+    strokeColor: '#8e44ad',
     strokeWidth: 2
   },
   repair: {

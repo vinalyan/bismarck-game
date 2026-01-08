@@ -1799,6 +1799,16 @@ func (s *UnitService) RefuelAtPort(gameID, unitID string) error {
 		}
 	}
 
+	// Пересчитываем факторы поиска для гекса после заправки
+	// Корабли на заправке не должны давать факторы поиска
+	if s.searchService != nil && unit.Position != "" {
+		if err := s.searchService.RecalculateSearchDataForHex(gameID, unit.Position); err != nil {
+			s.logger.Warn("Failed to recalculate search data after refuel at port", "game_id", gameID, "hex_id", unit.Position, "error", err)
+		} else {
+			s.logger.Info("Recalculated search data after refuel at port", "game_id", gameID, "hex_id", unit.Position)
+		}
+	}
+
 	s.logger.Info("Refuel at port completed", "unit_id", unitID)
 	return nil
 }
@@ -1832,14 +1842,13 @@ func (s *UnitService) RefuelAtSea(gameID, unitID string) error {
 		return fmt.Errorf("unit fuel is already at maximum")
 	}
 
-	// TODO: Проверка наличия танкера в том же гексе
-	// TODO: Проверка, что танкер не занят заправкой другого корабля
-
 	// Определяем количество топлива для заправки
 	fuelToAdd := 4
 	if unit.Type == models.UnitTypeDestroyer {
 		fuelToAdd = 2 // Немецкие эсминцы могут заправляться только на 2 FP
 	}
+
+	var tankerID string // Сохраняем ID танкера для обновления
 
 	// Обновляем топливо и статус
 	err = s.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
@@ -1851,6 +1860,33 @@ func (s *UnitService) RefuelAtSea(gameID, unitID string) error {
 			return fmt.Errorf("unit %s is not a naval unit", unitID)
 		}
 
+		// Ищем танкер в том же гексе
+		var tankerModel *models.UnitModel
+		for _, otherUnit := range model.Units {
+			if otherUnit.NavalData == nil {
+				continue
+			}
+			// Проверяем, что это танкер в том же гексе
+			if otherUnit.Type == models.UnitTypeTanker &&
+				otherUnit.Position == unitModel.Position &&
+				otherUnit.Nationality == "german" &&
+				otherUnit.ID != unitID {
+				// Проверяем, что танкер может заправлять
+				if otherUnit.NavalData.NoMovementTurnsLeft == 0 &&
+					!otherUnit.NavalData.TankerUsedThisTurn &&
+					otherUnit.Status != string(models.UnitStatusRefueling) &&
+					otherUnit.Status != string(models.UnitStatusRepairing) {
+					tankerModel = otherUnit
+					tankerID = otherUnit.ID
+					break
+				}
+			}
+		}
+
+		if tankerModel == nil {
+			return fmt.Errorf("нет доступного танкера в гексе %s", unitModel.Position)
+		}
+
 		// Добавляем топливо (но не больше MaxFuel)
 		newFuel := unitModel.NavalData.Fuel + fuelToAdd
 		if newFuel > unitModel.NavalData.MaxFuel {
@@ -1858,12 +1894,29 @@ func (s *UnitService) RefuelAtSea(gameID, unitID string) error {
 		}
 		unitModel.NavalData.Fuel = newFuel
 
-		// Устанавливаем статус заправки и активацию
+		// Устанавливаем статус заправки и активацию для заправляемого корабля
 		unitModel.Status = string(models.UnitStatusRefueling)
 		unitModel.NavalData.IsActivated = true
+		unitModel.NavalData.RefuelingType = models.RefuelingTypeSea
+		unitModel.NavalData.RefuelingTankerID = tankerID
 		unitModel.UpdatedAt = time.Now()
 		
 		model.Units[unitID] = unitModel
+
+		// Обновляем танкер: устанавливаем статус заправки, активацию и флаг использования
+		tankerModel.Status = string(models.UnitStatusRefueling)
+		tankerModel.NavalData.TankerUsedThisTurn = true
+		tankerModel.NavalData.IsActivated = true
+		tankerModel.UpdatedAt = time.Now()
+		
+		model.Units[tankerID] = tankerModel
+		
+		s.logger.Info("Танкер обновлен для заправки",
+			"tanker_id", tankerID,
+			"tanker_status", tankerModel.Status,
+			"tanker_position", tankerModel.Position,
+			"tanker_used_this_turn", tankerModel.NavalData.TankerUsedThisTurn)
+
 		return nil
 	}, 3)
 
@@ -1880,6 +1933,16 @@ func (s *UnitService) RefuelAtSea(gameID, unitID string) error {
 		}
 		if err := s.phaseManager.RecalculateAvailableActionsForUnit(gameID, unitID, currentPhase); err != nil {
 			s.logger.Warn("Failed to recalculate available actions after refuel at sea", "unit_id", unitID, "error", err)
+		}
+	}
+
+	// Пересчитываем факторы поиска для гекса после заправки
+	// Корабли на заправке не должны давать факторы поиска
+	if s.searchService != nil && unit.Position != "" {
+		if err := s.searchService.RecalculateSearchDataForHex(gameID, unit.Position); err != nil {
+			s.logger.Warn("Failed to recalculate search data after refuel at sea", "game_id", gameID, "hex_id", unit.Position, "error", err)
+		} else {
+			s.logger.Info("Recalculated search data after refuel at sea", "game_id", gameID, "hex_id", unit.Position)
 		}
 	}
 

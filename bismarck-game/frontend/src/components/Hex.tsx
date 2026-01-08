@@ -773,11 +773,11 @@ const Hex: React.FC<HexProps> = ({
       strokeWidth = 2;
       fillOpacity = 0.2; // Легкая подсветка
     } else if (isRefuelAvailable) {
-      // Подсветка гексов для заправки (оранжевый) - согласно ACTIVE_HEX_CONFIGS.refuel
-      stroke = '#D97706'; // Оранжевый для гексов заправки
+      // Подсветка гексов для заправки (фиолетовый) - согласно ACTIVE_HEX_CONFIGS.refuel
+      stroke = '#8e44ad'; // Фиолетовый для гексов заправки
       strokeWidth = 2;
       fillOpacity = 0.4; // Более заметная подсветка
-      fill = '#F59E0B'; // Оранжевый фон
+      fill = '#9b59b6'; // Фиолетовый фон
     } else if (isSearchAvailable) {
       // Подсветка гексов с достаточными факторами поиска (желтый)
       stroke = '#FBBF24'; // Желтый для гексов с достаточными факторами поиска

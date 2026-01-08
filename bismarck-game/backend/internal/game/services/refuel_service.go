@@ -18,6 +18,7 @@ type RefuelService struct {
 	gameStateService    *GameStateService
 	mapStructureService *MapStructureService
 	gameEventService    *GameEventService
+	searchService       *SearchService
 	logger              *logger.Logger
 }
 
@@ -26,14 +27,21 @@ func NewRefuelService(
 	gameStateService *GameStateService,
 	mapStructureService *MapStructureService,
 	gameEventService *GameEventService,
+	searchService *SearchService,
 	logger *logger.Logger,
 ) *RefuelService {
 	return &RefuelService{
 		gameStateService:    gameStateService,
 		mapStructureService: mapStructureService,
 		gameEventService:    gameEventService,
+		searchService:       searchService,
 		logger:              logger,
 	}
+}
+
+// SetSearchService устанавливает SearchService (для отложенной инициализации)
+func (s *RefuelService) SetSearchService(searchService *SearchService) {
+	s.searchService = searchService
 }
 
 // RefuelAtPortRequest запрос на заправку в порту
@@ -66,6 +74,7 @@ func (s *RefuelService) RefuelAtPort(req RefuelAtPortRequest) (*RefuelResult, er
 		"unit_id", req.UnitID)
 
 	var result *RefuelResult
+	var unitHexID string // Сохраняем позицию юнита для пересчета факторов поиска
 
 	err := s.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
 		// Проверяем фазу игры
@@ -82,6 +91,9 @@ func (s *RefuelService) RefuelAtPort(req RefuelAtPortRequest) (*RefuelResult, er
 		if unit.NavalData == nil {
 			return fmt.Errorf("юнит не является морским юнитом")
 		}
+
+		// Сохраняем позицию юнита для пересчета факторов поиска
+		unitHexID = unit.Position
 
 		// Проверяем, что юнит в порту своей стороны
 		if !s.mapStructureService.IsUnitInOwnPort(unit.Position, unit.Nationality) {
@@ -149,6 +161,17 @@ func (s *RefuelService) RefuelAtPort(req RefuelAtPortRequest) (*RefuelResult, er
 		return nil, err
 	}
 
+	// Пересчитываем факторы поиска для гекса после заправки
+	// Корабли на заправке не должны давать факторы поиска
+	if s.searchService != nil && unitHexID != "" {
+		if err := s.searchService.RecalculateSearchDataForHex(req.GameID, unitHexID); err != nil {
+			s.logger.Warn("Failed to recalculate search data after refuel at port", "game_id", req.GameID, "hex_id", unitHexID, "error", err)
+			// Не возвращаем ошибку, так как заправка уже выполнена
+		} else {
+			s.logger.Info("Recalculated search data after refuel at port", "game_id", req.GameID, "hex_id", unitHexID)
+		}
+	}
+
 	return result, nil
 }
 
@@ -163,6 +186,7 @@ func (s *RefuelService) RefuelAtSea(req RefuelAtSeaRequest) (*RefuelResult, erro
 		"tanker_id", req.TankerID)
 
 	var result *RefuelResult
+	var unitHexID string // Сохраняем позицию юнита для пересчета факторов поиска
 
 	err := s.gameStateService.UpdateGameModelWithRetry(req.GameID, func(model *models.GameModel) error {
 		// Проверяем фазу игры
@@ -179,6 +203,9 @@ func (s *RefuelService) RefuelAtSea(req RefuelAtSeaRequest) (*RefuelResult, erro
 		if unit.NavalData == nil {
 			return fmt.Errorf("юнит не является морским юнитом")
 		}
+
+		// Сохраняем позицию юнита для пересчета факторов поиска
+		unitHexID = unit.Position
 
 		// Проверяем, что юнит немецкий (только немецкий игрок может заправляться в море)
 		if unit.Nationality != "german" {
@@ -296,6 +323,17 @@ func (s *RefuelService) RefuelAtSea(req RefuelAtSeaRequest) (*RefuelResult, erro
 	if err != nil {
 		s.logger.Error("Ошибка заправки в море", "error", err)
 		return nil, err
+	}
+
+	// Пересчитываем факторы поиска для гекса после заправки
+	// Корабли на заправке не должны давать факторы поиска
+	if s.searchService != nil && unitHexID != "" {
+		if err := s.searchService.RecalculateSearchDataForHex(req.GameID, unitHexID); err != nil {
+			s.logger.Warn("Failed to recalculate search data after refuel at sea", "game_id", req.GameID, "hex_id", unitHexID, "error", err)
+			// Не возвращаем ошибку, так как заправка уже выполнена
+		} else {
+			s.logger.Info("Recalculated search data after refuel at sea", "game_id", req.GameID, "hex_id", unitHexID)
+		}
 	}
 
 	return result, nil

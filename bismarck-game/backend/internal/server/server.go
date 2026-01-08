@@ -274,6 +274,9 @@ func (s *Server) setupRoutes() {
 	// Устанавливаем PhaseManager в UnitService для пересчета доступных действий
 	unitService.SetPhaseManager(phaseManager)
 	
+	// Устанавливаем SearchService в UnitService для пересчета факторов поиска после заправки
+	unitService.SetSearchService(searchService)
+	
 	// Устанавливаем PhaseManager в TaskForceService для пересчета доступных действий
 	taskForceService.SetPhaseManager(phaseManager)
 
@@ -285,7 +288,7 @@ func (s *Server) setupRoutes() {
 	movementService.SetTaskForceService(taskForceService)
 
 	// Создаем и настраиваем RefuelService
-	refuelService = services.NewRefuelService(gameStateService, mapStructureService, eventService, refuelLogger)
+	refuelService = services.NewRefuelService(gameStateService, mapStructureService, eventService, searchService, refuelLogger)
 	
 	// Устанавливаем RefuelService в RefuelHandler
 	refuelHandler.SetRefuelService(refuelService)

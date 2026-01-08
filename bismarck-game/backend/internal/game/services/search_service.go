@@ -369,12 +369,12 @@ func (s *SearchService) canUnitContributeSearchFactors(unit *models.NavalUnit, g
 	}
 
 	// Исключение 2: Корабли, заправляющиеся (в море или в порту)
-	// TODO: Реализовать проверку статуса заправки
-	// Варианты реализации:
-	// - Проверить unit.Status == models.UnitStatusRefueling
-	// - Дополнительно проверить, где происходит заправка (в море или в порту)
-	//   через проверку типа гекса (MapStructureService.IsLandHex)
 	if unit.Status == models.UnitStatusRefueling {
+		s.logger.Debug("Unit excluded from search factors due to refueling status",
+			"unit_id", unit.ID,
+			"unit_name", unit.Name,
+			"unit_status", unit.Status,
+			"expected_status", models.UnitStatusRefueling)
 		return false
 	}
 
