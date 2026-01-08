@@ -8,6 +8,8 @@ import (
 	"bismarck-game/backend/pkg/logger"
 	"bismarck-game/backend/pkg/redis"
 	"bismarck-game/backend/pkg/testutil"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -55,10 +57,7 @@ func SetupTestServices() (*TestServices, func(), error) {
 	mapStructureService := NewMapStructureService()
 
 	// Загружаем конфигурацию карты
-	if err := mapStructureService.LoadConfig("./config/map-structures.json"); err != nil {
-		// Игнорируем ошибку, если файл не найден (для тестов это нормально)
-		testLogger.Info("Failed to load map structures config (this is OK for tests)", "error", err)
-	}
+	loadMapStructuresConfig(mapStructureService, testLogger)
 
 	// Создаем сервисы с зависимостями
 	taskForceService := NewTaskForceService(db, testLogger, unitService, nil)
@@ -209,6 +208,42 @@ func AddTestUnitToGameModel(gameStateService *GameStateService, gameID string, u
 
 	// Сохраняем обновленный GameModel
 	return gameStateService.UpdateGameModel(gameID, gameModel)
+}
+
+// loadMapStructuresConfig загружает конфигурацию карты, пробуя разные пути
+func loadMapStructuresConfig(mapStructureService *MapStructureService, logger *logger.Logger) {
+	// Получаем текущую рабочую директорию
+	wd, err := os.Getwd()
+	if err != nil {
+		wd = "."
+	}
+
+	// Пробуем разные пути относительно текущей директории и от корня проекта
+	configPaths := []string{
+		filepath.Join(wd, "config", "map-structures.json"),
+		filepath.Join(wd, "..", "config", "map-structures.json"),
+		filepath.Join(wd, "..", "..", "config", "map-structures.json"),
+		filepath.Join(wd, "..", "..", "..", "config", "map-structures.json"),
+		"config/map-structures.json",
+		"./config/map-structures.json",
+		"../config/map-structures.json",
+		"../../config/map-structures.json",
+		"../../../config/map-structures.json",
+		"bismarck-game/backend/config/map-structures.json",
+	}
+
+	var configLoaded bool
+	for _, path := range configPaths {
+		if err := mapStructureService.LoadConfig(path); err == nil {
+			configLoaded = true
+			logger.Info("Map structures config loaded", "path", path)
+			break
+		}
+	}
+	if !configLoaded {
+		// Игнорируем ошибку, если файл не найден (для тестов это нормально)
+		logger.Info("Failed to load map structures config (this is OK for tests)")
+	}
 }
 
 // AddTestTaskForceToGameModel добавляет Task Force в GameModel

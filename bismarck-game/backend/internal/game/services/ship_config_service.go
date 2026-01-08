@@ -70,7 +70,7 @@ func (scs *ShipConfigService) CreateNavalUnitFromConfig(shipID, gameID, owner st
 		Owner:                    owner,
 		Position:                 position,
 		MaxFuel:                  shipConfig.MaxFuel,
-		Fuel:                     shipConfig.Fuel, // Используем fuel из конфига
+		Fuel:                     shipConfig.MaxFuel, // Новый юнит начинается с полным топливом
 		BaseEvasion:              shipConfig.BaseEvasion,
 		Evasion:                  shipConfig.BaseEvasion,
 		SpeedRating:              models.SpeedType(shipConfig.SpeedType), // Добавляем SpeedRating

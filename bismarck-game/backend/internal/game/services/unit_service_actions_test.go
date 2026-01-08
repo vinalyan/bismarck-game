@@ -229,7 +229,9 @@ func TestUnitService_RefuelAtSea(t *testing.T) {
 
 	t.Run("successful refuel at sea", func(t *testing.T) {
 		unitID := uuid.New().String()
+		tankerID := uuid.New().String()
 		err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(m *models.GameModel) error {
+			// Создаем эсминец для заправки
 			m.Units[unitID] = &models.UnitModel{
 				ID:          unitID,
 				GameID:      gameID,
@@ -244,6 +246,25 @@ func TestUnitService_RefuelAtSea(t *testing.T) {
 					Fuel:        5,
 					MaxFuel:     10,
 					IsActivated: false,
+				},
+			}
+			// Создаем танкер в том же гексе
+			m.Units[tankerID] = &models.UnitModel{
+				ID:          tankerID,
+				GameID:      gameID,
+				Name:        "Test Tanker",
+				Type:        models.UnitTypeTanker,
+				Category:    models.UnitCategoryNaval,
+				Nationality: "german",
+				Position:    "A1",
+				Status:      string(models.UnitStatusActive),
+				Visibility:  models.VisibilitySighted,
+				NavalData: &models.NavalUnitData{
+					Fuel:                10,
+					MaxFuel:             10,
+					IsActivated:         false,
+					NoMovementTurnsLeft: 0,
+					TankerUsedThisTurn:  false,
 				},
 			}
 			return nil

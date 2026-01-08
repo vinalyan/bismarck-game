@@ -583,10 +583,14 @@ npm start
 - Тесты фаз игры
 - Тесты движения
 
+запуск тестов бека `make test 2>&1 | tee test_results.txt` 
+
 ### Frontend
 
 - Unit тесты компонентов
 - Integration тесты с API
+
+
 
 ---
 

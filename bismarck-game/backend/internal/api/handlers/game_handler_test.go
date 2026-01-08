@@ -40,7 +40,32 @@ func setupGameHandler(t *testing.T) (*GameHandler, *services.TestServices, func(
 	return handler, testServices, cleanup
 }
 
+// createTestUser создает тестового пользователя с уникальным именем
 func createTestUser(t *testing.T, authService *auth.AuthService, username, email, password string) string {
+	// Генерируем уникальное имя пользователя для каждого теста, чтобы избежать конфликтов при параллельном выполнении
+	testName := t.Name()
+	testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
+	uniqueID := strings.ReplaceAll(uuid.New().String(), "-", "")
+	
+	// Если username не пустой, добавляем к нему уникальный суффикс
+	if username != "" {
+		username = username + "_" + testNameHash + "_" + uniqueID[:8]
+	} else {
+		username = "tu_" + testNameHash + "_" + uniqueID
+	}
+	
+	// Ограничиваем длину username до 50 символов (лимит БД)
+	if len(username) > 50 {
+		username = username[:50]
+	}
+	
+	// Если email не пустой, делаем его уникальным
+	if email != "" {
+		email = uniqueID[:8] + "_" + email
+	} else {
+		email = uniqueID + "@test.example.com"
+	}
+	
 	user, err := authService.Register(&models.CreateUserRequest{
 		Username: username,
 		Email:    email,
