@@ -15,6 +15,7 @@ import { phaseAPI } from '../services/api/phaseAPI';
 import { unitsAPI, EnemyContact } from '../services/api/unitsAPI';
 import { gameAPI } from '../services/api/gameAPI';
 import { searchAPI, HexMarkers } from '../services/api/searchAPI';
+import { refuelAPI } from '../services/api/refuelAPI';
 import './HexMap.css';
 
 interface HexMapProps {
@@ -26,7 +27,6 @@ interface HexMapProps {
   selectedHex?: HexCoordinate | null;
   playerSide?: 'german' | 'allied';
   availableMovementHexes?: MovementHex[];
-  availableRefuelHexes?: string[]; // Гексы доступные для заправки
   activeHexes?: ActiveHex[];
   gameUnits?: any[]; // Единый источник данных юнитов
   taskForces?: any[]; // Данные Task Forces  
@@ -64,7 +64,6 @@ const HexMap: React.FC<HexMapProps> = ({
   selectedHex,
   playerSide = 'allied',
   availableMovementHexes = [],
-  availableRefuelHexes = [],
   activeHexes = [],
   gameUnits = [],
   taskForces = [],
@@ -99,6 +98,8 @@ const HexMap: React.FC<HexMapProps> = ({
   const [showTFDialog, setShowTFDialog] = useState(false);
   const [selectedTFHex, setSelectedTFHex] = useState<string | null>(null);
   const [isFlightPathSearchMode, setIsFlightPathSearchMode] = useState(false);
+  const [showRefuelHexes, setShowRefuelHexes] = useState(false); // Переключатель показа гексов заправки
+  const [allRefuelHexes, setAllRefuelHexes] = useState<string[]>([]); // Все гексы заправки для всех юнитов
   
   const [tooltip, setTooltip] = useState<{
     show: boolean;
@@ -150,6 +151,57 @@ const HexMap: React.FC<HexMapProps> = ({
       console.log('✅ Game data refreshed successfully');
     } catch (error) {
       console.error('❌ Error refreshing game data:', error);
+    }
+  };
+
+  // Функция переключения показа гексов заправки
+  const handleToggleRefuelHexes = async () => {
+    if (showRefuelHexes) {
+      // Выключаем показ - просто скрываем
+      setShowRefuelHexes(false);
+    } else {
+      // Включаем показ - загружаем все гексы заправки для всех юнитов
+      if (!gameId || !authToken) {
+        return;
+      }
+
+      try {
+        const allHexes = new Set<string>();
+
+        // Загружаем гексы для всех юнитов
+        for (const unit of gameUnits) {
+          if (unit.position && unit.position.trim() !== '') {
+            try {
+              const refuelResponse = await refuelAPI.getAvailableRefuelHexes(gameId, unit.id, authToken);
+              if (refuelResponse.success && refuelResponse.data?.hexes) {
+                refuelResponse.data.hexes.forEach(hex => allHexes.add(hex));
+              }
+            } catch (error) {
+              // Игнорируем ошибки для отдельных юнитов
+            }
+          }
+        }
+
+        // Загружаем гексы для всех Task Forces
+        for (const tf of taskForces) {
+          if (tf.position && tf.position.trim() !== '') {
+            try {
+              const refuelResponse = await refuelAPI.getAvailableRefuelHexes(gameId, tf.id, authToken);
+              if (refuelResponse.success && refuelResponse.data?.hexes) {
+                refuelResponse.data.hexes.forEach(hex => allHexes.add(hex));
+              }
+            } catch (error) {
+              // Игнорируем ошибки для отдельных Task Forces
+            }
+          }
+        }
+
+        const hexesArray = Array.from(allHexes);
+        setAllRefuelHexes(hexesArray);
+        setShowRefuelHexes(true);
+      } catch (error) {
+        // Игнорируем общие ошибки
+      }
     }
   };
 
@@ -620,8 +672,8 @@ const HexMap: React.FC<HexMapProps> = ({
       const hexSearchFactors = searchFactorHexes.get(hexId) || 0;
       const isSearchAvailable = hexSearchFactors > 0 && hexSearchFactors >= visibilityLevel;
       
-      // Проверяем, является ли этот гекс доступным для заправки
-      const isRefuelAvailable = availableRefuelHexes.includes(hexId);
+      // Проверяем, является ли этот гекс доступным для заправки (только если включен показ)
+      const isRefuelAvailable = showRefuelHexes && allRefuelHexes.includes(hexId);
       
       // Проверяем, является ли этот гекс активным
       const activeHex = activeHexes.find(
@@ -681,7 +733,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, availableRefuelHexes, searchFactorHexes, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, handleHexClickInFlightPathSearchMode, handleHexClickInTFMode]);
+  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, showRefuelHexes, allRefuelHexes, searchFactorHexes, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, handleHexClickInFlightPathSearchMode, handleHexClickInTFMode]);
 
   return (
     <div className="hex-map-container">
@@ -700,8 +752,15 @@ const HexMap: React.FC<HexMapProps> = ({
         <button onClick={() => setMapOffset({ x: mapOffset.x, y: mapOffset.y - 50 })}>
           ↑
         </button>
-        <button onClick={() => setMapOffset({ x: mapOffset.x, y: mapOffset.y + 50 })}>
-          ↓
+        <button 
+          onClick={handleToggleRefuelHexes}
+          title={showRefuelHexes ? "Скрыть гексы заправки" : "Показать гексы заправки"}
+          style={{ 
+            backgroundColor: showRefuelHexes ? '#9b59b6' : 'transparent',
+            color: showRefuelHexes ? 'white' : 'inherit'
+          }}
+        >
+          ⛽
         </button>
         
         {/* Кнопки действий для выбранного юнита или Task Force */}

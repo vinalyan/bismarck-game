@@ -179,13 +179,6 @@ const Game: React.FC = () => {
     const loadMapStructures = async () => {
       try {
         const structures = await mapService.getMapStructures();
-        console.log('🗺️ Map structures loaded:', {
-          landAreas: structures.landAreas?.length || 0,
-          nonGameHexes: structures.nonGameHexes?.length || 0,
-          hasRestrictedDD: !!structures.restrictedDD,
-          fogAreas: structures.fogAreas?.length || 0,
-          fogAreasData: structures.fogAreas
-        });
         setMapStructures(structures);
       } catch (error) {
         console.error('Error loading map structures:', error);
@@ -891,14 +884,11 @@ const Game: React.FC = () => {
 
   // Обработчик клика по стеку юнитов
   const handleUnitStackClick = (hexId: string, units: any[]) => {
-    console.log('Unit stack clicked:', hexId, units);
     setExpandedStackHex(hexId);
   };
 
   // Обработчик выбора юнита из стека
   const handleStackedUnitSelect = async (unit: any) => {
-    console.log('Stacked unit selected:', unit);
-    
     // Если кликнули на уже выбранный юнит - сбрасываем выбор
     if (selectedUnit === unit.id) {
       setSelectedUnit(null);
@@ -1016,8 +1006,11 @@ const Game: React.FC = () => {
         });
         setAvailableMovementHexes([]);
       }
+      
+      // Логика загрузки гексов заправки убрана - теперь управляется кнопкой в HexMap
     } else {
       setAvailableMovementHexes([]);
+      setAvailableRefuelHexes([]);
     }
   };
 
@@ -1150,27 +1143,7 @@ const Game: React.FC = () => {
         setAvailableMovementHexes([]);
       }
       
-      // Загружаем доступные гексы для заправки, если у юнита есть действие refuel
-      const hasRefuelAction = updatedUnitData?.available_actions?.some(
-        (action: string) => action === 'refuel-port' || action === 'refuel-sea'
-      );
-      
-      if (hasRefuelAction) {
-        try {
-          const refuelResponse = await refuelAPI.getAvailableRefuelHexes(currentGame.id, unitId, authToken);
-          if (refuelResponse.success && refuelResponse.data?.hexes) {
-            console.log('⛽ Available refuel hexes:', refuelResponse.data.hexes);
-            setAvailableRefuelHexes(refuelResponse.data.hexes);
-          } else {
-            setAvailableRefuelHexes([]);
-          }
-        } catch (error) {
-          console.error('Error fetching available refuel hexes:', error);
-          setAvailableRefuelHexes([]);
-        }
-      } else {
-        setAvailableRefuelHexes([]);
-      }
+      // Логика загрузки гексов заправки убрана - теперь управляется кнопкой в HexMap
     } else {
       setAvailableMovementHexes([]);
       setAvailableRefuelHexes([]);
@@ -1676,7 +1649,6 @@ const Game: React.FC = () => {
             onUnitClick={handleUnitClick}
             selectedHex={selectedHex}
             availableMovementHexes={availableMovementHexes}
-            availableRefuelHexes={availableRefuelHexes}
             activeHexes={activeHexes}
             gameUnits={gameUnits}
             taskForces={taskForces}
