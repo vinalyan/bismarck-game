@@ -118,6 +118,10 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
       case 'movement': return '🚢';
       case 'phase_change': return '🔄';
       case 'turn_change': return '⏰';
+      case 'air_attack': return '✈️💥';
+      case 'combat': return '⚔️';
+      case 'damage': return '💥';
+      case 'sinking': return '🌊';
       default: return '📝';
     }
   };
@@ -136,6 +140,15 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
       const { from_hex, to_hex, fuel_cost, hexes_moved } = event.data;
       return `${event.actor_name} переместился из ${from_hex} в ${to_hex} (${hexes_moved} гексов, ${fuel_cost} топлива)`;
     }
+    
+    if (event.event_type === 'air_attack' && event.data) {
+      const { hex_id, target_name, target_class, hull_damage, new_hull, sunk } = event.data;
+      if (sunk) {
+        return `✈️💥 Воздушная атака: ${target_name || target_class} потоплен в гексе ${hex_id}`;
+      }
+      return `✈️💥 Воздушная атака на ${target_name || target_class} в гексе ${hex_id}: нанесено ${hull_damage || 1} повреждений, HULL: ${new_hull || 0}`;
+    }
+    
     return event.description;
   };
 

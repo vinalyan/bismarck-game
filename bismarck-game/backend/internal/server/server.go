@@ -140,6 +140,10 @@ func (s *Server) setupRoutes() {
 	searchLogger, _ := logger.New(logger.INFO, "search-service", "stdout")
 	searchService := services.NewSearchService(s.db, searchLogger, unitService, gameService)
 
+	// Создаем сервис воздушной атаки
+	airAttackLogger, _ := logger.New(logger.INFO, "air-attack-service", "stdout")
+	airAttackService := services.NewAirAttackService(s.db, airAttackLogger, gameService)
+
 	phaseManager := services.NewPhaseManager(s.db.GetConnection(), unitService, taskForceService, searchService, eventService, s.wsHub, apiBaseURL)
 
 	// Создаем сервис структур карты
@@ -199,6 +203,10 @@ func (s *Server) setupRoutes() {
 	unitHandler := handlers.NewUnitHandler(unitService, movementService, taskForceService, unitHandlerLogger)
 	searchHandlerLogger, _ := logger.New(logger.INFO, "search-handler", "stdout")
 	searchHandler := handlers.NewSearchHandler(searchService, searchHandlerLogger)
+
+	// Создаем AirAttackHandler
+	airAttackHandlerLogger, _ := logger.New(logger.INFO, "air-attack-handler", "stdout")
+	airAttackHandler := handlers.NewAirAttackHandler(airAttackService, unitService, gameService, eventService, airAttackHandlerLogger)
 
 	// Создаем GameStateService
 	gameStateLogger, _ := logger.New(logger.INFO, "game-state-service", "stdout")
@@ -283,6 +291,12 @@ func (s *Server) setupRoutes() {
 	// Устанавливаем GameStateService в SearchService для обновления GameModel при работе с маркерами
 	searchService.SetGameStateService(gameStateService)
 
+	// Устанавливаем GameStateService в AirAttackService для обновления GameModel
+	airAttackService.SetGameStateService(gameStateService)
+
+	// Устанавливаем GameStateService в AirAttackHandler
+	airAttackHandler.SetGameStateService(gameStateService)
+
 	// Устанавливаем GameStateService и TaskForceService в MovementService для работы с Task Forces
 	movementService.SetGameStateService(gameStateService)
 	movementService.SetTaskForceService(taskForceService)
@@ -304,6 +318,7 @@ func (s *Server) setupRoutes() {
 	movementHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	unitHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 	searchHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
+	airAttackHandler.RegisterRoutes(s.router, s.config.JWT.Secret)
 
 	// Маршруты для аварийного топлива
 	s.router.HandleFunc("/api/emergency-fuel/check", emergencyFuelHandler.CheckEmergencyFuel).Methods("POST")

@@ -1597,6 +1597,15 @@ const Game: React.FC = () => {
                         {(unit.speed_rating === 'F' || unit.speed_rating === 'M') && (
                           <span>F: {unit.fuel || 0}/{unit.max_fuel || 0}</span>
                         )}
+                        {/* Показываем HULL для всех морских юнитов */}
+                        {unit.current_hull !== undefined && unit.hull_boxes !== undefined && (
+                          <span className={unit.current_hull === 0 ? 'unit-sunk' : ''} style={{ 
+                            color: unit.current_hull === 0 ? '#f44336' : unit.current_hull < unit.hull_boxes / 2 ? '#ff9800' : 'inherit'
+                          }}>
+                            HULL: {unit.current_hull}/{unit.hull_boxes}
+                            {unit.current_hull === 0 && ' 🌊 Потоплен'}
+                          </span>
+                        )}
                         <span>SR: {
                           unit.speed_rating === 'F' ? 'F' :
                           unit.speed_rating === 'M' ? 'M' :

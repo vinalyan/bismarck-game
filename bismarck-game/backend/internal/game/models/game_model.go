@@ -31,6 +31,9 @@ type GameModel struct {
 	// Блок поиска (объединенный)
 	Search *SearchData `json:"search,omitempty"`
 
+	// Маркеры воздушной атаки (отдельная структура)
+	AirAttack *AirAttackData `json:"air_attack,omitempty"`
+
 	// События игры
 	Events []*GameEventModel `json:"events"`
 
@@ -61,15 +64,15 @@ type GameTurnModel struct {
 
 // UnitModel представляет унифицированную модель юнита (объединяет NavalUnit и AirUnit)
 type UnitModel struct {
-	ID          string       `json:"id"`
-	GameID      string       `json:"game_id"`
-	Name        string       `json:"name"`
-	Type        UnitType     `json:"type"`
-	Category    UnitCategory `json:"category"` // "naval" или "air"
-	Owner       string       `json:"owner"`
-	Nationality string       `json:"nationality"`
-	Position    string       `json:"position"`
-	Status      string       `json:"status"` // UnitStatus для naval, AirUnitStatus для air
+	ID          string         `json:"id"`
+	GameID      string         `json:"game_id"`
+	Name        string         `json:"name"`
+	Type        UnitType       `json:"type"`
+	Category    UnitCategory   `json:"category"` // "naval" или "air"
+	Owner       string         `json:"owner"`
+	Nationality string         `json:"nationality"`
+	Position    string         `json:"position"`
+	Status      string         `json:"status"`     // UnitStatus для naval, AirUnitStatus для air
 	Visibility  UnitVisibility `json:"visibility"` // Уровень видимости юнита
 
 	// Поля для морских юнитов
@@ -84,40 +87,40 @@ type UnitModel struct {
 
 // NavalUnitData представляет данные морского юнита
 type NavalUnitData struct {
-	Class                    string         `json:"class"`
-	SetupHex                 string         `json:"setup_hex"`
-	Evasion                  int            `json:"evasion"`
-	BaseEvasion              int            `json:"base_evasion"`
-	SpeedRating              SpeedType      `json:"speed_rating"`
-	Fuel                     int            `json:"fuel"`
-	MaxFuel                  int            `json:"max_fuel"`
-	HullBoxes                int            `json:"hull_boxes"`
-	CurrentHull              int            `json:"current_hull"`
-	PrimaryArmamentBow       int            `json:"primary_armament_bow"`
-	PrimaryArmamentStern     int            `json:"primary_armament_stern"`
-	SecondaryArmament        int            `json:"secondary_armament"`
-	BasePrimaryArmamentBow   int            `json:"base_primary_armament_bow"`
-	BasePrimaryArmamentStern int            `json:"base_primary_armament_stern"`
-	BaseSecondaryArmament    int            `json:"base_secondary_armament"`
-	Torpedoes                int            `json:"torpedoes"`
-	MaxTorpedoes             int            `json:"max_torpedoes"`
-	RadarLevel               int            `json:"radar_level"`
-	LastKnownPos             *string        `json:"last_known_pos"`
-	TaskForceID              *string        `json:"task_force_id"`
-	Damage                   []Damage       `json:"damage"`
-	MovementUsed             int            `json:"movement_used"`             // Количество гексов, пройденных в текущем ходу
-	PreviousTurnMovedHexes   int            `json:"previous_turn_moved_hexes"` // Количество гексов, пройденных в предыдущем ходу
-	LastMoveTurn             int            `json:"last_move_turn"`
-	NoMovementTurnsLeft      int            `json:"no_movement_turns_left"`
-	IsActivated              bool           `json:"is_activated"`
-	IsEmergencyFuel          bool           `json:"is_emergency_fuel"`
-	EmergencyTurn            int            `json:"emergency_turn"`
-	IsPatrolling             bool           `json:"is_patrolling"`
-	AvailableActions         []string       `json:"available_actions,omitempty"` // Доступные действия в текущей фазе
-	
+	Class                    string    `json:"class"`
+	SetupHex                 string    `json:"setup_hex"`
+	Evasion                  int       `json:"evasion"`
+	BaseEvasion              int       `json:"base_evasion"`
+	SpeedRating              SpeedType `json:"speed_rating"`
+	Fuel                     int       `json:"fuel"`
+	MaxFuel                  int       `json:"max_fuel"`
+	HullBoxes                int       `json:"hull_boxes"`
+	CurrentHull              int       `json:"current_hull"`
+	PrimaryArmamentBow       int       `json:"primary_armament_bow"`
+	PrimaryArmamentStern     int       `json:"primary_armament_stern"`
+	SecondaryArmament        int       `json:"secondary_armament"`
+	BasePrimaryArmamentBow   int       `json:"base_primary_armament_bow"`
+	BasePrimaryArmamentStern int       `json:"base_primary_armament_stern"`
+	BaseSecondaryArmament    int       `json:"base_secondary_armament"`
+	Torpedoes                int       `json:"torpedoes"`
+	MaxTorpedoes             int       `json:"max_torpedoes"`
+	RadarLevel               int       `json:"radar_level"`
+	LastKnownPos             *string   `json:"last_known_pos"`
+	TaskForceID              *string   `json:"task_force_id"`
+	Damage                   []Damage  `json:"damage"`
+	MovementUsed             int       `json:"movement_used"`             // Количество гексов, пройденных в текущем ходу
+	PreviousTurnMovedHexes   int       `json:"previous_turn_moved_hexes"` // Количество гексов, пройденных в предыдущем ходу
+	LastMoveTurn             int       `json:"last_move_turn"`
+	NoMovementTurnsLeft      int       `json:"no_movement_turns_left"`
+	IsActivated              bool      `json:"is_activated"`
+	IsEmergencyFuel          bool      `json:"is_emergency_fuel"`
+	EmergencyTurn            int       `json:"emergency_turn"`
+	IsPatrolling             bool      `json:"is_patrolling"`
+	AvailableActions         []string  `json:"available_actions,omitempty"` // Доступные действия в текущей фазе
+
 	// Поля для заправки (согласно правилам 7.4, 7.5)
-	RefuelingType      RefuelingType `json:"refueling_type,omitempty"`       // Тип заправки: "port" или "sea"
-	RefuelingTankerID  string        `json:"refueling_tanker_id,omitempty"`  // ID танкера (для заправки в море)
+	RefuelingType      RefuelingType `json:"refueling_type,omitempty"`        // Тип заправки: "port" или "sea"
+	RefuelingTankerID  string        `json:"refueling_tanker_id,omitempty"`   // ID танкера (для заправки в море)
 	TankerUsedThisTurn bool          `json:"tanker_used_this_turn,omitempty"` // Флаг: танкер уже заправлял в этот ход (только для TK)
 }
 
@@ -131,22 +134,22 @@ type AirUnitData struct {
 
 // TaskForceModel представляет модель Task Force
 type TaskForceModel struct {
-	ID             string         `json:"id"`
-	GameID         string         `json:"game_id"`
-	Name           string         `json:"name"`
-	Owner          string         `json:"owner"`
-	Nationality    string         `json:"nationality"`
-	Position       string         `json:"position"`
-	Speed          int            `json:"speed"`
-	Units          []string       `json:"units"` // IDs юнитов
-	IsVisible      bool           `json:"is_visible"`
-	Visibility     UnitVisibility `json:"visibility"`
-	LastMoveTurn   int            `json:"last_move_turn"`
-	IsActivated    bool           `json:"is_activated"`
-	IsPatrolling   bool           `json:"is_patrolling"`
-	AvailableActions []string     `json:"available_actions,omitempty"` // Доступные действия в текущей фазе
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
+	ID               string         `json:"id"`
+	GameID           string         `json:"game_id"`
+	Name             string         `json:"name"`
+	Owner            string         `json:"owner"`
+	Nationality      string         `json:"nationality"`
+	Position         string         `json:"position"`
+	Speed            int            `json:"speed"`
+	Units            []string       `json:"units"` // IDs юнитов
+	IsVisible        bool           `json:"is_visible"`
+	Visibility       UnitVisibility `json:"visibility"`
+	LastMoveTurn     int            `json:"last_move_turn"`
+	IsActivated      bool           `json:"is_activated"`
+	IsPatrolling     bool           `json:"is_patrolling"`
+	AvailableActions []string       `json:"available_actions,omitempty"` // Доступные действия в текущей фазе
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
 }
 
 // EnemyContactModel представляет контакт противника
@@ -199,6 +202,31 @@ func (model *GameModel) EnsureSearchInitialized() {
 	}
 }
 
+// AirAttackData представляет маркеры воздушной атаки
+type AirAttackData struct {
+	// Маркеры атаки для немецкой стороны
+	German map[string]int `json:"german"` // hex_id -> количество маркеров
+
+	// Маркеры атаки для союзной стороны
+	Allied map[string]int `json:"allied"` // hex_id -> количество маркеров
+}
+
+// EnsureAirAttackInitialized гарантирует, что AirAttack структура полностью инициализирована
+func (model *GameModel) EnsureAirAttackInitialized() {
+	if model.AirAttack == nil {
+		model.AirAttack = &AirAttackData{
+			German: make(map[string]int),
+			Allied: make(map[string]int),
+		}
+	}
+	if model.AirAttack.German == nil {
+		model.AirAttack.German = make(map[string]int)
+	}
+	if model.AirAttack.Allied == nil {
+		model.AirAttack.Allied = make(map[string]int)
+	}
+}
+
 // GameEventModel представляет событие игры
 type GameEventModel struct {
 	ID          string                 `json:"id"`
@@ -248,26 +276,26 @@ func ConvertNavalUnitToUnitModel(unit *NavalUnit) *UnitModel {
 			BaseSecondaryArmament:    unit.BaseSecondaryArmament,
 			Torpedoes:                unit.Torpedoes,
 			MaxTorpedoes:             unit.MaxTorpedoes,
-		RadarLevel:               unit.RadarLevel,
-		// ВАЖНО: Создаем копию строки, а не копируем указатель
-		// Это предотвращает случайное обновление LastKnownPos при обновлении Position
-		LastKnownPos: func() *string {
-			if unit.LastKnownPos != nil {
-				val := *unit.LastKnownPos
-				return &val
-			}
-			return nil
-		}(),
-		TaskForceID:              unit.TaskForceID,
-			Damage:                   unit.Damage,
-			MovementUsed:             unit.MovementUsed,
-			PreviousTurnMovedHexes:   unit.PreviousTurnMovedHexes,
-			LastMoveTurn:             unit.LastMoveTurn,
-			NoMovementTurnsLeft:      unit.NoMovementTurnsLeft,
-			IsActivated:              unit.IsActivated,
-			IsEmergencyFuel:          unit.IsEmergencyFuel,
-			EmergencyTurn:            unit.EmergencyTurn,
-			IsPatrolling:             unit.IsPatrolling,
+			RadarLevel:               unit.RadarLevel,
+			// ВАЖНО: Создаем копию строки, а не копируем указатель
+			// Это предотвращает случайное обновление LastKnownPos при обновлении Position
+			LastKnownPos: func() *string {
+				if unit.LastKnownPos != nil {
+					val := *unit.LastKnownPos
+					return &val
+				}
+				return nil
+			}(),
+			TaskForceID:            unit.TaskForceID,
+			Damage:                 unit.Damage,
+			MovementUsed:           unit.MovementUsed,
+			PreviousTurnMovedHexes: unit.PreviousTurnMovedHexes,
+			LastMoveTurn:           unit.LastMoveTurn,
+			NoMovementTurnsLeft:    unit.NoMovementTurnsLeft,
+			IsActivated:            unit.IsActivated,
+			IsEmergencyFuel:        unit.IsEmergencyFuel,
+			EmergencyTurn:          unit.EmergencyTurn,
+			IsPatrolling:           unit.IsPatrolling,
 		},
 		CreatedAt: unit.CreatedAt,
 		UpdatedAt: unit.UpdatedAt,
@@ -301,22 +329,22 @@ func ConvertAirUnitToUnitModel(unit *AirUnit) *UnitModel {
 // ConvertTaskForceToTaskForceModel конвертирует TaskForce в TaskForceModel
 func ConvertTaskForceToTaskForceModel(tf *TaskForce) *TaskForceModel {
 	return &TaskForceModel{
-		ID:              tf.ID,
-		GameID:          tf.GameID,
-		Name:            tf.Name,
-		Owner:           tf.Owner,
-		Nationality:     tf.Nationality,
-		Position:        tf.Position,
-		Speed:           tf.Speed,
-		Units:           tf.Units,
-		IsVisible:       tf.IsVisible,
-		Visibility:      tf.Visibility,
-		LastMoveTurn:    tf.LastMoveTurn,
-		IsActivated:     tf.IsActivated,
-		IsPatrolling:    tf.IsPatrolling,
+		ID:               tf.ID,
+		GameID:           tf.GameID,
+		Name:             tf.Name,
+		Owner:            tf.Owner,
+		Nationality:      tf.Nationality,
+		Position:         tf.Position,
+		Speed:            tf.Speed,
+		Units:            tf.Units,
+		IsVisible:        tf.IsVisible,
+		Visibility:       tf.Visibility,
+		LastMoveTurn:     tf.LastMoveTurn,
+		IsActivated:      tf.IsActivated,
+		IsPatrolling:     tf.IsPatrolling,
 		AvailableActions: tf.AvailableActions,
-		CreatedAt:       tf.CreatedAt,
-		UpdatedAt:       tf.UpdatedAt,
+		CreatedAt:        tf.CreatedAt,
+		UpdatedAt:        tf.UpdatedAt,
 	}
 }
 
@@ -372,8 +400,8 @@ func ConvertUnitModelToNavalUnit(unitModel *UnitModel) (*NavalUnit, error) {
 		BaseSecondaryArmament:    unitModel.NavalData.BaseSecondaryArmament,
 		Torpedoes:                unitModel.NavalData.Torpedoes,
 		MaxTorpedoes:             unitModel.NavalData.MaxTorpedoes,
-		RadarLevel:   unitModel.NavalData.RadarLevel,
-		Status:       UnitStatus(unitModel.Status),
+		RadarLevel:               unitModel.NavalData.RadarLevel,
+		Status:                   UnitStatus(unitModel.Status),
 		// ВАЖНО: Создаем копию строки, а не копируем указатель
 		// Это предотвращает случайное обновление LastKnownPos в GameModel
 		LastKnownPos: func() *string {
@@ -383,15 +411,15 @@ func ConvertUnitModelToNavalUnit(unitModel *UnitModel) (*NavalUnit, error) {
 			}
 			return nil
 		}(),
-		TaskForceID:              unitModel.NavalData.TaskForceID,
-		Damage:                   unitModel.NavalData.Damage,
-		PreviousTurnMovedHexes:   unitModel.NavalData.PreviousTurnMovedHexes,
-		LastMoveTurn:             unitModel.NavalData.LastMoveTurn,
-		NoMovementTurnsLeft:      unitModel.NavalData.NoMovementTurnsLeft,
-		IsActivated:              unitModel.NavalData.IsActivated,
-		IsEmergencyFuel:          unitModel.NavalData.IsEmergencyFuel,
-		EmergencyTurn:            unitModel.NavalData.EmergencyTurn,
-		IsPatrolling:             unitModel.NavalData.IsPatrolling,
+		TaskForceID:            unitModel.NavalData.TaskForceID,
+		Damage:                 unitModel.NavalData.Damage,
+		PreviousTurnMovedHexes: unitModel.NavalData.PreviousTurnMovedHexes,
+		LastMoveTurn:           unitModel.NavalData.LastMoveTurn,
+		NoMovementTurnsLeft:    unitModel.NavalData.NoMovementTurnsLeft,
+		IsActivated:            unitModel.NavalData.IsActivated,
+		IsEmergencyFuel:        unitModel.NavalData.IsEmergencyFuel,
+		EmergencyTurn:          unitModel.NavalData.EmergencyTurn,
+		IsPatrolling:           unitModel.NavalData.IsPatrolling,
 		// Поля для тактического боя (инициализируем значениями по умолчанию)
 		TacticalPosition:    nil,
 		TacticalFacing:      nil,
@@ -440,22 +468,22 @@ func ConvertUnitModelToAirUnit(unitModel *UnitModel) (*AirUnit, error) {
 // ConvertTaskForceModelToTaskForce конвертирует TaskForceModel в TaskForce
 func ConvertTaskForceModelToTaskForce(tfModel *TaskForceModel) *TaskForce {
 	return &TaskForce{
-		ID:              tfModel.ID,
-		GameID:          tfModel.GameID,
-		Name:            tfModel.Name,
-		Owner:           tfModel.Owner,
-		Nationality:     tfModel.Nationality,
-		Position:        tfModel.Position,
-		Speed:           tfModel.Speed,
-		Units:           tfModel.Units,
-		IsVisible:       tfModel.IsVisible,
-		Visibility:      tfModel.Visibility,
-		LastMoveTurn:    tfModel.LastMoveTurn,
-		IsActivated:     tfModel.IsActivated,
-		IsPatrolling:    tfModel.IsPatrolling,
+		ID:               tfModel.ID,
+		GameID:           tfModel.GameID,
+		Name:             tfModel.Name,
+		Owner:            tfModel.Owner,
+		Nationality:      tfModel.Nationality,
+		Position:         tfModel.Position,
+		Speed:            tfModel.Speed,
+		Units:            tfModel.Units,
+		IsVisible:        tfModel.IsVisible,
+		Visibility:       tfModel.Visibility,
+		LastMoveTurn:     tfModel.LastMoveTurn,
+		IsActivated:      tfModel.IsActivated,
+		IsPatrolling:     tfModel.IsPatrolling,
 		AvailableActions: tfModel.AvailableActions,
-		CreatedAt:       tfModel.CreatedAt,
-		UpdatedAt:       tfModel.UpdatedAt,
+		CreatedAt:        tfModel.CreatedAt,
+		UpdatedAt:        tfModel.UpdatedAt,
 	}
 }
 

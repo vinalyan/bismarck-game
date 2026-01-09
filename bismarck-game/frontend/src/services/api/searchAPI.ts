@@ -6,6 +6,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 export interface HexMarkers {
   flight_path_search?: number;
   air_attack?: number;
+  patrol?: number;
   [key: string]: number | undefined; // для расширяемости
 }
 

@@ -415,3 +415,80 @@ func (s *GameEventService) saveEvent(event *models.GameEvent) error {
 
 	return nil
 }
+
+// LogAirAttackMarkerEvent логирует событие добавления/удаления маркера воздушной атаки
+func (s *GameEventService) LogAirAttackMarkerEvent(gameID string, turn int, phase string, hexID string, playerID string, action string) error {
+	description := fmt.Sprintf("Маркер воздушной атаки %s в гексе %s", action, hexID)
+	if action == "added" {
+		description = fmt.Sprintf("Маркер воздушной атаки добавлен в гекс %s", hexID)
+	} else if action == "removed" {
+		description = fmt.Sprintf("Маркер воздушной атаки удален из гекса %s", hexID)
+	}
+
+	// Определяем сторону игрока (нужно получить из GameService или передать как параметр)
+	// Пока используем общее событие
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       phase,
+		EventType:   models.EventTypeAirAttack,
+		Description: description,
+		Data: map[string]interface{}{
+			"hex_id": hexID,
+			"action": action, // "added" или "removed"
+		},
+		Visibility: map[string]interface{}{
+			"player_side": playerID, // Сторона игрока, который разместил маркер
+			"is_public":   false,    // Маркеры видны только своей стороне
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}
+
+// LogAirAttackEvent логирует событие выполненной воздушной атаки
+func (s *GameEventService) LogAirAttackEvent(
+	gameID string,
+	turn int,
+	phase string,
+	hexID string,
+	attackerID string,
+	targetID string,
+	targetName string,
+	targetClass string,
+	hullDamage int,
+	newHull int,
+	sunk bool,
+) error {
+	description := fmt.Sprintf("Воздушная атака на %s (%s) в гексе %s: нанесено повреждений %d, HULL: %d", targetName, targetClass, hexID, hullDamage, newHull)
+	if sunk {
+		description = fmt.Sprintf("Воздушная атака: %s (%s) потоплен в гексе %s", targetName, targetClass, hexID)
+	}
+
+	event := &models.GameEvent{
+		ID:          uuid.New().String(),
+		GameID:      gameID,
+		Turn:        turn,
+		Phase:       phase,
+		EventType:   models.EventTypeAirAttack,
+		ActorID:     attackerID,
+		TargetID:    targetID,
+		TargetName:  targetName,
+		Description: description,
+		Data: map[string]interface{}{
+			"hex_id":       hexID,
+			"target_class": targetClass,
+			"hull_damage":  hullDamage,
+			"new_hull":     newHull,
+			"sunk":         sunk,
+		},
+		Visibility: map[string]interface{}{
+			"is_public": true, // Воздушные атаки видны обеим сторонам
+		},
+		CreatedAt: time.Now(),
+	}
+
+	return s.saveEvent(event)
+}

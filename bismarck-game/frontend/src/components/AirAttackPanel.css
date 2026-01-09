@@ -1,0 +1,108 @@
+.air-attack-panel {
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.air-attack-panel h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 1.1em;
+}
+
+.loading,
+.error,
+.no-markers {
+  padding: 10px;
+  text-align: center;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.error {
+  color: #d32f2f;
+  background-color: #ffebee;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.markers-list,
+.attacks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.marker-item,
+.attack-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.marker-item:hover,
+.attack-item:hover {
+  background-color: #f5f5f5;
+}
+
+.attack-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hex-id {
+  font-weight: bold;
+  font-size: 1em;
+  color: #333;
+}
+
+.marker-count {
+  color: #666;
+  font-size: 0.9em;
+  background-color: #e3f2fd;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.btn-execute {
+  padding: 8px 16px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s;
+}
+
+.btn-execute:hover:not(:disabled) {
+  background-color: #d32f2f;
+}
+
+.btn-execute:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.panel-info {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+}
+
+.info-text {
+  margin: 0;
+  font-size: 0.85em;
+  color: #856404;
+  line-height: 1.5;
+}

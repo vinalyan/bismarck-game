@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GameTurn, PhaseRecord, GamePhase, PhaseStatus, getPhaseStatusText, getPhaseStatusColor, getPhaseSequence, PHASE_NAMES, PHASE_DESCRIPTIONS } from '../types/phaseTypes';
 import { Game } from '../types/gameTypes';
 import { phaseAPI } from '../services/api/phaseAPI';
+import AirAttackPanel from './AirAttackPanel';
 import './PhasePanel.css';
 
 interface PhasePanelProps {
@@ -10,9 +11,11 @@ interface PhasePanelProps {
   onPhaseChange?: (phase: GamePhase) => void;
   currentUserId?: string;
   currentGame?: Game;
+  authToken?: string;
+  onRefresh?: () => void;
 }
 
-const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseChange, currentUserId, currentGame }) => {
+const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseChange, currentUserId, currentGame, authToken, onRefresh }) => {
   const [phaseRecords, setPhaseRecords] = useState<PhaseRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -308,6 +311,16 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
                     </span>
                   )}
                 </div>
+              )}
+
+              {/* Показываем панель управления воздушными атаками для фаз Movement и Air Attack */}
+              {isCurrent && (phase === 'movement' || phase === 'air_attack') && authToken && (
+                <AirAttackPanel
+                  gameId={gameId}
+                  authToken={authToken}
+                  currentPhase={phase}
+                  onRefresh={onRefresh}
+                />
               )}
             </div>
           );

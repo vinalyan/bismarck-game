@@ -103,6 +103,10 @@ export interface UnitsResponse {
     search?: {
       search_hexes?: { [hexId: string]: SearchHexData };
     };
+    air_attack?: {
+      german?: { [hexId: string]: number };
+      allied?: { [hexId: string]: number };
+    };
     version?: number; // Версия модели для проверки изменений
     visibility_level?: number;
     is_fog?: boolean;
@@ -152,6 +156,10 @@ interface GameModel {
   enemy_contacts: EnemyContactModel[];
   search?: {
     search_hexes?: { [hexId: string]: SearchHexData };
+  };
+  air_attack?: {
+    german?: { [hexId: string]: number };
+    allied?: { [hexId: string]: number };
   };
   events: any[];
   intrinsic_search_hexes?: { [key: string]: number };
@@ -417,6 +425,8 @@ function convertGameModelToUnitsResponse(gameModel: GameModel): UnitsResponse {
       events: gameModel.events || [],
       // Добавляем данные поиска из GameModel
       search: gameModel.search,
+      // Добавляем данные воздушной атаки из GameModel
+      air_attack: gameModel.air_attack,
       // Добавляем версию модели для проверки изменений
       version: gameModel.version,
       // Добавляем поля видимости и погоды из GameModel

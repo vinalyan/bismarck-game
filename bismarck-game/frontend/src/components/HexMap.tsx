@@ -15,6 +15,7 @@ import { phaseAPI } from '../services/api/phaseAPI';
 import { unitsAPI, EnemyContact } from '../services/api/unitsAPI';
 import { gameAPI } from '../services/api/gameAPI';
 import { searchAPI, HexMarkers } from '../services/api/searchAPI';
+import { airAttackAPI } from '../services/api/airAttackAPI';
 import './HexMap.css';
 
 interface HexMapProps {
@@ -97,6 +98,7 @@ const HexMap: React.FC<HexMapProps> = ({
   const [showTFDialog, setShowTFDialog] = useState(false);
   const [selectedTFHex, setSelectedTFHex] = useState<string | null>(null);
   const [isFlightPathSearchMode, setIsFlightPathSearchMode] = useState(false);
+  const [isAirAttackMode, setIsAirAttackMode] = useState(false);
   const [showRefuelHexes, setShowRefuelHexes] = useState(false); // Переключатель показа гексов заправки
   const [allRefuelHexes, setAllRefuelHexes] = useState<string[]>([]); // Все гексы заправки для всех юнитов
   
@@ -283,6 +285,41 @@ const HexMap: React.FC<HexMapProps> = ({
       }
     } catch (error: any) {
       console.error('Error adding hex marker:', error);
+    }
+  };
+
+  // Обработчик кнопки воздушной атаки
+  const handleAirAttackClick = () => {
+    setIsAirAttackMode(true);
+  };
+
+  // Выход из режима воздушной атаки
+  const handleCancelAirAttack = () => {
+    setIsAirAttackMode(false);
+  };
+
+  // Обработчик клика по гексу в режиме воздушной атаки
+  const handleHexClickInAirAttackMode = async (hexId: string) => {
+    if (!isAirAttackMode || !gameId || !authToken) {
+      return;
+    }
+
+    try {
+      // Добавляем маркер воздушной атаки
+      const response = await airAttackAPI.addMarker(gameId, hexId, authToken);
+      if (response.success) {
+        // Обновляем данные с сервера - маркер уже добавлен в GameModel
+        if (onRefreshData) {
+          onRefreshData();
+        }
+        alert(`Маркер воздушной атаки добавлен в гекс ${hexId}`);
+      } else {
+        console.error('Failed to add air attack marker:', response.error);
+        alert(`Ошибка: ${response.error || 'Не удалось добавить маркер воздушной атаки'}`);
+      }
+    } catch (error: any) {
+      console.error('Error adding air attack marker:', error);
+      alert(`Ошибка: ${error.message || 'Не удалось добавить маркер воздушной атаки'}`);
     }
   };
 
@@ -673,13 +710,17 @@ const HexMap: React.FC<HexMapProps> = ({
           hex.coordinate.row === coordinate.row
       );
 
-      // Проверяем, есть ли маркер пути полета в этом гексе (используем данные из GameModel)
+      // Проверяем, есть ли маркеры в этом гексе (используем данные из GameModel)
       const hexMarkerData = hexMarkers?.[hexId];
       const flightPathSearchCount = hexMarkerData?.flight_path_search || 0;
+      const airAttackCount = hexMarkerData?.air_attack || 0;
       const hasFlightPathMarker = flightPathSearchCount > 0;
+      const hasAirAttackMarker = airAttackCount > 0;
 
       // Используем ключ с маркером, чтобы React обновлял компонент при изменении маркеров
-      const markerKey = hasFlightPathMarker ? `marker-${flightPathSearchCount}` : 'no-marker';
+      const markerKey = hasFlightPathMarker || hasAirAttackMarker 
+        ? `marker-fp${flightPathSearchCount}-aa${airAttackCount}` 
+        : 'no-marker';
       elements.push(
         <Hex
           key={`${hexId}-${markerKey}`}
@@ -699,12 +740,16 @@ const HexMap: React.FC<HexMapProps> = ({
           currentTurn={currentTurn}
           isTFCandidate={isCreateTFMode && tfCandidateHexes.includes(hexId)}
           hasFlightPathMarker={hasFlightPathMarker}
+          hasAirAttackMarker={hasAirAttackMarker}
+          airAttackCount={airAttackCount}
           isFog={isFog}
           onClick={() => {
             const hexId = `${coordinate.letter}${coordinate.number}`;
             // Проверяем режимы в порядке приоритета
             if (isFlightPathSearchMode) {
               handleHexClickInFlightPathSearchMode(hexId);
+            } else if (isAirAttackMode) {
+              handleHexClickInAirAttackMode(hexId);
             } else if (isCreateTFMode) {
               handleHexClickInTFMode(hexId);
             } else if (onHexClick) {
@@ -724,7 +769,7 @@ const HexMap: React.FC<HexMapProps> = ({
     });
     
     return elements;
-  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, showRefuelHexes, allRefuelHexes, searchFactorHexes, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, handleHexClickInFlightPathSearchMode, handleHexClickInTFMode]);
+  }, [hexes, hexMarkers, hexRadius, selectedHex, availableMovementHexes, showRefuelHexes, allRefuelHexes, searchFactorHexes, visibilityLevel, activeHexes, mapStructures, selectedUnit, expandedStackHex, currentTurn, isCreateTFMode, tfCandidateHexes, onHexClick, onUnitClick, onUnitStackClick, onStackedUnitSelect, isFlightPathSearchMode, isAirAttackMode, handleHexClickInFlightPathSearchMode, handleHexClickInAirAttackMode, handleHexClickInTFMode]);
 
   return (
     <div className="hex-map-container">
@@ -755,7 +800,7 @@ const HexMap: React.FC<HexMapProps> = ({
         </button>
         
         {/* Кнопки действий для выбранного юнита или Task Force */}
-        {selectedUnit && currentPhase === 'movement' && !isCreateTFMode && !isFlightPathSearchMode && (() => {
+        {selectedUnit && currentPhase === 'movement' && !isCreateTFMode && !isFlightPathSearchMode && !isAirAttackMode && (() => {
           // Сначала проверяем, является ли выбранный элемент юнитом
           let unit = gameUnits.find(u => u.id === selectedUnit);
           let isTaskForce = false;
@@ -855,8 +900,8 @@ const HexMap: React.FC<HexMapProps> = ({
           );
         })()}
         
-        {/* Кнопки Task Force и Воздушная разведка */}
-        {currentPhase === 'movement' && !isCreateTFMode && !isFlightPathSearchMode && (
+        {/* Кнопки Task Force, Воздушная разведка и Воздушная атака */}
+        {currentPhase === 'movement' && !isCreateTFMode && !isFlightPathSearchMode && !isAirAttackMode && (
           <>
             <button 
               onClick={handleCreateTFClick}
@@ -869,6 +914,12 @@ const HexMap: React.FC<HexMapProps> = ({
               title="Воздушная разведка"
             >
               ✈️ Воздушная разведка
+            </button>
+            <button 
+              onClick={handleAirAttackClick}
+              title="Воздушная атака - добавить маркер на гекс с shadowed вражеским юнитом"
+            >
+              🎯 Воздушная атака
             </button>
           </>
         )}
@@ -889,6 +940,14 @@ const HexMap: React.FC<HexMapProps> = ({
             title="Отменить воздушную разведку"
           >
             ❌ Отмена разведки
+          </button>
+        )}
+        {isAirAttackMode && (
+          <button 
+            onClick={handleCancelAirAttack}
+            title="Отменить режим воздушной атаки"
+          >
+            ❌ Отмена атаки
           </button>
         )}
         

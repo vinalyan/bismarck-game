@@ -25,12 +25,30 @@ export function extractSearchDataFromModel(
       if (hexSearchData) {
         factorsMap.set(hexId, hexSearchData.factor || 0);
         if (hexSearchData.air_search > 0) {
-          markersMap[hexId] = {
-            flight_path_search: hexSearchData.air_search
-          };
+          if (!markersMap[hexId]) {
+            markersMap[hexId] = {};
+          }
+          markersMap[hexId].flight_path_search = hexSearchData.air_search;
         }
       }
     });
+  }
+
+  // Извлекаем маркеры воздушной атаки из air_attack
+  const airAttackData = response.data?.air_attack;
+  if (airAttackData && playerSide) {
+    const playerMarkers = playerSide === 'german' ? airAttackData.german : airAttackData.allied;
+    if (playerMarkers) {
+      Object.keys(playerMarkers).forEach(hexId => {
+        const markerCount = playerMarkers[hexId];
+        if (markerCount > 0) {
+          if (!markersMap[hexId]) {
+            markersMap[hexId] = {};
+          }
+          markersMap[hexId].air_attack = markerCount;
+        }
+      });
+    }
   }
 
   return { factorsMap, markersMap };

@@ -26,6 +26,7 @@ func NewMovementPhaseActionChecker(logger *logger.Logger, mapStructureService *M
 	checker.checkers["refuel-port"] = NewRefuelPortActionChecker(logger, mapStructureService)
 	checker.checkers["refuel-sea"] = NewRefuelSeaActionChecker(logger, mapStructureService)
 	checker.checkers["patrol"] = NewPatrolActionChecker(logger, mapStructureService)
+	checker.checkers["air-attack"] = NewAirAttackActionChecker(logger, mapStructureService)
 
 	return checker
 }
@@ -368,3 +369,103 @@ func (c *PatrolActionChecker) GetActionType() string {
 	return "patrol"
 }
 
+// AirAttackActionChecker проверяет возможность добавления маркера воздушной атаки
+type AirAttackActionChecker struct {
+	logger              *logger.Logger
+	mapStructureService *MapStructureService
+}
+
+func NewAirAttackActionChecker(logger *logger.Logger, mapStructureService *MapStructureService) *AirAttackActionChecker {
+	return &AirAttackActionChecker{
+		logger:              logger,
+		mapStructureService: mapStructureService,
+	}
+}
+
+func (c *AirAttackActionChecker) CanPerformAction(unit *models.UnitModel, gameModel *models.GameModel) bool {
+	// Воздушная атака доступна если:
+	// 1. Юнит является воздушным юнитом (Category == UnitCategoryAir)
+	// 2. В гексе есть shadowed вражеский юнит (для размещения маркера)
+	// 3. IsActivated === false
+
+	if unit.Category != models.UnitCategoryAir {
+		return false
+	}
+
+	notActivated := true
+	if unit.AirData == nil {
+		// Для воздушных юнитов AirData должна быть заполнена
+		return false
+	}
+
+	// Проверяем, есть ли в гексе shadowed вражеский юнит (только для проверки доступности действия)
+	// Реальная проверка будет при размещении маркера
+	hasShadowedEnemy := c.hasShadowedEnemyInHex(unit.Position, unit.Owner, unit.Nationality, gameModel)
+
+	return notActivated && hasShadowedEnemy
+}
+
+// hasShadowedEnemyInHex проверяет, есть ли в гексе shadowed вражеский юнит
+func (c *AirAttackActionChecker) hasShadowedEnemyInHex(hexID string, ownerID string, nationality string, gameModel *models.GameModel) bool {
+	if hexID == "" {
+		return false
+	}
+
+	// Определяем сторону игрока (german или allied)
+	playerSide := nationality
+	if playerSide == "" {
+		// Если nationality не указана, определяем по ownerID
+		// Это упрощенная проверка - в реальности нужно получать из GameService
+		return false
+	}
+
+	enemySide := "german"
+	if playerSide == "german" {
+		enemySide = "allied"
+	}
+
+	// Проверяем юниты в гексе
+	for _, unit := range gameModel.Units {
+		if unit.Position != hexID {
+			continue
+		}
+
+		// Проверяем только морские юниты (корабли)
+		if unit.Category != models.UnitCategoryNaval {
+			continue
+		}
+
+		// Проверяем, что это вражеский юнит
+		if unit.Nationality != enemySide && unit.Owner != ownerID {
+			continue
+		}
+
+		// Проверяем, что юнит shadowed
+		if unit.Visibility == models.VisibilityShadowed {
+			return true
+		}
+	}
+
+	// Проверяем Task Forces в гексе
+	for _, tf := range gameModel.TaskForces {
+		if tf.Position != hexID {
+			continue
+		}
+
+		// Проверяем, что это вражеская Task Force
+		if tf.Nationality != enemySide && tf.Owner != ownerID {
+			continue
+		}
+
+		// Проверяем, что Task Force shadowed
+		if tf.Visibility == models.VisibilityShadowed {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (c *AirAttackActionChecker) GetActionType() string {
+	return "air-attack"
+}

@@ -25,6 +25,8 @@ interface HexProps {
   currentTurn?: number;
   isTFCandidate?: boolean;
   hasFlightPathMarker?: boolean;
+  hasAirAttackMarker?: boolean;
+  airAttackCount?: number;
   isFog?: boolean;
   onClick: () => void;
   onHover: () => void;
@@ -54,6 +56,8 @@ const Hex: React.FC<HexProps> = ({
   currentTurn = 0,
   isTFCandidate = false,
   hasFlightPathMarker = false,
+  hasAirAttackMarker = false,
+  airAttackCount = 0,
   isFog = false,
   onClick,
   onHover,
@@ -828,16 +832,24 @@ const Hex: React.FC<HexProps> = ({
   const hexStyle = getHexStyle();
   const points = getHexPoints();
 
-  // Вычисляем координаты для маркера пути полета заранее
+  // Вычисляем координаты для маркеров заранее
   const topY = Math.min(...corners.map(c => c.y));
   const topCorners = corners.filter(c => Math.abs(c.y - topY) < 1);
   const topRightCorner = topCorners.reduce((max, c) => c.x > max.x ? c : max, topCorners[0]);
+  const topLeftCorner = topCorners.reduce((min, c) => c.x < min.x ? c : min, topCorners[0]);
   const iconSize = 18; // Фиксированный размер, как у иконок юнитов (20), но чуть меньше
-  const iconX = topRightCorner.x - iconSize * 0.6;
-  const iconY = topRightCorner.y - iconSize * 0.8;
+  
+  // Координаты для маркера пути полета (правый верхний угол)
+  const flightPathIconX = topRightCorner.x - iconSize * 0.6;
+  const flightPathIconY = topRightCorner.y - iconSize * 0.8;
+  
+  // Координаты для маркера воздушной атаки (левый верхний угол)
+  const airAttackIconX = topLeftCorner.x + iconSize * 0.6;
+  const airAttackIconY = topLeftCorner.y - iconSize * 0.8;
 
-  // Проверяем, нужно ли рендерить маркер
-  const shouldRenderMarker = Boolean(hasFlightPathMarker);
+  // Проверяем, нужно ли рендерить маркеры
+  const shouldRenderFlightPathMarker = Boolean(hasFlightPathMarker);
+  const shouldRenderAirAttackMarker = Boolean(hasAirAttackMarker);
 
   return (
     <>
@@ -879,18 +891,58 @@ const Hex: React.FC<HexProps> = ({
         />
       )}
       
-      {/* Маркер пути полета (Flight Path) - ВНУТРИ основного g, но в конце, чтобы был поверх */}
-      {shouldRenderMarker && (
+      {/* Маркер пути полета (Flight Path) - правый верхний угол */}
+      {shouldRenderFlightPathMarker && (
         <g className="flight-path-marker">
           <image
             href="/assets/markers/FP.svg"
-            x={iconX}
-            y={iconY}
+            x={flightPathIconX}
+            y={flightPathIconY}
             width={iconSize}
             height={iconSize}
             preserveAspectRatio="xMidYMid meet"
             style={{ pointerEvents: 'none' }}
           />
+        </g>
+      )}
+      
+      {/* Маркер воздушной атаки - левый верхний угол */}
+      {shouldRenderAirAttackMarker && (
+        <g className="air-attack-marker">
+          <circle
+            cx={airAttackIconX}
+            cy={airAttackIconY + iconSize / 2}
+            r={iconSize / 2}
+            fill="#ff4444"
+            stroke="#ffffff"
+            strokeWidth={1.5}
+            style={{ pointerEvents: 'none' }}
+          />
+          <text
+            x={airAttackIconX}
+            y={airAttackIconY + iconSize / 2}
+            fontSize={iconSize * 0.6}
+            fill="#ffffff"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontWeight="bold"
+            style={{ pointerEvents: 'none' }}
+          >
+            {airAttackCount > 1 ? airAttackCount : '✈'}
+          </text>
+          {airAttackCount > 1 && (
+            <text
+              x={airAttackIconX + iconSize * 0.3}
+              y={airAttackIconY + iconSize * 0.2}
+              fontSize={iconSize * 0.4}
+              fill="#ffffff"
+              textAnchor="middle"
+              fontWeight="bold"
+              style={{ pointerEvents: 'none' }}
+            >
+              ×{airAttackCount}
+            </text>
+          )}
         </g>
       )}
       </g>

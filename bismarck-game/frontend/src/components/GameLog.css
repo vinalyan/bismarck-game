@@ -86,6 +86,24 @@
   border-left-color: #FF9800;
 }
 
+.log-event.event-air_attack {
+  border-left-color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.log-event.event-combat {
+  border-left-color: #ff5722;
+}
+
+.log-event.event-damage {
+  border-left-color: #ff9800;
+}
+
+.log-event.event-sinking {
+  border-left-color: #607d8b;
+  background: rgba(96, 125, 139, 0.15);
+}
+
 .event-header {
   display: flex;
   align-items: center;

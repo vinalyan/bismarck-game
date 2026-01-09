@@ -284,6 +284,13 @@
   color: #d1d5db;
 }
 
+.unit-sunk {
+  font-weight: bold;
+  text-decoration: line-through;
+  opacity: 0.7;
+  color: #f44336 !important;
+}
+
 .detection-tag {
   display: inline-flex;
   align-items: center;
