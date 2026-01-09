@@ -130,6 +130,7 @@ type AirUnitData struct {
 	MaxSpeed              int      `json:"max_speed"`
 	Endurance             int      `json:"endurance"`
 	FlightPathSearchHexes []string `json:"flight_path_search_hexes"`
+	IsActivated           bool     `json:"is_activated"`
 }
 
 // TaskForceModel представляет модель Task Force

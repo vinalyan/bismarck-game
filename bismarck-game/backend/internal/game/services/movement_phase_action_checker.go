@@ -320,7 +320,7 @@ func (c *PatrolActionChecker) CanPerformAction(unit *models.UnitModel, gameModel
 	}
 
 	visibilityOK := gameModel.VisibilityLevel < 10 // X = 10
-	
+
 	// Проверяем, находится ли юнит в туманном гексе (а не глобальный туман)
 	notInFogHex := true
 	if unit.Position != "" {
@@ -335,7 +335,7 @@ func (c *PatrolActionChecker) CanPerformAction(unit *models.UnitModel, gameModel
 			notInFogHex = !c.mapStructureService.IsFogHex(unit.Position)
 		}
 	}
-	
+
 	notActivated := !unit.NavalData.IsActivated
 	notRepairing := unit.Status != string(models.UnitStatusRepairing)
 	notRefueling := unit.Status != string(models.UnitStatusRefueling)
@@ -352,13 +352,13 @@ func (c *PatrolActionChecker) CanPerformActionForTaskForce(tf *models.TaskForceM
 	// 4. Не преследуется
 
 	visibilityOK := gameModel.VisibilityLevel < 10
-	
+
 	// Проверяем, находится ли Task Force в туманном гексе (а не глобальный туман)
 	notInFogHex := true
 	if tf.Position != "" && c.mapStructureService != nil {
 		notInFogHex = !c.mapStructureService.IsFogHex(tf.Position)
 	}
-	
+
 	notActivated := !tf.IsActivated
 	notShadowed := tf.Visibility != models.VisibilityShadowed
 
@@ -392,11 +392,12 @@ func (c *AirAttackActionChecker) CanPerformAction(unit *models.UnitModel, gameMo
 		return false
 	}
 
-	notActivated := true
 	if unit.AirData == nil {
 		// Для воздушных юнитов AirData должна быть заполнена
 		return false
 	}
+
+	notActivated := !unit.AirData.IsActivated
 
 	// Проверяем, есть ли в гексе shadowed вражеский юнит (только для проверки доступности действия)
 	// Реальная проверка будет при размещении маркера
@@ -436,7 +437,9 @@ func (c *AirAttackActionChecker) hasShadowedEnemyInHex(hexID string, ownerID str
 		}
 
 		// Проверяем, что это вражеский юнит
-		if unit.Nationality != enemySide && unit.Owner != ownerID {
+		// Юнит является врагом, если его национальность соответствует вражеской стороне
+		// ИЛИ он принадлежит другому игроку
+		if unit.Nationality != enemySide && unit.Owner == ownerID {
 			continue
 		}
 
@@ -453,7 +456,9 @@ func (c *AirAttackActionChecker) hasShadowedEnemyInHex(hexID string, ownerID str
 		}
 
 		// Проверяем, что это вражеская Task Force
-		if tf.Nationality != enemySide && tf.Owner != ownerID {
+		// Task Force является вражеской, если её национальность соответствует вражеской стороне
+		// ИЛИ она принадлежит другому игроку
+		if tf.Nationality != enemySide && tf.Owner == ownerID {
 			continue
 		}
 
