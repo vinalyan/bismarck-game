@@ -8918,5 +8918,485 @@ describe('Game', () => {
       expect(hexMapProps.isRefuelDisabled).toBe(true);
     });
   });
+
+  describe('Enemy Units Click Handling (Issue #83)', () => {
+    beforeEach(() => {
+      const { movementAPI } = require('../services/api/movementAPI');
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      
+      // Сбрасываем моки перед каждым тестом
+      movementAPI.getAvailableMoves = jest.fn().mockResolvedValue({
+        available_hexes: ['K16', 'K14'],
+        fuel_costs: { 'K16': 2, 'K14': 2 }
+      });
+      
+      // Устанавливаем базовый мок для getGameUnits (будет переопределен в каждом тесте)
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+    });
+
+    it('should NOT call getAvailableMoves when clicking on enemy unit (different nationality)', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const { movementAPI } = require('../services/api/movementAPI');
+      
+      // Игрок - немец (player1_id = user-1)
+      // Вражеский юнит - союзник
+      const enemyUnit = {
+        id: 'enemy-unit-1',
+        name: 'Hood',
+        type: 'BC',
+        position: 'K15',
+        nationality: 'allied', // Вражеский юнит
+        owner: 'allied',
+        fuel: 100,
+        max_fuel: 100,
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [enemyUnit],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(mockHexMapProps.length).toBeGreaterThan(0);
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+
+      // Симулируем клик по вражескому юниту
+      if (hexMapProps.onUnitClick) {
+        await act(async () => {
+          await hexMapProps.onUnitClick('enemy-unit-1', enemyUnit);
+        });
+      }
+
+      // Ждем немного, чтобы убедиться, что API не был вызван
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      });
+
+      // Проверяем, что getAvailableMoves НЕ был вызван для вражеского юнита
+      expect(movementAPI.getAvailableMoves).not.toHaveBeenCalled();
+    });
+
+    it('should NOT call getAvailableMoves when clicking on enemy unit (different owner)', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const { movementAPI } = require('../services/api/movementAPI');
+      
+      // Игрок - немец (player1_id = user-1)
+      // Вражеский юнит - союзник (только owner, без nationality)
+      const enemyUnit = {
+        id: 'enemy-unit-2',
+        name: 'Prince of Wales',
+        type: 'BB',
+        position: 'K15',
+        owner: 'allied', // Вражеский юнит (только owner)
+        fuel: 100,
+        max_fuel: 100,
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [enemyUnit],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(mockHexMapProps.length).toBeGreaterThan(0);
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+
+      // Симулируем клик по вражескому юниту
+      if (hexMapProps.onUnitClick) {
+        await act(async () => {
+          await hexMapProps.onUnitClick('enemy-unit-2', enemyUnit);
+        });
+      }
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      });
+
+      // Проверяем, что getAvailableMoves НЕ был вызван
+      expect(movementAPI.getAvailableMoves).not.toHaveBeenCalled();
+    });
+
+    it('should NOT call getAvailableMoves when clicking on enemy contact (isEnemyContact flag)', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const { movementAPI } = require('../services/api/movementAPI');
+      
+      // Вражеский контакт
+      const enemyContact = {
+        id: 'enemy-contact-1',
+        name: 'Unknown Contact',
+        type: 'BB',
+        position: 'K15',
+        nationality: 'allied',
+        owner: 'allied',
+        isEnemyContact: true, // Флаг вражеского контакта
+        fuel: 100,
+        max_fuel: 100,
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [enemyContact],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(mockHexMapProps.length).toBeGreaterThan(0);
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+
+      // Симулируем клик по вражескому контакту
+      if (hexMapProps.onUnitClick) {
+        await act(async () => {
+          await hexMapProps.onUnitClick('enemy-contact-1', enemyContact);
+        });
+      }
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      });
+
+      // Проверяем, что getAvailableMoves НЕ был вызван
+      expect(movementAPI.getAvailableMoves).not.toHaveBeenCalled();
+    });
+
+    it('should call getAvailableMoves when clicking on own unit', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const { movementAPI } = require('../services/api/movementAPI');
+      
+      // Свой юнит (игрок - немец, юнит - немец)
+      const ownUnit = {
+        id: 'own-unit-1',
+        name: 'Bismarck',
+        type: 'BB',
+        position: 'K15',
+        nationality: 'german', // Свой юнит
+        owner: 'german',
+        fuel: 100,
+        max_fuel: 100,
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      // Мокируем getGameUnits так, чтобы он возвращал юнит при каждом вызове
+      // (вызывается и при монтировании, и внутри handleUnitClick)
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [ownUnit],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      // Ждем, пока данные загрузятся и currentTurn установится
+      // Проверяем, что getGameUnits был вызван (что означает, что handleGameModelUpdate начал выполняться)
+      await waitFor(() => {
+        expect(unitsAPI.getGameUnits).toHaveBeenCalled();
+      });
+
+      // Даем время для завершения handleGameModelUpdate и установки currentTurn
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      });
+
+      await waitFor(() => {
+        expect(mockHexMapProps.length).toBeGreaterThan(0);
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+
+      // Симулируем клик по своему юниту
+      if (hexMapProps.onUnitClick) {
+        await act(async () => {
+          await hexMapProps.onUnitClick('own-unit-1', ownUnit);
+        });
+      }
+
+      // Ждем, пока все асинхронные операции завершатся
+      await waitFor(() => {
+        expect(movementAPI.getAvailableMoves).toHaveBeenCalledWith(
+          'game-1',
+          'own-unit-1',
+          'test-token'
+        );
+      }, { timeout: 5000 });
+    });
+
+    it('should NOT call getAvailableMoves when clicking on enemy unit in stacked units (handleStackedUnitSelect)', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const { movementAPI } = require('../services/api/movementAPI');
+      
+      // Вражеский юнит в стеке
+      const enemyUnit = {
+        id: 'enemy-stacked-unit-1',
+        name: 'Hood',
+        type: 'BC',
+        position: 'K15',
+        nationality: 'allied', // Вражеский юнит
+        owner: 'allied',
+        fuel: 100,
+        max_fuel: 100,
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [enemyUnit],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(mockHexMapProps.length).toBeGreaterThan(0);
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+
+      // Симулируем клик по вражескому юниту в стеке
+      if (hexMapProps.onStackedUnitSelect) {
+        await act(async () => {
+          await hexMapProps.onStackedUnitSelect(enemyUnit);
+        });
+      }
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      });
+
+      // Проверяем, что getAvailableMoves НЕ был вызван
+      expect(movementAPI.getAvailableMoves).not.toHaveBeenCalled();
+    });
+
+    it('should call getAvailableMoves when clicking on own unit in stacked units (handleStackedUnitSelect)', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const { movementAPI } = require('../services/api/movementAPI');
+      
+      // Свой юнит в стеке
+      const ownUnit = {
+        id: 'own-stacked-unit-1',
+        name: 'Bismarck',
+        type: 'BB',
+        position: 'K15',
+        nationality: 'german', // Свой юнит
+        owner: 'german',
+        fuel: 100,
+        max_fuel: 100,
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      // Мокируем getGameUnits так, чтобы он возвращал юнит при каждом вызове
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [ownUnit],
+          task_forces: [],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      // Ждем, пока данные загрузятся и currentTurn установится
+      // Проверяем, что getGameUnits был вызван (что означает, что handleGameModelUpdate начал выполняться)
+      await waitFor(() => {
+        expect(unitsAPI.getGameUnits).toHaveBeenCalled();
+      });
+
+      // Даем время для завершения handleGameModelUpdate и установки currentTurn
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      });
+
+      await waitFor(() => {
+        expect(mockHexMapProps.length).toBeGreaterThan(0);
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+
+      // Симулируем клик по своему юниту в стеке
+      if (hexMapProps.onStackedUnitSelect) {
+        await act(async () => {
+          await hexMapProps.onStackedUnitSelect(ownUnit);
+        });
+      }
+
+      // Ждем, пока все асинхронные операции завершатся
+      await waitFor(() => {
+        expect(movementAPI.getAvailableMoves).toHaveBeenCalledWith(
+          'game-1',
+          'own-stacked-unit-1',
+          'test-token'
+        );
+      }, { timeout: 5000 });
+    });
+
+    it('should handle enemy Task Force correctly', async () => {
+      const { unitsAPI } = require('../services/api/unitsAPI');
+      const { movementAPI } = require('../services/api/movementAPI');
+      
+      // Вражеский Task Force
+      const enemyTaskForce = {
+        id: 'enemy-tf-1',
+        name: 'Task Force H',
+        isTaskForce: true,
+        type: 'taskforce',
+        position: 'K15',
+        nationality: 'allied', // Вражеский Task Force
+        owner: 'allied',
+        is_activated: false,
+        last_move_turn: 0
+      };
+
+      unitsAPI.getGameUnits = jest.fn().mockResolvedValue({
+        success: true,
+        data: {
+          units: [],
+          task_forces: [enemyTaskForce],
+          enemy_contacts: [],
+          search_factor_hexes: {},
+          hex_markers: {},
+          current_turn: {
+            turn: 1,
+            phase: 'movement',
+          },
+        },
+      });
+
+      render(<Game />);
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('hex-map')).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(mockHexMapProps.length).toBeGreaterThan(0);
+      });
+
+      const hexMapProps = mockHexMapProps[mockHexMapProps.length - 1];
+
+      // Симулируем клик по вражескому Task Force
+      if (hexMapProps.onUnitClick) {
+        await act(async () => {
+          await hexMapProps.onUnitClick('enemy-tf-1', enemyTaskForce);
+        });
+      }
+
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      });
+
+      // Проверяем, что getAvailableMoves НЕ был вызван
+      expect(movementAPI.getAvailableMoves).not.toHaveBeenCalled();
+    });
+  });
 });
 
