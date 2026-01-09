@@ -908,6 +908,23 @@ const Game: React.FC = () => {
     // Очищаем предыдущие активные гексы
     clearActiveHexes();
 
+    // ПРОВЕРКА: Если это вражеский юнит - не обрабатываем клик и не вызываем available-moves
+    const playerSide = getPlayerSideString();
+    const unitSide = unit.nationality || unit.owner;
+    
+    // Проверяем, является ли юнит вражеским
+    if (unitSide && unitSide !== playerSide) {
+      // Вражеский юнит - не вызываем available-moves
+      setAvailableMovementHexes([]);
+      return;
+    }
+    
+    // Проверяем флаг isEnemyContact (для вражеских контактов)
+    if (unit.isEnemyContact === true) {
+      setAvailableMovementHexes([]);
+      return;
+    }
+
     // Проверяем, что мы находимся в фазе движения
     const currentPhase = getTurnData(currentTurn)?.current_phase;
     if (currentPhase !== 'movement') {
@@ -1033,6 +1050,23 @@ const Game: React.FC = () => {
 
     // Очищаем предыдущие активные гексы
     clearActiveHexes();
+
+    // ПРОВЕРКА: Если это вражеский юнит - не обрабатываем клик и не вызываем available-moves
+    const playerSide = getPlayerSideString();
+    const unitSide = unitData.nationality || unitData.owner;
+    
+    // Проверяем, является ли юнит вражеским
+    if (unitSide && unitSide !== playerSide) {
+      // Вражеский юнит - не вызываем available-moves
+      setAvailableMovementHexes([]);
+      return;
+    }
+    
+    // Проверяем флаг isEnemyContact (для вражеских контактов)
+    if (unitData.isEnemyContact === true) {
+      setAvailableMovementHexes([]);
+      return;
+    }
 
     // Проверяем, что мы находимся в фазе движения
     const currentPhase = getTurnData(currentTurn)?.current_phase;
