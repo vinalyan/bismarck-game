@@ -2244,6 +2244,27 @@ func (h *AdminPhaseHandler) Start(gameID string, turn int) error {
 	// НЕ удаляем маркеры пути полета поиска здесь - они удаляются в конце фазы поиска
 	// согласно правилам игры (Правила.md, строка 322: "B. Убрать маркеры Пути полета Поиска")
 
+	// Удаляем все маркеры воздушной атаки согласно правилам игры (фаза администрирования)
+	// Маркеры воздушной атаки должны быть очищены после завершения хода
+	if h.gameStateService != nil {
+		err := h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+			model.EnsureAirAttackInitialized()
+			// Очищаем все маркеры для обеих сторон
+			if model.AirAttack.German != nil {
+				model.AirAttack.German = make(map[string]int)
+			}
+			if model.AirAttack.Allied != nil {
+				model.AirAttack.Allied = make(map[string]int)
+			}
+			return nil
+		}, 3)
+		if err != nil {
+			log.Printf("Failed to remove all air attack markers: %v", err)
+		} else {
+			log.Printf("✅ ADMIN PHASE: Removed all air attack markers for game %s turn %d", gameID, turn)
+		}
+	}
+
 	// Проверяем истечение аварийного топлива
 	if h.unitService != nil {
 		err := h.checkEmergencyFuelExpiration(gameID, turn)
