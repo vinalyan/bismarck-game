@@ -1930,9 +1930,50 @@ func (h *AirAttackPhaseHandler) Start(gameID string, turn int) error {
 		return nil
 	}
 
+	// Проверяем наличие маркеров воздушной атаки
+	// Если маркеров нет ни у немцев, ни у союзников - автоматически завершаем фазу
+	if pm.gameStateService != nil {
+		model, err := pm.gameStateService.LoadGameModel(gameID)
+		if err == nil && model != nil {
+			model.EnsureAirAttackInitialized()
+
+			// Подсчитываем общее количество маркеров
+			germanMarkersCount := 0
+			if model.AirAttack.German != nil {
+				for _, count := range model.AirAttack.German {
+					germanMarkersCount += count
+				}
+			}
+
+			alliedMarkersCount := 0
+			if model.AirAttack.Allied != nil {
+				for _, count := range model.AirAttack.Allied {
+					alliedMarkersCount += count
+				}
+			}
+
+			totalMarkers := germanMarkersCount + alliedMarkersCount
+
+			if totalMarkers == 0 {
+				log.Printf("Air attack phase: no markers found for either side, automatically completing phase")
+				// Автоматически завершаем фазу, переходя к следующей
+				if err := pm.NextPhase(gameID); err != nil {
+					log.Printf("Error automatically completing air attack phase: %v", err)
+					return fmt.Errorf("failed to automatically complete air attack phase: %w", err)
+				}
+				return nil
+			}
+
+			log.Printf("Air attack phase: found %d markers (german: %d, allied: %d), players can execute attacks", totalMarkers, germanMarkersCount, alliedMarkersCount)
+		} else if err != nil {
+			log.Printf("Warning: failed to load GameModel to check air attack markers: %v", err)
+			// Продолжаем выполнение фазы, если не удалось загрузить модель
+		}
+	}
+
 	// Фаза воздушной атаки позволяет игрокам выполнять атаки через API
 	// Приоритет: союзники выполняют атаки первыми (обрабатывается на фронтенде/API)
-	// Фаза завершается вручную игроками через API (кнопка "Завершить фазу" в PhasePanel)
+	// Фаза завершается вручную игроками через API (кнопка "Завершить фазу" в PhasePanel) или автоматически, если нет маркеров
 	log.Printf("Air attack phase: players can now execute air attacks via API")
 
 	return nil
