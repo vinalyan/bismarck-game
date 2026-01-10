@@ -24,20 +24,80 @@ const AirAttackModal: React.FC<AirAttackModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'AirAttackModal.tsx:26',
+        message: 'AirAttackModal useEffect triggered',
+        data: { gameId, hexId },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H4'
+      })
+    }).catch(() => {});
+    // #endregion
     loadTargets();
   }, [gameId, hexId]);
 
   const loadTargets = async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'AirAttackModal.tsx:40',
+        message: 'AirAttackModal.loadTargets called',
+        data: { gameId, hexId },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H4'
+      })
+    }).catch(() => {});
+    // #endregion
     try {
       setLoading(true);
       setError(null);
       const response = await airAttackAPI.getTargets(gameId, hexId, authToken);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'AirAttackModal.tsx:52',
+          message: 'AirAttackModal.getTargets response',
+          data: { gameId, hexId, targetsCount: response?.targets?.length || 0, targets: response?.targets },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H4'
+        })
+      }).catch(() => {});
+      // #endregion
       if (response) {
         setTargets(response.targets);
       } else {
         setError('Не удалось загрузить цели');
       }
     } catch (err: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'AirAttackModal.tsx:67',
+          message: 'AirAttackModal.loadTargets error',
+          data: { gameId, hexId, error: err.message || String(err) },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H4'
+        })
+      }).catch(() => {});
+      // #endregion
       setError(err.message || 'Ошибка загрузки целей');
     } finally {
       setLoading(false);
@@ -45,11 +105,41 @@ const AirAttackModal: React.FC<AirAttackModalProps> = ({
   };
 
   const handleTargetSelect = (target: AirAttackTarget) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'AirAttackModal.tsx:77',
+        message: 'Target selected in modal',
+        data: { targetId: target.unit_id, targetClass: target.class, targetName: target.unit_name },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H4'
+      })
+    }).catch(() => {});
+    // #endregion
     setSelectedTarget(target);
     setSelectedTargetClass(target.class);
   };
 
   const handleExecute = () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'AirAttackModal.tsx:92',
+        message: 'Modal handleExecute called',
+        data: { selectedTargetId: selectedTarget?.unit_id, selectedTargetClass, hasSelectedTarget: !!selectedTarget },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H4'
+      })
+    }).catch(() => {});
+    // #endregion
     if (selectedTarget) {
       onExecute(selectedTarget.unit_id || '', selectedTargetClass);
     }

@@ -1932,29 +1932,8 @@ func (h *AirAttackPhaseHandler) Start(gameID string, turn int) error {
 
 	// Фаза воздушной атаки позволяет игрокам выполнять атаки через API
 	// Приоритет: союзники выполняют атаки первыми (обрабатывается на фронтенде/API)
-	// Фаза автоматически завершится после выполнения всех атак или по таймауту
-
+	// Фаза завершается вручную игроками через API (кнопка "Завершить фазу" в PhasePanel)
 	log.Printf("Air attack phase: players can now execute air attacks via API")
-
-	// Автоматически переходим к следующей фазе через некоторое время
-	// (в реальности фаза завершается вручную игроками через API)
-	// Пока используем таймаут для автоматического перехода
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				// Игнорируем панику в горутине
-			}
-		}()
-		time.Sleep(10 * time.Second) // Даем время на выполнение атак
-		if h.phaseManager != nil {
-			err := h.phaseManager.NextPhase(gameID)
-			if err != nil {
-				log.Printf("Failed to advance to next phase after air_attack: %v", err)
-			} else {
-				log.Printf("Air attack phase completed, advanced to next phase")
-			}
-		}
-	}()
 
 	return nil
 }

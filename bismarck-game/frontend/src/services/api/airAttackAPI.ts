@@ -165,6 +165,21 @@ export const airAttackAPI = {
     targetClass?: string,
     token?: string
   ): Promise<{ success: boolean; data?: AirAttackExecuteResponse; error?: string }> => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'airAttackAPI.ts:171',
+        message: 'executeAttack API call started',
+        data: { gameId, hexId, targetId, targetClass, url: `${API_BASE_URL}/api/games/${gameId}/air-attack/execute` },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'H5'
+      })
+    }).catch(() => {});
+    // #endregion
     try {
       const response = await axios.post(
         `${API_BASE_URL}/api/games/${gameId}/air-attack/execute`,
@@ -181,6 +196,22 @@ export const airAttackAPI = {
         }
       );
 
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'airAttackAPI.ts:196',
+          message: 'executeAttack API response received',
+          data: { gameId, hexId, targetId, success: response.data.success, status: response.status, data: response.data.data, error: response.data.error },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H5'
+        })
+      }).catch(() => {});
+      // #endregion
+
       if (response.data.success) {
         return {
           success: true,
@@ -193,6 +224,21 @@ export const airAttackAPI = {
         error: response.data.error || 'Failed to execute air attack'
       };
     } catch (error: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'airAttackAPI.ts:216',
+          message: 'executeAttack API error',
+          data: { gameId, hexId, targetId, error: error.message || String(error), responseError: error.response?.data?.error, status: error.response?.status },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'run1',
+          hypothesisId: 'H5'
+        })
+      }).catch(() => {});
+      // #endregion
       console.error('Error executing air attack:', error);
       return {
         success: false,

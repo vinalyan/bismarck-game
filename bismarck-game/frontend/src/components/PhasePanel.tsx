@@ -256,6 +256,24 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
           const isCurrent = isCurrentPhase(phase);
           const canStart = canStartPhase(phase);
           const canComplete = canCompletePhase(phase);
+          
+          // #region agent log
+          if (phase === 'air_attack') {
+            fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'PhasePanel.tsx:259',
+                message: 'PhasePanel rendering air_attack phase',
+                data: { phase, currentPhase: currentTurn?.current_phase, isCurrent, hasRecord: !!record, status, authToken: !!authToken },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                runId: 'run1',
+                hypothesisId: 'H2'
+              })
+            }).catch(() => {});
+          }
+          // #endregion
 
           return (
             <div

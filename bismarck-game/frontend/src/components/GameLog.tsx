@@ -143,10 +143,28 @@ const GameLog: React.FC<GameLogProps> = ({ gameId }) => {
     
     if (event.event_type === 'air_attack' && event.data) {
       const { hex_id, target_name, target_class, hull_damage, new_hull, sunk } = event.data;
-      if (sunk) {
-        return `✈️💥 Воздушная атака: ${target_name || target_class} потоплен в гексе ${hex_id}`;
+      
+      // Формируем название корабля (имя и класс)
+      let shipName = '';
+      if (target_name && target_class) {
+        shipName = `${target_name} (${target_class})`;
+      } else if (target_name) {
+        shipName = target_name;
+      } else if (target_class) {
+        shipName = target_class;
+      } else {
+        shipName = 'неизвестный корабль';
       }
-      return `✈️💥 Воздушная атака на ${target_name || target_class} в гексе ${hex_id}: нанесено ${hull_damage || 1} повреждений, HULL: ${new_hull || 0}`;
+      
+      // Формируем информацию об атакующей стороне
+      const attackerInfo = event.actor_name ? `[${event.actor_name}] ` : '';
+      
+      if (sunk) {
+        return `✈️💥 ${attackerInfo}Воздушная атака: корабль ${shipName} потоплен в гексе ${hex_id}`;
+      }
+      
+      const damageText = hull_damage === 1 ? '1 повреждение' : `${hull_damage || 1} повреждений`;
+      return `✈️💥 ${attackerInfo}Воздушная атака на корабль ${shipName} в гексе ${hex_id}: нанесено ${damageText}, HULL: ${new_hull || 0}`;
     }
     
     return event.description;

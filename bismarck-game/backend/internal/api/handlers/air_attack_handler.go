@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"time"
 
 	"bismarck-game/backend/internal/api/middleware"
 	"bismarck-game/backend/internal/game/models"
@@ -378,23 +380,94 @@ type ExecuteAttackRequest struct {
 
 // ExecuteAttack выполняет воздушную атаку на цель
 func (h *AirAttackHandler) ExecuteAttack(w http.ResponseWriter, r *http.Request) {
+	// #region agent log
+	if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H5",
+			"location":     "air_attack_handler.go:380",
+			"message":      "ExecuteAttack handler called",
+			"data":         map[string]interface{}{"method": r.Method, "path": r.URL.Path},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
 	vars := mux.Vars(r)
 	gameID := vars["gameId"]
 
 	// Получаем userID из контекста
 	userID, ok := r.Context().Value("user_id").(string)
 	if !ok || userID == "" {
+		// #region agent log
+		if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			json.NewEncoder(logFile).Encode(map[string]interface{}{
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "H5",
+				"location":     "air_attack_handler.go:390",
+				"message":      "User not authenticated - returning 401",
+				"data":         map[string]interface{}{"gameID": gameID},
+				"timestamp":    time.Now().UnixMilli(),
+			})
+			logFile.Close()
+		}
+		// #endregion
 		utils.WriteErrorResponse(w, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	var req ExecuteAttackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// #region agent log
+		if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			json.NewEncoder(logFile).Encode(map[string]interface{}{
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "H5",
+				"location":     "air_attack_handler.go:393",
+				"message":      "Failed to decode request body",
+				"data":         map[string]interface{}{"gameID": gameID, "userID": userID, "error": err.Error()},
+				"timestamp":    time.Now().UnixMilli(),
+			})
+			logFile.Close()
+		}
+		// #endregion
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
+	// #region agent log
+	if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H5",
+			"location":     "air_attack_handler.go:400",
+			"message":      "ExecuteAttack request parsed",
+			"data":         map[string]interface{}{"gameID": gameID, "userID": userID, "hexID": req.HexID, "targetID": req.TargetID, "targetClass": req.TargetClass},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
+
 	if req.HexID == "" || req.TargetID == "" {
+		// #region agent log
+		if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			json.NewEncoder(logFile).Encode(map[string]interface{}{
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "H5",
+				"location":     "air_attack_handler.go:413",
+				"message":      "Missing required parameters",
+				"data":         map[string]interface{}{"gameID": gameID, "hexID": req.HexID, "targetID": req.TargetID},
+				"timestamp":    time.Now().UnixMilli(),
+			})
+			logFile.Close()
+		}
+		// #endregion
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "hex_id and target_id are required")
 		return
 	}
@@ -402,12 +475,55 @@ func (h *AirAttackHandler) ExecuteAttack(w http.ResponseWriter, r *http.Request)
 	// Проверяем, что есть маркер атаки в этом гексе
 	markers, err := h.airAttackService.GetAirAttackMarkers(gameID, userID)
 	if err != nil {
+		// #region agent log
+		if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			json.NewEncoder(logFile).Encode(map[string]interface{}{
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "H5",
+				"location":     "air_attack_handler.go:423",
+				"message":      "Failed to get air attack markers",
+				"data":         map[string]interface{}{"gameID": gameID, "userID": userID, "error": err.Error()},
+				"timestamp":    time.Now().UnixMilli(),
+			})
+			logFile.Close()
+		}
+		// #endregion
 		h.logger.Error("Failed to get air attack markers", "game_id", gameID, "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to get air attack markers")
 		return
 	}
 
+	// #region agent log
+	if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H5",
+			"location":     "air_attack_handler.go:434",
+			"message":      "Got air attack markers",
+			"data":         map[string]interface{}{"gameID": gameID, "userID": userID, "markers": markers, "requestedHexID": req.HexID},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
+
 	if count, exists := markers[req.HexID]; !exists || count == 0 {
+		// #region agent log
+		if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			json.NewEncoder(logFile).Encode(map[string]interface{}{
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "H5",
+				"location":     "air_attack_handler.go:446",
+				"message":      "No air attack marker in requested hex",
+				"data":         map[string]interface{}{"gameID": gameID, "hexID": req.HexID, "exists": exists, "count": count, "allMarkers": markers},
+				"timestamp":    time.Now().UnixMilli(),
+			})
+			logFile.Close()
+		}
+		// #endregion
 		utils.WriteErrorResponse(w, http.StatusBadRequest, "No air attack marker in hex")
 		return
 	}
@@ -417,20 +533,85 @@ func (h *AirAttackHandler) ExecuteAttack(w http.ResponseWriter, r *http.Request)
 	if h.gameStateService != nil {
 		model, err := h.gameStateService.LoadGameModel(gameID)
 		if err == nil {
-			if target, exists := model.Units[req.TargetID]; exists && target.NavalData != nil {
+			if target, exists := model.Units[req.TargetID]; exists {
 				targetName = target.Name
-				targetClass = target.NavalData.Class
+				if target.NavalData != nil {
+					targetClass = target.NavalData.Class
+					// Если имя не указано, используем класс как имя
+					if targetName == "" && targetClass != "" {
+						targetName = targetClass
+					}
+				}
+				// Если имя все еще пустое, используем ID цели
+				if targetName == "" {
+					targetName = req.TargetID
+				}
+			} else {
+				// Если юнит не найден, используем ID как имя
+				targetName = req.TargetID
+				if req.TargetClass != "" {
+					targetClass = req.TargetClass
+				}
 			}
+		}
+	} else {
+		// Fallback: используем ID цели
+		targetName = req.TargetID
+		if req.TargetClass != "" {
+			targetClass = req.TargetClass
 		}
 	}
 
 	// Выполняем атаку: уменьшаем HULL на 1
+	// #region agent log
+	if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H6",
+			"location":     "air_attack_handler.go:454",
+			"message":      "Calling executeAirAttack",
+			"data":         map[string]interface{}{"gameID": gameID, "hexID": req.HexID, "targetID": req.TargetID},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
 	err = h.executeAirAttack(gameID, userID, req.HexID, req.TargetID)
 	if err != nil {
+		// #region agent log
+		if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			json.NewEncoder(logFile).Encode(map[string]interface{}{
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "H6",
+				"location":     "air_attack_handler.go:463",
+				"message":      "executeAirAttack failed",
+				"data":         map[string]interface{}{"gameID": gameID, "targetID": req.TargetID, "error": err.Error()},
+				"timestamp":    time.Now().UnixMilli(),
+			})
+			logFile.Close()
+		}
+		// #endregion
 		h.logger.Error("Failed to execute air attack", "game_id", gameID, "target_id", req.TargetID, "error", err)
 		utils.WriteErrorResponse(w, http.StatusInternalServerError, "Failed to execute air attack")
 		return
 	}
+
+	// #region agent log
+	if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H6",
+			"location":     "air_attack_handler.go:476",
+			"message":      "executeAirAttack succeeded",
+			"data":         map[string]interface{}{"gameID": gameID, "targetID": req.TargetID},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
 
 	// Получаем обновленную информацию о цели для логирования
 	var newHull int
@@ -447,14 +628,29 @@ func (h *AirAttackHandler) ExecuteAttack(w http.ResponseWriter, r *http.Request)
 
 	// Логируем событие атаки
 	if h.eventService != nil && h.gameStateService != nil {
-		turn, phase, err := h.getTurnAndPhase(gameID)
-		if err == nil {
-			if err := h.eventService.LogAirAttackEvent(
+		turn, phase, turnErr := h.getTurnAndPhase(gameID)
+		if turnErr == nil {
+			// Определяем сторону атакующего для более информативного лога
+			var attackerSide string
+			if h.gameService != nil {
+				if side, sideErr := h.gameService.GetPlayerSide(gameID, userID); sideErr == nil {
+					if side == "german" {
+						attackerSide = "Немцы"
+					} else if side == "allied" {
+						attackerSide = "Союзники"
+					}
+				}
+			}
+			if attackerSide == "" {
+				attackerSide = "Воздушные силы"
+			}
+
+			if logErr := h.eventService.LogAirAttackEvent(
 				gameID, turn, phase, req.HexID,
-				userID, req.TargetID, targetName, targetClass,
+				userID, attackerSide, req.TargetID, targetName, targetClass,
 				1, newHull, sunk,
-			); err != nil {
-				h.logger.Warn("Failed to log air attack event", "error", err)
+			); logErr != nil {
+				h.logger.Warn("Failed to log air attack event", "error", logErr)
 			}
 		}
 	}
@@ -484,25 +680,95 @@ func (h *AirAttackHandler) executeAirAttack(gameID, attackerID, hexID, targetID 
 		return fmt.Errorf("gameStateService is required for executeAirAttack")
 	}
 
+	// #region agent log
+	if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H6",
+			"location":     "air_attack_handler.go:524",
+			"message":      "executeAirAttack: starting UpdateGameModelWithRetry",
+			"data":         map[string]interface{}{"gameID": gameID, "hexID": hexID, "targetID": targetID},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
 	return h.gameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
 		// Находим цель
 		target, exists := model.Units[targetID]
 		if !exists {
+			// #region agent log
+			if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+				json.NewEncoder(logFile).Encode(map[string]interface{}{
+					"sessionId":    "debug-session",
+					"runId":        "run1",
+					"hypothesisId": "H6",
+					"location":     "air_attack_handler.go:532",
+					"message":      "Target unit not found in GameModel",
+					"data":         map[string]interface{}{"gameID": gameID, "targetID": targetID, "totalUnits": len(model.Units)},
+					"timestamp":    time.Now().UnixMilli(),
+				})
+				logFile.Close()
+			}
+			// #endregion
 			return fmt.Errorf("target unit %s not found", targetID)
 		}
 
 		// Проверяем, что это морской юнит
 		if target.Category != models.UnitCategoryNaval || target.NavalData == nil {
+			// #region agent log
+			if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+				json.NewEncoder(logFile).Encode(map[string]interface{}{
+					"sessionId":    "debug-session",
+					"runId":        "run1",
+					"hypothesisId": "H6",
+					"location":     "air_attack_handler.go:547",
+					"message":      "Target is not a naval unit",
+					"data":         map[string]interface{}{"targetID": targetID, "category": target.Category, "hasNavalData": target.NavalData != nil},
+					"timestamp":    time.Now().UnixMilli(),
+				})
+				logFile.Close()
+			}
+			// #endregion
 			return fmt.Errorf("target is not a naval unit")
 		}
 
 		// Проверяем, что цель в правильном гексе
 		if target.Position != hexID {
+			// #region agent log
+			if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+				json.NewEncoder(logFile).Encode(map[string]interface{}{
+					"sessionId":    "debug-session",
+					"runId":        "run1",
+					"hypothesisId": "H6",
+					"location":     "air_attack_handler.go:562",
+					"message":      "Target is not in requested hex",
+					"data":         map[string]interface{}{"targetID": targetID, "targetPosition": target.Position, "requestedHexID": hexID},
+					"timestamp":    time.Now().UnixMilli(),
+				})
+				logFile.Close()
+			}
+			// #endregion
 			return fmt.Errorf("target is not in hex %s", hexID)
 		}
 
 		// Проверяем, что корабль не потоплен
 		if target.Status == string(models.UnitStatusSunk) {
+			// #region agent log
+			if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+				json.NewEncoder(logFile).Encode(map[string]interface{}{
+					"sessionId":    "debug-session",
+					"runId":        "run1",
+					"hypothesisId": "H6",
+					"location":     "air_attack_handler.go:576",
+					"message":      "Target is already sunk",
+					"data":         map[string]interface{}{"targetID": targetID, "status": target.Status},
+					"timestamp":    time.Now().UnixMilli(),
+				})
+				logFile.Close()
+			}
+			// #endregion
 			return fmt.Errorf("target is already sunk")
 		}
 
@@ -518,6 +784,7 @@ func (h *AirAttackHandler) executeAirAttack(gameID, attackerID, hexID, targetID 
 		if sunk {
 			target.Status = string(models.UnitStatusSunk)
 		}
+
 
 		h.logger.Info("Air attack executed",
 			"game_id", gameID,

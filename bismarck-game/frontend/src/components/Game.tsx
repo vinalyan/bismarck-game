@@ -18,6 +18,7 @@ import wsClient from '../services/websocket/websocketClient';
 import { updateGameDataFromModel } from '../utils/gameDataUtils';
 import HexMap from './HexMap';
 import GameLog from './GameLog';
+import PhasePanel from './PhasePanel';
 import './Game.css';
 
 const Game: React.FC = () => {
@@ -1597,12 +1598,12 @@ const Game: React.FC = () => {
                         {(unit.speed_rating === 'F' || unit.speed_rating === 'M') && (
                           <span>F: {unit.fuel || 0}/{unit.max_fuel || 0}</span>
                         )}
-                        {/* Показываем HULL для всех морских юнитов */}
-                        {unit.current_hull !== undefined && unit.hull_boxes !== undefined && (
+                        {/* Показываем HULL только для морских юнитов (у которых есть класс корабля или hull_boxes > 0) */}
+                        {unit.class && unit.hull_boxes > 0 && (
                           <span className={unit.current_hull === 0 ? 'unit-sunk' : ''} style={{ 
-                            color: unit.current_hull === 0 ? '#f44336' : unit.current_hull < unit.hull_boxes / 2 ? '#ff9800' : 'inherit'
+                            color: unit.current_hull === 0 ? '#f44336' : (unit.current_hull < unit.hull_boxes / 2 ? '#ff9800' : 'inherit')
                           }}>
-                            HULL: {unit.current_hull}/{unit.hull_boxes}
+                            HULL: {unit.current_hull ?? 0}/{unit.hull_boxes}
                             {unit.current_hull === 0 && ' 🌊 Потоплен'}
                           </span>
                         )}
@@ -1751,6 +1752,24 @@ const Game: React.FC = () => {
               {/* Кнопки управления игрой перенесены в HexMap */}
             </div>
           </div>
+
+          {/* Панель фаз */}
+          {(() => {
+            const turnData = getTurnData(currentTurn);
+            if (!currentGame || !turnData) return null;
+            return (
+              <PhasePanel
+                gameId={currentGame.id}
+                currentTurn={turnData}
+                currentUserId={user?.id}
+                currentGame={currentGame}
+                authToken={authToken || undefined}
+                onRefresh={async () => {
+                  await handleGameModelUpdate();
+                }}
+              />
+            );
+          })()}
 
           {/* Лог игры */}
           {currentGame && (

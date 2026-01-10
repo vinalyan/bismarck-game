@@ -455,6 +455,7 @@ func (s *GameEventService) LogAirAttackEvent(
 	phase string,
 	hexID string,
 	attackerID string,
+	attackerSide string,
 	targetID string,
 	targetName string,
 	targetClass string,
@@ -462,9 +463,34 @@ func (s *GameEventService) LogAirAttackEvent(
 	newHull int,
 	sunk bool,
 ) error {
-	description := fmt.Sprintf("Воздушная атака на %s (%s) в гексе %s: нанесено повреждений %d, HULL: %d", targetName, targetClass, hexID, hullDamage, newHull)
+	// Формируем название корабля (имя и класс)
+	shipName := targetName
+	if targetClass != "" {
+		if shipName != "" {
+			shipName = fmt.Sprintf("%s (%s)", shipName, targetClass)
+		} else {
+			shipName = targetClass
+		}
+	}
+	if shipName == "" {
+		shipName = fmt.Sprintf("корабль [ID: %s]", targetID)
+	}
+
+	var description string
 	if sunk {
-		description = fmt.Sprintf("Воздушная атака: %s (%s) потоплен в гексе %s", targetName, targetClass, hexID)
+		description = fmt.Sprintf("Воздушная атака: корабль %s потоплен в гексе %s", shipName, hexID)
+	} else {
+		damageText := "1 повреждение"
+		if hullDamage > 1 {
+			damageText = fmt.Sprintf("%d повреждений", hullDamage)
+		}
+		description = fmt.Sprintf("Воздушная атака на корабль %s в гексе %s: нанесено %s, HULL: %d", shipName, hexID, damageText, newHull)
+	}
+
+	// Определяем название атакующей стороны
+	actorName := attackerSide
+	if actorName == "" {
+		actorName = "Воздушные силы"
 	}
 
 	event := &models.GameEvent{
@@ -474,11 +500,13 @@ func (s *GameEventService) LogAirAttackEvent(
 		Phase:       phase,
 		EventType:   models.EventTypeAirAttack,
 		ActorID:     attackerID,
+		ActorName:   actorName,
 		TargetID:    targetID,
-		TargetName:  targetName,
+		TargetName:  shipName, // Используем уже сформированное имя корабля
 		Description: description,
 		Data: map[string]interface{}{
 			"hex_id":       hexID,
+			"target_name":  targetName,
 			"target_class": targetClass,
 			"hull_damage":  hullDamage,
 			"new_hull":     newHull,

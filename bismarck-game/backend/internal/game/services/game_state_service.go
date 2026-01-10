@@ -455,6 +455,10 @@ func (s *GameStateService) CreateInitialGameModel(gameID string) (*models.GameMo
 			German: make(map[string]models.SearchHexData),
 			Allied: make(map[string]models.SearchHexData),
 		},
+		AirAttack: &models.AirAttackData{
+			German: make(map[string]int),
+			Allied: make(map[string]int),
+		},
 		Events:               []*models.GameEventModel{},
 		IntrinsicSearchHexes: s.mapStructureService.GetIntrinsicSearchHexes(),
 	}
@@ -816,6 +820,8 @@ func (s *GameStateService) LoadGameModelFromDatabase(gameID string) (*models.Gam
 
 	// Инициализируем Search, если нужно
 	model.EnsureSearchInitialized()
+	// Инициализируем AirAttack, если нужно
+	model.EnsureAirAttackInitialized()
 
 	s.logger.Info("GameModel loaded from database", "game_id", gameID, "version", version)
 	return &model, nil
@@ -893,6 +899,10 @@ func (s *GameStateService) UpdateGameModelWithRetry(
 		if err != nil {
 			return fmt.Errorf("failed to load model: %w", err)
 		}
+
+		// Инициализируем структуры, если нужно
+		model.EnsureSearchInitialized()
+		model.EnsureAirAttackInitialized()
 
 		// Сохраняем версию перед изменениями
 		originalVersion := model.Version
