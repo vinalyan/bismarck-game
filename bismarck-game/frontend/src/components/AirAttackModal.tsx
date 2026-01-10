@@ -77,10 +77,11 @@ const AirAttackModal: React.FC<AirAttackModalProps> = ({
         })
       }).catch(() => {});
       // #endregion
-      if (response) {
+      if (response && response.targets && Array.isArray(response.targets)) {
         setTargets(response.targets);
       } else {
-        setError('Не удалось загрузить цели');
+        setError('Не удалось загрузить цели или в гексе нет доступных целей');
+        setTargets([]);
       }
     } catch (err: any) {
       // #region agent log

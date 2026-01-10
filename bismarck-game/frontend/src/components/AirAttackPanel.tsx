@@ -78,57 +78,36 @@ const AirAttackPanel: React.FC<AirAttackPanelProps> = ({
   }, [markers, currentPhase, onHasPendingAttacks]);
 
   const loadMarkers = async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'AirAttackPanel.tsx:43',
-        message: 'loadMarkers called',
-        data: { gameId, currentPhase },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'H2'
-      })
-    }).catch(() => {});
-    // #endregion
     try {
       setLoading(true);
       setError(null);
       const response = await airAttackAPI.getMarkers(gameId, authToken);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'AirAttackPanel.tsx:53',
-          message: 'getMarkers response received',
-          data: { gameId, markersCount: Object.keys(response || {}).length, markers: response },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'H2'
-        })
-      }).catch(() => {});
-      // #endregion
-      setMarkers(response || {});
+      
+      // Фильтруем маркеры: проверяем, есть ли в каждом гексе корабли
+      // Если кораблей нет - игнорируем маркер (не показываем его в списке)
+      const filteredMarkers: Record<string, number> = {};
+      
+      if (response && typeof response === 'object') {
+        for (const [hexId, count] of Object.entries(response)) {
+          if (count > 0) {
+            // Проверяем, есть ли в гексе корабли
+            try {
+              const targetsResponse = await airAttackAPI.getTargets(gameId, hexId, authToken);
+              // Если есть цели (корабли), добавляем маркер
+              if (targetsResponse && targetsResponse.targets && Array.isArray(targetsResponse.targets) && targetsResponse.targets.length > 0) {
+                filteredMarkers[hexId] = count;
+              }
+              // Если кораблей нет - игнорируем маркер (не добавляем в filteredMarkers)
+            } catch (err) {
+              // Если ошибка при проверке - игнорируем маркер (для безопасности)
+              console.warn(`Failed to check targets in hex ${hexId}:`, err);
+            }
+          }
+        }
+      }
+      
+      setMarkers(filteredMarkers);
     } catch (err: any) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'AirAttackPanel.tsx:61',
-          message: 'loadMarkers error',
-          data: { gameId, error: err.message || String(err) },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'H2'
-        })
-      }).catch(() => {});
-      // #endregion
       setError(err.message || 'Ошибка загрузки маркеров');
     } finally {
       setLoading(false);
@@ -157,22 +136,9 @@ const AirAttackPanel: React.FC<AirAttackPanelProps> = ({
       
       // Загружаем цели в гексе
       const targetsResponse = await airAttackAPI.getTargets(gameId, hexId, authToken);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'AirAttackPanel.tsx:79',
-          message: 'getTargets response received',
-          data: { gameId, hexId, targetsCount: targetsResponse?.targets?.length || 0, targets: targetsResponse },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'H3'
-        })
-      }).catch(() => {});
-      // #endregion
-      if (!targetsResponse || targetsResponse.targets.length === 0) {
+      
+      // Проверяем, что ответ получен и targets является массивом
+      if (!targetsResponse || !targetsResponse.targets || !Array.isArray(targetsResponse.targets) || targetsResponse.targets.length === 0) {
         // #region agent log
         fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
           method: 'POST',
@@ -195,21 +161,6 @@ const AirAttackPanel: React.FC<AirAttackPanelProps> = ({
       setTargets(targetsResponse);
       setSelectedHex(hexId);
       setShowExecuteModal(true);
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'AirAttackPanel.tsx:100',
-          message: 'Modal should open now',
-          data: { gameId, hexId, targetsCount: targetsResponse.targets.length },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'H4'
-        })
-      }).catch(() => {});
-      // #endregion
     } catch (err: any) {
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
@@ -468,7 +419,7 @@ const AirAttackPanel: React.FC<AirAttackPanelProps> = ({
                 body: JSON.stringify({
                   location: 'AirAttackPanel.tsx:253',
                   message: 'AirAttackModal should render',
-                  data: { gameId, selectedHex, targetsCount: targets?.targets?.length || 0, showExecuteModal, hasTargets: !!targets },
+                  data: { gameId, selectedHex, targetsCount: (targets && Array.isArray(targets.targets)) ? targets.targets.length : 0, showExecuteModal, hasTargets: !!targets },
                   timestamp: Date.now(),
                   sessionId: 'debug-session',
                   runId: 'run1',

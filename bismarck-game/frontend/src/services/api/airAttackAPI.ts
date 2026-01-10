@@ -148,13 +148,26 @@ export const airAttackAPI = {
       );
 
       if (response.data.success && response.data.data) {
-        return response.data.data as AirAttackTargetsResponse;
+        const data = response.data.data as AirAttackTargetsResponse;
+        // Убеждаемся, что targets всегда является массивом (даже если пустым)
+        return {
+          hex_id: data.hex_id || hexId,
+          targets: Array.isArray(data.targets) ? data.targets : []
+        };
       }
 
-      return null;
+      // Возвращаем ответ с пустым массивом целей вместо null
+      return {
+        hex_id: hexId,
+        targets: []
+      };
     } catch (error: any) {
       console.error('Error fetching air attack targets:', error);
-      return null;
+      // Возвращаем ответ с пустым массивом целей вместо null
+      return {
+        hex_id: hexId,
+        targets: []
+      };
     }
   },
 
