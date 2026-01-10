@@ -1937,18 +1937,29 @@ func (h *AirAttackPhaseHandler) Start(gameID string, turn int) error {
 		if err == nil && model != nil {
 			model.EnsureAirAttackInitialized()
 
-			// Подсчитываем общее количество маркеров
+			// Подсчитываем общее количество маркеров, но только в гексах с кораблями
+			// Маркеры в гексах без кораблей игнорируются
 			germanMarkersCount := 0
-			if model.AirAttack.German != nil {
-				for _, count := range model.AirAttack.German {
-					germanMarkersCount += count
+			if model.AirAttack != nil && model.AirAttack.German != nil {
+				// Определяем сторону врага для немецких маркеров (немцы атакуют союзников)
+				enemySide := "allied"
+				for hexID, count := range model.AirAttack.German {
+					// Проверяем, есть ли в гексе вражеские корабли
+					if h.hasEnemyShipsInHex(model, hexID, enemySide) {
+						germanMarkersCount += count
+					}
 				}
 			}
 
 			alliedMarkersCount := 0
-			if model.AirAttack.Allied != nil {
-				for _, count := range model.AirAttack.Allied {
-					alliedMarkersCount += count
+			if model.AirAttack != nil && model.AirAttack.Allied != nil {
+				// Определяем сторону врага для союзных маркеров (союзники атакуют немцев)
+				enemySide := "german"
+				for hexID, count := range model.AirAttack.Allied {
+					// Проверяем, есть ли в гексе вражеские корабли
+					if h.hasEnemyShipsInHex(model, hexID, enemySide) {
+						alliedMarkersCount += count
+					}
 				}
 			}
 
@@ -1977,6 +1988,67 @@ func (h *AirAttackPhaseHandler) Start(gameID string, turn int) error {
 	log.Printf("Air attack phase: players can now execute air attacks via API")
 
 	return nil
+}
+
+// hasEnemyShipsInHex проверяет, есть ли в гексе вражеские корабли (морские юниты или Task Forces)
+// Используется для фильтрации маркеров воздушной атаки - маркеры в гексах без кораблей игнорируются
+func (h *AirAttackPhaseHandler) hasEnemyShipsInHex(model *models.GameModel, hexID string, enemySide string) bool {
+	// Проверяем юниты в гексе
+	for _, unit := range model.Units {
+		if unit.Position != hexID {
+			continue
+		}
+
+		// Проверяем только морские юниты
+		if unit.Category != models.UnitCategoryNaval {
+			continue
+		}
+
+		// Проверяем, что это вражеский юнит
+		if unit.Nationality != enemySide {
+			continue
+		}
+
+		// Проверяем, что корабль не потоплен
+		if unit.Status == string(models.UnitStatusSunk) {
+			continue
+		}
+
+		if unit.NavalData == nil {
+			continue
+		}
+
+		// Найден вражеский корабль в гексе
+		return true
+	}
+
+	// Проверяем Task Forces в гексе
+	for _, tf := range model.TaskForces {
+		if tf.Position != hexID {
+			continue
+		}
+
+		// Проверяем, что это вражеская Task Force
+		if tf.Nationality != enemySide {
+			continue
+		}
+
+		// Проверяем, что в Task Force есть корабли (хотя бы один)
+		if len(tf.Units) > 0 {
+			// Проверяем, что хотя бы один корабль в TF не потоплен
+			for _, unitID := range tf.Units {
+				if unit, exists := model.Units[unitID]; exists {
+					if unit.Status != string(models.UnitStatusSunk) && unit.NavalData != nil {
+						// Найден вражеский корабль в Task Force
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	// В гексе нет вражеских кораблей
+	return false
 }
 
 func (h *AirAttackPhaseHandler) CanComplete(gameID string, turn int) (bool, error) {
