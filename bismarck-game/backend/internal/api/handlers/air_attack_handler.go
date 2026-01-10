@@ -103,13 +103,143 @@ func (h *AirAttackHandler) AddMarker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Логируем событие
+	// #region agent log
+	if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H1",
+			"location":     "air_attack_handler.go:105",
+			"message":      "Starting event logging for marker added",
+			"data":         map[string]interface{}{"gameID": gameID, "hexID": req.HexID, "userID": userID, "hasEventService": h.eventService != nil, "hasGameStateService": h.gameStateService != nil},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
 	if h.eventService != nil && h.gameStateService != nil {
-		turn, phase, err := h.getTurnAndPhase(gameID)
-		if err == nil {
-			if err := h.eventService.LogAirAttackMarkerEvent(gameID, turn, phase, req.HexID, userID, "added"); err != nil {
-				h.logger.Warn("Failed to log air attack marker event", "error", err)
+		// Получаем сторону игрока (german/allied) вместо userID для правильной фильтрации событий
+		var playerSide string
+		if h.gameService != nil {
+			if side, err := h.gameService.GetPlayerSide(gameID, userID); err == nil {
+				playerSide = side
+				// #region agent log
+				if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+					json.NewEncoder(logFile).Encode(map[string]interface{}{
+						"sessionId":    "debug-session",
+						"runId":        "run1",
+						"hypothesisId": "H4",
+						"location":     "air_attack_handler.go:120",
+						"message":      "GetPlayerSide result",
+						"data":         map[string]interface{}{"gameID": gameID, "userID": userID, "playerSide": playerSide},
+						"timestamp":    time.Now().UnixMilli(),
+					})
+					logFile.Close()
+				}
+				// #endregion
+			} else {
+				// #region agent log
+				if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+					json.NewEncoder(logFile).Encode(map[string]interface{}{
+						"sessionId":    "debug-session",
+						"runId":        "run1",
+						"hypothesisId": "H4",
+						"location":     "air_attack_handler.go:133",
+						"message":      "GetPlayerSide failed",
+						"data":         map[string]interface{}{"gameID": gameID, "userID": userID, "error": err.Error()},
+						"timestamp":    time.Now().UnixMilli(),
+					})
+					logFile.Close()
+				}
+				// #endregion
+				h.logger.Warn("Failed to get player side for event logging", "error", err)
 			}
 		}
+
+		turn, phase, err := h.getTurnAndPhase(gameID)
+		// #region agent log
+		if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			json.NewEncoder(logFile).Encode(map[string]interface{}{
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "H5",
+				"location":     "air_attack_handler.go:148",
+				"message":      "getTurnAndPhase result",
+				"data": map[string]interface{}{"gameID": gameID, "turn": turn, "phase": phase, "error": func() string {
+					if err != nil {
+						return err.Error()
+					} else {
+						return "nil"
+					}
+				}()},
+				"timestamp": time.Now().UnixMilli(),
+			})
+			logFile.Close()
+		}
+		// #endregion
+		if err == nil && playerSide != "" {
+			// Передаем playerSide (german/allied) вместо userID для правильной фильтрации событий
+			logErr := h.eventService.LogAirAttackMarkerEvent(gameID, turn, phase, req.HexID, playerSide, "added")
+			// #region agent log
+			if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+				json.NewEncoder(logFile).Encode(map[string]interface{}{
+					"sessionId":    "debug-session",
+					"runId":        "run1",
+					"hypothesisId": "H1",
+					"location":     "air_attack_handler.go:160",
+					"message":      "LogAirAttackMarkerEvent called",
+					"data": map[string]interface{}{"gameID": gameID, "turn": turn, "phase": phase, "hexID": req.HexID, "playerSide": playerSide, "action": "added", "error": func() string {
+						if logErr != nil {
+							return logErr.Error()
+						} else {
+							return "nil"
+						}
+					}()},
+					"timestamp": time.Now().UnixMilli(),
+				})
+				logFile.Close()
+			}
+			// #endregion
+			if logErr != nil {
+				h.logger.Warn("Failed to log air attack marker event", "error", logErr)
+			}
+		} else {
+			// #region agent log
+			if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+				json.NewEncoder(logFile).Encode(map[string]interface{}{
+					"sessionId":    "debug-session",
+					"runId":        "run1",
+					"hypothesisId": "H5",
+					"location":     "air_attack_handler.go:174",
+					"message":      "getTurnAndPhase failed or playerSide empty - event not logged",
+					"data": map[string]interface{}{"gameID": gameID, "error": func() string {
+						if err != nil {
+							return err.Error()
+						} else {
+							return "nil"
+						}
+					}(), "playerSide": playerSide},
+					"timestamp": time.Now().UnixMilli(),
+				})
+				logFile.Close()
+			}
+			// #endregion
+		}
+	} else {
+		// #region agent log
+		if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			json.NewEncoder(logFile).Encode(map[string]interface{}{
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "H1",
+				"location":     "air_attack_handler.go:113",
+				"message":      "Event service or game state service is nil - event not logged",
+				"data":         map[string]interface{}{"gameID": gameID, "hasEventService": h.eventService != nil, "hasGameStateService": h.gameStateService != nil},
+				"timestamp":    time.Now().UnixMilli(),
+			})
+			logFile.Close()
+		}
+		// #endregion
 	}
 
 	response := map[string]interface{}{
@@ -158,9 +288,20 @@ func (h *AirAttackHandler) RemoveMarker(w http.ResponseWriter, r *http.Request) 
 
 	// Логируем событие
 	if h.eventService != nil && h.gameStateService != nil {
+		// Получаем сторону игрока (german/allied) вместо userID для правильной фильтрации событий
+		var playerSide string
+		if h.gameService != nil {
+			if side, err := h.gameService.GetPlayerSide(gameID, userID); err == nil {
+				playerSide = side
+			} else {
+				h.logger.Warn("Failed to get player side for event logging", "error", err)
+			}
+		}
+
 		turn, phase, err := h.getTurnAndPhase(gameID)
-		if err == nil {
-			if err := h.eventService.LogAirAttackMarkerEvent(gameID, turn, phase, req.HexID, userID, "removed"); err != nil {
+		if err == nil && playerSide != "" {
+			// Передаем playerSide (german/allied) вместо userID для правильной фильтрации событий
+			if err := h.eventService.LogAirAttackMarkerEvent(gameID, turn, phase, req.HexID, playerSide, "removed"); err != nil {
 				h.logger.Warn("Failed to log air attack marker event", "error", err)
 			}
 		}
@@ -259,15 +400,16 @@ func (h *AirAttackHandler) GetTargets(w http.ResponseWriter, r *http.Request) {
 
 // TargetInfo представляет информацию о цели для воздушной атаки
 type TargetInfo struct {
-	UnitID     string `json:"unit_id,omitempty"`
-	UnitName   string `json:"unit_name,omitempty"`
-	Class      string `json:"class"`
-	Type       string `json:"type"`
-	TaskForceID string `json:"task_force_id,omitempty"`
+	UnitID        string `json:"unit_id,omitempty"`
+	UnitName      string `json:"unit_name,omitempty"`
+	Class         string `json:"class"` // Тип корабля (BB, CA, CV и т.д.) - используется для группировки
+	Type          string `json:"type"`  // Тип корабля (BB, CA, CV и т.д.) - дублирует Class для совместимости
+	TaskForceID   string `json:"task_force_id,omitempty"`
 	TaskForceName string `json:"task_force_name,omitempty"`
-	Visibility string `json:"visibility"`
-	CurrentHull int    `json:"current_hull"`
-	MaxHull    int    `json:"max_hull"`
+	Visibility    string `json:"visibility"`
+	CurrentHull   int    `json:"current_hull"`
+	MaxHull       int    `json:"max_hull"`
+	Count         int    `json:"count,omitempty"` // Количество кораблей этого типа в гексе
 }
 
 // findEnemyTargetsInHex находит вражеские цели в гексе
@@ -314,58 +456,60 @@ func (h *AirAttackHandler) findEnemyTargetsInHex(model *models.GameModel, hexID 
 		}
 	}
 
-	// Добавляем одиночные корабли
+	// Группируем все корабли по типу (Type: BB, CA, CV и т.д.)
+	// Атакующий выбирает тип корабля, защищающийся выбирает конкретный корабль
+	unitsByType := make(map[string][]*models.UnitModel)
+
+	// Добавляем одиночные корабли в группировку по типу
 	for _, unit := range soloUnits {
-		targets = append(targets, TargetInfo{
-			UnitID:      unit.ID,
-			UnitName:    unit.Name,
-			Class:       unit.NavalData.Class,
-			Type:        string(unit.Type),
-			Visibility:  string(unit.Visibility),
-			CurrentHull: unit.NavalData.CurrentHull,
-			MaxHull:     unit.NavalData.HullBoxes,
-		})
+		shipType := string(unit.Type)
+		if unitsByType[shipType] == nil {
+			unitsByType[shipType] = []*models.UnitModel{}
+		}
+		unitsByType[shipType] = append(unitsByType[shipType], unit)
 	}
 
-	// Добавляем корабли из Task Forces (группируем по классу)
-	for tfID, units := range tfUnits {
-		// Получаем информацию о Task Force
-		tf, exists := model.TaskForces[tfID]
-		if !exists {
+	// Добавляем корабли из Task Forces в группировку по типу
+	for _, units := range tfUnits {
+		for _, unit := range units {
+			shipType := string(unit.Type)
+			if unitsByType[shipType] == nil {
+				unitsByType[shipType] = []*models.UnitModel{}
+			}
+			unitsByType[shipType] = append(unitsByType[shipType], unit)
+		}
+	}
+
+	// Добавляем цели по типам (атакующий выбирает тип, защищающийся выбирает конкретный корабль)
+	for shipType, units := range unitsByType {
+		if len(units) == 0 {
 			continue
 		}
 
-		// Группируем корабли по классу
-		unitsByClass := make(map[string][]*models.UnitModel)
-		for _, unit := range units {
-			class := unit.NavalData.Class
-			if unitsByClass[class] == nil {
-				unitsByClass[class] = []*models.UnitModel{}
+		// Берем первый корабль этого типа для информации
+		firstUnit := units[0]
+
+		// Если корабль в Task Force, используем информацию о TF
+		var tfID, tfName string
+		if firstUnit.NavalData.TaskForceID != nil && *firstUnit.NavalData.TaskForceID != "" {
+			tfID = *firstUnit.NavalData.TaskForceID
+			if tf, exists := model.TaskForces[tfID]; exists {
+				tfName = tf.Name
 			}
-			unitsByClass[class] = append(unitsByClass[class], unit)
 		}
 
-		// Добавляем цели по классам (атакующий выбирает тип, защищающийся выбирает конкретный корабль)
-		for class, units := range unitsByClass {
-			if len(units) == 0 {
-				continue
-			}
-
-			// Берем первый корабль для информации (все корабли одного класса имеют одинаковые характеристики)
-			firstUnit := units[0]
-			targets = append(targets, TargetInfo{
-				UnitID:        firstUnit.ID, // Первый корабль по умолчанию
-				UnitName:      firstUnit.Name,
-				Class:         class,
-				Type:          string(firstUnit.Type),
-				TaskForceID:   tfID,
-				TaskForceName: tf.Name,
-				Visibility:    string(firstUnit.Visibility),
-				CurrentHull:   firstUnit.NavalData.CurrentHull,
-				MaxHull:       firstUnit.NavalData.HullBoxes,
-				// TODO: Добавить список всех кораблей этого класса для выбора защищающимся
-			})
-		}
+		targets = append(targets, TargetInfo{
+			UnitID:        firstUnit.ID, // Первый корабль этого типа по умолчанию (защищающийся выберет окончательную цель)
+			UnitName:      firstUnit.Name,
+			Class:         shipType, // Тип корабля (BB, CA, CV и т.д.) - атакующий выбирает тип
+			Type:          shipType, // Дублирует Class для совместимости
+			TaskForceID:   tfID,
+			TaskForceName: tfName,
+			Visibility:    string(firstUnit.Visibility),
+			CurrentHull:   firstUnit.NavalData.CurrentHull,
+			MaxHull:       firstUnit.NavalData.HullBoxes,
+			Count:         len(units), // Количество кораблей этого типа в гексе
+		})
 	}
 
 	return targets
@@ -373,8 +517,8 @@ func (h *AirAttackHandler) findEnemyTargetsInHex(model *models.GameModel, hexID 
 
 // ExecuteAttackRequest представляет запрос на выполнение воздушной атаки
 type ExecuteAttackRequest struct {
-	HexID     string `json:"hex_id"`
-	TargetID  string `json:"target_id"`  // ID конкретного корабля
+	HexID       string `json:"hex_id"`
+	TargetID    string `json:"target_id"`              // ID конкретного корабля
 	TargetClass string `json:"target_class,omitempty"` // Класс корабля (если в TF)
 }
 
@@ -663,12 +807,12 @@ func (h *AirAttackHandler) ExecuteAttack(w http.ResponseWriter, r *http.Request)
 	}
 
 	response := map[string]interface{}{
-		"message":    "Air attack executed successfully",
-		"hex_id":     req.HexID,
-		"target_id":  req.TargetID,
+		"message":     "Air attack executed successfully",
+		"hex_id":      req.HexID,
+		"target_id":   req.TargetID,
 		"target_name": targetName,
-		"new_hull":   newHull,
-		"sunk":       sunk,
+		"new_hull":    newHull,
+		"sunk":        sunk,
 	}
 
 	utils.WriteSuccessResponse(w, response)
@@ -784,7 +928,6 @@ func (h *AirAttackHandler) executeAirAttack(gameID, attackerID, hexID, targetID 
 		if sunk {
 			target.Status = string(models.UnitStatusSunk)
 		}
-
 
 		h.logger.Info("Air attack executed",
 			"game_id", gameID,

@@ -65,7 +65,17 @@ export const phaseAPI = {
   // Получить записи о фазах для хода
   getPhaseRecords: async (gameId: string, turn: number): Promise<PhaseRecord[]> => {
     const response = await apiClient.get(`/api/phases/records?game_id=${gameId}&turn=${turn}`);
-    return response.data.data;
+    // Обрабатываем вложенную структуру ответа
+    let records = response.data;
+    if (records?.data) {
+      records = records.data;
+    }
+    // Убеждаемся, что возвращаем массив
+    if (Array.isArray(records)) {
+      return records;
+    }
+    console.warn('getPhaseRecords: response is not an array:', records);
+    return [];
   },
 
   // Начать фазу

@@ -1,42 +1,115 @@
-.air-attack-modal {
+/* Стили для overlay и content для AirAttackModal - переопределяем общие стили dialog */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Переопределяем стили для dialog-content внутри AirAttackModal */
+.dialog-content.air-attack-modal {
   max-width: 600px;
   max-height: 80vh;
   overflow-y: auto;
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid #4a90e2;
+  border-radius: 12px;
+  padding: 1.5rem;
+  color: #ffffff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.air-attack-modal {
+  /* Дублируем стили для совместимости, если используется только класс air-attack-modal */
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid #4a90e2;
+  border-radius: 12px;
+  padding: 1.5rem;
+  color: #ffffff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.air-attack-modal h3 {
+  margin: 0 0 1rem 0;
+  color: #4a90e2;
+  font-size: 1.25rem;
+  font-weight: 600;
+  border-bottom: 2px solid #4a90e2;
+  padding-bottom: 0.5rem;
+}
+
+.air-attack-modal h4 {
+  margin: 0 0 0.75rem 0;
+  color: #4a90e2;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.target-description {
+  font-size: 0.9em;
+  color: #d1d5db;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+  padding: 0.5rem;
+  background: rgba(74, 144, 226, 0.1);
+  border-radius: 4px;
+  border-left: 3px solid #4a90e2;
 }
 
 .hex-info {
   font-weight: bold;
-  color: #333;
-  margin-bottom: 15px;
+  color: #ffffff;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: rgba(74, 144, 226, 0.2);
+  border-radius: 4px;
+  border: 1px solid #4a90e2;
 }
 
 .targets-section {
-  margin: 20px 0;
+  margin: 1.25rem 0;
 }
 
 .target-class-group {
-  margin-bottom: 20px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 10px;
+  margin-bottom: 1.25rem;
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: rgba(74, 144, 226, 0.1);
+  transition: all 0.2s ease;
+}
+
+.target-class-group:hover {
+  background: rgba(74, 144, 226, 0.15);
 }
 
 .target-radio {
   display: flex;
   align-items: center;
-  padding: 10px;
+  padding: 0.75rem;
   cursor: pointer;
   border-radius: 4px;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .target-radio:hover {
-  background-color: #f5f5f5;
+  background: rgba(74, 144, 226, 0.2);
 }
 
 .target-radio.selected {
-  background-color: #e3f2fd;
-  border: 2px solid #2196f3;
+  background: rgba(74, 144, 226, 0.25);
+  border: 2px solid #4a90e2;
+  box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
 }
 
 .target-radio input[type="radio"] {
@@ -46,113 +119,88 @@
 .target-class-name {
   font-weight: bold;
   font-size: 1.1em;
-  margin-right: 10px;
+  margin-right: 0.75rem;
+  color: #ffffff;
+}
+
+.target-radio.selected .target-class-name {
+  color: #4a90e2;
 }
 
 .target-count {
-  color: #666;
+  color: #94a3b8;
   font-size: 0.9em;
 }
 
-.target-ships-list {
-  margin-top: 15px;
-  margin-left: 30px;
-  padding-top: 15px;
-  border-top: 1px solid #eee;
-}
-
-.target-ships-list h5 {
-  margin-bottom: 10px;
-  font-size: 0.9em;
-  color: #666;
-}
-
-.target-ship-radio {
-  display: flex;
-  flex-direction: column;
-  padding: 8px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.target-ship-radio:hover {
-  background-color: #f9f9f9;
-}
-
-.target-ship-radio.selected {
-  background-color: #fff3cd;
-  border: 2px solid #ffc107;
-}
-
-.target-ship-radio input[type="radio"] {
-  margin-right: 8px;
-}
-
-.target-name {
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.target-info {
-  font-size: 0.85em;
-  color: #666;
-  margin-left: 20px;
-}
 
 .loading,
 .error,
 .no-targets {
-  padding: 20px;
+  padding: 1.25rem;
   text-align: center;
-  color: #666;
+  color: #d1d5db;
 }
 
 .error {
-  color: #d32f2f;
-  background-color: #ffebee;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
   border-radius: 4px;
+}
+
+.no-targets {
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #ddd;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 2px solid #4a90e2;
 }
 
 .btn-cancel,
 .btn-confirm {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 1em;
-  transition: background-color 0.2s;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .btn-cancel {
-  background-color: #f5f5f5;
-  color: #333;
+  background: rgba(148, 163, 184, 0.2);
+  color: #d1d5db;
+  border-color: rgba(148, 163, 184, 0.5);
 }
 
 .btn-cancel:hover {
-  background-color: #e0e0e0;
+  background: rgba(148, 163, 184, 0.3);
+  transform: translateY(-1px);
 }
 
 .btn-confirm {
-  background-color: #2196f3;
+  background: #4a90e2;
   color: white;
+  border-color: #4a90e2;
 }
 
 .btn-confirm:hover:not(:disabled) {
-  background-color: #1976d2;
+  background: rgba(74, 144, 226, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(74, 144, 226, 0.3);
 }
 
 .btn-confirm:disabled {
-  background-color: #ccc;
+  background: rgba(148, 163, 184, 0.3);
+  border-color: rgba(148, 163, 184, 0.3);
   cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
 }

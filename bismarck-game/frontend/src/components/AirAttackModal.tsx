@@ -104,25 +104,6 @@ const AirAttackModal: React.FC<AirAttackModalProps> = ({
     }
   };
 
-  const handleTargetSelect = (target: AirAttackTarget) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'AirAttackModal.tsx:77',
-        message: 'Target selected in modal',
-        data: { targetId: target.unit_id, targetClass: target.class, targetName: target.unit_name },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'H4'
-      })
-    }).catch(() => {});
-    // #endregion
-    setSelectedTarget(target);
-    setSelectedTargetClass(target.class);
-  };
 
   const handleExecute = () => {
     // #region agent log
@@ -172,14 +153,41 @@ const AirAttackModal: React.FC<AirAttackModalProps> = ({
           <>
             <div className="targets-section">
               <h4>Выберите класс корабля для атаки:</h4>
+              <p className="target-description">
+                Атакующий выбирает класс корабля. Защищающийся игрок выберет конкретный корабль этого класса.
+              </p>
               
               {Object.keys(targetsByClass).map((shipClass) => {
                 const classTargets = targetsByClass[shipClass];
                 const firstTarget = classTargets[0];
+                // Используем count из API, если доступно, иначе считаем количество
+                const shipCount = firstTarget.count ?? classTargets.length;
+                const shipCountText = shipCount === 1 ? 'корабль' : shipCount < 5 ? 'корабля' : 'кораблей';
+                
+                // Маппинг типов кораблей на читаемые названия
+                const shipTypeNames: Record<string, string> = {
+                  'BB': 'Линейный корабль (BB)',
+                  'BC': 'Линейный крейсер (BC)',
+                  'CV': 'Авианосец (CV)',
+                  'CA': 'Тяжелый крейсер (CA)',
+                  'CL': 'Легкий крейсер (CL)',
+                  'DD': 'Эсминец (DD)',
+                  'CG': 'Береговая охрана (CG)',
+                  'TK': 'Танкер (TK)',
+                };
+                const displayName = shipTypeNames[shipClass] || shipClass;
                 
                 return (
                   <div key={shipClass} className="target-class-group">
-                    <label className={`target-radio ${selectedTargetClass === shipClass ? 'selected' : ''}`}>
+                    <label 
+                      className={`target-radio ${selectedTargetClass === shipClass ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedTargetClass(shipClass);
+                        // Автоматически выбираем первый корабль этого типа
+                        // Защищающийся игрок выберет окончательную цель на бэкенде
+                        setSelectedTarget(firstTarget);
+                      }}
+                    >
                       <input
                         type="radio"
                         name="targetClass"
@@ -187,39 +195,13 @@ const AirAttackModal: React.FC<AirAttackModalProps> = ({
                         checked={selectedTargetClass === shipClass}
                         onChange={() => {
                           setSelectedTargetClass(shipClass);
-                          // Выбираем первый корабль этого класса как пример
+                          // Автоматически выбираем первый корабль этого типа
                           setSelectedTarget(firstTarget);
                         }}
                       />
-                      <span className="target-class-name">{shipClass}</span>
-                      <span className="target-count">({classTargets.length} кораблей)</span>
+                      <span className="target-class-name">{displayName}</span>
+                      <span className="target-count">({shipCount} {shipCountText})</span>
                     </label>
-
-                    {selectedTargetClass === shipClass && (
-                      <div className="target-ships-list">
-                        <h5>Выберите конкретный корабль (защищающийся игрок выберет окончательную цель):</h5>
-                        {classTargets.map((target) => (
-                          <label
-                            key={target.unit_id || target.task_force_id}
-                            className={`target-ship-radio ${selectedTarget?.unit_id === target.unit_id ? 'selected' : ''}`}
-                          >
-                            <input
-                              type="radio"
-                              name="targetShip"
-                              checked={selectedTarget?.unit_id === target.unit_id}
-                              onChange={() => handleTargetSelect(target)}
-                            />
-                            <span className="target-name">
-                              {target.unit_name || target.task_force_name}
-                            </span>
-                            <span className="target-info">
-                              HULL: {target.current_hull}/{target.max_hull} | 
-                              Видимость: {target.visibility}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -235,7 +217,8 @@ const AirAttackModal: React.FC<AirAttackModalProps> = ({
               <button
                 className="btn-confirm"
                 onClick={handleExecute}
-                disabled={!selectedTarget}
+                disabled={!selectedTargetClass || !selectedTarget}
+                title={!selectedTargetClass ? 'Выберите класс корабля для атаки' : ''}
               >
                 Выполнить атаку
               </button>

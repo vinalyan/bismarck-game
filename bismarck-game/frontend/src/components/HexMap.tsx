@@ -309,17 +309,20 @@ const HexMap: React.FC<HexMapProps> = ({
       const response = await airAttackAPI.addMarker(gameId, hexId, authToken);
       if (response.success) {
         // Обновляем данные с сервера - маркер уже добавлен в GameModel
+        // Событие добавления маркера автоматически логируется на сервере и появится в игровом логе
         if (onRefreshData) {
           onRefreshData();
         }
-        alert(`Маркер воздушной атаки добавлен в гекс ${hexId}`);
+        // Уведомляем GameLog о необходимости обновления событий
+        // Добавляем небольшую задержку, чтобы событие успело сохраниться в GameModel
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('gameLogRefresh'));
+        }, 100); // Небольшая задержка 100ms, чтобы событие успело сохраниться в GameModel
       } else {
         console.error('Failed to add air attack marker:', response.error);
-        alert(`Ошибка: ${response.error || 'Не удалось добавить маркер воздушной атаки'}`);
       }
     } catch (error: any) {
       console.error('Error adding air attack marker:', error);
-      alert(`Ошибка: ${error.message || 'Не удалось добавить маркер воздушной атаки'}`);
     }
   };
 

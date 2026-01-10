@@ -1,31 +1,42 @@
 .air-attack-panel {
-  padding: 15px;
-  background-color: #f9f9f9;
+  padding: 1rem;
+  background: rgba(74, 144, 226, 0.1);
+  border: 1px solid rgba(74, 144, 226, 0.3);
   border-radius: 8px;
-  margin-top: 15px;
+  margin-top: 1rem;
+  border-left: 4px solid #4a90e2;
 }
 
 .air-attack-panel h4 {
   margin-top: 0;
-  margin-bottom: 15px;
-  color: #333;
+  margin-bottom: 1rem;
+  color: #4a90e2;
   font-size: 1.1em;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(74, 144, 226, 0.3);
+  padding-bottom: 0.5rem;
 }
 
 .loading,
 .error,
 .no-markers {
-  padding: 10px;
+  padding: 0.75rem;
   text-align: center;
-  color: #666;
+  color: #d1d5db;
   font-size: 0.9em;
 }
 
 .error {
-  color: #d32f2f;
-  background-color: #ffebee;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
   border-radius: 4px;
-  margin-bottom: 10px;
+  margin-bottom: 0.75rem;
+}
+
+.no-markers {
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .markers-list,
@@ -40,16 +51,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  padding: 0.75rem;
+  background: rgba(74, 144, 226, 0.15);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
 }
 
 .marker-item:hover,
 .attack-item:hover {
-  background-color: #f5f5f5;
+  background: rgba(74, 144, 226, 0.25);
+  transform: translateX(2px);
 }
 
 .attack-info {
@@ -61,48 +74,57 @@
 .hex-id {
   font-weight: bold;
   font-size: 1em;
-  color: #333;
+  color: #ffffff;
 }
 
 .marker-count {
-  color: #666;
+  color: #4a90e2;
   font-size: 0.9em;
-  background-color: #e3f2fd;
-  padding: 2px 8px;
+  background: rgba(74, 144, 226, 0.2);
+  border: 1px solid #4a90e2;
+  padding: 0.25rem 0.5rem;
   border-radius: 12px;
 }
 
 .btn-execute {
-  padding: 8px 16px;
-  background-color: #f44336;
+  padding: 0.5rem 1rem;
+  background: #ef4444;
   color: white;
-  border: none;
+  border: 1px solid #ef4444;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9em;
-  transition: background-color 0.2s;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .btn-execute:hover:not(:disabled) {
-  background-color: #d32f2f;
+  background: rgba(239, 68, 68, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
 }
 
 .btn-execute:disabled {
-  background-color: #ccc;
+  background: rgba(148, 163, 184, 0.3);
+  border-color: rgba(148, 163, 184, 0.3);
   cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
 }
 
 .panel-info {
-  margin-top: 15px;
-  padding: 10px;
-  background-color: #fff3cd;
-  border: 1px solid #ffc107;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.5);
   border-radius: 4px;
+  border-left: 4px solid #f59e0b;
 }
 
 .info-text {
   margin: 0;
   font-size: 0.85em;
-  color: #856404;
+  color: #fbbf24;
   line-height: 1.5;
 }

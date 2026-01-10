@@ -11,13 +11,14 @@ export interface AirAttackMarkers {
 export interface AirAttackTarget {
   unit_id?: string;
   unit_name?: string;
-  class: string;
-  type: string;
+  class: string; // Тип корабля (BB, CA, CV и т.д.) - атакующий выбирает тип
+  type: string; // Тип корабля (дублирует class для совместимости)
   task_force_id?: string;
   task_force_name?: string;
   visibility: string;
   current_hull: number;
   max_hull: number;
+  count?: number; // Количество кораблей этого типа в гексе
 }
 
 // Интерфейс для ответа с целями

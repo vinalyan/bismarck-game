@@ -344,9 +344,120 @@ func (h *PhaseHandler) StartTurn(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetPhaseRecords возвращает записи о фазах для хода
+// @Summary Получение записей о фазах для хода
+// @Tags Phases
+// @Accept json
+// @Produce json
+// @Param game_id query string true "ID игры"
+// @Param turn query int true "Номер хода"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Router /phases/records [get]
+func (h *PhaseHandler) GetPhaseRecords(w http.ResponseWriter, r *http.Request) {
+	gameID := r.URL.Query().Get("game_id")
+	if gameID == "" {
+		utils.WriteValidationError(w, "Game ID is required", map[string]string{
+			"game_id": "Game ID parameter is required",
+		})
+		return
+	}
+
+	turnStr := r.URL.Query().Get("turn")
+	if turnStr == "" {
+		utils.WriteValidationError(w, "Turn number is required", map[string]string{
+			"turn": "Turn number parameter is required",
+		})
+		return
+	}
+
+	var turnNumber int
+	if _, err := fmt.Sscanf(turnStr, "%d", &turnNumber); err != nil {
+		utils.WriteValidationError(w, "Invalid turn number", map[string]string{
+			"turn": "Turn number must be a valid integer",
+		})
+		return
+	}
+
+	// Получаем текущую фазу для определения статуса фаз
+	currentTurn, err := h.phaseManager.GetCurrentPhase(gameID)
+	if err != nil {
+		log.Printf("Failed to get current phase: %v", err)
+		utils.WriteInternalError(w, "Failed to get current phase")
+		return
+	}
+
+	// Генерируем записи о фазах на основе последовательности фаз для данного хода
+	phases := models.GetPhaseSequence(turnNumber)
+	records := make([]models.PhaseRecord, 0, len(phases))
+
+	// Определяем, какая фаза является текущей (если ход активен)
+	var currentPhase models.GamePhase
+	isCurrentTurn := false
+	if currentTurn != nil && currentTurn.TurnNumber == turnNumber && currentTurn.Status == "active" {
+		currentPhase = currentTurn.CurrentPhase
+		isCurrentTurn = true
+	}
+
+	// Находим индекс текущей фазы в последовательности
+	currentPhaseIndex := -1
+	if isCurrentTurn {
+		for j, p := range phases {
+			if p == currentPhase {
+				currentPhaseIndex = j
+				break
+			}
+		}
+	}
+
+	// Создаем записи для каждой фазы
+	for i, phase := range phases {
+		status := models.PhaseStatusPending
+
+		// Для первого хода фаза shadow должна быть skipped
+		if turnNumber == 1 && phase == models.PhaseShadow {
+			status = models.PhaseStatusSkipped
+		} else if isCurrentTurn && currentPhaseIndex >= 0 {
+			// Для текущего активного хода определяем статус на основе позиции фазы
+			if i < currentPhaseIndex {
+				// Эта фаза уже была пройдена
+				status = models.PhaseStatusCompleted
+			} else if i == currentPhaseIndex {
+				// Это текущая фаза
+				status = models.PhaseStatusActive
+			} else {
+				// Эта фаза еще не началась
+				status = models.PhaseStatusPending
+			}
+		} else if currentTurn != nil && currentTurn.TurnNumber > turnNumber {
+			// Запрашиваемый ход в прошлом - все фазы завершены
+			status = models.PhaseStatusCompleted
+		}
+		// Иначе (ход в будущем или текущий ход не найден) - все фазы в ожидании (pending)
+
+		record := models.PhaseRecord{
+			Phase:     phase,
+			Turn:      turnNumber,
+			Status:    status,
+			StartTime: nil, // Информация о времени больше не хранится
+			EndTime:   nil,
+			Duration:  0,
+			Data:      "",
+		}
+
+		records = append(records, record)
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data":    records,
+	})
+}
+
 // RegisterRoutes регистрирует маршруты для управления фазами
 func (h *PhaseHandler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/api/phases/current", h.GetCurrentPhase).Methods("GET")
+	router.HandleFunc("/api/phases/records", h.GetPhaseRecords).Methods("GET")
 	router.HandleFunc("/api/phases/start", h.StartPhase).Methods("POST")
 	router.HandleFunc("/api/phases/complete", h.CompletePhase).Methods("POST")
 	router.HandleFunc("/api/phases/next", h.NextPhase).Methods("POST")

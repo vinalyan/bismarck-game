@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameTurn, PhaseRecord, GamePhase, PhaseStatus, getPhaseStatusText, getPhaseStatusColor, getPhaseSequence, PHASE_NAMES, PHASE_DESCRIPTIONS } from '../types/phaseTypes';
+import { GameTurn, GamePhase, PHASE_NAMES, PHASE_DESCRIPTIONS } from '../types/phaseTypes';
 import { Game } from '../types/gameTypes';
 import { phaseAPI } from '../services/api/phaseAPI';
 import AirAttackPanel from './AirAttackPanel';
@@ -16,76 +16,17 @@ interface PhasePanelProps {
 }
 
 const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseChange, currentUserId, currentGame, authToken, onRefresh }) => {
-  const [phaseRecords, setPhaseRecords] = useState<PhaseRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasPendingAttacks, setHasPendingAttacks] = useState(false);
 
-  // Загружаем записи о фазах при изменении хода
+  // Сбрасываем состояние невыполненных атак при смене фазы
   useEffect(() => {
-    if (currentTurn && currentTurn.turn_number) {
-      loadPhaseRecords(currentTurn.turn_number);
+    if (currentTurn?.current_phase !== 'air_attack') {
+      setHasPendingAttacks(false);
     }
-  }, [currentTurn]);
+  }, [currentTurn?.current_phase]);
 
-  const loadPhaseRecords = async (turnNumber: number) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const records = await phaseAPI.getPhaseRecords(gameId, turnNumber);
-      setPhaseRecords(records);
-    } catch (err) {
-      setError('Ошибка загрузки фаз');
-      console.error('Error loading phase records:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStartPhase = async (phase: GamePhase) => {
-    if (!currentTurn) return;
-    
-    try {
-      setLoading(true);
-      await phaseAPI.startPhase({
-        game_id: gameId,
-        turn: currentTurn.turn_number,
-        phase: phase,
-      });
-      
-      // Перезагружаем записи о фазах
-      await loadPhaseRecords(currentTurn.turn_number);
-      
-      if (onPhaseChange) {
-        onPhaseChange(phase);
-      }
-    } catch (err) {
-      setError('Ошибка начала фазы');
-      console.error('Error starting phase:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCompletePhase = async (phase: GamePhase) => {
-    if (!currentTurn) return;
-    
-    try {
-      setLoading(true);
-      await phaseAPI.completePhase({
-        game_id: gameId,
-        turn: currentTurn.turn_number,
-        phase: phase,
-      });
-      
-      // Перезагружаем записи о фазах
-      await loadPhaseRecords(currentTurn.turn_number);
-    } catch (err) {
-      setError('Ошибка завершения фазы');
-      console.error('Error completing phase:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleNextPhase = async () => {
     try {
@@ -99,9 +40,9 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
       // Информация о текущей фазе будет обновлена через GameModel
       window.dispatchEvent(new CustomEvent('turnUpdated'));
       
-      // Перезагружаем записи о фазах (используем текущий ход, если он есть)
-      if (currentTurn && currentTurn.turn_number) {
-        await loadPhaseRecords(currentTurn.turn_number);
+      // Обновляем данные игры через родительский компонент
+      if (onRefresh) {
+        onRefresh();
       }
     } catch (err) {
       setError('Ошибка перехода к следующей фазе');
@@ -131,18 +72,14 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
         onPhaseChange('setup' as GamePhase);
       }
       
-      // Перезагружаем записи о фазах для нового хода
-      if (newTurn && newTurn.turn_number) {
-        await loadPhaseRecords(newTurn.turn_number);
-      } else {
-        // Если newTurn не содержит turn_number, загружаем ход 1
-        await loadPhaseRecords(1);
-      }
-      
-      // Удален вызов phaseAPI.getCurrentPhase - информация о текущей фазе теперь приходит через GameModel
       // Уведомляем родительский компонент об обновлении хода
       // Родительский компонент должен обновить currentTurn из GameModel
       window.dispatchEvent(new CustomEvent('turnUpdated'));
+      
+      // Обновляем данные игры через родительский компонент
+      if (onRefresh) {
+        onRefresh();
+      }
     } catch (err) {
       setError('Ошибка начала хода');
       console.error('Error starting turn:', err);
@@ -151,23 +88,6 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
     }
   };
 
-  const getPhaseRecord = (phase: GamePhase): PhaseRecord | undefined => {
-    return phaseRecords.find(record => record.phase === phase);
-  };
-
-  const canStartPhase = (phase: GamePhase): boolean => {
-    const record = getPhaseRecord(phase);
-    return record?.status === 'pending';
-  };
-
-  const canCompletePhase = (phase: GamePhase): boolean => {
-    const record = getPhaseRecord(phase);
-    return record?.status === 'active';
-  };
-
-  const isCurrentPhase = (phase: GamePhase): boolean => {
-    return currentTurn?.current_phase === phase;
-  };
 
   // Определяем, может ли текущий игрок начать ход
   const canStartTurn = (): boolean => {
@@ -190,9 +110,8 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
 
   // Проверяем, нужно ли показать кнопку "Начать ход 1"
   // Кнопка должна появляться когда turn: 0 и phase: "setup" (игра еще не начата)
-  const turnNumber = currentTurn?.turn_number ?? currentGame?.current_turn ?? 0;
-  const phase = currentTurn?.current_phase ?? currentGame?.current_phase ?? 'setup';
-  const shouldShowStartTurnButton = turnNumber === 0 && phase === 'setup';
+  const shouldShowStartTurnButton = (currentTurn?.turn_number ?? currentGame?.current_turn ?? 0) === 0 && 
+                                     (currentTurn?.current_phase ?? currentGame?.current_phase ?? 'setup') === 'setup';
 
   if (shouldShowStartTurnButton && canStartTurn()) {
     return (
@@ -215,13 +134,16 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
   if (!currentTurn) {
     return (
       <div className="phase-panel">
-        <h3>Фазы игры</h3>
+        <div className="phase-panel-header">
+          <h3>Фазы игры</h3>
+        </div>
         <p>Ожидание начала хода...</p>
       </div>
     );
   }
 
-  const phases = getPhaseSequence(currentTurn.turn_number);
+  const currentPhase = currentTurn.current_phase;
+  const isMovementOrAirAttack = currentPhase === 'movement' || currentPhase === 'air_attack';
 
   return (
     <div className="phase-panel">
@@ -230,7 +152,7 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
         <div className="turn-info">
           <span className="turn-number">Ход {currentTurn.turn_number}</span>
           <span className="current-phase">
-            {PHASE_NAMES[currentTurn.current_phase] || currentTurn.current_phase}
+            {PHASE_NAMES[currentPhase] || currentPhase}
           </span>
           {currentTurn.start_time && (
             <span className="turn-start-time">
@@ -249,107 +171,37 @@ const PhasePanel: React.FC<PhasePanelProps> = ({ gameId, currentTurn, onPhaseCha
         </div>
       )}
 
-      <div className="phases-list">
-        {phases.map((phase) => {
-          const record = getPhaseRecord(phase);
-          const status = record?.status || 'pending';
-          const isCurrent = isCurrentPhase(phase);
-          const canStart = canStartPhase(phase);
-          const canComplete = canCompletePhase(phase);
-          
-          // #region agent log
-          if (phase === 'air_attack') {
-            fetch('http://127.0.0.1:7243/ingest/69ca24e2-ee3f-4810-9484-4f8bdf98479e', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'PhasePanel.tsx:259',
-                message: 'PhasePanel rendering air_attack phase',
-                data: { phase, currentPhase: currentTurn?.current_phase, isCurrent, hasRecord: !!record, status, authToken: !!authToken },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'H2'
-              })
-            }).catch(() => {});
-          }
-          // #endregion
+      {/* Показываем описание текущей фазы */}
+      {PHASE_DESCRIPTIONS[currentPhase] && (
+        <div className="current-phase-description">
+          <p>{PHASE_DESCRIPTIONS[currentPhase]}</p>
+        </div>
+      )}
 
-          return (
-            <div
-              key={phase}
-              className={`phase-item ${isCurrent ? 'current' : ''} ${status}`}
-            >
-              <div className="phase-header">
-                <div className="phase-info">
-                  <h4 className="phase-name">{PHASE_NAMES[phase]}</h4>
-                  <p className="phase-description">{PHASE_DESCRIPTIONS[phase]}</p>
-                </div>
-                <div className="phase-status">
-                  <span
-                    className="status-badge"
-                    style={{ backgroundColor: getPhaseStatusColor(status) }}
-                  >
-                    {getPhaseStatusText(status)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="phase-actions">
-                {canStart && (
-                  <button
-                    className="action-button start-button"
-                    onClick={() => handleStartPhase(phase)}
-                    disabled={loading}
-                  >
-                    Начать
-                  </button>
-                )}
-                {canComplete && (
-                  <button
-                    className="action-button complete-button"
-                    onClick={() => handleCompletePhase(phase)}
-                    disabled={loading}
-                  >
-                    Завершить
-                  </button>
-                )}
-              </div>
-
-              {record && (record.start_time || record.end_time) && (
-                <div className="phase-timing">
-                  {record.start_time && (
-                    <span className="start-time">
-                      Начало: {new Date(record.start_time).toLocaleTimeString()}
-                    </span>
-                  )}
-                  {record.end_time && (
-                    <span className="end-time">
-                      Конец: {new Date(record.end_time).toLocaleTimeString()}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Показываем панель управления воздушными атаками для фаз Movement и Air Attack */}
-              {isCurrent && (phase === 'movement' || phase === 'air_attack') && authToken && (
-                <AirAttackPanel
-                  gameId={gameId}
-                  authToken={authToken}
-                  currentPhase={phase}
-                  onRefresh={onRefresh}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {/* Показываем панель управления воздушными атаками для фаз Movement и Air Attack */}
+      {isMovementOrAirAttack && authToken && (
+        <AirAttackPanel
+          gameId={gameId}
+          authToken={authToken}
+          currentPhase={currentPhase}
+          onRefresh={onRefresh}
+          onHasPendingAttacks={(hasPending) => {
+            // Обновляем состояние только для фазы air_attack
+            if (currentPhase === 'air_attack') {
+              setHasPendingAttacks(hasPending);
+            } else {
+              setHasPendingAttacks(false);
+            }
+          }}
+        />
+      )}
 
       <div className="phase-panel-footer">
         <button
           className="next-phase-button"
           onClick={handleNextPhase}
-          disabled={loading}
+          disabled={loading || (currentPhase === 'air_attack' && hasPendingAttacks)}
+          title={currentPhase === 'air_attack' && hasPendingAttacks ? 'Необходимо выполнить все атаки перед переходом к следующей фазе' : ''}
         >
           Следующая фаза
         </button>

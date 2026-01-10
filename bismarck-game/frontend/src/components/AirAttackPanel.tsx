@@ -8,6 +8,7 @@ interface AirAttackPanelProps {
   authToken: string;
   currentPhase: string;
   onRefresh?: () => void;
+  onHasPendingAttacks?: (hasPending: boolean) => void;
 }
 
 const AirAttackPanel: React.FC<AirAttackPanelProps> = ({
@@ -15,6 +16,7 @@ const AirAttackPanel: React.FC<AirAttackPanelProps> = ({
   authToken,
   currentPhase,
   onRefresh,
+  onHasPendingAttacks,
 }) => {
   // #region agent log
   useEffect(() => {
@@ -62,6 +64,18 @@ const AirAttackPanel: React.FC<AirAttackPanelProps> = ({
       loadMarkers();
     }
   }, [gameId, currentPhase, authToken]);
+
+  // Отслеживаем изменения маркеров и уведомляем родителя о наличии невыполненных атак
+  useEffect(() => {
+    if (currentPhase === 'air_attack' && onHasPendingAttacks) {
+      const hasPending = Object.keys(markers).length > 0 && 
+        Object.values(markers).some((count: number) => count > 0);
+      onHasPendingAttacks(hasPending);
+    } else if (currentPhase !== 'air_attack' && onHasPendingAttacks) {
+      // Сбрасываем состояние, если фаза не air_attack
+      onHasPendingAttacks(false);
+    }
+  }, [markers, currentPhase, onHasPendingAttacks]);
 
   const loadMarkers = async () => {
     // #region agent log
@@ -307,13 +321,8 @@ const AirAttackPanel: React.FC<AirAttackPanelProps> = ({
         // Обновляем GameLog - отправляем событие обновления
         window.dispatchEvent(new CustomEvent('gameLogRefresh'));
 
-        // Показываем подробное сообщение об успехе
+        // Событие выполненной атаки автоматически логируется на сервере и появится в игровом логе
         if (result.data) {
-          const message = result.data.sunk
-            ? `✈️💥 Воздушная атака: ${result.data.target_name || 'Корабль'} потоплен в гексе ${selectedHex}!`
-            : `✈️💥 Воздушная атака выполнена на ${result.data.target_name || 'корабль'} в гексе ${selectedHex}: нанесено 1 повреждение, новый HULL: ${result.data.new_hull}`;
-          alert(message);
-          
           console.log('✅ Air attack executed successfully:', {
             hexId: selectedHex,
             targetId,

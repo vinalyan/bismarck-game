@@ -1,25 +1,27 @@
 .phase-panel {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 16px;
-  margin: 16px 0;
-  max-width: 600px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #4a90e2;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  backdrop-filter: blur(10px);
+  overflow-y: auto;
+  max-width: 100%;
 }
 
 .phase-panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #dee2e6;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #4a90e2;
 }
 
 .phase-panel-header h3 {
   margin: 0;
-  color: #212529;
-  font-size: 1.25rem;
+  color: #4a90e2;
+  font-size: 1.2rem;
   font-weight: 600;
 }
 
@@ -27,63 +29,64 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: 0.5rem;
 }
 
 .turn-number {
   font-weight: 600;
-  color: #495057;
+  color: #ffffff;
   font-size: 0.9rem;
 }
 
 .current-phase {
   font-size: 0.8rem;
-  color: #6c757d;
-  background: #e9ecef;
-  padding: 2px 8px;
+  color: #ffffff;
+  background: rgba(74, 144, 226, 0.2);
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
+  border: 1px solid #4a90e2;
 }
 
 .turn-start-time {
   font-size: 0.75rem;
-  color: #6c757d;
+  color: #d1d5db;
   font-style: italic;
 }
 
 .turn-status {
   font-size: 0.75rem;
-  color: #28a745;
+  color: #00ff88;
   font-weight: 500;
 }
 
 .error-message {
-  background: #f8d7da;
-  color: #721c24;
-  padding: 8px 12px;
-  border-radius: 4px;
-  margin-bottom: 16px;
-  border: 1px solid #f5c6cb;
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(239, 68, 68, 0.5);
 }
 
 .start-turn-section {
   text-align: center;
-  padding: 20px;
-  background: #e3f2fd;
+  padding: 1.5rem;
+  background: rgba(74, 144, 226, 0.15);
   border-radius: 8px;
-  border: 2px solid #2196f3;
+  border: 2px solid #4a90e2;
 }
 
 .start-turn-section p {
-  margin: 0 0 16px 0;
-  color: #1976d2;
+  margin: 0 0 1rem 0;
+  color: #4a90e2;
   font-weight: 500;
 }
 
 .start-turn-button {
-  background: #2196f3;
+  background: #4a90e2;
   color: white;
-  border: none;
-  padding: 12px 24px;
+  border: 1px solid #4a90e2;
+  padding: 0.75rem 1.5rem;
   border-radius: 6px;
   font-size: 1rem;
   font-weight: 600;
@@ -93,45 +96,63 @@
 }
 
 .start-turn-button:hover:not(:disabled) {
-  background: #1976d2;
+  background: rgba(74, 144, 226, 0.8);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+  box-shadow: 0 4px 8px rgba(74, 144, 226, 0.3);
 }
 
 .start-turn-button:disabled {
-  background: #90caf9;
+  background: rgba(74, 144, 226, 0.3);
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+  opacity: 0.6;
 }
 
 .phases-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.75rem;
 }
 
 .phase-item {
-  background: white;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  padding: 12px;
-  transition: all 0.2s ease;
+  background: rgba(74, 144, 226, 0.1);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  transition: all 0.3s ease;
+  border-left: 4px solid #4a90e2;
+}
+
+.phase-item:hover {
+  background: rgba(74, 144, 226, 0.15);
+  transform: translateX(4px);
 }
 
 .phase-item.current {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  background: rgba(255, 215, 0, 0.15);
+  border-color: #ffd700;
+  border-left-color: #ffd700;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
 }
 
 .phase-item.completed {
-  background: #f8fff9;
-  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.5);
+  border-left-color: #10b981;
 }
 
 .phase-item.skipped {
-  background: #fffbf0;
-  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  border-left-color: #f59e0b;
+}
+
+.phase-item.pending {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.3);
+  border-left-color: #94a3b8;
+  opacity: 0.7;
 }
 
 .phase-header {
@@ -146,17 +167,36 @@
 }
 
 .phase-name {
-  margin: 0 0 4px 0;
+  margin: 0 0 0.5rem 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #212529;
+  color: #ffffff;
+}
+
+.phase-item.current .phase-name {
+  color: #ffd700;
 }
 
 .phase-description {
   margin: 0;
   font-size: 0.85rem;
-  color: #6c757d;
+  color: #d1d5db;
   line-height: 1.4;
+}
+
+.current-phase-description {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: rgba(74, 144, 226, 0.1);
+  border-left: 4px solid #4a90e2;
+  border-radius: 4px;
+}
+
+.current-phase-description p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #d1d5db;
+  line-height: 1.5;
 }
 
 .phase-status {
@@ -165,13 +205,33 @@
 
 .status-badge {
   display: inline-block;
-  padding: 4px 8px;
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
   color: white;
   font-size: 0.75rem;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.status-badge.status-pending {
+  background: rgba(148, 163, 184, 0.3);
+  border: 1px solid #94a3b8;
+}
+
+.status-badge.status-active {
+  background: rgba(74, 144, 226, 0.3);
+  border: 1px solid #4a90e2;
+}
+
+.status-badge.status-completed {
+  background: rgba(16, 185, 129, 0.3);
+  border: 1px solid #10b981;
+}
+
+.status-badge.status-skipped {
+  background: rgba(245, 158, 11, 0.3);
+  border: 1px solid #f59e0b;
 }
 
 .phase-actions {
@@ -181,8 +241,8 @@
 }
 
 .action-button {
-  padding: 6px 12px;
-  border: none;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid;
   border-radius: 4px;
   font-size: 0.8rem;
   font-weight: 500;
@@ -191,33 +251,42 @@
 }
 
 .start-button {
-  background: #3b82f6;
+  background: #4a90e2;
   color: white;
+  border: 1px solid #4a90e2;
 }
 
 .start-button:hover:not(:disabled) {
-  background: #2563eb;
+  background: rgba(74, 144, 226, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(74, 144, 226, 0.3);
 }
 
 .complete-button {
   background: #10b981;
   color: white;
+  border: 1px solid #10b981;
 }
 
 .complete-button:hover:not(:disabled) {
-  background: #059669;
+  background: rgba(16, 185, 129, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
 }
 
 .action-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .phase-timing {
   display: flex;
-  gap: 16px;
+  gap: 1rem;
   font-size: 0.75rem;
-  color: #6c757d;
+  color: #94a3b8;
+  margin-top: 0.5rem;
 }
 
 .start-time,
@@ -227,17 +296,17 @@
 }
 
 .phase-panel-footer {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #dee2e6;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid #4a90e2;
   text-align: center;
 }
 
 .next-phase-button {
-  background: #6366f1;
+  background: #4a90e2;
   color: white;
-  border: none;
-  padding: 10px 20px;
+  border: 1px solid #4a90e2;
+  padding: 0.75rem 1.5rem;
   border-radius: 6px;
   font-size: 0.9rem;
   font-weight: 500;
@@ -246,12 +315,18 @@
 }
 
 .next-phase-button:hover:not(:disabled) {
-  background: #4f46e5;
+  background: rgba(74, 144, 226, 0.8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(74, 144, 226, 0.3);
 }
 
 .next-phase-button:disabled {
+  background: rgba(74, 144, 226, 0.3);
+  border-color: rgba(74, 144, 226, 0.3);
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Адаптивность */

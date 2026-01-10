@@ -99,6 +99,9 @@ const Game: React.FC = () => {
       setSearchFactorHexes(updatedData.searchFactorHexes);
       setHexMarkers(updatedData.hexMarkers);
       setCurrentTurn(updatedData.currentTurn);
+      
+      // Уведомляем GameLog о необходимости обновления событий
+      window.dispatchEvent(new CustomEvent('gameLogRefresh'));
     } catch (error) {
       console.error('Error updating game data:', error);
     }

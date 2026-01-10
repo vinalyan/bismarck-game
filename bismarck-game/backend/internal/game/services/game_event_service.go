@@ -1,7 +1,9 @@
 package services
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -391,17 +393,60 @@ func (s *GameEventService) saveEvent(event *models.GameEvent) error {
 	}
 
 	// Добавляем событие в GameModel
+	// #region agent log
+	if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H1",
+			"location":     "game_event_service.go:394",
+			"message":      "Before UpdateGameModelWithRetry for event save",
+			"data":         map[string]interface{}{"eventID": event.ID, "eventType": string(event.EventType), "gameID": event.GameID},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
 	if err := s.gameStateService.UpdateGameModelWithRetry(event.GameID, func(model *models.GameModel) error {
 		// Добавляем новое событие в модель
 		eventModel := models.ConvertGameEventToGameEventModel(event)
+		oldEventsCount := len(model.Events)
 		// Добавляем в начало массива (новые события первыми)
 		model.Events = append([]*models.GameEventModel{eventModel}, model.Events...)
 		// Ограничиваем до 100 последних событий
 		if len(model.Events) > 100 {
 			model.Events = model.Events[:100]
 		}
+		// #region agent log
+		if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			json.NewEncoder(logFile).Encode(map[string]interface{}{
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "H1",
+				"location":     "game_event_service.go:398",
+				"message":      "Event added to GameModel.Events",
+				"data":         map[string]interface{}{"eventID": event.ID, "eventType": string(event.EventType), "oldEventsCount": oldEventsCount, "newEventsCount": len(model.Events), "firstEventID": func() string { if len(model.Events) > 0 { return model.Events[0].ID } else { return "none" } }()},
+				"timestamp":    time.Now().UnixMilli(),
+			})
+			logFile.Close()
+		}
+		// #endregion
 		return nil
 	}, 3); err != nil {
+		// #region agent log
+		if logFile, err2 := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err2 == nil {
+			json.NewEncoder(logFile).Encode(map[string]interface{}{
+				"sessionId":    "debug-session",
+				"runId":        "run1",
+				"hypothesisId": "H1",
+				"location":     "game_event_service.go:405",
+				"message":      "Failed to save event in GameModel",
+				"data":         map[string]interface{}{"eventID": event.ID, "error": err.Error()},
+				"timestamp":    time.Now().UnixMilli(),
+			})
+			logFile.Close()
+		}
+		// #endregion
 		s.logger.Error("Failed to save game event in GameModel", "error", err)
 		return fmt.Errorf("failed to save game event: %w", err)
 	}
@@ -417,7 +462,22 @@ func (s *GameEventService) saveEvent(event *models.GameEvent) error {
 }
 
 // LogAirAttackMarkerEvent логирует событие добавления/удаления маркера воздушной атаки
-func (s *GameEventService) LogAirAttackMarkerEvent(gameID string, turn int, phase string, hexID string, playerID string, action string) error {
+// playerSide должен быть "german" или "allied" (не userID!)
+func (s *GameEventService) LogAirAttackMarkerEvent(gameID string, turn int, phase string, hexID string, playerSide string, action string) error {
+	// #region agent log
+	if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H1",
+			"location":     "game_event_service.go:420",
+			"message":      "LogAirAttackMarkerEvent called",
+			"data":         map[string]interface{}{"gameID": gameID, "turn": turn, "phase": phase, "hexID": hexID, "playerSide": playerSide, "action": action},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
 	description := fmt.Sprintf("Маркер воздушной атаки %s в гексе %s", action, hexID)
 	if action == "added" {
 		description = fmt.Sprintf("Маркер воздушной атаки добавлен в гекс %s", hexID)
@@ -425,8 +485,7 @@ func (s *GameEventService) LogAirAttackMarkerEvent(gameID string, turn int, phas
 		description = fmt.Sprintf("Маркер воздушной атаки удален из гекса %s", hexID)
 	}
 
-	// Определяем сторону игрока (нужно получить из GameService или передать как параметр)
-	// Пока используем общее событие
+	// playerSide теперь содержит "german" или "allied" (передается из air_attack_handler.go)
 	event := &models.GameEvent{
 		ID:          uuid.New().String(),
 		GameID:      gameID,
@@ -439,13 +498,45 @@ func (s *GameEventService) LogAirAttackMarkerEvent(gameID string, turn int, phas
 			"action": action, // "added" или "removed"
 		},
 		Visibility: map[string]interface{}{
-			"player_side": playerID, // Сторона игрока, который разместил маркер
-			"is_public":   false,    // Маркеры видны только своей стороне
+			"player_side": playerSide, // Сторона игрока (german/allied), который разместил маркер
+			"is_public":   false,      // Маркеры видны только своей стороне
 		},
 		CreatedAt: time.Now(),
 	}
 
-	return s.saveEvent(event)
+	// #region agent log
+	if logFile, err := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H1",
+			"location":     "game_event_service.go:446",
+			"message":      "Event created before saveEvent",
+			"data":         map[string]interface{}{"eventID": event.ID, "eventType": string(event.EventType), "description": event.Description, "visibility": event.Visibility},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
+
+	err := s.saveEvent(event)
+
+	// #region agent log
+	if logFile, err2 := os.OpenFile("/Users/vikozhemyakin/bismarck-game/.cursor/debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err2 == nil {
+		json.NewEncoder(logFile).Encode(map[string]interface{}{
+			"sessionId":    "debug-session",
+			"runId":        "run1",
+			"hypothesisId": "H1",
+			"location":     "game_event_service.go:448",
+			"message":      "saveEvent result",
+			"data":         map[string]interface{}{"eventID": event.ID, "error": func() string { if err != nil { return err.Error() } else { return "nil" } }()},
+			"timestamp":    time.Now().UnixMilli(),
+		})
+		logFile.Close()
+	}
+	// #endregion
+
+	return err
 }
 
 // LogAirAttackEvent логирует событие выполненной воздушной атаки
