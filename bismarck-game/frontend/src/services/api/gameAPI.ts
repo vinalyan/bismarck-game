@@ -15,7 +15,8 @@ import {
   UpdateProfileRequest,
   ChangePasswordRequest,
   TaskForce,
-  TaskForceDetails
+  TaskForceDetails,
+  ViewType
 } from '../../types/gameTypes';
 
 // Базовый URL API
@@ -54,7 +55,15 @@ apiClient.interceptors.response.use(
       // Токен истек или недействителен
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Используем store для правильной навигации в SPA
+      // Импортируем store динамически, чтобы избежать циклических зависимостей
+      import('../../stores/gameStore').then(({ useGameStore }) => {
+        const store = useGameStore.getState();
+        store.setAuthenticated(false);
+        store.setUser(null);
+        store.setAuthToken(null);
+        store.setCurrentView(ViewType.Login);
+      });
     }
     return Promise.reject(error);
   }

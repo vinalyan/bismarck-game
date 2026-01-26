@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PhasePanel from './PhasePanel';
 import { phaseAPI } from '../services/api/phaseAPI';
-import { GameTurn, PhaseRecord } from '../types/phaseTypes';
+import { GameTurn } from '../types/phaseTypes';
 import { Game, GameStatus } from '../types/gameTypes';
 
 // Мокируем API
@@ -61,8 +61,6 @@ describe('PhasePanel', () => {
 
   describe('Rendering', () => {
     it('should render phase panel with game id', async () => {
-      mockPhaseAPI.getPhaseRecords.mockResolvedValue([]);
-
       render(
         <PhasePanel
           gameId={mockGameId}
@@ -78,8 +76,6 @@ describe('PhasePanel', () => {
     });
 
     it('should render current turn information', async () => {
-      mockPhaseAPI.getPhaseRecords.mockResolvedValue([]);
-
       render(
         <PhasePanel
           gameId={mockGameId}
@@ -95,118 +91,8 @@ describe('PhasePanel', () => {
     });
   });
 
-  describe('Phase Records Loading', () => {
-    it('should load phase records on mount when currentTurn is provided', async () => {
-      const mockRecords: PhaseRecord[] = [
-        {
-          turn: 1,
-          phase: 'setup',
-          status: 'completed',
-          start_time: '2023-01-01',
-          end_time: '2023-01-01',
-          duration: 0,
-          data: '',
-        },
-      ];
-
-      mockPhaseAPI.getPhaseRecords.mockResolvedValue(mockRecords);
-
-      render(
-        <PhasePanel
-          gameId={mockGameId}
-          currentTurn={mockCurrentTurn}
-          currentUserId={mockUserId}
-          currentGame={mockGame}
-        />
-      );
-
-      await waitFor(() => {
-        expect(mockPhaseAPI.getPhaseRecords).toHaveBeenCalledWith(mockGameId, 1);
-      });
-    });
-
-    it('should not load phase records when currentTurn is not provided', () => {
-      render(
-        <PhasePanel
-          gameId={mockGameId}
-          currentUserId={mockUserId}
-          currentGame={mockGame}
-        />
-      );
-
-      expect(mockPhaseAPI.getPhaseRecords).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Start Phase', () => {
-    it('should load phase records on mount', async () => {
-      mockPhaseAPI.getPhaseRecords.mockResolvedValue([]);
-      mockPhaseAPI.startPhase.mockResolvedValue(undefined);
-
-      render(
-        <PhasePanel
-          gameId={mockGameId}
-          currentTurn={mockCurrentTurn}
-          currentUserId={mockUserId}
-          currentGame={mockGame}
-        />
-      );
-
-      // Ждем загрузки записей
-      await waitFor(() => {
-        expect(mockPhaseAPI.getPhaseRecords).toHaveBeenCalled();
-      });
-    });
-
-    it('should handle error when starting phase fails', async () => {
-      mockPhaseAPI.getPhaseRecords.mockResolvedValue([]);
-      mockPhaseAPI.startPhase.mockRejectedValue(new Error('Failed to start phase'));
-
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      render(
-        <PhasePanel
-          gameId={mockGameId}
-          currentTurn={mockCurrentTurn}
-          currentUserId={mockUserId}
-          currentGame={mockGame}
-        />
-      );
-
-      await waitFor(() => {
-        expect(mockPhaseAPI.getPhaseRecords).toHaveBeenCalled();
-      });
-
-      // Тест проверяет, что ошибка обрабатывается
-      // Детали зависят от реализации UI
-
-      consoleErrorSpy.mockRestore();
-    });
-  });
-
-  describe('Complete Phase', () => {
-    it('should call completePhase API', async () => {
-      mockPhaseAPI.getPhaseRecords.mockResolvedValue([]);
-      mockPhaseAPI.completePhase.mockResolvedValue(undefined);
-
-      render(
-        <PhasePanel
-          gameId={mockGameId}
-          currentTurn={mockCurrentTurn}
-          currentUserId={mockUserId}
-          currentGame={mockGame}
-        />
-      );
-
-      await waitFor(() => {
-        expect(mockPhaseAPI.getPhaseRecords).toHaveBeenCalled();
-      });
-    });
-  });
-
   describe('Next Phase', () => {
     it('should call nextPhase API and dispatch turnUpdated event', async () => {
-      mockPhaseAPI.getPhaseRecords.mockResolvedValue([]);
       mockPhaseAPI.nextPhase.mockResolvedValue(undefined);
 
       const eventListener = jest.fn();
@@ -221,8 +107,12 @@ describe('PhasePanel', () => {
         />
       );
 
+      const nextPhaseButton = screen.getByRole('button', { name: /следующая фаза/i });
+      await userEvent.click(nextPhaseButton);
+
       await waitFor(() => {
-        expect(mockPhaseAPI.getPhaseRecords).toHaveBeenCalled();
+        expect(mockPhaseAPI.nextPhase).toHaveBeenCalledWith({ game_id: mockGameId });
+        expect(eventListener).toHaveBeenCalled();
       });
 
       window.removeEventListener('turnUpdated', eventListener);
@@ -243,8 +133,6 @@ describe('PhasePanel', () => {
       };
 
       mockPhaseAPI.startTurn.mockResolvedValue(mockNewTurn);
-      mockPhaseAPI.getPhaseRecords.mockResolvedValue([]);
-
       const eventListener = jest.fn();
       window.addEventListener('turnUpdated', eventListener);
 

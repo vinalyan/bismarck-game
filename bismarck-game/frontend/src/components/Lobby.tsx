@@ -1,6 +1,6 @@
 // Компонент лобби для списка игр
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { gameAPI } from '../services/api/gameAPI';
 import { CreateGameRequest, GameResponse, GameStatus, ViewType, NotificationType, PlayerSide } from '../types/gameTypes';
@@ -8,6 +8,7 @@ import './Lobby.css';
 
 const Lobby: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const isLoadingRef = useRef(false);
   const [createFormData, setCreateFormData] = useState<CreateGameRequest>({
     name: '',
     side: PlayerSide.German,
@@ -49,7 +50,19 @@ const Lobby: React.FC = () => {
 
   // Загрузка списка игр
   const loadGames = async () => {
+    // Предотвращаем множественные одновременные вызовы
+    if (isLoadingRef.current) {
+      return;
+    }
+    
+    const token = localStorage.getItem('authToken');
+    // Проверяем наличие токена перед запросом
+    if (!token || !user) {
+      return;
+    }
+    
     try {
+      isLoadingRef.current = true;
       setLoading(true);
       const response = await gameAPI.getGames();
       if (response.success && response.data) {
@@ -61,6 +74,7 @@ const Lobby: React.FC = () => {
       setError('Ошибка загрузки игр');
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   };
 
