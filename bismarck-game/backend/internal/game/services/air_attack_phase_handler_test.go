@@ -163,10 +163,6 @@ func TestAirAttackPhaseHandler_Start_WithMarkersAndShips(t *testing.T) {
 	err = AddTestUnitToGameModel(testServices.GameStateService, gameID, enemyUnit)
 	require.NoError(t, err)
 
-	// Устанавливаем текущую фазу в air_attack
-	err = testServices.PhaseManager.StartPhase(gameID, 1, models.PhaseAirAttack)
-	require.NoError(t, err)
-
 	// Добавляем маркеры воздушной атаки немцев в гекс С кораблями союзников
 	hexID := "F26"
 	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
@@ -175,6 +171,10 @@ func TestAirAttackPhaseHandler_Start_WithMarkersAndShips(t *testing.T) {
 		model.AirAttack.German[hexID] = 2 // 2 маркера в гексе с кораблями
 		return nil
 	}, 3)
+	require.NoError(t, err)
+
+	// Устанавливаем текущую фазу в air_attack
+	err = testServices.PhaseManager.StartPhase(gameID, 1, models.PhaseAirAttack)
 	require.NoError(t, err)
 
 	// Создаем обработчик
@@ -192,6 +192,69 @@ func TestAirAttackPhaseHandler_Start_WithMarkersAndShips(t *testing.T) {
 	require.NoError(t, err)
 	// Фаза должна остаться в air_attack, так как есть маркеры
 	assert.Equal(t, models.PhaseAirAttack, currentPhase.CurrentPhase)
+}
+
+func TestAirAttackPhaseHandler_Start_NoPhaseManager(t *testing.T) {
+	testServices, cleanup, err := SetupTestServices()
+	require.NoError(t, err)
+	defer cleanup()
+
+	gameID := uuid.New().String()
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseAirAttack)
+	require.NoError(t, err)
+
+	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		if model.CurrentTurn == nil {
+			model.CurrentTurn = &models.GameTurnModel{}
+		}
+		model.CurrentTurn.Turn = 1
+		model.CurrentTurn.Phase = models.PhaseAirAttack
+		return nil
+	}, 3)
+	require.NoError(t, err)
+
+	handler := &AirAttackPhaseHandler{}
+
+	err = handler.Start(gameID, 1)
+	require.NoError(t, err)
+
+	model, err := testServices.GameStateService.LoadGameModel(gameID)
+	require.NoError(t, err)
+	require.NotNil(t, model.CurrentTurn)
+	assert.Equal(t, models.PhaseAirAttack, model.CurrentTurn.Phase)
+}
+
+func TestAirAttackPhaseHandler_Start_NilGameStateService(t *testing.T) {
+	testServices, cleanup, err := SetupTestServices()
+	require.NoError(t, err)
+	defer cleanup()
+
+	gameID := uuid.New().String()
+	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseAirAttack)
+	require.NoError(t, err)
+
+	err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
+		if model.CurrentTurn == nil {
+			model.CurrentTurn = &models.GameTurnModel{}
+		}
+		model.CurrentTurn.Turn = 1
+		model.CurrentTurn.Phase = models.PhaseAirAttack
+		return nil
+	}, 3)
+	require.NoError(t, err)
+
+	testServices.PhaseManager.gameStateService = nil
+
+	handler := &AirAttackPhaseHandler{}
+	handler.SetPhaseManager(testServices.PhaseManager)
+
+	err = handler.Start(gameID, 1)
+	require.NoError(t, err)
+
+	model, err := testServices.GameStateService.LoadGameModel(gameID)
+	require.NoError(t, err)
+	require.NotNil(t, model.CurrentTurn)
+	assert.Equal(t, models.PhaseAirAttack, model.CurrentTurn.Phase)
 }
 
 func TestAirAttackPhaseHandler_hasEnemyShipsInHex(t *testing.T) {

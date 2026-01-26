@@ -446,4 +446,19 @@ func TestAirAttackService_GetAirAttackMarkers(t *testing.T) {
 		assert.Nil(t, markers)
 		assert.Contains(t, err.Error(), "player is not part of this game")
 	})
+
+	t.Run("error when game model is missing", func(t *testing.T) {
+		_, err = testServices.DB.GetConnection().Exec("DELETE FROM game_models WHERE game_id = $1", gameID)
+		require.NoError(t, err)
+		_, err = testServices.DB.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
+		require.NoError(t, err)
+
+		testServices.GameStateService.InvalidateGameModel(gameID)
+
+		markers, err := airAttackService.GetAirAttackMarkers(gameID, playerID)
+		assert.Error(t, err)
+		assert.Nil(t, markers)
+		assert.Contains(t, err.Error(), "player is not part of this game")
+		assert.Contains(t, err.Error(), "game not found")
+	})
 }

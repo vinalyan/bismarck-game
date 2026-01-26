@@ -208,6 +208,59 @@ func TestAirAttackActionChecker_CanPerformAction(t *testing.T) {
 		assert.False(t, canPerform, "Air unit should not be able to perform air attack action when no shadowed enemy exists in hex")
 	})
 
+	t.Run("returns false when air unit has nil AirData", func(t *testing.T) {
+		hexID := "K31"
+
+		airUnit := &models.UnitModel{
+			ID:          uuid.New().String(),
+			GameID:      gameID,
+			Name:        "Broken Aircraft",
+			Type:        models.UnitTypeCombatAircraft,
+			Category:    models.UnitCategoryAir,
+			Owner:       "player1",
+			Nationality: "german",
+			Position:    hexID,
+			Status:      string(models.AirUnitStatusOperational),
+			AirData:     nil,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+
+		gameModel, err := testServices.GameStateService.LoadGameModel(gameID)
+		require.NoError(t, err)
+
+		canPerform := actionChecker.CanPerformAction(airUnit, gameModel)
+		assert.False(t, canPerform, "Air unit without AirData should not be able to perform air attack action")
+	})
+
+	t.Run("returns false when air unit nationality is empty", func(t *testing.T) {
+		hexID := "L32"
+
+		airUnit := &models.UnitModel{
+			ID:          uuid.New().String(),
+			GameID:      gameID,
+			Name:        "Unknown Aircraft",
+			Type:        models.UnitTypeCombatAircraft,
+			Category:    models.UnitCategoryAir,
+			Owner:       "player1",
+			Nationality: "",
+			Position:    hexID,
+			Status:      string(models.AirUnitStatusOperational),
+			AirData: &models.AirUnitData{
+				BasePosition: hexID,
+				IsActivated:  false,
+			},
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+
+		gameModel, err := testServices.GameStateService.LoadGameModel(gameID)
+		require.NoError(t, err)
+
+		canPerform := actionChecker.CanPerformAction(airUnit, gameModel)
+		assert.False(t, canPerform, "Air unit with empty nationality should not be able to perform air attack action")
+	})
+
 	t.Run("returns false when enemy is sighted (not shadowed)", func(t *testing.T) {
 		hexID := "J30"
 

@@ -131,11 +131,16 @@ describe('Lobby', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    localStorage.setItem('authToken', 'test-token');
     mockUseGameStore.mockReturnValue(mockStoreState as any);
     mockGameAPI.getGames.mockResolvedValue({
       success: true,
       data: mockGames,
     });
+  });
+
+  afterEach(() => {
+    localStorage.removeItem('authToken');
   });
 
   describe('Rendering', () => {
@@ -286,11 +291,8 @@ describe('Lobby', () => {
       mockStoreState.games = [gameWithEmptySlot];
       
       render(<Lobby />);
-      
-      await waitFor(() => {
-        const joinButton = screen.getByRole('button', { name: /Присоединиться/i });
-        userEvent.click(joinButton);
-      });
+      const joinButton = await screen.findByRole('button', { name: /Присоединиться/i });
+      userEvent.click(joinButton);
       
       await waitFor(() => {
         expect(mockGameAPI.joinGame).toHaveBeenCalled();
@@ -314,11 +316,8 @@ describe('Lobby', () => {
       mockStoreState.games = mockGames;
       
       render(<Lobby />);
-      
-      await waitFor(() => {
-        const continueButton = screen.getByRole('button', { name: /Продолжить игру/i });
-        userEvent.click(continueButton);
-      });
+      const continueButton = await screen.findByRole('button', { name: /Продолжить игру/i });
+      userEvent.click(continueButton);
       
       await waitFor(() => {
         expect(mockStoreState.setCurrentGame).toHaveBeenCalled();
@@ -352,11 +351,8 @@ describe('Lobby', () => {
       mockStoreState.games = [gameWithBothPlayers];
       
       render(<Lobby />);
-      
-      await waitFor(() => {
-        const startButton = screen.getByRole('button', { name: /Начать игру/i });
-        userEvent.click(startButton);
-      });
+      const startButton = await screen.findByRole('button', { name: /Начать игру/i });
+      userEvent.click(startButton);
       
       await waitFor(() => {
         expect(mockStoreState.setCurrentGame).toHaveBeenCalled();
@@ -366,9 +362,8 @@ describe('Lobby', () => {
   });
 
   describe('Logout', () => {
-    it('should call logout when logout button clicked', () => {
+    it('should call logout when logout button clicked', async () => {
       render(<Lobby />);
-      
       const logoutButton = screen.getByRole('button', { name: /Выйти/i });
       userEvent.click(logoutButton);
       
@@ -394,7 +389,6 @@ describe('Lobby', () => {
       });
       
       render(<Lobby />);
-      
       const createButton = screen.getByRole('button', { name: /Создать игру/i });
       userEvent.click(createButton);
       
@@ -426,11 +420,8 @@ describe('Lobby', () => {
       mockStoreState.games = [gameWithEmptySlot];
       
       render(<Lobby />);
-      
-      await waitFor(() => {
-        const joinButton = screen.getByRole('button', { name: /Присоединиться/i });
-        userEvent.click(joinButton);
-      });
+      const joinButton = await screen.findByRole('button', { name: /Присоединиться/i });
+      userEvent.click(joinButton);
       
       await waitFor(() => {
         expect(mockStoreState.setError).toHaveBeenCalled();
