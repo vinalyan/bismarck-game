@@ -36,6 +36,9 @@ type ViewModel struct {
 	VisibilityLevel int  `json:"visibility_level"`
 	IsFog           bool `json:"is_fog"`
 	WeatherTrack    int  `json:"weather_track"`
+
+	// Фильтрованные маркеры воздушной атаки (только сторона игрока)
+	AirAttack *AirAttackData `json:"air_attack,omitempty"`
 }
 
 // UnitViewModel представляет фильтрованную модель юнита

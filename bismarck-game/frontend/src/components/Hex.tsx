@@ -909,38 +909,28 @@ const Hex: React.FC<HexProps> = ({
       {/* Маркер воздушной атаки - левый верхний угол */}
       {shouldRenderAirAttackMarker && (
         <g className="air-attack-marker">
-          <circle
-            cx={airAttackIconX}
-            cy={airAttackIconY + iconSize / 2}
-            r={iconSize / 2}
-            fill="#ff4444"
-            stroke="#ffffff"
-            strokeWidth={1.5}
+          <image
+            href="/assets/markers/AA.svg"
+            x={airAttackIconX}
+            y={airAttackIconY}
+            width={iconSize}
+            height={iconSize}
+            preserveAspectRatio="xMidYMid meet"
             style={{ pointerEvents: 'none' }}
           />
-          <text
-            x={airAttackIconX}
-            y={airAttackIconY + iconSize / 2}
-            fontSize={iconSize * 0.6}
-            fill="#ffffff"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontWeight="bold"
-            style={{ pointerEvents: 'none' }}
-          >
-            {airAttackCount > 1 ? airAttackCount : '✈'}
-          </text>
+          {/* Отображаем количество маркеров, если их больше одного */}
           {airAttackCount > 1 && (
             <text
-              x={airAttackIconX + iconSize * 0.3}
-              y={airAttackIconY + iconSize * 0.2}
-              fontSize={iconSize * 0.4}
-              fill="#ffffff"
+              x={airAttackIconX + iconSize * 0.7}
+              y={airAttackIconY + iconSize * 0.3}
+              fontSize={iconSize * 0.5}
+              fill="#DC2626"
               textAnchor="middle"
+              dominantBaseline="middle"
               fontWeight="bold"
               style={{ pointerEvents: 'none' }}
             >
-              ×{airAttackCount}
+              {airAttackCount}
             </text>
           )}
         </g>

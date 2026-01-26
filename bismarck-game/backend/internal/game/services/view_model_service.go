@@ -60,7 +60,10 @@ func (s *ViewModelService) BuildViewModel(gameID, playerID string) (*models.View
 	// 9. Фильтровать EnemyContacts
 	enemyContacts := s.filterEnemyContacts(gameModel.EnemyContacts, playerSide)
 
-	// 10. Создать ViewModel
+	// 10. Фильтровать AirAttack
+	airAttack := s.filterAirAttack(gameModel.AirAttack, playerSide)
+
+	// 11. Создать ViewModel
 	viewModel := &models.ViewModel{
 		GameID:               gameModel.GameID,
 		Version:              gameModel.Version,
@@ -75,6 +78,7 @@ func (s *ViewModelService) BuildViewModel(gameID, playerID string) (*models.View
 		VisibilityLevel:      gameModel.VisibilityLevel,
 		IsFog:                gameModel.IsFog,
 		WeatherTrack:         gameModel.WeatherTrack,
+		AirAttack:            airAttack,
 	}
 
 	return viewModel, nil
@@ -454,6 +458,36 @@ func (s *ViewModelService) filterEnemyContacts(contacts []*models.EnemyContactMo
 		if contact.SearchingSide == playerSide {
 			result = append(result, contact)
 		}
+	}
+
+	return result
+}
+
+// filterAirAttack фильтрует AirAttack - возвращает только маркеры для стороны игрока
+func (s *ViewModelService) filterAirAttack(airAttack *models.AirAttackData, playerSide string) *models.AirAttackData {
+	if airAttack == nil {
+		return nil
+	}
+
+	result := &models.AirAttackData{
+		German: make(map[string]int),
+		Allied: make(map[string]int),
+	}
+
+	// Возвращаем только маркеры для стороны игрока
+	if playerSide == "german" {
+		if airAttack.German != nil {
+			result.German = airAttack.German
+		}
+	} else if playerSide == "allied" {
+		if airAttack.Allied != nil {
+			result.Allied = airAttack.Allied
+		}
+	}
+
+	// Если нет маркеров для стороны игрока, возвращаем nil
+	if len(result.German) == 0 && len(result.Allied) == 0 {
+		return nil
 	}
 
 	return result
