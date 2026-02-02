@@ -152,6 +152,10 @@ func (s *Server) setupRoutes() {
 		logger.Error("Failed to load map structures", "error", err)
 	}
 
+	// Создаем сервис сценариев (начальные условия игры из config/game-scenarios/)
+	scenarioLogger, _ := logger.New(logger.INFO, "game-scenario-service", "stdout")
+	scenarioService := services.NewGameScenarioService("./config/game-scenarios", scenarioLogger)
+
 	// Инъекция вспомогательных сервисов в PhaseManager
 	phaseManager.SetMapStructureService(mapStructureService)
 
@@ -192,10 +196,10 @@ func (s *Server) setupRoutes() {
 	shipConfigHandler := handlers.NewShipConfigHandler(shipConfigService, unitService, shipConfigLogger)
 	movementHandler := handlers.NewMovementHandler(movementService, unitService, taskForceService, movementLogger)
 	emergencyFuelHandler := handlers.NewEmergencyFuelHandler(s.db, movementLogger, movementService, unitService)
-	
+
 	// Создаем RefuelService (будет настроен после создания GameStateService)
 	refuelLogger, _ := logger.New(logger.INFO, "refuel-service", "stdout")
-	var refuelService *services.RefuelService // Будет инициализирован позже
+	var refuelService *services.RefuelService                                                           // Будет инициализирован позже
 	refuelHandler := handlers.NewRefuelHandler(s.db, movementLogger, movementService, unitService, nil) // RefuelService добавим позже
 	mapHandler := handlers.NewMapHandler(mapStructureService)
 	gameEventHandler := handlers.NewGameEventHandler(eventService)
@@ -269,6 +273,10 @@ func (s *Server) setupRoutes() {
 	// Устанавливаем GameService в GameHandler
 	gameHandler.SetGameService(gameService)
 
+	// Устанавливаем GameScenarioService и MapStructureService в GameHandler для создания игры по сценарию
+	gameHandler.SetScenarioService(scenarioService)
+	gameHandler.SetMapStructureService(mapStructureService)
+
 	// Устанавливаем GameStateService в GameHandler для инициализации GameModel при создании игры
 	gameHandler.SetGameStateService(gameStateService)
 
@@ -278,13 +286,13 @@ func (s *Server) setupRoutes() {
 	// Устанавливаем GameStateService в UnitService и TaskForceService для обновления GameModel
 	unitService.SetGameStateService(gameStateService)
 	taskForceService.SetGameStateService(gameStateService)
-	
+
 	// Устанавливаем PhaseManager в UnitService для пересчета доступных действий
 	unitService.SetPhaseManager(phaseManager)
-	
+
 	// Устанавливаем SearchService в UnitService для пересчета факторов поиска после заправки
 	unitService.SetSearchService(searchService)
-	
+
 	// Устанавливаем PhaseManager в TaskForceService для пересчета доступных действий
 	taskForceService.SetPhaseManager(phaseManager)
 
@@ -303,10 +311,10 @@ func (s *Server) setupRoutes() {
 
 	// Создаем и настраиваем RefuelService
 	refuelService = services.NewRefuelService(gameStateService, mapStructureService, eventService, searchService, refuelLogger)
-	
+
 	// Устанавливаем RefuelService в RefuelHandler
 	refuelHandler.SetRefuelService(refuelService)
-	
+
 	// Устанавливаем RefuelService в PhaseManager для очистки статуса заправки
 	phaseManager.SetRefuelService(refuelService)
 

@@ -21,13 +21,15 @@ import (
 
 // GameHandler представляет обработчик игр
 type GameHandler struct {
-	db                *database.Database
-	unitService       *services.UnitService
-	shipConfigService *services.ShipConfigService
-	phaseManager      *services.PhaseManager
-	taskForceService  *services.TaskForceService
-	gameStateService  *services.GameStateService
-	gameService       *services.GameService
+	db                  *database.Database
+	unitService         *services.UnitService
+	shipConfigService   *services.ShipConfigService
+	phaseManager        *services.PhaseManager
+	taskForceService    *services.TaskForceService
+	gameStateService    *services.GameStateService
+	gameService         *services.GameService
+	scenarioService     *services.GameScenarioService
+	mapStructureService *services.MapStructureService
 }
 
 // NewGameHandler создает новый обработчик игр
@@ -49,6 +51,16 @@ func (h *GameHandler) SetGameStateService(gameStateService *services.GameStateSe
 // SetGameService устанавливает GameService
 func (h *GameHandler) SetGameService(gameService *services.GameService) {
 	h.gameService = gameService
+}
+
+// SetScenarioService устанавливает GameScenarioService
+func (h *GameHandler) SetScenarioService(scenarioService *services.GameScenarioService) {
+	h.scenarioService = scenarioService
+}
+
+// SetMapStructureService устанавливает MapStructureService (для применения сценариев)
+func (h *GameHandler) SetMapStructureService(mapStructureService *services.MapStructureService) {
+	h.mapStructureService = mapStructureService
 }
 
 // getUserIDFromRequest безопасно извлекает user_id из контекста запроса
@@ -136,16 +148,16 @@ func (h *GameHandler) createStartingTaskForces(gameID string) error {
 
 		// Создаем Task Force
 		taskForce := &models.TaskForce{
-			GameID:         gameID,
-			Name:           taskForceName,
-			Owner:          firstUnit.Owner,
-			Nationality:    firstUnit.Nationality,
-			Position:       firstUnit.Position,
-			Units:          unitIDs,
-			IsVisible:      true,
-			Visibility: models.VisibilityUnknown,
-			LastMoveTurn:   0,
-			IsActivated:    false,
+			GameID:       gameID,
+			Name:         taskForceName,
+			Owner:        firstUnit.Owner,
+			Nationality:  firstUnit.Nationality,
+			Position:     firstUnit.Position,
+			Units:        unitIDs,
+			IsVisible:    true,
+			Visibility:   models.VisibilityUnknown,
+			LastMoveTurn: 0,
+			IsActivated:  false,
 		}
 
 		err = h.taskForceService.CreateTaskForce(taskForce)
@@ -278,39 +290,69 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 
 	// Инициализируем юниты для игры
 	if game.Player1ID != "" && game.Player2ID != "" {
-		// Если оба игрока уже присоединились, инициализируем юниты
-		err = h.unitService.InitializeGameUnits(game.ID, game.Player1ID, game.Player2ID, h.shipConfigService)
-		if err != nil {
-			log.Printf("Error initializing game units: %v", err)
-			// Не прерываем создание игры, просто логируем ошибку
-		} else {
-			log.Printf("Game units initialized successfully for game %s", game.ID)
-
-			// Создаем стартовые Task Forces
-			err = h.createStartingTaskForces(game.ID)
+		if req.ScenarioID != "" && h.scenarioService != nil {
+			// Используем сценарий начальных условий
+			scenario, err := h.scenarioService.LoadScenario(req.ScenarioID)
 			if err != nil {
-				log.Printf("Error creating starting task forces: %v", err)
-				// Не прерываем создание игры, но логируем ошибку
-			} else {
-				log.Printf("Starting task forces created successfully for game %s", game.ID)
+				log.Printf("CreateGame: scenario not found: %v", err)
+				pkgutils.WriteValidationError(w, "Invalid scenario", map[string]string{
+					"scenario_id": fmt.Sprintf("Scenario not found: %s", req.ScenarioID),
+				})
+				return
 			}
-
-			// Создаем начальный GameModel для новой игры
-			// CreateInitialGameModel автоматически загрузит данные из БД, если они есть,
-			// и пересчитает факторы поиска для всех релевантных гексов
+			if err := h.scenarioService.ValidateScenario(scenario, h.shipConfigService); err != nil {
+				log.Printf("CreateGame: invalid scenario: %v", err)
+				pkgutils.WriteValidationError(w, "Invalid scenario", map[string]string{
+					"scenario_id": err.Error(),
+				})
+				return
+			}
+			initialModel, err := h.scenarioService.ApplyScenario(
+				scenario, game.ID, game.Player1ID, game.Player2ID,
+				h.shipConfigService, h.mapStructureService,
+			)
+			if err != nil {
+				log.Printf("CreateGame: ApplyScenario failed: %v", err)
+				pkgutils.WriteInternalError(w, "Failed to apply scenario")
+				return
+			}
 			if h.gameStateService != nil {
-				initialModel, err := h.gameStateService.CreateInitialGameModel(game.ID)
+				if err := h.gameStateService.SaveGameModelToDatabase(game.ID, initialModel); err != nil {
+					log.Printf("CreateGame: failed to save GameModel: %v", err)
+					pkgutils.WriteInternalError(w, "Failed to save game state")
+					return
+				}
+				// Пересчёт факторов поиска (загружает из БД и сохраняет обновлённую модель)
+				if _, err := h.gameStateService.CreateInitialGameModel(game.ID); err != nil {
+					log.Printf("CreateGame: recalc search failed: %v", err)
+				}
+				log.Printf("Game created with scenario %s (units: %d, task_forces: %d)",
+					req.ScenarioID, len(initialModel.Units), len(initialModel.TaskForces))
+			}
+		} else {
+			// Текущее поведение: инициализация из ships.json
+			err = h.unitService.InitializeGameUnits(game.ID, game.Player1ID, game.Player2ID, h.shipConfigService)
+			if err != nil {
+				log.Printf("Error initializing game units: %v", err)
+			} else {
+				log.Printf("Game units initialized successfully for game %s", game.ID)
+				err = h.createStartingTaskForces(game.ID)
 				if err != nil {
-					log.Printf("Error creating initial GameModel: %v", err)
-					// Не прерываем создание игры, но логируем ошибку
+					log.Printf("Error creating starting task forces: %v", err)
 				} else {
-					if err := h.gameStateService.SaveGameModelToDatabase(game.ID, initialModel); err != nil {
-						log.Printf("Error saving initial GameModel to database: %v", err)
-						// Не прерываем создание игры, но логируем ошибку
+					log.Printf("Starting task forces created successfully for game %s", game.ID)
+				}
+				if h.gameStateService != nil {
+					initialModel, err := h.gameStateService.CreateInitialGameModel(game.ID)
+					if err != nil {
+						log.Printf("Error creating initial GameModel: %v", err)
 					} else {
-						log.Printf("Initial GameModel created and saved successfully for game %s (version %d, units: %d, task_forces: %d)",
-							game.ID, initialModel.Version, len(initialModel.Units), len(initialModel.TaskForces))
-						// Факторы поиска уже пересчитаны в CreateInitialGameModel (если данные были загружены)
+						if err := h.gameStateService.SaveGameModelToDatabase(game.ID, initialModel); err != nil {
+							log.Printf("Error saving initial GameModel to database: %v", err)
+						} else {
+							log.Printf("Initial GameModel created and saved successfully for game %s (version %d, units: %d, task_forces: %d)",
+								game.ID, initialModel.Version, len(initialModel.Units), len(initialModel.TaskForces))
+						}
 					}
 				}
 			}
@@ -318,6 +360,31 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkgutils.WriteCreated(w, game.ToResponse())
+}
+
+// GetScenarios возвращает список доступных сценариев
+// @Summary Получение списка сценариев
+// @Tags Scenarios
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} map[string]interface{}
+// @Router /scenarios [get]
+func (h *GameHandler) GetScenarios(w http.ResponseWriter, r *http.Request) {
+	if h.scenarioService == nil {
+		pkgutils.WriteJSON(w, http.StatusOK, map[string]interface{}{
+			"scenarios": []models.ScenarioMetadata{},
+		})
+		return
+	}
+	list, err := h.scenarioService.ListScenarios()
+	if err != nil {
+		log.Printf("GetScenarios: %v", err)
+		pkgutils.WriteInternalError(w, "Failed to list scenarios")
+		return
+	}
+	pkgutils.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"scenarios": list,
+	})
 }
 
 // GetGames возвращает список игр
@@ -1283,6 +1350,7 @@ func (h *GameHandler) RegisterRoutes(router *mux.Router, jwtSecret string) {
 
 	gameRouter.HandleFunc("", h.CreateGame).Methods("POST")
 	gameRouter.HandleFunc("", h.GetGames).Methods("GET")
+	gameRouter.HandleFunc("/scenarios", h.GetScenarios).Methods("GET")
 	gameRouter.HandleFunc("/{id}/units", h.GetGameUnits).Methods("GET")
 	gameRouter.HandleFunc("/{id}/victory-points", h.GetVictoryPoints).Methods("GET")
 	gameRouter.HandleFunc("/{id}/initialize-units", h.InitializeGameUnits).Methods("POST")

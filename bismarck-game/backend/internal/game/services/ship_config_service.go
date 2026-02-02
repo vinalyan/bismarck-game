@@ -85,8 +85,8 @@ func (scs *ShipConfigService) CreateNavalUnitFromConfig(shipID, gameID, owner st
 		SecondaryArmament:        shipConfig.BaseSecondaryArmament,
 		MaxTorpedoes:             shipConfig.MaxTorpedos,
 		Torpedoes:                shipConfig.MaxTorpedos,
-		Status:    models.UnitStatusActive,
-		CreatedAt: time.Now(),
+		Status:                   models.UnitStatusActive,
+		CreatedAt:                time.Now(),
 		UpdatedAt:                time.Now(),
 	}
 
@@ -100,6 +100,11 @@ func (scs *ShipConfigService) CreateNavalUnitFromConfig(shipID, gameID, owner st
 		"type", navalUnit.Type)
 
 	return navalUnit, nil
+}
+
+// GetShipConfig возвращает конфигурацию корабля по ID
+func (scs *ShipConfigService) GetShipConfig(shipID string) (*config.ShipConfig, error) {
+	return scs.configManager.GetShipConfig(shipID)
 }
 
 // GetAvailableShips возвращает список доступных кораблей для стороны
