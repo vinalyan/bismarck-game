@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS games (
     status VARCHAR(20) DEFAULT 'waiting',
     settings JSONB DEFAULT '{}',
     victory_points JSONB DEFAULT '{}',
+    scenario_id VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

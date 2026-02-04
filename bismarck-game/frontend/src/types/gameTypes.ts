@@ -140,12 +140,22 @@ export interface GameResponse {
   weather_track?: number;
 }
 
+// Метаданные сценария (начальные условия игры)
+export interface ScenarioMetadata {
+  id: string;
+  name: string;
+  description?: string;
+  version?: string;
+  tags?: string[];
+}
+
 // Запрос на создание игры
 export interface CreateGameRequest {
   name: string;
   side: PlayerSide;
   settings: GameSettings;
   password?: string;
+  scenario_id?: string; // ID сценария начальных условий (опционально)
 }
 
 // Запрос на присоединение к игре

@@ -50,6 +50,7 @@ type Game struct {
 	GameState       *GameState   `json:"game_state" db:"game_state"`
 	Status          GameStatus   `json:"status" db:"status"`
 	Settings        GameSettings `json:"settings" db:"settings"`
+	ScenarioID      string       `json:"scenario_id,omitempty" db:"scenario_id"` // ID сценария начальных условий (issue #76)
 	CreatedAt       time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time    `json:"updated_at" db:"updated_at"`
 	CompletedAt     *time.Time   `json:"completed_at" db:"completed_at"`

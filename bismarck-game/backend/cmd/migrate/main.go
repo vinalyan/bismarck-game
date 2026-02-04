@@ -308,6 +308,16 @@ func getMigrations() []Migration {
 				-- Для восстановления нужно выполнить миграцию заново
 			`,
 		},
+		{
+			Version:     "002_add_scenario_id_to_games",
+			Description: "Add scenario_id to games table for initial conditions (issue #76)",
+			SQL: `
+				ALTER TABLE games ADD COLUMN IF NOT EXISTS scenario_id VARCHAR(100);
+			`,
+			RollbackSQL: `
+				ALTER TABLE games DROP COLUMN IF EXISTS scenario_id;
+			`,
+		},
 	}
 }
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
 import { gameAPI } from '../services/api/gameAPI';
-import { CreateGameRequest, GameResponse, GameStatus, ViewType, NotificationType, PlayerSide } from '../types/gameTypes';
+import { CreateGameRequest, GameResponse, GameStatus, ViewType, NotificationType, PlayerSide, ScenarioMetadata } from '../types/gameTypes';
 import './Lobby.css';
 
 const Lobby: React.FC = () => {
@@ -33,6 +33,7 @@ const Lobby: React.FC = () => {
     },
   });
   const [isCreating, setIsCreating] = useState(false);
+  const [scenarios, setScenarios] = useState<ScenarioMetadata[]>([]);
 
   const {
     user,
@@ -82,6 +83,15 @@ const Lobby: React.FC = () => {
   useEffect(() => {
     loadGames();
   }, []);
+
+  // Загрузка списка сценариев при открытии формы создания игры
+  useEffect(() => {
+    if (showCreateForm) {
+      gameAPI.getScenarios()
+        .then((res) => setScenarios(res.scenarios || []))
+        .catch(() => setScenarios([]));
+    }
+  }, [showCreateForm]);
 
 
   // Создание новой игры
@@ -399,6 +409,27 @@ const Lobby: React.FC = () => {
                   >
                     <option value={PlayerSide.German}>🇩🇪 Немцы</option>
                     <option value={PlayerSide.Allied}>🇬🇧 Союзники</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="scenario">Начальный сценарий</label>
+                  <select
+                    id="scenario"
+                    value={createFormData.scenario_id || ''}
+                    onChange={(e) => setCreateFormData(prev => ({
+                      ...prev,
+                      scenario_id: e.target.value || undefined,
+                    }))}
+                    disabled={isCreating}
+                  >
+                    <option value="">Стандартная расстановка (из правил)</option>
+                    {scenarios.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                        {s.description ? ` — ${s.description}` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

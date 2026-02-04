@@ -16,7 +16,8 @@ import {
   ChangePasswordRequest,
   TaskForce,
   TaskForceDetails,
-  ViewType
+  ViewType,
+  ScenarioMetadata
 } from '../../types/gameTypes';
 
 // Базовый URL API
@@ -116,6 +117,12 @@ export const authAPI = {
 
 // API методы для игр
 export const gameAPI = {
+  // Список доступных сценариев (начальные условия игры)
+  getScenarios: async (): Promise<{ scenarios: ScenarioMetadata[] }> => {
+    const response = await apiClient.get<{ scenarios: ScenarioMetadata[] }>('/games/scenarios');
+    return response.data;
+  },
+
   // Создание игры
   createGame: async (data: CreateGameRequest): Promise<APIResponse<Game>> => {
     const response = await apiClient.post('/games', data);

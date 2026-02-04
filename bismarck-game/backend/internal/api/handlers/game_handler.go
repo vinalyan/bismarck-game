@@ -248,10 +248,22 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		game.Settings.Password = req.Password
 	}
 
-	// Сохраняем в базу данных
+	// Валидация сценария при создании (если указан)
+	if req.ScenarioID != "" && h.scenarioService != nil {
+		_, err := h.scenarioService.LoadScenario(req.ScenarioID)
+		if err != nil {
+			log.Printf("CreateGame: scenario not found: %v", err)
+			pkgutils.WriteValidationError(w, "Invalid scenario", map[string]string{
+				"scenario_id": fmt.Sprintf("Scenario not found: %s", req.ScenarioID),
+			})
+			return
+		}
+	}
+
+	// Сохраняем в базу данных (scenario_id сохраняем для применения при присоединении второго игрока)
 	query := `
-		INSERT INTO games (name, player1_id, player2_id, current_turn, current_phase, status, settings, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO games (name, player1_id, player2_id, current_turn, current_phase, status, settings, scenario_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id
 	`
 
@@ -267,8 +279,14 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	} else {
 		player2ID = game.Player2ID
 	}
+	var scenarioID interface{}
+	if req.ScenarioID == "" {
+		scenarioID = nil
+	} else {
+		scenarioID = req.ScenarioID
+	}
 
-	log.Printf("Creating game: %s, Player1: %v, Player2: %v", game.Name, player1ID, player2ID)
+	log.Printf("Creating game: %s, Player1: %v, Player2: %v, scenario_id: %v", game.Name, player1ID, player2ID, scenarioID)
 
 	err = h.db.GetConnection().QueryRowContext(r.Context(), query,
 		game.Name,
@@ -278,6 +296,7 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		game.CurrentPhase,
 		game.Status,
 		pkgutils.ToJSONB(game.Settings),
+		scenarioID,
 		game.CreatedAt,
 		game.UpdatedAt,
 	).Scan(&game.ID)
@@ -668,12 +687,12 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	// Получаем игру
 	var game models.Game
 	var settingsJSON []byte
-	var player1ID, player2ID sql.NullString
+	var player1ID, player2ID, scenarioID sql.NullString
 	var player1Username sql.NullString
 	// completed_at не запрашиваем, так как его может не быть в тестовой схеме БД
 	query := `
 		SELECT g.id, g.name, g.player1_id, g.player2_id, g.current_turn, g.current_phase, g.status, 
-		       g.settings, g.created_at, g.updated_at,
+		       g.settings, g.scenario_id, g.created_at, g.updated_at,
 		       p1.username as player1_username
 		FROM games g
 		LEFT JOIN users p1 ON g.player1_id = p1.id
@@ -683,7 +702,7 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	err = h.db.GetConnection().QueryRowContext(r.Context(), query, gameID).Scan(
 		&game.ID, &game.Name, &player1ID, &player2ID,
 		&game.CurrentTurn, &game.CurrentPhase, &game.Status,
-		&settingsJSON, &game.CreatedAt, &game.UpdatedAt,
+		&settingsJSON, &scenarioID, &game.CreatedAt, &game.UpdatedAt,
 		&player1Username,
 	)
 
@@ -702,6 +721,9 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 	}
 	if player2ID.Valid {
 		game.Player2ID = player2ID.String
+	}
+	if scenarioID.Valid {
+		game.ScenarioID = scenarioID.String
 	}
 	// completed_at остается nil, так как не запрашиваем его из БД
 
@@ -826,36 +848,62 @@ func (h *GameHandler) JoinGame(w http.ResponseWriter, r *http.Request) {
 		finalPlayer2ID = userID // Присоединился как союзник
 	}
 
-	// Если оба игрока теперь присоединились, инициализируем юниты
+	// Если оба игрока теперь присоединились, инициализируем юниты (сценарий или ships.json)
 	if finalPlayer1ID != "" && finalPlayer2ID != "" {
-		err = h.unitService.InitializeGameUnits(gameID, finalPlayer1ID, finalPlayer2ID, h.shipConfigService)
-		if err != nil {
-			log.Printf("Error initializing game units after join: %v", err)
-			// Не прерываем присоединение к игре, просто логируем ошибку
-		} else {
-			log.Printf("Game units initialized successfully after join for game %s", gameID)
-
-			// Создаем стартовые Task Forces
-			err = h.createStartingTaskForces(gameID)
+		if game.ScenarioID != "" && h.scenarioService != nil {
+			// Применяем сценарий начальных условий (выбранный при создании игры)
+			scenario, err := h.scenarioService.LoadScenario(game.ScenarioID)
 			if err != nil {
-				log.Printf("Error creating starting task forces after join: %v", err)
-				// Не прерываем присоединение к игре, но логируем ошибку
-			} else {
-				log.Printf("Starting task forces created successfully after join for game %s", gameID)
+				log.Printf("JoinGame: scenario not found, fallback to InitializeGameUnits: %v", err)
+				game.ScenarioID = ""
+			} else if err := h.scenarioService.ValidateScenario(scenario, h.shipConfigService); err != nil {
+				log.Printf("JoinGame: invalid scenario, fallback to InitializeGameUnits: %v", err)
+				game.ScenarioID = ""
 			}
-
-			// Создаем начальный GameModel для игры (когда оба игрока присоединились)
-			if h.gameStateService != nil {
-				initialModel, err := h.gameStateService.CreateInitialGameModel(gameID)
+			if game.ScenarioID != "" && scenario != nil {
+				initialModel, err := h.scenarioService.ApplyScenario(
+					scenario, gameID, finalPlayer1ID, finalPlayer2ID,
+					h.shipConfigService, h.mapStructureService,
+				)
 				if err != nil {
-					log.Printf("Error creating initial GameModel after join: %v", err)
-					// Не прерываем присоединение к игре, но логируем ошибку
-				} else {
+					log.Printf("JoinGame: ApplyScenario failed, fallback to InitializeGameUnits: %v", err)
+					game.ScenarioID = ""
+				} else if h.gameStateService != nil {
 					if err := h.gameStateService.SaveGameModelToDatabase(gameID, initialModel); err != nil {
-						log.Printf("Error saving initial GameModel to database after join: %v", err)
-						// Не прерываем присоединение к игре, но логируем ошибку
+						log.Printf("JoinGame: failed to save GameModel: %v", err)
 					} else {
-						log.Printf("Initial GameModel created and saved successfully after join for game %s (version %d)", gameID, initialModel.Version)
+						if _, err := h.gameStateService.CreateInitialGameModel(gameID); err != nil {
+							log.Printf("JoinGame: recalc search failed: %v", err)
+						}
+						log.Printf("Game %s: scenario %s applied (units: %d, task_forces: %d)",
+							gameID, game.ScenarioID, len(initialModel.Units), len(initialModel.TaskForces))
+					}
+				}
+			}
+		}
+		if game.ScenarioID == "" {
+			// Обычная инициализация из ships.json
+			err = h.unitService.InitializeGameUnits(gameID, finalPlayer1ID, finalPlayer2ID, h.shipConfigService)
+			if err != nil {
+				log.Printf("Error initializing game units after join: %v", err)
+			} else {
+				log.Printf("Game units initialized successfully after join for game %s", gameID)
+				err = h.createStartingTaskForces(gameID)
+				if err != nil {
+					log.Printf("Error creating starting task forces after join: %v", err)
+				} else {
+					log.Printf("Starting task forces created successfully after join for game %s", gameID)
+				}
+				if h.gameStateService != nil {
+					initialModel, err := h.gameStateService.CreateInitialGameModel(gameID)
+					if err != nil {
+						log.Printf("Error creating initial GameModel after join: %v", err)
+					} else {
+						if err := h.gameStateService.SaveGameModelToDatabase(gameID, initialModel); err != nil {
+							log.Printf("Error saving initial GameModel to database after join: %v", err)
+						} else {
+							log.Printf("Initial GameModel created and saved successfully after join for game %s (version %d)", gameID, initialModel.Version)
+						}
 					}
 				}
 			}
