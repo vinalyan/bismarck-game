@@ -10,10 +10,10 @@ import (
 )
 
 func TestAirAttackService_AddAirAttackMarker(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Создаем AirAttackService
 	airAttackService := NewAirAttackService(testServices.DB, testServices.Logger, testServices.GameService)
 	airAttackService.SetGameStateService(testServices.GameStateService)
@@ -180,10 +180,10 @@ func TestAirAttackService_AddAirAttackMarker(t *testing.T) {
 }
 
 func TestAirAttackService_RemoveAirAttackMarker(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Создаем AirAttackService
 	airAttackService := NewAirAttackService(testServices.DB, testServices.Logger, testServices.GameService)
 	airAttackService.SetGameStateService(testServices.GameStateService)
@@ -294,10 +294,10 @@ func TestAirAttackService_RemoveAirAttackMarker(t *testing.T) {
 }
 
 func TestAirAttackService_GetAirAttackMarkers(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Создаем AirAttackService
 	airAttackService := NewAirAttackService(testServices.DB, testServices.Logger, testServices.GameService)
 	airAttackService.SetGameStateService(testServices.GameStateService)

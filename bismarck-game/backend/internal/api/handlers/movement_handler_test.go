@@ -26,9 +26,7 @@ import (
 )
 
 func setupMovementHandler(t *testing.T) (*MovementHandler, *services.TestServices, func()) {
-	// Используем SetupTestServices для единообразного создания сервисов
-	testServices, cleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := services.SetupTestServicesOrSkip(t)
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
 	require.NoError(t, err)

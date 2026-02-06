@@ -23,9 +23,7 @@ import (
 )
 
 func setupSearchHandler(t *testing.T) (*SearchHandler, *auth.AuthService, string, func(), *models.User) {
-	// Setup test services with all dependencies
-	testServices, testCleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, testCleanup := services.SetupTestServicesOrSkip(t)
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{

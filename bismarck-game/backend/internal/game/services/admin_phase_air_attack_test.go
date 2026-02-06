@@ -10,8 +10,7 @@ import (
 )
 
 func TestAdminPhaseHandler_Start_RemovesAirAttackMarkers(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	// Создаем тестовую игру
@@ -19,6 +18,7 @@ func TestAdminPhaseHandler_Start_RemovesAirAttackMarkers(t *testing.T) {
 	playerID := uuid.New().String()
 	player2ID := uuid.New().String()
 
+	var err error
 	// Clean up before test - удаляем существующих пользователей, чтобы избежать конфликтов
 	_, err = testServices.DB.GetConnection().Exec("DELETE FROM games WHERE id = $1", gameID)
 	require.NoError(t, err)

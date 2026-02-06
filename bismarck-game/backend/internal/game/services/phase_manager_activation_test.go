@@ -11,10 +11,10 @@ import (
 )
 
 func TestPhaseManager_RecalculateAvailableActions(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -88,10 +88,10 @@ func TestPhaseManager_RecalculateAvailableActions(t *testing.T) {
 }
 
 func TestPhaseManager_RecalculateAvailableActionsForUnit(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -171,10 +171,10 @@ func TestPhaseManager_RecalculateAvailableActionsForUnit(t *testing.T) {
 }
 
 func TestPhaseManager_RecalculateAvailableActionsForTaskForce(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -264,10 +264,10 @@ func TestPhaseManager_RecalculateAvailableActionsForTaskForce(t *testing.T) {
 }
 
 func TestMovementPhaseHandler_Start_ActivationLogic(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)

@@ -27,9 +27,9 @@ import (
 )
 
 func setupUnitHandler(t *testing.T) (*UnitHandler, func()) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 
+	var err error
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM air_units")
 	require.NoError(t, err)
@@ -75,9 +75,7 @@ func setupUnitHandler(t *testing.T) (*UnitHandler, func()) {
 }
 
 func TestGetUnit(t *testing.T) {
-	// Setup test services
-	testServices, testCleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, testCleanup := services.SetupTestServicesOrSkip(t)
 	defer testCleanup()
 
 	cfg := &config.Config{
@@ -161,8 +159,7 @@ func TestGetUnit(t *testing.T) {
 
 func TestGetUnits(t *testing.T) {
 	// Setup test services
-	testServices, testCleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, testCleanup := services.SetupTestServicesOrSkip(t)
 	defer testCleanup()
 
 	cfg := &config.Config{
@@ -302,8 +299,7 @@ func TestGetUnits(t *testing.T) {
 
 func TestUnitMoveUnit(t *testing.T) {
 	// Setup test services
-	testServices, testCleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, testCleanup := services.SetupTestServicesOrSkip(t)
 	defer testCleanup()
 
 	cfg := &config.Config{
@@ -506,8 +502,7 @@ func TestUnitMoveUnit(t *testing.T) {
 
 func TestGetUnitsWithFilters(t *testing.T) {
 	// Setup test services
-	testServices, testCleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, testCleanup := services.SetupTestServicesOrSkip(t)
 	defer testCleanup()
 
 	cfg := &config.Config{

@@ -12,8 +12,7 @@ import (
 )
 
 func TestActionCheckerService_GetAvailableActions(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
@@ -39,7 +38,7 @@ func TestActionCheckerService_GetAvailableActions(t *testing.T) {
 				Fuel:                10,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 0,
-				IsActivated:        false,
+				IsActivated:         false,
 			},
 		}
 
@@ -65,7 +64,7 @@ func TestActionCheckerService_GetAvailableActions(t *testing.T) {
 				Fuel:                10,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 2,
-				IsActivated:        false,
+				IsActivated:         false,
 			},
 		}
 
@@ -91,7 +90,7 @@ func TestActionCheckerService_GetAvailableActions(t *testing.T) {
 				Fuel:                10,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 0,
-				IsActivated:        true,
+				IsActivated:         true,
 			},
 		}
 
@@ -117,7 +116,7 @@ func TestActionCheckerService_GetAvailableActions(t *testing.T) {
 				Fuel:                10,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 0,
-				IsActivated:        false,
+				IsActivated:         false,
 			},
 		}
 
@@ -145,7 +144,7 @@ func TestActionCheckerService_GetAvailableActions(t *testing.T) {
 				Fuel:                10,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 0,
-				IsActivated:        false,
+				IsActivated:         false,
 			},
 		}
 
@@ -161,8 +160,7 @@ func TestActionCheckerService_GetAvailableActions(t *testing.T) {
 }
 
 func TestActionCheckerService_GetAvailableActionsForTaskForce(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
@@ -220,8 +218,7 @@ func TestActionCheckerService_GetAvailableActionsForTaskForce(t *testing.T) {
 }
 
 func TestMovementActionChecker(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
@@ -250,7 +247,7 @@ func TestMovementActionChecker(t *testing.T) {
 				Fuel:                10,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 0,
-				IsActivated:        false,
+				IsActivated:         false,
 			},
 		}
 
@@ -271,7 +268,7 @@ func TestMovementActionChecker(t *testing.T) {
 				Fuel:                10,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 0,
-				IsActivated:        true,
+				IsActivated:         true,
 			},
 		}
 
@@ -292,7 +289,7 @@ func TestMovementActionChecker(t *testing.T) {
 				Fuel:                10,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 2,
-				IsActivated:        false,
+				IsActivated:         false,
 			},
 		}
 
@@ -313,8 +310,8 @@ func TestMovementActionChecker(t *testing.T) {
 				Fuel:                0,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 0,
-				IsActivated:        false,
-				IsEmergencyFuel:    false,
+				IsActivated:         false,
+				IsEmergencyFuel:     false,
 			},
 		}
 
@@ -335,8 +332,8 @@ func TestMovementActionChecker(t *testing.T) {
 				Fuel:                0,
 				MaxFuel:             10,
 				NoMovementTurnsLeft: 0,
-				IsActivated:        false,
-				IsEmergencyFuel:    true,
+				IsActivated:         false,
+				IsEmergencyFuel:     true,
 			},
 		}
 
@@ -345,8 +342,7 @@ func TestMovementActionChecker(t *testing.T) {
 }
 
 func TestPatrolActionChecker(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
@@ -447,8 +443,7 @@ func TestPatrolActionChecker(t *testing.T) {
 }
 
 func TestRepairActionChecker(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
@@ -511,8 +506,7 @@ func TestRepairActionChecker(t *testing.T) {
 }
 
 func TestRefuelSeaActionChecker(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
@@ -539,8 +533,8 @@ func TestRefuelSeaActionChecker(t *testing.T) {
 			Status:      string(models.UnitStatusActive),
 			Visibility:  models.VisibilitySighted,
 			NavalData: &models.NavalUnitData{
-				Fuel:         5,
-				MaxFuel:      10,
+				Fuel:        5,
+				MaxFuel:     10,
 				IsActivated: false,
 			},
 		}
@@ -554,7 +548,7 @@ func TestRefuelSeaActionChecker(t *testing.T) {
 			Position:    "A1",
 			Status:      string(models.UnitStatusActive),
 			Visibility:  models.VisibilitySighted,
-			NavalData: &models.NavalUnitData{},
+			NavalData:   &models.NavalUnitData{},
 		}
 
 		gameModel.Units[unit.ID] = unit
@@ -575,8 +569,8 @@ func TestRefuelSeaActionChecker(t *testing.T) {
 			Status:      string(models.UnitStatusActive),
 			Visibility:  models.VisibilitySighted,
 			NavalData: &models.NavalUnitData{
-				Fuel:         5,
-				MaxFuel:      10,
+				Fuel:        5,
+				MaxFuel:     10,
 				IsActivated: true,
 			},
 		}
@@ -610,8 +604,8 @@ func TestRefuelSeaActionChecker(t *testing.T) {
 			Status:      string(models.UnitStatusActive),
 			Visibility:  models.VisibilitySighted,
 			NavalData: &models.NavalUnitData{
-				Fuel:         5,
-				MaxFuel:      10,
+				Fuel:        5,
+				MaxFuel:     10,
 				IsActivated: false,
 			},
 		}
@@ -621,4 +615,3 @@ func TestRefuelSeaActionChecker(t *testing.T) {
 		assert.False(t, checker.CanPerformAction(unit, gameModel), "Non-german unit should not be able to refuel at sea")
 	})
 }
-

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -24,8 +26,7 @@ import (
 )
 
 func setupGameHandler(t *testing.T) (*GameHandler, *services.TestServices, func()) {
-	testServices, cleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := services.SetupTestServicesOrSkip(t)
 
 	cfg := &config.Config{
 		JWT: config.JWTConfig{
@@ -46,26 +47,26 @@ func createTestUser(t *testing.T, authService *auth.AuthService, username, email
 	testName := t.Name()
 	testNameHash := fmt.Sprintf("%x", md5.Sum([]byte(testName)))[:8]
 	uniqueID := strings.ReplaceAll(uuid.New().String(), "-", "")
-	
+
 	// Если username не пустой, добавляем к нему уникальный суффикс
 	if username != "" {
 		username = username + "_" + testNameHash + "_" + uniqueID[:8]
 	} else {
 		username = "tu_" + testNameHash + "_" + uniqueID
 	}
-	
+
 	// Ограничиваем длину username до 50 символов (лимит БД)
 	if len(username) > 50 {
 		username = username[:50]
 	}
-	
+
 	// Если email не пустой, делаем его уникальным
 	if email != "" {
 		email = uniqueID[:8] + "_" + email
 	} else {
 		email = uniqueID + "@test.example.com"
 	}
-	
+
 	user, err := authService.Register(&models.CreateUserRequest{
 		Username: username,
 		Email:    email,
@@ -117,6 +118,93 @@ func joinGameViaHTTP(t *testing.T, handler *GameHandler, gameID, userID string) 
 	router.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestGetScenarios_NoService(t *testing.T) {
+	handler, _, cleanup := setupGameHandler(t)
+	defer cleanup()
+
+	req := httptest.NewRequest("GET", "/api/games/scenarios", nil)
+	w := httptest.NewRecorder()
+
+	handler.GetScenarios(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+	data, ok := response["data"].(map[string]interface{})
+	require.True(t, ok)
+	scenarios, ok := data["scenarios"].([]interface{})
+	require.True(t, ok)
+	assert.Empty(t, scenarios)
+}
+
+func TestGetScenarios_WithService(t *testing.T) {
+	handler, _, cleanup := setupGameHandler(t)
+	defer cleanup()
+
+	// Используем временную папку с одним валидным сценарием, чтобы не зависеть от CWD
+	dir := t.TempDir()
+	scenarioJSON := `{"metadata":{"id":"fixture","name":"Fixture","description":"","version":"1.0","author":"","tags":[],"created_at":""},"game_state":{"turn":0,"phase":"setup","visibility_level":1,"is_fog":false,"weather_track":0},"units":[],"task_forces":[],"events":[],"search":{}}`
+	if err := os.WriteFile(filepath.Join(dir, "fixture.json"), []byte(scenarioJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := services.NewGameScenarioService(dir, nil)
+	handler.SetScenarioService(svc)
+
+	req := httptest.NewRequest("GET", "/api/games/scenarios", nil)
+	w := httptest.NewRecorder()
+
+	handler.GetScenarios(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+	data, ok := response["data"].(map[string]interface{})
+	require.True(t, ok)
+	scenarios, ok := data["scenarios"].([]interface{})
+	require.True(t, ok)
+	assert.GreaterOrEqual(t, len(scenarios), 1)
+}
+
+func TestCreateGame_InvalidScenarioID(t *testing.T) {
+	handler, testServices, cleanup := setupGameHandler(t)
+	defer cleanup()
+
+	svc := services.NewGameScenarioService(t.TempDir(), nil)
+	handler.SetScenarioService(svc)
+
+	cfg := &config.Config{
+		JWT: config.JWTConfig{
+			Secret: "test-secret-key-for-testing-only",
+		},
+	}
+	authService := auth.New(testServices.DB, nil, cfg.JWT.Secret, 24*time.Hour)
+	userID := createTestUser(t, authService, "scenario_user", "scenario@example.com", "password123")
+
+	reqBody := map[string]interface{}{
+		"name":        "Game With Bad Scenario",
+		"side":        "german",
+		"scenario_id": "nonexistent_scenario",
+	}
+	jsonBody, _ := json.Marshal(reqBody)
+
+	req := httptest.NewRequest("POST", "/api/games", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	ctx := context.WithValue(req.Context(), "user_id", userID)
+	req = req.WithContext(ctx)
+	w := httptest.NewRecorder()
+
+	handler.CreateGame(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	var response map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	require.NoError(t, err)
+	assert.Contains(t, response["error"], "Invalid scenario")
 }
 
 func TestCreateGame(t *testing.T) {

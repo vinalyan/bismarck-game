@@ -7,7 +7,9 @@ help:
 	@echo "Available commands:"
 	@echo "  build     - Build the application"
 	@echo "  run       - Run the application"
-	@echo "  test      - Run tests"
+	@echo "  test          - Run tests"
+	@echo "  test-verbose  - Run tests with verbose output (each test name)"
+	@echo "  test-report   - Run tests and show summary to test_results.txt"
 	@echo "  clean     - Clean build artifacts"
 	@echo "  deps      - Download dependencies"
 	@echo "  migrate   - Run database migrations"
@@ -24,10 +26,34 @@ run: build
 	@echo "Starting Bismarck Game Backend..."
 	./bin/server
 
-# Run tests
+# Run tests (краткий вывод: ok = прошли, FAIL = упали, ? = нет тестов)
 test:
 	@echo "Running tests..."
 	go test ./...
+
+# Тесты с подробным выводом: видно каждый тест (PASS/FAIL) и пакет
+# -count=1 отключает кэш, чтобы в test_results.txt попадали актуальные результаты
+test-verbose:
+	@echo "Running tests (verbose, no cache)..."
+	go test -v -count=1 ./... 2>&1 | tee test_results.txt
+
+# Тесты и запись в test_results.txt без кэша (актуальные pass/fail), плюс итог по пакетам
+# Запускайте при поднятом PostgreSQL (docker-compose up -d), иначе интеграционные тесты упадут
+test-report:
+	@echo "Running tests (no cache, writing to test_results.txt)..."
+	@go test -count=1 ./... 2>&1 | tee test_results.txt; \
+	echo ""; \
+	echo "=== Итог ==="; \
+	grep -E "^(ok|FAIL|\?)" test_results.txt | \
+	awk 'BEGIN { pass=0; fail=0; skip=0 } \
+	     /^ok /    { pass++ } \
+	     /^FAIL/   { fail++; print "FAIL: " $$2 } \
+	     /^\?/     { skip++ } \
+	     END { \
+	       print "Пройдено пакетов: " pass; \
+	       if (fail>0) print "Упало пакетов: " fail; \
+	       print "Без тестов: " skip \
+	     }'
 
 # Clean build artifacts
 clean:

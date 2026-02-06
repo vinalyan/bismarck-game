@@ -20,9 +20,9 @@ import (
 )
 
 func setupAuthHandler(t *testing.T) (*AuthHandler, func()) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 
+	var err error
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM air_units")
 	require.NoError(t, err)
@@ -301,12 +301,12 @@ func TestLogin(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		
+
 		// WriteSuccess оборачивает данные в структуру с success и data
 		assert.True(t, response["success"].(bool), "Ответ должен содержать success=true")
 		data, exists := response["data"].(map[string]interface{})
 		require.True(t, exists, "Ответ должен содержать data")
-		
+
 		assert.NotEmpty(t, data["token"])
 		assert.NotEmpty(t, data["user"])
 	})
@@ -486,12 +486,12 @@ func TestGetProfile(t *testing.T) {
 	var registerResponse map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &registerResponse)
 	assert.NoError(t, err)
-	
+
 	// Проверяем структуру ответа (success, data)
 	assert.True(t, registerResponse["success"].(bool), "Ответ должен содержать success=true")
 	data, exists := registerResponse["data"].(map[string]interface{})
 	require.True(t, exists, "Ответ должен содержать data")
-	
+
 	// Получаем user ID из data.id
 	userIDValue, exists := data["id"]
 	require.True(t, exists, "data должен содержать id")
@@ -515,12 +515,12 @@ func TestGetProfile(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		
+
 		// WriteSuccess оборачивает данные в структуру с success и data
 		assert.True(t, response["success"].(bool), "Ответ должен содержать success=true")
 		data, exists := response["data"].(map[string]interface{})
 		require.True(t, exists, "Ответ должен содержать data")
-		
+
 		assert.Equal(t, userID, data["id"])
 		assert.Equal(t, "testuser9", data["username"])
 		assert.Equal(t, "testuser9@example.com", data["email"])
@@ -579,12 +579,12 @@ func TestUpdateProfile(t *testing.T) {
 	var registerResponse map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &registerResponse)
 	assert.NoError(t, err)
-	
+
 	// Проверяем структуру ответа (success, data)
 	assert.True(t, registerResponse["success"].(bool), "Ответ должен содержать success=true")
 	data, exists := registerResponse["data"].(map[string]interface{})
 	require.True(t, exists, "Ответ должен содержать data")
-	
+
 	// Получаем user ID из data.id
 	userIDValue, exists := data["id"]
 	require.True(t, exists, "data должен содержать id")
@@ -682,12 +682,12 @@ func TestChangePassword(t *testing.T) {
 	var registerResponse map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &registerResponse)
 	assert.NoError(t, err)
-	
+
 	// Проверяем структуру ответа (success, data)
 	assert.True(t, registerResponse["success"].(bool), "Ответ должен содержать success=true")
 	data, exists := registerResponse["data"].(map[string]interface{})
 	require.True(t, exists, "Ответ должен содержать data")
-	
+
 	// Получаем user ID из data.id
 	userIDValue, exists := data["id"]
 	require.True(t, exists, "data должен содержать id")
@@ -807,7 +807,7 @@ func TestValidateToken(t *testing.T) {
 	var loginResponse map[string]interface{}
 	err := json.Unmarshal(loginW.Body.Bytes(), &loginResponse)
 	assert.NoError(t, err)
-	
+
 	// WriteSuccess оборачивает данные в структуру с success и data
 	assert.True(t, loginResponse["success"].(bool), "Ответ должен содержать success=true")
 	data, exists := loginResponse["data"].(map[string]interface{})
@@ -830,7 +830,7 @@ func TestValidateToken(t *testing.T) {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
-		
+
 		// WriteSuccess оборачивает данные в структуру с success и data
 		assert.True(t, response["success"].(bool), "Ответ должен содержать success=true")
 		responseData, exists := response["data"].(map[string]interface{})

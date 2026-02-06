@@ -20,8 +20,7 @@ import (
 )
 
 func setupViewModelService(t *testing.T) (*ViewModelService, *GameStateService, *GameService, func()) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 
 	testLogger, err := logger.New(logger.INFO, "test", "stdout")
 	require.NoError(t, err)

@@ -19,8 +19,7 @@ import (
 )
 
 func setupRefuelHandler(t *testing.T) (*RefuelHandler, *services.TestServices, func()) {
-	testServices, cleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := services.SetupTestServicesOrSkip(t)
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
 	require.NoError(t, err)

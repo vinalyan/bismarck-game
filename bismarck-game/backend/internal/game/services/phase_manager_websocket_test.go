@@ -15,10 +15,7 @@ import (
 // TestPhaseManager_StartPhase_SendsWebSocketNotification проверяет отправку WebSocket уведомления при начале фазы
 func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 	// Настройка тестовых сервисов
-	testServices, cleanup, err := SetupTestServices()
-	if err != nil {
-		t.Fatalf("Failed to setup test services: %v", err)
-	}
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	// Создаем тестовый HTTP сервер для API вызовов
@@ -50,6 +47,7 @@ func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 	// Устанавливаем gameStateService для PhaseManager
 	testServices.PhaseManager.SetGameStateService(testServices.GameStateService)
 
+	var err error
 	// Создаем тестовую игру с GameModel
 	gameID := uuid.New().String()
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -77,10 +75,7 @@ func TestPhaseManager_StartPhase_SendsWebSocketNotification(t *testing.T) {
 // TestPhaseManager_NextPhase_SendsWebSocketNotification проверяет отправку WebSocket уведомления при переходе к следующей фазе
 func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 	// Настройка тестовых сервисов
-	testServices, cleanup, err := SetupTestServices()
-	if err != nil {
-		t.Fatalf("Failed to setup test services: %v", err)
-	}
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	// Создаем тестовый HTTP сервер для API вызовов
@@ -103,6 +98,7 @@ func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 	// Устанавливаем gameStateService для PhaseManager
 	testServices.PhaseManager.SetGameStateService(testServices.GameStateService)
 
+	var err error
 	// Создаем тестовую игру с GameModel
 	gameID := uuid.New().String()
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -129,10 +125,7 @@ func TestPhaseManager_NextPhase_SendsWebSocketNotification(t *testing.T) {
 // TestPhaseManager_StartPhase_CallsCurrentPhaseAPI проверяет вызов API при начале фазы
 func TestPhaseManager_StartPhase_CallsCurrentPhaseAPI(t *testing.T) {
 	// Настройка тестовых сервисов
-	testServices, cleanup, err := SetupTestServices()
-	if err != nil {
-		t.Fatalf("Failed to setup test services: %v", err)
-	}
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	// Счетчик вызовов API
@@ -171,6 +164,7 @@ func TestPhaseManager_StartPhase_CallsCurrentPhaseAPI(t *testing.T) {
 	// Устанавливаем gameStateService для PhaseManager
 	testServices.PhaseManager.SetGameStateService(testServices.GameStateService)
 
+	var err error
 	// Создаем тестовую игру с GameModel
 	gameID := uuid.New().String()
 	_, err = testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)

@@ -11,16 +11,14 @@ import (
 )
 
 func TestAirAttackActionChecker_CanPerformAction(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
-	logger, err := testServices.Logger, nil
-	require.NoError(t, err)
-
+	logger := testServices.Logger
 	actionChecker := NewAirAttackActionChecker(logger, testServices.MapStructureService)
 
 	gameID := uuid.New().String()
+	var err error
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
@@ -488,8 +486,7 @@ func TestAirAttackActionChecker_CanPerformAction(t *testing.T) {
 }
 
 func TestAirAttackActionChecker_GetActionType(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	actionChecker := NewAirAttackActionChecker(testServices.Logger, testServices.MapStructureService)

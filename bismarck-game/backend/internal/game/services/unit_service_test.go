@@ -13,8 +13,7 @@ import (
 )
 
 func TestNewUnitService(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -27,10 +26,10 @@ func TestNewUnitService(t *testing.T) {
 }
 
 func TestCreateNavalUnit(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -90,10 +89,10 @@ func TestCreateNavalUnit(t *testing.T) {
 }
 
 func TestCreateAirUnit(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -165,10 +164,10 @@ func TestCreateAirUnit(t *testing.T) {
 }
 
 func TestGetNavalUnitsByGameID(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -243,10 +242,10 @@ func TestGetNavalUnitsByGameID(t *testing.T) {
 }
 
 func TestGetNavalUnitByID(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -293,10 +292,10 @@ func TestGetNavalUnitByID(t *testing.T) {
 }
 
 func TestGetAirUnitsByGameID(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	db := testServices.DB
 	service := testServices.UnitService
 
@@ -326,10 +325,10 @@ func TestGetAirUnitsByGameID(t *testing.T) {
 }
 
 func TestUpdateNavalUnit(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	db := testServices.DB
 	service := testServices.UnitService
 
@@ -347,9 +346,9 @@ func TestUpdateNavalUnit(t *testing.T) {
 	_, err = CreateTestGameModel(db, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-		// Create test unit
-		unit := &models.NavalUnit{
-			GameID:      gameID,
+	// Create test unit
+	unit := &models.NavalUnit{
+		GameID:      gameID,
 		Name:        "Test Ship",
 		Type:        models.UnitTypeBattleship,
 		Class:       "Bismarck",
@@ -399,10 +398,10 @@ func TestUpdateNavalUnit(t *testing.T) {
 }
 
 func TestUpdateAirUnit(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	db := testServices.DB
 	service := testServices.UnitService
 
@@ -420,9 +419,9 @@ func TestUpdateAirUnit(t *testing.T) {
 	_, err = CreateTestGameModel(db, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
-		// Create test unit
-		unit := &models.AirUnit{
-			GameID:       gameID,
+	// Create test unit
+	unit := &models.AirUnit{
+		GameID:       gameID,
 		Type:         models.UnitTypeCombatAircraft,
 		Owner:        "testuser1",
 		Position:     "A1",
@@ -472,10 +471,10 @@ func TestUpdateAirUnit(t *testing.T) {
 }
 
 func TestSearchUnit(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -525,8 +524,7 @@ func TestSearchUnit(t *testing.T) {
 }
 
 func TestUnitService_GetEnemyContacts(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	service := testServices.UnitService
@@ -549,8 +547,7 @@ func TestUnitService_GetEnemyContacts(t *testing.T) {
 }
 
 func TestUnitService_GetVisibleUnits_UsesUnitVisibility(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	service := testServices.UnitService
@@ -573,10 +570,10 @@ func TestUnitService_GetVisibleUnits_UsesUnitVisibility(t *testing.T) {
 }
 
 func TestGetUnitsByPosition(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -643,10 +640,10 @@ func TestGetUnitsByPosition(t *testing.T) {
 }
 
 func TestDeleteNavalUnit(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -699,8 +696,7 @@ func TestDeleteNavalUnit(t *testing.T) {
 }
 
 func TestAwardVPForSunkShip(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	service := testServices.UnitService

@@ -17,8 +17,7 @@ import (
 // TestPhaseAPIEndpoints тестирует API endpoints для работы с фазами
 func TestPhaseAPIEndpoints(t *testing.T) {
 	// Настройка тестовых сервисов
-	testServices, cleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := services.SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	// Создаем обработчик фаз
@@ -26,6 +25,7 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 
 	// Создаем тестовую игру через GameModel
 	gameID := uuid.New().String()
+	var err error
 	_, err = services.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
@@ -259,8 +259,7 @@ func TestPhaseAPIEndpoints(t *testing.T) {
 // TestPhaseSequenceAPI тестирует полную последовательность фаз через API
 func TestPhaseSequenceAPI(t *testing.T) {
 	// Настройка тестовых сервисов
-	testServices, cleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := services.SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	// Создаем обработчик фаз
@@ -268,6 +267,7 @@ func TestPhaseSequenceAPI(t *testing.T) {
 
 	// Создаем тестовую игру через GameModel
 	gameID := uuid.New().String()
+	var err error
 	_, err = services.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
 
@@ -457,8 +457,7 @@ func TestPhaseSequenceAPI(t *testing.T) {
 // TestPhaseValidationAPI тестирует валидацию API endpoints
 func TestPhaseValidationAPI(t *testing.T) {
 	// Настройка тестовых сервисов
-	testServices, cleanup, err := services.SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := services.SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	// Создаем обработчик фаз

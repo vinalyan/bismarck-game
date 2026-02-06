@@ -11,10 +11,10 @@ import (
 )
 
 func TestUnitService_RepairAtSea(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -116,10 +116,10 @@ func TestUnitService_RepairAtSea(t *testing.T) {
 }
 
 func TestUnitService_RefuelAtPort(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -217,10 +217,10 @@ func TestUnitService_RefuelAtPort(t *testing.T) {
 }
 
 func TestUnitService_RefuelAtSea(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -312,10 +312,10 @@ func TestUnitService_RefuelAtSea(t *testing.T) {
 }
 
 func TestUnitService_SetPatrol(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -386,10 +386,10 @@ func TestUnitService_SetPatrol(t *testing.T) {
 }
 
 func TestTaskForceService_SetPatrol(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
 	require.NoError(t, err)

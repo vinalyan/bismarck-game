@@ -12,8 +12,7 @@ import (
 )
 
 func TestGameService_GetPlayerSide(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
@@ -75,8 +74,7 @@ func TestGameService_GetPlayerSide(t *testing.T) {
 }
 
 func TestGameService_GetGamePlayers(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
@@ -144,8 +142,7 @@ func TestGameService_GetGamePlayers(t *testing.T) {
 }
 
 func TestGameService_GetVictoryPoints(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
@@ -193,8 +190,7 @@ func TestGameService_GetVictoryPoints(t *testing.T) {
 }
 
 func TestGameService_GetGameBasicInfo(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")

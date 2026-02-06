@@ -11,10 +11,10 @@ import (
 
 // TestVisibilityPhaseHandler_Start тестирует фазу видимости с использованием полной интеграции
 func TestVisibilityPhaseHandler_Start(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Создаем тестовую игру
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseVisibility)
@@ -59,26 +59,26 @@ func TestVisibilityPhaseHandler_Start(t *testing.T) {
 		}
 
 		unit := &models.NavalUnit{
-			GameID:                   gameID,
-			Name:                     "Test Sighted Unit in Fog",
-			Type:                     models.UnitTypeBattleship,
-			Class:                    "Bismarck",
-			Owner:                    ownerID1,
-			Nationality:              "german",
-			Position:                 fogHex,
-			SetupHex:                 fogHex,
-			Evasion:                  30,
-			BaseEvasion:              30,
-			SpeedRating:              models.SpeedTypeFast,
-			Fuel:                     10,
-			MaxFuel:                  18,
-			HullBoxes:                8,
-			CurrentHull:              8,
-			Status:                   models.UnitStatusActive,
-			Damage:                   []models.Damage{},
-			PreviousTurnMovedHexes:   0,
-			NoMovementTurnsLeft:      0,
-			IsEmergencyFuel:          false,
+			GameID:                 gameID,
+			Name:                   "Test Sighted Unit in Fog",
+			Type:                   models.UnitTypeBattleship,
+			Class:                  "Bismarck",
+			Owner:                  ownerID1,
+			Nationality:            "german",
+			Position:               fogHex,
+			SetupHex:               fogHex,
+			Evasion:                30,
+			BaseEvasion:            30,
+			SpeedRating:            models.SpeedTypeFast,
+			Fuel:                   10,
+			MaxFuel:                18,
+			HullBoxes:              8,
+			CurrentHull:            8,
+			Status:                 models.UnitStatusActive,
+			Damage:                 []models.Damage{},
+			PreviousTurnMovedHexes: 0,
+			NoMovementTurnsLeft:    0,
+			IsEmergencyFuel:        false,
 		}
 
 		err := testServices.UnitService.CreateNavalUnit(unit)
@@ -124,26 +124,26 @@ func TestVisibilityPhaseHandler_Start(t *testing.T) {
 		}
 
 		unit := &models.NavalUnit{
-			GameID:                   gameID,
-			Name:                     "Test Shadowed Unit in Fog",
-			Type:                     models.UnitTypeBattleship,
-			Class:                    "Bismarck",
-			Owner:                    ownerID1,
-			Nationality:              "german",
-			Position:                 fogHex,
-			SetupHex:                 fogHex,
-			Evasion:                  30,
-			BaseEvasion:              30,
-			SpeedRating:              models.SpeedTypeFast,
-			Fuel:                     10,
-			MaxFuel:                  18,
-			HullBoxes:                8,
-			CurrentHull:              8,
-			Status:                   models.UnitStatusActive,
-			Damage:                   []models.Damage{},
-			PreviousTurnMovedHexes:   0,
-			NoMovementTurnsLeft:      0,
-			IsEmergencyFuel:          false,
+			GameID:                 gameID,
+			Name:                   "Test Shadowed Unit in Fog",
+			Type:                   models.UnitTypeBattleship,
+			Class:                  "Bismarck",
+			Owner:                  ownerID1,
+			Nationality:            "german",
+			Position:               fogHex,
+			SetupHex:               fogHex,
+			Evasion:                30,
+			BaseEvasion:            30,
+			SpeedRating:            models.SpeedTypeFast,
+			Fuel:                   10,
+			MaxFuel:                18,
+			HullBoxes:              8,
+			CurrentHull:            8,
+			Status:                 models.UnitStatusActive,
+			Damage:                 []models.Damage{},
+			PreviousTurnMovedHexes: 0,
+			NoMovementTurnsLeft:    0,
+			IsEmergencyFuel:        false,
 		}
 
 		err := testServices.UnitService.CreateNavalUnit(unit)
@@ -181,7 +181,7 @@ func TestVisibilityPhaseHandler_Start(t *testing.T) {
 		// Находим гекс, который точно не туманный
 		fogHexes := testServices.MapStructureService.GetFogHexes()
 		nonFogHex := "A1" // Используем гекс, который точно не туманный (A1 обычно не в тумане)
-		
+
 		// Проверяем, что выбранный гекс не туманный
 		for _, fogHex := range fogHexes {
 			if fogHex == nonFogHex {
@@ -189,31 +189,31 @@ func TestVisibilityPhaseHandler_Start(t *testing.T) {
 				break
 			}
 		}
-		
+
 		// Убеждаемся, что гекс не туманный
 		require.False(t, testServices.MapStructureService.IsFogHex(nonFogHex), "Выбранный гекс должен быть не туманным")
 
 		unit := &models.NavalUnit{
-			GameID:                   gameID,
-			Name:                     "Test Sighted Unit Not in Fog",
-			Type:                     models.UnitTypeBattleship,
-			Class:                    "Bismarck",
-			Owner:                    ownerID1,
-			Nationality:              "german",
-			Position:                 nonFogHex,
-			SetupHex:                 nonFogHex,
-			Evasion:                  30,
-			BaseEvasion:              30,
-			SpeedRating:              models.SpeedTypeFast,
-			Fuel:                     10,
-			MaxFuel:                  18,
-			HullBoxes:                8,
-			CurrentHull:              8,
-			Status:                   models.UnitStatusActive,
-			Damage:                   []models.Damage{},
-			PreviousTurnMovedHexes:   0,
-			NoMovementTurnsLeft:      0,
-			IsEmergencyFuel:          false,
+			GameID:                 gameID,
+			Name:                   "Test Sighted Unit Not in Fog",
+			Type:                   models.UnitTypeBattleship,
+			Class:                  "Bismarck",
+			Owner:                  ownerID1,
+			Nationality:            "german",
+			Position:               nonFogHex,
+			SetupHex:               nonFogHex,
+			Evasion:                30,
+			BaseEvasion:            30,
+			SpeedRating:            models.SpeedTypeFast,
+			Fuel:                   10,
+			MaxFuel:                18,
+			HullBoxes:              8,
+			CurrentHull:            8,
+			Status:                 models.UnitStatusActive,
+			Damage:                 []models.Damage{},
+			PreviousTurnMovedHexes: 0,
+			NoMovementTurnsLeft:    0,
+			IsEmergencyFuel:        false,
 		}
 
 		err := testServices.UnitService.CreateNavalUnit(unit)
@@ -247,26 +247,26 @@ func TestVisibilityPhaseHandler_Start(t *testing.T) {
 		nonFogHex := "J31"
 
 		unit := &models.NavalUnit{
-			GameID:                   gameID,
-			Name:                     "Test Sighted Unit Visibility X",
-			Type:                     models.UnitTypeBattleship,
-			Class:                    "Bismarck",
-			Owner:                    ownerID1,
-			Nationality:              "german",
-			Position:                 nonFogHex,
-			SetupHex:                 nonFogHex,
-			Evasion:                  30,
-			BaseEvasion:              30,
-			SpeedRating:              models.SpeedTypeFast,
-			Fuel:                     10,
-			MaxFuel:                  18,
-			HullBoxes:                8,
-			CurrentHull:              8,
-			Status:                   models.UnitStatusActive,
-			Damage:                   []models.Damage{},
-			PreviousTurnMovedHexes:   0,
-			NoMovementTurnsLeft:      0,
-			IsEmergencyFuel:          false,
+			GameID:                 gameID,
+			Name:                   "Test Sighted Unit Visibility X",
+			Type:                   models.UnitTypeBattleship,
+			Class:                  "Bismarck",
+			Owner:                  ownerID1,
+			Nationality:            "german",
+			Position:               nonFogHex,
+			SetupHex:               nonFogHex,
+			Evasion:                30,
+			BaseEvasion:            30,
+			SpeedRating:            models.SpeedTypeFast,
+			Fuel:                   10,
+			MaxFuel:                18,
+			HullBoxes:              8,
+			CurrentHull:            8,
+			Status:                 models.UnitStatusActive,
+			Damage:                 []models.Damage{},
+			PreviousTurnMovedHexes: 0,
+			NoMovementTurnsLeft:    0,
+			IsEmergencyFuel:        false,
 		}
 
 		err := testServices.UnitService.CreateNavalUnit(unit)
@@ -288,7 +288,7 @@ func TestVisibilityPhaseHandler_Start(t *testing.T) {
 		// Но поскольку в Start() сначала устанавливается visibilityLevel = 3, нужно проверить логику отдельно
 		// Для полного теста нужно будет модифицировать VisibilityPhaseHandler или использовать мок
 		// Пока проверим базовую функциональность
-		
+
 		err = visibilityHandler.Start(gameID, 1)
 		require.NoError(t, err)
 
@@ -312,26 +312,26 @@ func TestVisibilityPhaseHandler_Start(t *testing.T) {
 		}
 
 		unit := &models.NavalUnit{
-			GameID:                   gameID,
-			Name:                     "Test Unit for Logging",
-			Type:                     models.UnitTypeBattleship,
-			Class:                    "Bismarck",
-			Owner:                    ownerID1,
-			Nationality:              "german",
-			Position:                 fogHex,
-			SetupHex:                 fogHex,
-			Evasion:                  30,
-			BaseEvasion:              30,
-			SpeedRating:              models.SpeedTypeFast,
-			Fuel:                     10,
-			MaxFuel:                  18,
-			HullBoxes:                8,
-			CurrentHull:              8,
-			Status:                   models.UnitStatusActive,
-			Damage:                   []models.Damage{},
-			PreviousTurnMovedHexes:   0,
-			NoMovementTurnsLeft:      0,
-			IsEmergencyFuel:          false,
+			GameID:                 gameID,
+			Name:                   "Test Unit for Logging",
+			Type:                   models.UnitTypeBattleship,
+			Class:                  "Bismarck",
+			Owner:                  ownerID1,
+			Nationality:            "german",
+			Position:               fogHex,
+			SetupHex:               fogHex,
+			Evasion:                30,
+			BaseEvasion:            30,
+			SpeedRating:            models.SpeedTypeFast,
+			Fuel:                   10,
+			MaxFuel:                18,
+			HullBoxes:              8,
+			CurrentHull:            8,
+			Status:                 models.UnitStatusActive,
+			Damage:                 []models.Damage{},
+			PreviousTurnMovedHexes: 0,
+			NoMovementTurnsLeft:    0,
+			IsEmergencyFuel:        false,
 		}
 
 		err := testServices.UnitService.CreateNavalUnit(unit)
@@ -371,10 +371,10 @@ func TestVisibilityPhaseHandler_Start(t *testing.T) {
 
 // TestLastKnownPos_Integration тестирует обновление LastKnownPos при различных сценариях видимости
 func TestLastKnownPos_Integration(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Создаем тестовую игру
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseVisibility)
@@ -401,26 +401,26 @@ func TestLastKnownPos_Integration(t *testing.T) {
 		unitPosition := fogHex
 
 		unit := &models.NavalUnit{
-			GameID:                   gameID,
-			Name:                     "Test Unit LastKnownPos 1",
-			Type:                     models.UnitTypeBattleship,
-			Class:                    "Bismarck",
-			Owner:                    ownerID1,
-			Nationality:              "german",
-			Position:                 unitPosition,
-			SetupHex:                 unitPosition,
-			Evasion:                  30,
-			BaseEvasion:              30,
-			SpeedRating:              models.SpeedTypeFast,
-			Fuel:                     10,
-			MaxFuel:                  18,
-			HullBoxes:                8,
-			CurrentHull:              8,
-			Status:                   models.UnitStatusActive,
-			Damage:                   []models.Damage{},
-			PreviousTurnMovedHexes:   0,
-			NoMovementTurnsLeft:      0,
-			IsEmergencyFuel:          false,
+			GameID:                 gameID,
+			Name:                   "Test Unit LastKnownPos 1",
+			Type:                   models.UnitTypeBattleship,
+			Class:                  "Bismarck",
+			Owner:                  ownerID1,
+			Nationality:            "german",
+			Position:               unitPosition,
+			SetupHex:               unitPosition,
+			Evasion:                30,
+			BaseEvasion:            30,
+			SpeedRating:            models.SpeedTypeFast,
+			Fuel:                   10,
+			MaxFuel:                18,
+			HullBoxes:              8,
+			CurrentHull:            8,
+			Status:                 models.UnitStatusActive,
+			Damage:                 []models.Damage{},
+			PreviousTurnMovedHexes: 0,
+			NoMovementTurnsLeft:    0,
+			IsEmergencyFuel:        false,
 		}
 
 		err := testServices.UnitService.CreateNavalUnit(unit)
@@ -465,26 +465,26 @@ func TestLastKnownPos_Integration(t *testing.T) {
 		unitPosition := fogHex
 
 		unit := &models.NavalUnit{
-			GameID:                   gameID,
-			Name:                     "Test Unit LastKnownPos 2",
-			Type:                     models.UnitTypeBattleship,
-			Class:                    "Bismarck",
-			Owner:                    ownerID1,
-			Nationality:              "german",
-			Position:                 unitPosition,
-			SetupHex:                 unitPosition,
-			Evasion:                  30,
-			BaseEvasion:              30,
-			SpeedRating:              models.SpeedTypeFast,
-			Fuel:                     10,
-			MaxFuel:                  18,
-			HullBoxes:                8,
-			CurrentHull:              8,
-			Status:                   models.UnitStatusActive,
-			Damage:                   []models.Damage{},
-			PreviousTurnMovedHexes:   0,
-			NoMovementTurnsLeft:      0,
-			IsEmergencyFuel:          false,
+			GameID:                 gameID,
+			Name:                   "Test Unit LastKnownPos 2",
+			Type:                   models.UnitTypeBattleship,
+			Class:                  "Bismarck",
+			Owner:                  ownerID1,
+			Nationality:            "german",
+			Position:               unitPosition,
+			SetupHex:               unitPosition,
+			Evasion:                30,
+			BaseEvasion:            30,
+			SpeedRating:            models.SpeedTypeFast,
+			Fuel:                   10,
+			MaxFuel:                18,
+			HullBoxes:              8,
+			CurrentHull:            8,
+			Status:                 models.UnitStatusActive,
+			Damage:                 []models.Damage{},
+			PreviousTurnMovedHexes: 0,
+			NoMovementTurnsLeft:    0,
+			IsEmergencyFuel:        false,
 		}
 
 		err := testServices.UnitService.CreateNavalUnit(unit)
@@ -519,26 +519,26 @@ func TestLastKnownPos_Integration(t *testing.T) {
 		nonFogHex := "J30"
 
 		unit := &models.NavalUnit{
-			GameID:                   gameID,
-			Name:                     "Test Unit LastKnownPos 3",
-			Type:                     models.UnitTypeBattleship,
-			Class:                    "Bismarck",
-			Owner:                    ownerID1,
-			Nationality:              "german",
-			Position:                 nonFogHex,
-			SetupHex:                 nonFogHex,
-			Evasion:                  30,
-			BaseEvasion:              30,
-			SpeedRating:              models.SpeedTypeFast,
-			Fuel:                     10,
-			MaxFuel:                  18,
-			HullBoxes:                8,
-			CurrentHull:              8,
-			Status:                   models.UnitStatusActive,
-			Damage:                   []models.Damage{},
-			PreviousTurnMovedHexes:   0,
-			NoMovementTurnsLeft:      0,
-			IsEmergencyFuel:          false,
+			GameID:                 gameID,
+			Name:                   "Test Unit LastKnownPos 3",
+			Type:                   models.UnitTypeBattleship,
+			Class:                  "Bismarck",
+			Owner:                  ownerID1,
+			Nationality:            "german",
+			Position:               nonFogHex,
+			SetupHex:               nonFogHex,
+			Evasion:                30,
+			BaseEvasion:            30,
+			SpeedRating:            models.SpeedTypeFast,
+			Fuel:                   10,
+			MaxFuel:                18,
+			HullBoxes:              8,
+			CurrentHull:            8,
+			Status:                 models.UnitStatusActive,
+			Damage:                 []models.Damage{},
+			PreviousTurnMovedHexes: 0,
+			NoMovementTurnsLeft:    0,
+			IsEmergencyFuel:        false,
 		}
 
 		err := testServices.UnitService.CreateNavalUnit(unit)
@@ -590,26 +590,26 @@ func TestLastKnownPos_Integration(t *testing.T) {
 		originalPosition := fogHex
 
 		unit := &models.NavalUnit{
-			GameID:                   gameID,
-			Name:                     "Test Unit LastKnownPos 4",
-			Type:                     models.UnitTypeBattleship,
-			Class:                    "Bismarck",
-			Owner:                    ownerID1,
-			Nationality:              "german",
-			Position:                 originalPosition,
-			SetupHex:                 originalPosition,
-			Evasion:                  30,
-			BaseEvasion:              30,
-			SpeedRating:              models.SpeedTypeFast,
-			Fuel:                     10,
-			MaxFuel:                  18,
-			HullBoxes:                8,
-			CurrentHull:              8,
-			Status:                   models.UnitStatusActive,
-			Damage:                   []models.Damage{},
-			PreviousTurnMovedHexes:   0,
-			NoMovementTurnsLeft:      0,
-			IsEmergencyFuel:          false,
+			GameID:                 gameID,
+			Name:                   "Test Unit LastKnownPos 4",
+			Type:                   models.UnitTypeBattleship,
+			Class:                  "Bismarck",
+			Owner:                  ownerID1,
+			Nationality:            "german",
+			Position:               originalPosition,
+			SetupHex:               originalPosition,
+			Evasion:                30,
+			BaseEvasion:            30,
+			SpeedRating:            models.SpeedTypeFast,
+			Fuel:                   10,
+			MaxFuel:                18,
+			HullBoxes:              8,
+			CurrentHull:            8,
+			Status:                 models.UnitStatusActive,
+			Damage:                 []models.Damage{},
+			PreviousTurnMovedHexes: 0,
+			NoMovementTurnsLeft:    0,
+			IsEmergencyFuel:        false,
 		}
 
 		err := testServices.UnitService.CreateNavalUnit(unit)
@@ -636,12 +636,12 @@ func TestLastKnownPos_Integration(t *testing.T) {
 		unitModel, exists := gameModel.Units[unit.ID]
 		require.True(t, exists, "Юнит должен существовать в GameModel")
 		assert.NotNil(t, unitModel.NavalData.LastKnownPos, "LastKnownPos должен быть установлен")
-		
+
 		lastKnownPos := *unitModel.NavalData.LastKnownPos
-		
+
 		// Проверяем, что LastKnownPos содержит правильное значение
 		assert.Equal(t, originalPosition, lastKnownPos, "LastKnownPos должен содержать оригинальную позицию")
-		
+
 		// Теперь меняем позицию юнита (например, через движение)
 		newPosition := "J31"
 		err = testServices.GameStateService.UpdateGameModelWithRetry(gameID, func(model *models.GameModel) error {
@@ -664,4 +664,3 @@ func TestLastKnownPos_Integration(t *testing.T) {
 		assert.Equal(t, originalPosition, *unitModel.NavalData.LastKnownPos, "LastKnownPos НЕ должен измениться при изменении Position")
 	})
 }
-

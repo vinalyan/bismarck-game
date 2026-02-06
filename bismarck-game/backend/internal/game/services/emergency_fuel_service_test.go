@@ -12,8 +12,7 @@ import (
 )
 
 func setupEmergencyFuelServiceTest(t *testing.T) (*TestServices, func()) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	return testServices, cleanup
 }
 
@@ -22,7 +21,7 @@ func TestEmergencyFuelService_ActivateIfNeeded(t *testing.T) {
 	defer cleanup()
 
 	service := testServices.EmergencyFuelService
-	
+
 	// Create a test game with GameModel
 	gameID := uuid.New().String()
 	_, err := testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -30,25 +29,25 @@ func TestEmergencyFuelService_ActivateIfNeeded(t *testing.T) {
 
 	// Create a test unit with zero fuel using UnitService
 	unit := &models.NavalUnit{
-		GameID:         gameID,
-		Name:           "Test Ship",
-		Type:           models.UnitTypeBattleship,
-		Class:          "Bismarck",
-		Owner:          uuid.New().String(),
-		Nationality:    "german",
-		Position:       "A1",
-		SetupHex:       "A1",
-		Evasion:        4,
-		BaseEvasion:    4,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           0,
-		MaxFuel:        18,
-		HullBoxes:      10,
-		CurrentHull:    10,
-		Status:         models.UnitStatusActive,
+		GameID:          gameID,
+		Name:            "Test Ship",
+		Type:            models.UnitTypeBattleship,
+		Class:           "Bismarck",
+		Owner:           uuid.New().String(),
+		Nationality:     "german",
+		Position:        "A1",
+		SetupHex:        "A1",
+		Evasion:         4,
+		BaseEvasion:     4,
+		SpeedRating:     models.SpeedTypeFast,
+		Fuel:            0,
+		MaxFuel:         18,
+		HullBoxes:       10,
+		CurrentHull:     10,
+		Status:          models.UnitStatusActive,
 		IsEmergencyFuel: false,
-		EmergencyTurn:  0,
-		Damage:         []models.Damage{},
+		EmergencyTurn:   0,
+		Damage:          []models.Damage{},
 	}
 	err = testServices.UnitService.CreateNavalUnit(unit)
 	require.NoError(t, err)
@@ -64,7 +63,7 @@ func TestEmergencyFuelService_ActivateIfNeeded(t *testing.T) {
 	unitModel, exists := gameModel.Units[unitID]
 	require.True(t, exists, "Unit should exist in GameModel")
 	require.NotNil(t, unitModel.NavalData, "NavalData should exist")
-	
+
 	assert.True(t, unitModel.NavalData.IsEmergencyFuel, "Emergency fuel should be activated")
 	assert.Equal(t, 11, unitModel.NavalData.EmergencyTurn, "Emergency turn should be current turn + 10")
 
@@ -82,25 +81,25 @@ func TestEmergencyFuelService_ActivateIfNeeded(t *testing.T) {
 
 	// Test that activation doesn't happen with positive fuel
 	unit2 := &models.NavalUnit{
-		GameID:         gameID,
-		Name:           "Test Ship 2",
-		Type:           models.UnitTypeBattleship,
-		Class:          "Bismarck",
-		Owner:          uuid.New().String(),
-		Nationality:    "german",
-		Position:       "A1",
-		SetupHex:       "A1",
-		Evasion:        4,
-		BaseEvasion:    4,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           5,
-		MaxFuel:        18,
-		HullBoxes:      10,
-		CurrentHull:    10,
-		Status:         models.UnitStatusActive,
+		GameID:          gameID,
+		Name:            "Test Ship 2",
+		Type:            models.UnitTypeBattleship,
+		Class:           "Bismarck",
+		Owner:           uuid.New().String(),
+		Nationality:     "german",
+		Position:        "A1",
+		SetupHex:        "A1",
+		Evasion:         4,
+		BaseEvasion:     4,
+		SpeedRating:     models.SpeedTypeFast,
+		Fuel:            5,
+		MaxFuel:         18,
+		HullBoxes:       10,
+		CurrentHull:     10,
+		Status:          models.UnitStatusActive,
 		IsEmergencyFuel: false,
-		EmergencyTurn:  0,
-		Damage:         []models.Damage{},
+		EmergencyTurn:   0,
+		Damage:          []models.Damage{},
 	}
 	err = testServices.UnitService.CreateNavalUnit(unit2)
 	require.NoError(t, err)
@@ -120,7 +119,7 @@ func TestEmergencyFuelService_ClearIfRefueled(t *testing.T) {
 	defer cleanup()
 
 	service := testServices.EmergencyFuelService
-	
+
 	// Create a test game with GameModel
 	gameID := uuid.New().String()
 	_, err := testutil.CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseMovement)
@@ -128,25 +127,25 @@ func TestEmergencyFuelService_ClearIfRefueled(t *testing.T) {
 
 	// Create a test unit with emergency fuel active
 	unit := &models.NavalUnit{
-		GameID:         gameID,
-		Name:           "Test Ship",
-		Type:           models.UnitTypeBattleship,
-		Class:          "Bismarck",
-		Owner:          uuid.New().String(),
-		Nationality:    "german",
-		Position:       "A1",
-		SetupHex:       "A1",
-		Evasion:        4,
-		BaseEvasion:    4,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           5,
-		MaxFuel:        18,
-		HullBoxes:      10,
-		CurrentHull:    10,
-		Status:         models.UnitStatusActive,
+		GameID:          gameID,
+		Name:            "Test Ship",
+		Type:            models.UnitTypeBattleship,
+		Class:           "Bismarck",
+		Owner:           uuid.New().String(),
+		Nationality:     "german",
+		Position:        "A1",
+		SetupHex:        "A1",
+		Evasion:         4,
+		BaseEvasion:     4,
+		SpeedRating:     models.SpeedTypeFast,
+		Fuel:            5,
+		MaxFuel:         18,
+		HullBoxes:       10,
+		CurrentHull:     10,
+		Status:          models.UnitStatusActive,
 		IsEmergencyFuel: true,
-		EmergencyTurn:  11,
-		Damage:         []models.Damage{},
+		EmergencyTurn:   11,
+		Damage:          []models.Damage{},
 	}
 	err = testServices.UnitService.CreateNavalUnit(unit)
 	require.NoError(t, err)
@@ -162,31 +161,31 @@ func TestEmergencyFuelService_ClearIfRefueled(t *testing.T) {
 	unitModel, exists := gameModel.Units[unitID]
 	require.True(t, exists, "Unit should exist in GameModel")
 	require.NotNil(t, unitModel.NavalData, "NavalData should exist")
-	
+
 	assert.False(t, unitModel.NavalData.IsEmergencyFuel, "Emergency fuel should be cleared")
 	assert.Equal(t, 0, unitModel.NavalData.EmergencyTurn, "Emergency turn should be 0")
 
 	// Test that clearing doesn't happen if fuel is zero
 	unit2 := &models.NavalUnit{
-		GameID:         gameID,
-		Name:           "Test Ship 2",
-		Type:           models.UnitTypeBattleship,
-		Class:          "Bismarck",
-		Owner:          uuid.New().String(),
-		Nationality:    "german",
-		Position:       "A1",
-		SetupHex:       "A1",
-		Evasion:        4,
-		BaseEvasion:    4,
-		SpeedRating:    models.SpeedTypeFast,
-		Fuel:           0,
-		MaxFuel:        18,
-		HullBoxes:      10,
-		CurrentHull:    10,
-		Status:         models.UnitStatusActive,
+		GameID:          gameID,
+		Name:            "Test Ship 2",
+		Type:            models.UnitTypeBattleship,
+		Class:           "Bismarck",
+		Owner:           uuid.New().String(),
+		Nationality:     "german",
+		Position:        "A1",
+		SetupHex:        "A1",
+		Evasion:         4,
+		BaseEvasion:     4,
+		SpeedRating:     models.SpeedTypeFast,
+		Fuel:            0,
+		MaxFuel:         18,
+		HullBoxes:       10,
+		CurrentHull:     10,
+		Status:          models.UnitStatusActive,
 		IsEmergencyFuel: true,
-		EmergencyTurn:  11,
-		Damage:         []models.Damage{},
+		EmergencyTurn:   11,
+		Damage:          []models.Damage{},
 	}
 	err = testServices.UnitService.CreateNavalUnit(unit2)
 	require.NoError(t, err)
@@ -200,4 +199,3 @@ func TestEmergencyFuelService_ClearIfRefueled(t *testing.T) {
 	require.True(t, exists)
 	assert.True(t, unitModel2.NavalData.IsEmergencyFuel, "Emergency fuel should not be cleared with zero fuel")
 }
-

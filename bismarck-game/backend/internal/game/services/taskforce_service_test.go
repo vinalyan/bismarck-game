@@ -32,8 +32,7 @@ func setupTestMovementService(db *database.Database, logger *logger.Logger) *Mov
 }
 
 func TestNewTaskForceService(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	service := testServices.TaskForceService
@@ -44,10 +43,10 @@ func TestNewTaskForceService(t *testing.T) {
 }
 
 func TestCreateTaskForce(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -92,10 +91,10 @@ func TestCreateTaskForce(t *testing.T) {
 }
 
 func TestGetTaskForcesByGameID(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -161,10 +160,10 @@ func TestGetTaskForcesByGameID(t *testing.T) {
 }
 
 func TestGetTaskForceByID(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 	unitService := testServices.UnitService
 	service := testServices.TaskForceService
@@ -203,10 +202,10 @@ func TestGetTaskForceByID(t *testing.T) {
 }
 
 func TestAddUnitToTaskForce(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -280,10 +279,10 @@ func TestAddUnitToTaskForce(t *testing.T) {
 // Position rules tests
 // 1) When unit is added to TF, its position must be cleared
 func TestAddUnitToTaskForce_ClearsUnitPosition(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -307,10 +306,10 @@ func TestAddUnitToTaskForce_ClearsUnitPosition(t *testing.T) {
 
 // 2) When unit is removed from TF (TF remains), unit.position must become TF.position
 func TestRemoveUnitFromTaskForce_SetsUnitPositionToTF(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -349,10 +348,10 @@ func TestRemoveUnitFromTaskForce_SetsUnitPositionToTF(t *testing.T) {
 
 // 3) When TF is disbanded (after removal leaves <2), all its units must receive TF.position
 func TestRemoveUnitFromTaskForce_Disband_AssignsPositionsToAll(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, testGameID, 1, models.PhaseMovement)
 	require.NoError(t, err)
@@ -387,10 +386,10 @@ func TestRemoveUnitFromTaskForce_Disband_AssignsPositionsToAll(t *testing.T) {
 }
 
 func TestRemoveUnitFromTaskForce(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -494,10 +493,10 @@ func TestRemoveUnitFromTaskForce(t *testing.T) {
 }
 
 func TestMoveTaskForce(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -539,10 +538,10 @@ func TestMoveTaskForce(t *testing.T) {
 }
 
 func TestDeleteTaskForce(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 
 	// Create GameModel for the test game
@@ -584,10 +583,10 @@ func TestDeleteTaskForce(t *testing.T) {
 }
 
 func TestGetTaskForceUnits(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -676,10 +675,10 @@ func TestGetTaskForceUnits(t *testing.T) {
 }
 
 func TestGetTaskForceEffectiveSpeed(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -763,10 +762,10 @@ func TestGetTaskForceEffectiveSpeed(t *testing.T) {
 }
 
 func TestGetTaskForceTotalSearchFactors(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -856,10 +855,10 @@ func TestGetTaskForceTotalSearchFactors(t *testing.T) {
 
 // TestGetTaskForceAvailableMoves_WorstCaseScenario тестирует пересечение доступных гексов всех юнитов в TF
 func TestGetTaskForceAvailableMoves_WorstCaseScenario(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -963,10 +962,10 @@ func TestGetTaskForceAvailableMoves_WorstCaseScenario(t *testing.T) {
 
 // TestTaskForceMovement_NoMovementTurnsLeft тестирует применение ограничений движения
 func TestTaskForceMovement_NoMovementTurnsLeft(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -1060,10 +1059,10 @@ func TestTaskForceMovement_NoMovementTurnsLeft(t *testing.T) {
 
 // TestTaskForceMovement_FuelRestrictions тестирует учет топливных ограничений каждого корабля
 func TestTaskForceMovement_FuelRestrictions(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -1170,10 +1169,10 @@ func TestTaskForceMovement_FuelRestrictions(t *testing.T) {
 
 // TestTaskForceMovement_EmergencyFuel тестирует движение TF с кораблём на аварийном топливе
 func TestTaskForceMovement_EmergencyFuel(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -1357,10 +1356,10 @@ func TestTaskForceMovement_EmergencyFuel(t *testing.T) {
 
 // TestExecuteTaskForceMovement_Integration тестирует полный цикл движения TF
 func TestExecuteTaskForceMovement_Integration(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -1501,10 +1500,10 @@ func TestExecuteTaskForceMovement_Integration(t *testing.T) {
 
 // TestTaskForceFuelConsumption_Individual тестирует индивидуальное потребление топлива
 func TestTaskForceFuelConsumption_Individual(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -1616,10 +1615,10 @@ func TestTaskForceFuelConsumption_Individual(t *testing.T) {
 
 // TestTaskForceMovement_UpdateAllUnits тестирует обновление позиций всех юнитов в TF
 func TestTaskForceMovement_UpdateAllUnits(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -1716,10 +1715,10 @@ func TestTaskForceMovement_UpdateAllUnits(t *testing.T) {
 
 // TestCreateTaskForce_ShadowedUnitsRejected тестирует нельзя создать TF с преследуемыми кораблями
 func TestCreateTaskForce_ShadowedUnitsRejected(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -1852,10 +1851,10 @@ func TestCreateTaskForce_ShadowedUnitsRejected(t *testing.T) {
 
 // TestAddUnitToTaskForce_ShadowedUnitRejected тестирует нельзя добавить преследуемый корабль
 func TestAddUnitToTaskForce_ShadowedUnitRejected(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -2002,10 +2001,10 @@ func TestAddUnitToTaskForce_ShadowedUnitRejected(t *testing.T) {
 
 // TestCanTaskForceMove_SightedTaskForce тестирует обнаруженный TF не может двигаться
 func TestCanTaskForceMove_SightedTaskForce(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 
@@ -2098,10 +2097,10 @@ func TestCanTaskForceMove_SightedTaskForce(t *testing.T) {
 
 // TestCanAddUnit_DetectionLevelCheck тестирует проверку метода CanAddUnit()
 func TestCanAddUnit_DetectionLevelCheck(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Generate test game ID
 	testGameID := uuid.New().String()
 

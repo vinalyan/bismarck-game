@@ -17,8 +17,7 @@ import (
 )
 
 func setupGameStateService(t *testing.T) (*GameStateService, func()) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 
 	logger, err := logger.New(logger.INFO, "test", "stdout")
 	require.NoError(t, err)

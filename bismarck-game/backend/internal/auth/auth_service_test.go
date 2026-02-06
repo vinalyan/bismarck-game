@@ -12,10 +12,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	redisClient := (*redis.Client)(nil)
@@ -36,12 +33,10 @@ func TestNew(t *testing.T) {
 }
 
 func TestRegister(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
+	var err error
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE player1_id IN (SELECT id FROM users WHERE username LIKE 'testuser%' OR email LIKE 'test%@example.com') OR player2_id IN (SELECT id FROM users WHERE username LIKE 'testuser%' OR email LIKE 'test%@example.com')")
 	if err != nil {
@@ -127,10 +122,7 @@ func TestValidateToken(t *testing.T) {
 }
 
 func TestGenerateToken(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	redisClient := (*redis.Client)(nil)
@@ -178,10 +170,7 @@ func TestGenerateToken(t *testing.T) {
 }
 
 func TestHashPassword(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	redisClient := (*redis.Client)(nil)
@@ -203,10 +192,7 @@ func TestHashPassword(t *testing.T) {
 }
 
 func TestCheckPassword(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	redisClient := (*redis.Client)(nil)
@@ -230,12 +216,10 @@ func TestCheckPassword(t *testing.T) {
 }
 
 func TestGetUserByID(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
+	var err error
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE player1_id IN (SELECT id FROM users WHERE username LIKE 'getusertest%' OR email LIKE 'getusertest%@example.com') OR player2_id IN (SELECT id FROM users WHERE username LIKE 'getusertest%' OR email LIKE 'getusertest%@example.com')")
 	if err != nil {
@@ -285,12 +269,10 @@ func TestGetUserByID(t *testing.T) {
 }
 
 func TestUpdateUser(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
+	var err error
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE player1_id IN (SELECT id FROM users WHERE username LIKE 'updatetest%' OR email LIKE 'updatetest%@example.com') OR player2_id IN (SELECT id FROM users WHERE username LIKE 'updatetest%' OR email LIKE 'updatetest%@example.com')")
 	if err != nil {
@@ -363,12 +345,10 @@ func TestUpdateUser(t *testing.T) {
 }
 
 func TestChangePassword(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
+	var err error
 	// Clean up any existing test data
 	_, err = db.GetConnection().Exec("DELETE FROM games WHERE player1_id IN (SELECT id FROM users WHERE username LIKE 'passwordtest%' OR email LIKE 'passwordtest%@example.com') OR player2_id IN (SELECT id FROM users WHERE username LIKE 'passwordtest%' OR email LIKE 'passwordtest%@example.com')")
 	if err != nil {
@@ -422,16 +402,13 @@ func TestChangePassword(t *testing.T) {
 }
 
 func TestCleanupExpiredSessions(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	redisClient := (*redis.Client)(nil)
 	service := New(db, redisClient, "test-secret", 24*time.Hour)
 
-	err = service.CleanupExpiredSessions()
+	err := service.CleanupExpiredSessions()
 	if err != nil {
 		t.Errorf("Unexpected error during cleanup: %v", err)
 	}

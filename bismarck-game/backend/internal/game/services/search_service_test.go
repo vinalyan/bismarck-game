@@ -11,10 +11,10 @@ import (
 )
 
 func TestSearchService_AddHexMarker(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	db := testServices.DB
 	searchService := testServices.SearchService
 
@@ -156,10 +156,10 @@ func TestSearchService_AddHexMarker(t *testing.T) {
 }
 
 func TestSearchService_RemoveHexMarker(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	db := testServices.DB
 	searchService := testServices.SearchService
 
@@ -231,10 +231,10 @@ func TestSearchService_RemoveHexMarker(t *testing.T) {
 }
 
 func TestSearchService_GetHexMarkers(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	db := testServices.DB
 	searchService := testServices.SearchService
 
@@ -308,10 +308,10 @@ func TestSearchService_GetHexMarkers(t *testing.T) {
 }
 
 func TestSearchService_GetHexMarkersCount(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	db := testServices.DB
 	searchService := testServices.SearchService
 
@@ -385,10 +385,10 @@ func TestSearchService_GetHexMarkersCount(t *testing.T) {
 }
 
 func TestSearchService_RemoveAllHexMarkersByType(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	db := testServices.DB
 	searchService := testServices.SearchService
 
@@ -448,10 +448,10 @@ func TestSearchService_RemoveAllHexMarkersByType(t *testing.T) {
 }
 
 func TestSearchService_CalculateSearchFactors_WithHexMarkers(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	db := testServices.DB
 	searchService := testServices.SearchService
 

@@ -12,10 +12,10 @@ import (
 )
 
 func TestAirAttackPhaseHandler_Start_NoMarkers(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Создаем тестовую игру
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseAirAttack)
@@ -53,10 +53,10 @@ func TestAirAttackPhaseHandler_Start_NoMarkers(t *testing.T) {
 }
 
 func TestAirAttackPhaseHandler_Start_WithMarkersButNoShips(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Создаем тестовую игру
 	gameID := uuid.New().String()
 	playerID := uuid.New().String()
@@ -112,10 +112,10 @@ func TestAirAttackPhaseHandler_Start_WithMarkersButNoShips(t *testing.T) {
 }
 
 func TestAirAttackPhaseHandler_Start_WithMarkersAndShips(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Создаем тестовую игру
 	gameID := uuid.New().String()
 	playerID := uuid.New().String()
@@ -195,10 +195,10 @@ func TestAirAttackPhaseHandler_Start_WithMarkersAndShips(t *testing.T) {
 }
 
 func TestAirAttackPhaseHandler_Start_NoPhaseManager(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseAirAttack)
 	require.NoError(t, err)
@@ -225,10 +225,10 @@ func TestAirAttackPhaseHandler_Start_NoPhaseManager(t *testing.T) {
 }
 
 func TestAirAttackPhaseHandler_Start_NilGameStateService(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseAirAttack)
 	require.NoError(t, err)
@@ -258,10 +258,10 @@ func TestAirAttackPhaseHandler_Start_NilGameStateService(t *testing.T) {
 }
 
 func TestAirAttackPhaseHandler_hasEnemyShipsInHex(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Создаем тестовую игру
 	gameID := uuid.New().String()
 	_, err = CreateTestGameModel(testServices.DB, testServices.GameStateService, gameID, 1, models.PhaseAirAttack)

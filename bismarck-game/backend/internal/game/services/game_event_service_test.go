@@ -13,8 +13,7 @@ import (
 )
 
 func TestNewGameEventService(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	logger, err := logger.New(logger.INFO, "text", "stdout")
@@ -27,10 +26,10 @@ func TestNewGameEventService(t *testing.T) {
 }
 
 func TestLogMovementEvent(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 	testUnitID := uuid.New().String()
 
@@ -53,10 +52,10 @@ func TestLogMovementEvent(t *testing.T) {
 }
 
 func TestLogPhaseChangeEvent(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -78,10 +77,10 @@ func TestLogPhaseChangeEvent(t *testing.T) {
 }
 
 func TestLogTurnChangeEvent(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 
 	// Create test game with GameModel
@@ -103,10 +102,10 @@ func TestLogTurnChangeEvent(t *testing.T) {
 }
 
 func TestGetGameEvents(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID := uuid.New().String()
 	testUnitID1 := uuid.New().String()
 	testUnitID2 := uuid.New().String()
@@ -217,10 +216,10 @@ func TestGetGameEvents(t *testing.T) {
 }
 
 func TestSaveEvent(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	require.NoError(t, err)
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
+	var err error
 	testGameID := uuid.New().String()
 
 	// Clean up any existing test data
@@ -233,8 +232,7 @@ func TestSaveEvent(t *testing.T) {
 	_, err = db.GetConnection().Exec("INSERT INTO games (id, name, status) VALUES ($1, 'Test Game', 'active')", testGameID)
 	require.NoError(t, err)
 
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	service := testServices.EventService
@@ -273,10 +271,10 @@ func TestSaveEvent(t *testing.T) {
 }
 
 func TestGetGameEventsWithPagination(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	testGameID1 := uuid.New().String()
 	testGameID2 := uuid.New().String()
 	db := testServices.DB

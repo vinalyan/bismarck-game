@@ -10,19 +10,20 @@ import (
 	"bismarck-game/backend/pkg/testutil"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
 )
 
 // TestServices содержит все сервисы, необходимые для тестов
 type TestServices struct {
-	DB                  *database.Database
-	Logger              *logger.Logger
-	GameStateService    *GameStateService
-	UnitService         *UnitService
-	TaskForceService    *TaskForceService
-	GameService         *GameService
-	EventService        *GameEventService
-	SearchService       *SearchService
+	DB                   *database.Database
+	Logger               *logger.Logger
+	GameStateService     *GameStateService
+	UnitService          *UnitService
+	TaskForceService     *TaskForceService
+	GameService          *GameService
+	EventService         *GameEventService
+	SearchService        *SearchService
 	PhaseManager         *PhaseManager
 	MovementService      *MovementService
 	EmergencyFuelService *EmergencyFuelService
@@ -33,12 +34,27 @@ type TestServices struct {
 // SetupTestServices создает все необходимые сервисы для тестов
 // Возвращает TestServices, cleanup функцию и ошибку
 func SetupTestServices() (*TestServices, func(), error) {
-	// Настраиваем тестовую БД
 	db, err := testutil.SetupTestDatabase()
 	if err != nil {
 		return nil, nil, err
 	}
+	return setupTestServicesWithDB(db)
+}
 
+// SetupTestServicesOrSkip создает сервисы для тестов или пропускает тест, если PostgreSQL недоступен.
+// Используйте в интеграционных тестах вместо SetupTestServices().
+func SetupTestServicesOrSkip(t *testing.T) (*TestServices, func()) {
+	db := testutil.SetupTestDatabaseOrSkip(t)
+	svc, cleanup, err := setupTestServicesWithDB(db)
+	if err != nil {
+		db.Close()
+		t.Fatalf("setup test services: %v", err)
+	}
+	return svc, cleanup
+}
+
+// setupTestServicesWithDB создает сервисы при уже имеющемся подключении к БД
+func setupTestServicesWithDB(db *database.Database) (*TestServices, func(), error) {
 	// Создаем логгер
 	testLogger, err := logger.New(logger.INFO, "test", "stdout")
 	if err != nil {
@@ -62,7 +78,7 @@ func SetupTestServices() (*TestServices, func(), error) {
 	// Создаем сервисы с зависимостями
 	taskForceService := NewTaskForceService(db, testLogger, unitService, nil)
 	searchService := NewSearchService(db, testLogger, unitService, gameService)
-	
+
 	// Создаем PhaseManager
 	apiBaseURL := "http://localhost:8080"
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, apiBaseURL)
@@ -110,12 +126,12 @@ func SetupTestServices() (*TestServices, func(), error) {
 	searchService.SetGameStateService(gameStateService)
 	taskForceService.SetGameStateService(gameStateService)
 	phaseManager.SetGameStateService(gameStateService)
-	
+
 	// Устанавливаем зависимости для MovementService
 	movementService.SetGameStateService(gameStateService)
 	movementService.SetTaskForceService(taskForceService)
 	movementService.SetSearchService(searchService)
-	
+
 	// Устанавливаем зависимости для EmergencyFuelService
 	emergencyFuelService.SetGameStateService(gameStateService)
 	emergencyFuelService.SetUnitService(unitService)
@@ -128,16 +144,16 @@ func SetupTestServices() (*TestServices, func(), error) {
 	}
 
 	return &TestServices{
-		DB:                  db,
-		Logger:              testLogger,
-		GameStateService:    gameStateService,
-		UnitService:         unitService,
-		TaskForceService:    taskForceService,
-		GameService:         gameService,
-		EventService:        eventService,
-		SearchService:       searchService,
-		PhaseManager:        phaseManager,
-		MovementService:     movementService,
+		DB:                   db,
+		Logger:               testLogger,
+		GameStateService:     gameStateService,
+		UnitService:          unitService,
+		TaskForceService:     taskForceService,
+		GameService:          gameService,
+		EventService:         eventService,
+		SearchService:        searchService,
+		PhaseManager:         phaseManager,
+		MovementService:      movementService,
 		EmergencyFuelService: emergencyFuelService,
 		MapStructureService:  mapStructureService,
 		WSHub:                wsHub,
@@ -163,24 +179,24 @@ func CreateTestGameModel(db *database.Database, gameStateService *GameStateServi
 	gameModel := &models.GameModel{
 		GameID:      gameID,
 		Version:     1,
-		LastUpdated:  time.Now(),
+		LastUpdated: time.Now(),
 		History:     []*models.GameModelSnapshot{},
 		CurrentTurn: &models.GameTurnModel{
 			Turn:  turn,
 			Phase: phase,
 		},
-		Units:              make(map[string]*models.UnitModel),
-		TaskForces:         make(map[string]*models.TaskForceModel),
-		EnemyContacts:      []*models.EnemyContactModel{},
+		Units:         make(map[string]*models.UnitModel),
+		TaskForces:    make(map[string]*models.TaskForceModel),
+		EnemyContacts: []*models.EnemyContactModel{},
 		Search: &models.SearchData{
 			German: make(map[string]models.SearchHexData),
 			Allied: make(map[string]models.SearchHexData),
 		},
-		Events:              []*models.GameEventModel{},
+		Events:               []*models.GameEventModel{},
 		IntrinsicSearchHexes: make(map[string]int),
-		VisibilityLevel:     1,
-		IsFog:               false,
-		WeatherTrack:        0,
+		VisibilityLevel:      1,
+		IsFog:                false,
+		WeatherTrack:         0,
 	}
 
 	// Сохраняем GameModel через gameStateService
@@ -263,4 +279,3 @@ func AddTestTaskForceToGameModel(gameStateService *GameStateService, gameID stri
 	// Сохраняем обновленный GameModel
 	return gameStateService.UpdateGameModel(gameID, gameModel)
 }
-

@@ -12,10 +12,10 @@ import (
 
 // TestRefuelService_RefuelAtPort тестирует заправку в порту
 func TestRefuelService_RefuelAtPort(t *testing.T) {
-	services, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	services, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	// Создаем RefuelService
 	refuelService := NewRefuelService(
 		services.GameStateService,
@@ -288,10 +288,10 @@ func TestRefuelService_RefuelAtPort(t *testing.T) {
 
 // TestRefuelService_RefuelAtSea тестирует заправку в море
 func TestRefuelService_RefuelAtSea(t *testing.T) {
-	services, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	services, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	refuelService := NewRefuelService(
 		services.GameStateService,
 		services.MapStructureService,
@@ -446,7 +446,7 @@ func TestRefuelService_RefuelAtSea(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Equal(t, 2, result.FuelAdded) // DD получает только +2 FP
+		assert.Equal(t, 2, result.FuelAdded)    // DD получает только +2 FP
 		assert.Equal(t, 7, result.NewFuelLevel) // 5 + 2
 	})
 
@@ -686,10 +686,10 @@ func TestRefuelService_RefuelAtSea(t *testing.T) {
 
 // TestRefuelService_GetAvailableRefuelHexes тестирует получение доступных гексов для заправки
 func TestRefuelService_GetAvailableRefuelHexes(t *testing.T) {
-	services, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	services, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	refuelService := NewRefuelService(
 		services.GameStateService,
 		services.MapStructureService,
@@ -795,10 +795,10 @@ func TestRefuelService_GetAvailableRefuelHexes(t *testing.T) {
 
 // TestRefuelService_GetTankersInHex тестирует получение танкеров в гексе
 func TestRefuelService_GetTankersInHex(t *testing.T) {
-	services, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	services, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	refuelService := NewRefuelService(
 		services.GameStateService,
 		services.MapStructureService,
@@ -879,10 +879,10 @@ func TestRefuelService_GetTankersInHex(t *testing.T) {
 
 // TestRefuelService_FindTankerForUnit тестирует поиск танкера для юнита
 func TestRefuelService_FindTankerForUnit(t *testing.T) {
-	services, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	services, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	refuelService := NewRefuelService(
 		services.GameStateService,
 		services.MapStructureService,
@@ -981,10 +981,10 @@ func TestRefuelService_FindTankerForUnit(t *testing.T) {
 
 // TestRefuelService_ClearRefuelingStatus тестирует очистку статуса заправки
 func TestRefuelService_ClearRefuelingStatus(t *testing.T) {
-	services, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	services, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
+	var err error
 	refuelService := NewRefuelService(
 		services.GameStateService,
 		services.MapStructureService,
@@ -1012,9 +1012,9 @@ func TestRefuelService_ClearRefuelingStatus(t *testing.T) {
 			Position:    "K27",
 			Status:      string(models.UnitStatusRefueling),
 			NavalData: &models.NavalUnitData{
-				Fuel:           10,
-				MaxFuel:        18,
-				RefuelingType:  models.RefuelingTypePort,
+				Fuel:               10,
+				MaxFuel:            18,
+				RefuelingType:      models.RefuelingTypePort,
 				TankerUsedThisTurn: false,
 			},
 			CreatedAt: time.Now(),
@@ -1041,8 +1041,7 @@ func TestRefuelService_ClearRefuelingStatus(t *testing.T) {
 
 // TestRefuelService_CanRefuelAtPort тестирует проверку возможности заправки в порту
 func TestRefuelService_CanRefuelAtPort(t *testing.T) {
-	services, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	services, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	refuelService := NewRefuelService(
@@ -1134,8 +1133,7 @@ func TestRefuelService_CanRefuelAtPort(t *testing.T) {
 
 // TestRefuelService_CanRefuelAtSea тестирует проверку возможности заправки в море
 func TestRefuelService_CanRefuelAtSea(t *testing.T) {
-	services, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	services, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	refuelService := NewRefuelService(

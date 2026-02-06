@@ -44,8 +44,7 @@ func mustCreateNavalUnit(t *testing.T, testServices *TestServices, gameID, name,
 }
 
 func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	germanPlayerID := uuid.New().String()
@@ -128,8 +127,7 @@ func TestSearchPhaseHandler_DetectsEnemyWithFlightMarker(t *testing.T) {
 }
 
 func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	germanPlayerID := uuid.New().String()
@@ -203,8 +201,7 @@ func TestSearchPhaseHandler_DetectsEnemyWithoutFlightMarker(t *testing.T) {
 }
 
 func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	fogHex := "C3"
@@ -287,8 +284,7 @@ func TestSearchPhaseHandler_SkipsFoggedHex(t *testing.T) {
 }
 
 func TestMovementPhaseHandler_LogsShadowedToSightedTransition(t *testing.T) {
-	testServices, cleanup, err := SetupTestServices()
-	require.NoError(t, err)
+	testServices, cleanup := SetupTestServicesOrSkip(t)
 	defer cleanup()
 
 	germanPlayerID := uuid.New().String()

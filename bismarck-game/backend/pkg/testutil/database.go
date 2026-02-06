@@ -9,7 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // SetupTestDB создает подключение к тестовой базе данных используя конфигурацию
@@ -51,6 +54,29 @@ func SetupTestDatabase() (*database.Database, error) {
 	}
 
 	return db, nil
+}
+
+// IsConnectionRefused возвращает true, если ошибка связана с недоступностью БД (connection refused).
+// Используется для пропуска интеграционных тестов при отсутствии PostgreSQL.
+func IsConnectionRefused(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Ошибка может быть обёрнута (failed to connect to database: ... connection refused)
+	return strings.Contains(err.Error(), "connection refused")
+}
+
+// SetupTestDatabaseOrSkip создает тестовую БД или пропускает тест (t.Skip), если PostgreSQL недоступен.
+// Используйте в интеграционных тестах, чтобы они не падали при отсутствии БД.
+func SetupTestDatabaseOrSkip(t *testing.T) *database.Database {
+	db, err := SetupTestDatabase()
+	if err != nil {
+		if IsConnectionRefused(err) {
+			t.Skip("PostgreSQL not available (connection refused), skipping integration test")
+		}
+		require.NoError(t, err)
+	}
+	return db
 }
 
 // CreateTestGame создает тестовую игру в базе данных
@@ -119,16 +145,16 @@ func parseSQLStatements(sqlText string) []string {
 	inDoubleQuote := false
 	inComment := false
 	inBlockComment := false
-	
+
 	runes := []rune(sqlText)
-	
+
 	for i := 0; i < len(runes); i++ {
 		char := runes[i]
 		nextChar := rune(0)
 		if i+1 < len(runes) {
 			nextChar = runes[i+1]
 		}
-		
+
 		// Обработка блочных комментариев /* */
 		if !inSingleQuote && !inDoubleQuote && !inComment {
 			if char == '/' && nextChar == '*' {
@@ -145,7 +171,7 @@ func parseSQLStatements(sqlText string) []string {
 				continue
 			}
 		}
-		
+
 		// Обработка однострочных комментариев --
 		if !inSingleQuote && !inDoubleQuote && !inBlockComment {
 			if char == '-' && nextChar == '-' {
@@ -162,7 +188,7 @@ func parseSQLStatements(sqlText string) []string {
 				continue
 			}
 		}
-		
+
 		// Обработка кавычек
 		if !inComment && !inBlockComment {
 			if char == '\'' && !inDoubleQuote {
@@ -178,7 +204,7 @@ func parseSQLStatements(sqlText string) []string {
 				inDoubleQuote = !inDoubleQuote
 			}
 		}
-		
+
 		// Разделитель команд - точка с запятой вне строк
 		if char == ';' && !inSingleQuote && !inDoubleQuote && !inComment && !inBlockComment {
 			stmt := strings.TrimSpace(current.String())
@@ -188,19 +214,19 @@ func parseSQLStatements(sqlText string) []string {
 			current.Reset()
 			continue
 		}
-		
+
 		// Добавляем символ к текущей команде
 		if !inComment && !inBlockComment {
 			current.WriteRune(char)
 		}
 	}
-	
+
 	// Добавляем последнюю команду, если она есть
 	stmt := strings.TrimSpace(current.String())
 	if stmt != "" {
 		statements = append(statements, stmt)
 	}
-	
+
 	return statements
 }
 
@@ -209,13 +235,13 @@ func parseSQLStatements(sqlText string) []string {
 func verifyTablesExist(db *sql.DB, requiredTables []string) error {
 	maxRetries := 5
 	retryDelay := 100 * time.Millisecond
-	
+
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
 			time.Sleep(retryDelay)
 			fmt.Printf("Retrying table verification (attempt %d/%d)...\n", attempt+1, maxRetries)
 		}
-		
+
 		// Создаем список таблиц для проверки через IN
 		placeholders := make([]string, len(requiredTables))
 		args := make([]interface{}, len(requiredTables))
@@ -223,14 +249,14 @@ func verifyTablesExist(db *sql.DB, requiredTables []string) error {
 			placeholders[i] = fmt.Sprintf("$%d", i+1)
 			args[i] = table
 		}
-		
+
 		query := fmt.Sprintf(`
 			SELECT table_name 
 			FROM information_schema.tables 
 			WHERE table_schema = 'public' 
 			AND table_name IN (%s)
 		`, strings.Join(placeholders, ","))
-		
+
 		rows, err := db.Query(query, args...)
 		if err != nil {
 			if attempt < maxRetries-1 {
@@ -239,7 +265,7 @@ func verifyTablesExist(db *sql.DB, requiredTables []string) error {
 			}
 			return fmt.Errorf("failed to query tables: %w", err)
 		}
-		
+
 		existingTables := make(map[string]bool)
 		for rows.Next() {
 			var tableName string
@@ -254,27 +280,27 @@ func verifyTablesExist(db *sql.DB, requiredTables []string) error {
 			existingTables[tableName] = true
 		}
 		rows.Close()
-		
+
 		var missingTables []string
 		for _, table := range requiredTables {
 			if !existingTables[table] {
 				missingTables = append(missingTables, table)
 			}
 		}
-		
+
 		if len(missingTables) == 0 {
 			// Все таблицы найдены
 			return nil
 		}
-		
+
 		// Если это последняя попытка, возвращаем ошибку
 		if attempt == maxRetries-1 {
 			return fmt.Errorf("critical tables not created after %d attempts: %v", maxRetries, missingTables)
 		}
-		
+
 		fmt.Printf("Some tables missing (will retry): %v\n", missingTables)
 	}
-	
+
 	return fmt.Errorf("failed to verify tables after %d attempts", maxRetries)
 }
 
@@ -329,7 +355,7 @@ func createTestSchema(db *sql.DB) error {
 		"air_units",
 		"task_forces",
 	}
-	
+
 	// Быстрая проверка существования критических таблиц
 	tablesExist := false
 	checkQuerySimple := fmt.Sprintf(`
@@ -338,14 +364,14 @@ func createTestSchema(db *sql.DB) error {
 		WHERE table_schema = 'public' 
 		AND table_name IN ('%s')
 	`, strings.Join(requiredTables, "','"))
-	
+
 	var count int
 	err = db.QueryRow(checkQuerySimple).Scan(&count)
 	if err == nil && count == len(requiredTables) {
 		tablesExist = true
 		fmt.Printf("Critical tables already exist, skipping drop (parallel test detected)\n")
 	}
-	
+
 	// Удаляем таблицы только если они не существуют
 	// Это предотвращает конфликты при параллельном выполнении тестов
 	if !tablesExist {
@@ -371,7 +397,7 @@ func createTestSchema(db *sql.DB) error {
 				// Игнорируем ошибки при удалении - таблицы могут не существовать
 			}
 		}
-		
+
 		// Небольшая задержка после удаления
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -379,9 +405,9 @@ func createTestSchema(db *sql.DB) error {
 	// Используем умный парсер для разбиения SQL на команды
 	sqlText := string(schemaSQL)
 	statements := parseSQLStatements(sqlText)
-	
+
 	fmt.Printf("Parsed %d SQL statements\n", len(statements))
-	
+
 	// Выполняем каждую команду
 	var executionErrors []error
 	for i, stmt := range statements {
@@ -389,14 +415,14 @@ func createTestSchema(db *sql.DB) error {
 		if stmt == "" {
 			continue
 		}
-		
+
 		// Логируем первые 50 символов команды для отладки
 		stmtPreview := stmt
 		if len(stmtPreview) > 50 {
 			stmtPreview = stmtPreview[:50] + "..."
 		}
 		fmt.Printf("Executing statement %d/%d: %s\n", i+1, len(statements), stmtPreview)
-		
+
 		_, err = db.Exec(stmt)
 		if err != nil {
 			errStr := err.Error()
@@ -416,7 +442,7 @@ func createTestSchema(db *sql.DB) error {
 				fmt.Printf("  -> Duplicate key (ignored)\n")
 				continue
 			}
-			
+
 			// Критическая ошибка - сохраняем для отчета
 			executionErrors = append(executionErrors, fmt.Errorf("statement %d: %w", i+1, err))
 			fmt.Printf("  -> ERROR: %v\n", err)
@@ -429,9 +455,9 @@ func createTestSchema(db *sql.DB) error {
 			fmt.Printf("  -> Success\n")
 		}
 	}
-	
+
 	// Проверяем, что критические таблицы созданы (используем тот же список)
-	
+
 	fmt.Printf("Verifying critical tables exist...\n")
 	if err := verifyTablesExist(db, requiredTables); err != nil {
 		// Если есть ошибки выполнения, добавляем их к ошибке проверки
@@ -440,7 +466,7 @@ func createTestSchema(db *sql.DB) error {
 		}
 		return fmt.Errorf("schema creation failed: %w", err)
 	}
-	
+
 	// Если были ошибки выполнения, но таблицы созданы - предупреждаем, но не падаем
 	if len(executionErrors) > 0 {
 		fmt.Printf("WARNING: Some SQL statements failed, but critical tables exist:\n")
@@ -448,7 +474,7 @@ func createTestSchema(db *sql.DB) error {
 			fmt.Printf("  - %v\n", execErr)
 		}
 	}
-	
+
 	fmt.Printf("Schema created successfully, all critical tables exist\n")
 	return nil
 }

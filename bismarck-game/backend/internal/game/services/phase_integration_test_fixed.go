@@ -16,10 +16,7 @@ import (
 // TestPhaseSequenceIntegration тестирует полную последовательность фаз для проверки корректности работы кнопки "Завершить"
 func TestPhaseSequenceIntegration(t *testing.T) {
 	// Настройка тестовой базы данных
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	// Создаем UnitService и PhaseManager
@@ -188,10 +185,7 @@ func TestPhaseSequenceIntegration(t *testing.T) {
 
 // TestPhaseRecordsIntegration тестирует корректность переходов между фазами
 func TestPhaseRecordsIntegration(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	// Создаем UnitService и PhaseManager
@@ -210,6 +204,7 @@ func TestPhaseRecordsIntegration(t *testing.T) {
 	gameID := "test-game-records"
 	turnNumber := 1
 
+	var err error
 	// Создаем игру
 	err = testutil.CreateTestGame(db.GetConnection(), gameID)
 	if err != nil {
@@ -277,10 +272,7 @@ func TestPhaseRecordsIntegration(t *testing.T) {
 
 // TestPhaseHandlersIntegration тестирует работу обработчиков фаз
 func TestPhaseHandlersIntegration(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	// Создаем UnitService и PhaseManager
@@ -299,6 +291,7 @@ func TestPhaseHandlersIntegration(t *testing.T) {
 	gameID := "test-game-handlers"
 	turnNumber := 1
 
+	var err error
 	// Создаем игру
 	err = testutil.CreateTestGame(db.GetConnection(), gameID)
 	if err != nil {
@@ -345,10 +338,7 @@ func TestPhaseHandlersIntegration(t *testing.T) {
 
 // TestCompleteTurnTransition тестирует переход между ходами
 func TestCompleteTurnTransition(t *testing.T) {
-	db, err := testutil.SetupTestDatabase()
-	if err != nil {
-		t.Fatalf("Failed to setup test database: %v", err)
-	}
+	db := testutil.SetupTestDatabaseOrSkip(t)
 	defer db.Close()
 
 	// Создаем UnitService и PhaseManager
@@ -366,6 +356,7 @@ func TestCompleteTurnTransition(t *testing.T) {
 	phaseManager := NewPhaseManager(db.GetConnection(), unitService, taskForceService, searchService, eventService, wsHub, "http://localhost:8080")
 	gameID := "test-game-transition"
 
+	var err error
 	// Создаем игру
 	err = testutil.CreateTestGame(db.GetConnection(), gameID)
 	if err != nil {
